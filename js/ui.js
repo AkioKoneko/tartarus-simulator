@@ -475,6 +475,7 @@
     if (hunting) for (const o of T.devourOptions(st, sel.n)) targets.set(o.cell, o);
     const victims = new Set(st.phase === 'event' && st.event && st.event.kind === 'execution' ? T.executionVictims(st, st.event.cell).map((c) => c.n) : []);
     const dests = free && st.phase === 'patrol' && !ui.scouting ? new Set(T.patrolOptions(st)) : new Set();
+    $('board').classList.toggle('is-patrolling', dests.size > 0);
     const aim = ui.pending && ui.pending.kind === 'patrol' ? ui.pending.cell : ui.hover;
     const path = st.chain && st.phase === 'patrol' && dests.has(aim) ? new Set(T.clockwisePath(st, aim)) : new Set();
     const pendingTarget = ui.pending && ui.pending.kind === 'devour' ? ui.pending.to : null;
@@ -548,7 +549,8 @@
         return `<div class="${p.cls.join(' ')}" style="grid-row:${row};grid-column:${col}"><span class="cell-body">${p.body}</span><span class="door"></span><span class="cell-no">${L(cell.n)}</span><span class="cell-hint">${p.hint}</span><span class="cell-badges">${p.badges}</span><span class="cell-tag">${dests.has(cell.n) ? 'Go' : ''}</span><span class="cell-warden">${p.warden ? LANTERN : ''}</span></div>`;
       })
       .join('');
-    $('sample-board').innerHTML = `${html}<div class="board-center"><div class="decision"><div class="decision-text"><p class="decision-title">Patrol: pick a door</p><p class="decision-detail">Day 9. Three dashed doors are today's destinations. The warden walks there and the door opens.</p></div></div></div>`;
+    $('sample-board').classList.add('is-patrolling');
+    $('sample-board').innerHTML = `${html}<div class="board-center"><div class="decision"><div class="decision-text"><p class="decision-title">Patrol: pick a door</p><p class="decision-detail">Day 9. The three glowing doors are today's destinations. The warden walks there and the door opens.</p></div></div></div>`;
   }
 
   // ---------- Rendering: decision panel ----------
@@ -613,7 +615,7 @@
     }
     if (st.phase === 'patrol') {
       const options = T.patrolOptions(st);
-      const parts = [`The warden stands at cell ${L(st.position)}. Pick one of the ${T.plural(options.length, 'outlined door')}.`];
+      const parts = [`The warden stands at cell ${L(st.position)}. Pick one of the ${T.plural(options.length, 'glowing door')}.`];
       if (st.chain) parts.push('Chain reaction armed: every sealed door on the clockwise walk opens.');
       if (st.mode === 'challenge' && st.challenge.intel !== null) parts.push(`Route locked to cell ${L(st.challenge.intel)} or an open cell.`);
       else if (st.cells.some((c) => T.canScout(st, c))) parts.push(st.mode === 'challenge' ? 'You can scout a destination for 1 voucher.' : 'You can scout a sealed door first.');

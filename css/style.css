@@ -891,14 +891,34 @@ img.portrait {
   outline-offset: -5px;
 }
 
+/* Today's patrol choices: a bright frame and glow so they stand out. */
 .cell.is-dest {
-  outline: 2px dashed var(--bone);
-  outline-offset: -5px;
+  z-index: 1;
+  outline: 3px solid var(--bone);
+  outline-offset: 1px;
+  box-shadow: 0 0 18px 4px color-mix(in srgb, var(--bone) 60%, transparent);
+}
+
+.cell.is-dest .door {
+  box-shadow: inset 0 0 0 2px var(--bone), inset 0 0 30px color-mix(in srgb, var(--bone) 45%, transparent);
+  filter: brightness(1.35);
+}
+
+.cell.is-dest .cell-tag {
+  padding: 3px 6px;
+  font-size: clamp(8px, 11cqi, 13px);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--bone) 80%, transparent);
 }
 
 .cell.is-dest.is-selected {
-  outline-style: solid;
+  outline-width: 4px;
   outline-offset: 2px;
+  box-shadow: 0 0 28px 7px color-mix(in srgb, var(--bone) 80%, transparent);
+}
+
+/* While patrolling, sealed doors you can't pick today step back. */
+.board.is-patrolling .cell.is-sealed:not(.is-dest) .door {
+  filter: brightness(0.55) saturate(0.7);
 }
 
 .cell.on-path .door {
@@ -972,12 +992,12 @@ img.portrait {
 }
 
 @keyframes pulse-dest {
-  0%, 100% { outline-color: color-mix(in srgb, var(--bone) 45%, transparent); }
-  50% { outline-color: var(--bone); }
+  0%, 100% { box-shadow: 0 0 14px 3px color-mix(in srgb, var(--bone) 50%, transparent); }
+  50% { box-shadow: 0 0 26px 8px color-mix(in srgb, var(--bone) 85%, transparent); }
 }
 
 .board.is-live .cell.is-dest:not(.is-selected) {
-  animation: pulse-dest 2.2s ease-in-out infinite;
+  animation: pulse-dest 1.8s ease-in-out infinite;
 }
 
 @container (max-width: 80px) {
