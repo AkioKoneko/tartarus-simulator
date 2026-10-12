@@ -1,6 +1,6 @@
 # Tartarus Simulator
 
-A free, fan-made English translation of [塔羅斯监狱 (Talos Prison)](https://torchlightskill.com/talos/), the Chinese practice simulator for the Tartarus prison season (SS14) of *Torchlight: Infinite*. You walk the ring of fifteen cells around the warden's office: patrol a door each morning, let beasts devour same-rarity rivals, and raise inmates from Normal to Rainbow before the handoff.
+A free, fan-made English practice simulator for the Tartarus prison season (SS14) of *Torchlight: Infinite*. It began as a translation of the Chinese fan simulator [塔羅斯监狱 (Talos Prison)](https://torchlightskill.com/talos/), but its rules have since been updated to match the video reveal, so it now differs heavily from the Chinese sim. You walk the ring of fifteen cells around the warden's office: patrol a door each morning, let beasts devour same-rarity rivals, and raise inmates from Normal to Rainbow before the handoff.
 
 ## Play it
 
@@ -10,7 +10,7 @@ A free, fan-made English translation of [塔羅斯监狱 (Talos Prison)](https:/
 
 ## How it plays
 
-The rules and board layout follow the original Chinese tool, so the mechanics behave the same way:
+The board layout follows the original Chinese tool. The rules follow the video reveal wherever it shows them, and practice values fill the gaps:
 
 - **The ring.** 16 cells sit around a 6×4 board, numbered clockwise from the top-left corner. Cell 01 is the warden's office: every run starts there and nothing is ever held in it, so 15 cells hold prisoners. The decision panel sits in the courtyard in the middle, and a lantern marks the warden's cell.
 - **Patrols.** Each morning offers 3 destination cells from the next 5 clockwise from the warden, or 2 while you hold the Burning Stake. The office counts as one of the 5 steps but is never offered. They appear as cards under the ring and glow on it. A destination can be a locked cell, which opens when the warden arrives, or a cell with an inmate you already know. You can't see inside a locked cell until it opens. Devoured, swapped and delivered inmates leave their cells sealed again.
@@ -34,6 +34,6 @@ The rules and board layout follow the original Chinese tool, so the mechanics be
 
 ## Credits
 
-This is an English translation of the Chinese fan simulator [塔羅斯监狱 (Talos Prison)](https://torchlightskill.com/talos/) by 爱玩游戏的吉吉罗 ([Douyin](https://v.douyin.com/okD24Xnc6wo/), also 二零后游戏荒 on [Bilibili](https://space.bilibili.com/39881994)). Its rules and board layout follow the original, and the original author is not involved in this version. This English version is an independent re-implementation with its own code and artwork: the beast portraits and the courtyard backdrop were drawn for this project. No code, images or audio were copied from that tool.
+This began as an English translation of the Chinese fan simulator [塔羅斯监狱 (Talos Prison)](https://torchlightskill.com/talos/) by 爱玩游戏的吉吉罗 ([Douyin](https://v.douyin.com/okD24Xnc6wo/), also 二零后游戏荒 on [Bilibili](https://space.bilibili.com/39881994)). The board layout follows the original, but the rules have since been updated to match the video reveal, so this version now differs heavily from the Chinese sim. The original author is not involved in this version. This English version is an independent re-implementation with its own code and artwork: the beast portraits and the courtyard backdrop were drawn for this project. No code, images or audio were copied from that tool.
 
 Unofficial. Not affiliated with or endorsed by the developers or publishers of *Torchlight: Infinite*. Odds, daily limits and the contract challenge are practice values and may differ from the live game.
