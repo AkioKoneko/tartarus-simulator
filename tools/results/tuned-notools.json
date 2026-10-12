@@ -1,7 +1,7 @@
 {
   "tierBase": 2.5,
   "rainbowMult": 2,
-  "wOpen": 1.5,
+  "wOpen": 1.875,
   "wNow": 1,
   "wWalk": 1,
   "wStep": 1,
@@ -13,14 +13,14 @@
   "execMargin": 0,
   "acceptChain": true,
   "toolRank": [
-    "muzzle",
-    "saw",
+    "rope",
     "revenge",
     "skewer",
+    "fire",
+    "saw",
     "keys",
-    "rope",
-    "ironbox",
-    "fire"
+    "muzzle",
+    "ironbox"
   ],
   "giftRank": null
 }

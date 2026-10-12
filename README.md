@@ -22,7 +22,11 @@ The board layout follows the original Chinese tool. The rules follow the video r
 - **Hard mode.** An optional harder food chain on the New Run screen and in the Lab, off by default: a simple loop where Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat and Rat eats Mammoth. It's uncertain which food chain live uses, so you can practice either version.
 - **Tools and the Warden's Cache.** In drills and the challenge alike, your first Supreme earns a tool (pick one of three), and each Rainbow opens the Warden's Cache for a gift. The Lab can start drills with random tools, or switch rewards off for pure rules practice.
 - **Contract challenge.** 12 days and 6 dispatch vouchers. Contracts fall due at the end of days 4, 8 and 12, each with a delivery window. Vouchers pay for escorts and refit refreshes. Light/heavy escorts carry pressure limits, the heavy contract can be delivered early from day 9, and you earn refit tools, a Supreme milestone tool and Warden's Cache gifts.
-- **Solver.** Toggle it from the top bar to see every option at the current point of the run. Each option is played out hundreds of times from there, with everything you can't see re-rolled each time and a tuned strategy making every later choice. Options are ranked by Rainbows vaulted. It runs in a Web Worker, and on the page itself when opened from disk.
+- **Trainer.** An optional sidebar, toggled from the top bar, that works in every situation:
+  - **Recommended move:** the trained strategy's pick appears at once, with its reason and the matching lesson from training. The recommended cell, card or button is marked on the board.
+  - **Live check:** every option is played out hundreds of times from the current position, with everything you can't see re-rolled each time. Options are ranked by Rainbows vaulted, or by the chance to pass in the contract challenge.
+  - **Grades:** each move you make is graded against that check (best, close, or what it cost), with a tally for the run.
+  - **Where it runs:** in a Web Worker, or on the page itself when opened from disk.
 - **Strategy lab.** `tools/strategy-sim.js` plays millions of simulated runs on every CPU core to tune that strategy and rank tools, gifts and chain setups. No AI: every choice comes from scoring rules. See [tools/README.md](tools/README.md).
 - **Everything else.** Seeds, undo, autosave, export/import, a Lab (scene editor and adjustable practice values) and a handbook.
 

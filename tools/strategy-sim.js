@@ -12,6 +12,7 @@
  *   node tools/strategy-sim.js gifts  [--games 200000]
  *   node tools/strategy-sim.js chains [--games 200000]
  *   node tools/strategy-sim.js report [--games 1000000]   (everything, written to tools/results)
+ *   node tools/strategy-sim.js train  [--games 150000] [--final 1000000]   (fine-tunes every profile the solver uses)
  *
  *   Options: --threads N (default: cores - 1), --seed WORD, --params file.json
  */
@@ -186,6 +187,7 @@ const RESULTS = path.join(__dirname, 'results');
 const pool = [];
 const waiting = new Map();
 let nextId = 1;
+let GAMES_PLAYED = 0;
 for (let i = 0; i < THREADS; i++) {
   const w = new Worker(__filename);
   w.on('message', ({ id, stats }) => {
@@ -205,12 +207,19 @@ function run(policy, params, game, games, extra) {
   const size = Math.ceil(games / chunks);
   const jobs = [];
   for (let from = 0; from < games; from += size) {
-    jobs.push({ policy, params, game, from, to: Math.min(games, from + size), seed: SEED, stairs: !!(extra && extra.stairs) });
+    jobs.push({ policy, params, game, from, to: Math.min(games, from + size), seed: (extra && extra.seed) || SEED, stairs: !!(extra && extra.stairs) });
   }
   let next = 0;
   const total = emptyStats();
-  return new Promise((resolve) => {
+  return new Promise((resolveRun) => {
     let active = 0;
+    let finished = false;
+    const resolve = (stats) => {
+      if (finished) return;
+      finished = true;
+      GAMES_PLAYED += stats.games;
+      resolveRun(stats);
+    };
     const launch = (worker) => {
       if (next >= jobs.length) {
         if (!active) resolve(total);
@@ -276,13 +285,13 @@ const GRID = {
   acceptChain: [true, false],
 };
 
-async function tune(game, games, rounds, start) {
+async function tune(game, games, rounds, start, grid) {
   let best = Object.assign({}, S.DEFAULTS, start || {});
   let bestStats = await run('solver', best, game, games);
   console.log(`start: ${fmt(bestStats)}`);
   for (let round = 1; round <= rounds; round++) {
     let changed = false;
-    for (const [key, values] of Object.entries(GRID)) {
+    for (const [key, values] of Object.entries(grid || GRID)) {
       const tried = [];
       for (const value of values) {
         if (value === best[key]) {
@@ -306,6 +315,55 @@ async function tune(game, games, rounds, start) {
     if (!changed) break;
   }
   return { params: best, stats: bestStats };
+}
+
+// A finer grid around a set of weights, for training on top of a tuning.
+function fineGrid(p) {
+  const scale = (v, factors) => [...new Set(factors.map((f) => +(v * f).toFixed(3)))];
+  return {
+    tierBase: [p.tierBase - 0.25, p.tierBase, p.tierBase + 0.25],
+    rainbowMult: scale(p.rainbowMult, [0.75, 1, 1.5]),
+    wOpen: scale(p.wOpen, [0.75, 1, 1.25]),
+    wNow: scale(p.wNow, [0.75, 1, 1.25]),
+    wWalk: scale(p.wWalk, [0.75, 1, 1.25]),
+    wStep: [p.wStep - 0.5, p.wStep, p.wStep + 0.5, p.wStep + 1],
+    wChain: scale(p.wChain, [0.5, 1, 1.5]),
+    wStair: scale(p.wStair, [0.5, 1, 1.5]),
+    swapMaxTier: [p.swapMaxTier - 1, p.swapMaxTier, p.swapMaxTier + 1].filter((v) => v >= -1 && v <= 4),
+    minDevour: [-1, 0, 1],
+    execMargin: [-5, 0, 5, 10],
+    acceptChain: [true, false],
+  };
+}
+
+// Training: fine-tunes every profile the solver uses, then scores the old
+// and new weights on a fresh set of prisons, so the comparison is fair.
+async function train(games) {
+  const t0 = Date.now();
+  const finalGames = Number(opt('final', 1000000));
+  const variants = [
+    { name: 'rewards', profile: 'rewards', game: { rewards: true }, games, rounds: 2 },
+    { name: 'notools', profile: 'notools', game: { rewards: false }, games, rounds: 2 },
+    { name: 'loop-rewards', profile: 'rewards', game: { rewards: true, loop: true }, games: Math.round(games / 3), rounds: 1 },
+    { name: 'loop-notools', profile: 'notools', game: { rewards: false, loop: true }, games: Math.round(games / 3), rounds: 1 },
+  ];
+  const out = { when: new Date().toISOString(), threads: THREADS, gamesPerTest: games, finalGames, variants: {} };
+  for (const v of variants) {
+    console.log(`
+== ${v.name}: fine-tune on ${v.games.toLocaleString()} runs per test ==`);
+    const start = Object.assign({}, S.DEFAULTS, S.PROFILES[v.profile]);
+    const tuned = await tune(v.game, v.games, v.rounds, start, fineGrid(start));
+    save(`tuned-${v.name}.json`, tuned.params);
+    const before = await run('solver', start, v.game, finalGames, { seed: 'FINAL' });
+    const after = await run('solver', tuned.params, v.game, finalGames, { seed: 'FINAL' });
+    out.variants[v.name] = { params: tuned.params, before: describe(before), after: describe(after) };
+    console.log(`${v.name} on fresh prisons: before ${fmt(before)}, after ${fmt(after)}`);
+  }
+  out.totalGames = GAMES_PLAYED;
+  out.seconds = +((Date.now() - t0) / 1000).toFixed(1);
+  save('train-report.json', out);
+  console.log(`
+trained on ${GAMES_PLAYED.toLocaleString()} simulated runs in ${(out.seconds / 60).toFixed(1)} minutes; saved tools/results/train-report.json`);
 }
 
 // ---------- Chain math (exact, no simulation) ----------
@@ -384,6 +442,8 @@ async function main() {
     for (const r of rows.slice(0, 25)) console.log(`  ${r.key.padEnd(8)} n=${String(r.n).padStart(8)}  Rainbow ${pct(r.rainbow).padStart(6)}  bites ${r.bites.toFixed(2)}`);
   } else if (mode === 'report') {
     await report(games);
+  } else if (mode === 'train') {
+    await train(games);
   }
   console.log(`\ndone in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   pool.forEach((p) => p.w.terminate());

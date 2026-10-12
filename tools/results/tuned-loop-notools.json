@@ -1,0 +1,26 @@
+{
+  "tierBase": 2.5,
+  "rainbowMult": 2,
+  "wOpen": 1.5,
+  "wNow": 0.75,
+  "wWalk": 1,
+  "wStep": 1,
+  "wNest": -6,
+  "wChain": 16,
+  "wStair": 0.125,
+  "minDevour": 0,
+  "swapMaxTier": 1,
+  "execMargin": 5,
+  "acceptChain": true,
+  "toolRank": [
+    "rope",
+    "revenge",
+    "skewer",
+    "fire",
+    "saw",
+    "keys",
+    "muzzle",
+    "ironbox"
+  ],
+  "giftRank": null
+}

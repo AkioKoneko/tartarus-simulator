@@ -112,6 +112,7 @@
     labParams: T.normalizeParams(store.get(KEYS.params)),
     labCell: 1,
     actedOn: null,
+    trainer: null,
     labTab: 'scene',
     toastTimer: 0,
     endArmed: 0,
@@ -196,6 +197,7 @@
     }
     ui.history.push(snapshot);
     if (ui.history.length > HISTORY_LIMIT) ui.history.shift();
+    gradeMove(snapshot);
     if (!options.keepPending) ui.pending = null;
     if ('select' in options) ui.selected = options.select;
     tidySelection();
@@ -236,6 +238,7 @@
     ui.state = T.deserialize(ui.history.pop());
     ui.selected = null;
     ui.pending = null;
+    if (ui.trainer) ui.trainer.last = null;
     persist();
     closeRunDialogs();
     if (ui.screen !== 'game') showScreen('game');
@@ -1073,20 +1076,46 @@
     }
   }
 
-  // ---------- Solver ----------
+  // ---------- Trainer ----------
 
-  // The solver panel: every option at this point of the run, played out many
-  // times from here by js/solver.js and ranked by Rainbows vaulted. It runs in
-  // a Web Worker when the page allows one, and on this thread otherwise.
+  // The trainer panel: the recommended move right away (the trained strategy's
+  // pick), then a live check that plays every option out many times from the
+  // current position with js/solver.js, and a grade for each move you make.
+  // The playouts run in a Web Worker when the page allows one, and on this
+  // thread otherwise. Drills are scored by Rainbows, the challenge by passing.
   const SOLVER_ROLLOUTS = 800;
   const SOLVER_ROLLOUTS_HERE = 300;
-  const solver = { worker: null, failed: false, id: 0, key: '', result: null };
+  const LIVE_MIN = 150; // playouts per option before the live check leads
+  const solver = { worker: null, failed: false, id: 0, key: '', result: null, instantKey: '', instant: null };
 
-  const solverKey = (st) => [st.seed, st.day, st.phase, st.position, st.log.length, st.pending.length, st.used.swap, st.used.devour, ui.history.length].join('|');
+  const solverKey = (st) => {
+    const last = st.log[st.log.length - 1];
+    return [st.seed, st.day, st.phase, st.position, st.log.length, last ? last.t : '', st.pending.length, st.used.swap, st.used.devour, st.vault.length, st.challenge ? `${st.challenge.deliveries.length}${st.challenge.window ? 'w' : ''}` : ''].join('|');
+  };
 
-  // The contract challenge scores contracts, not Rainbows, and delivery
-  // windows are about cargo, so those get the quick tips instead.
-  const solverFits = (st) => st && st.mode === 'drill' && st.phase !== 'ended';
+  const solverFits = (st) => st && st.phase !== 'ended';
+
+  // What the training found for each kind of decision.
+  const LESSONS = {
+    patrol: 'Training: opening doors and walking further vaulted more Rainbows than walking to an inmate with nothing to eat.',
+    devour: 'Training: devour every day you can. Waiting for a bigger chain lost Rainbows (0.57 against 0.66 per run).',
+    swap: 'Training: swap low-tier inmates in the warden’s cell. Never swapping halved the Rainbows.',
+    end: 'Training: end the day once nothing here gains.',
+    early: 'Contracts: the heavy contract is needed to pass, and delivering it early ends the run.',
+    chain: 'Training: accepting Chain reactions vaulted 0.66 Rainbows per run, against 0.53 when skipped.',
+    execution: 'Training: accept an Execution only when it gains more than it removes.',
+    tool: 'Training ranking: Hangman’s Rope, Avenger’s Box, Rat-Head Skewer, Burning Stake, Rusty Saw, Lost Key Ring, Agony Muzzle. The Writhing Iron Box hurt.',
+    gift: 'Training: picking the gift that fits the board beat always taking the same one.',
+    window: 'Contracts: deliver when the cargo meets the contract. You need two, including the heavy one.',
+  };
+
+  function lessonFor(st, action) {
+    if (st.pending.length) return LESSONS[st.pending[0].kind === 'gift' ? 'gift' : 'tool'];
+    if (st.challenge && st.challenge.window) return LESSONS.window;
+    if (st.phase === 'event' && st.event) return LESSONS[st.event.kind === 'chain' ? 'chain' : 'execution'];
+    if (st.phase === 'patrol') return action && action.type === 'early' ? LESSONS.early : LESSONS.patrol;
+    return (action && LESSONS[action.type]) || '';
+  }
 
   function startSolver() {
     const st = ui.state;
@@ -1104,6 +1133,7 @@
           if (e.data.id !== solver.id) return;
           solver.result = e.data.result;
           renderSolver();
+          renderHints();
         };
         solver.worker.onerror = () => {
           // Fall back to this thread, and redo the current position.
@@ -1127,9 +1157,42 @@
       if (id !== solver.id) return;
       solver.result = job.step(12);
       renderSolver();
+      renderHints();
       if (!solver.result.done) setTimeout(tick, 16);
     };
     setTimeout(tick, 0);
+  }
+
+  // The trained strategy's pick for this position, worked out once.
+  function instantPick(st) {
+    const key = solverKey(st);
+    if (solver.instantKey !== key) {
+      solver.instantKey = key;
+      try {
+        solver.instant = window.TartarusSolver.instant(st);
+      } catch (e) {
+        solver.instant = null;
+      }
+    }
+    return solver.instant;
+  }
+
+  // The move to recommend: the strategy's instant pick, unless the live check
+  // finds a clearly better move (by more than its margin of error), so the
+  // recommendation doesn't flicker between near-equal options.
+  function recommendation(st) {
+    if (!ui.prefs.advisor || !solverFits(st)) return null;
+    const S = window.TartarusSolver;
+    const pick = instantPick(st);
+    const r = solver.key === solverKey(st) ? solver.result : null;
+    const live = r && r.options.length > 1 && (r.done || r.rounds >= LIVE_MIN) ? r.options[0] : null;
+    if (!live) return pick ? Object.assign({ live: false }, pick) : null;
+    const mine = pick && r.options.find((o) => S.sameAction(o.action, pick.action));
+    if (mine && (mine === live || live.mean - mine.mean <= 1.96 * Math.hypot(live.se, mine.se))) {
+      const why = mine === live ? pick.why : `${pick.why} The live check rates it about equal to the best.`;
+      return Object.assign({ live: true, rounds: r.rounds }, pick, { label: mine.label, why });
+    }
+    return { action: live.action, label: live.label, why: `The playouts found a better move than the strategy’s pick${pick ? ` (${pick.label})` : ''}.`, live: true, rounds: r.rounds };
   }
 
   function playSolverMove(action) {
@@ -1140,22 +1203,100 @@
     else run((s) => window.TartarusSolver.apply(s, action));
   }
 
+  // ---------- Grading your moves ----------
+
+  function trainerFor(st) {
+    if (!ui.trainer || ui.trainer.seed !== st.seed) ui.trainer = { seed: st.seed, moves: 0, good: 0, lost: 0, last: null };
+    return ui.trainer;
+  }
+
+  // Grades the move just made against the live check of the position before
+  // it. Called by run() after a move succeeds.
+  function gradeMove(snapshot) {
+    if (!ui.prefs.advisor) return;
+    const before = T.deserialize(snapshot);
+    if (!solverFits(before)) return;
+    const move = window.TartarusSolver.moveBetween(before, ui.state);
+    if (!move) return;
+    const t = trainerFor(ui.state);
+    const r = solver.key === solverKey(before) ? solver.result : null;
+    if (!r || r.options.length < 2 || r.rounds < 60) {
+      t.last = r && r.options.length < 2 ? null : { verdict: 'pending' };
+      return;
+    }
+    const best = r.options[0];
+    const chosen = r.options.find((o) => window.TartarusSolver.sameAction(o.action, move));
+    if (!chosen) {
+      t.last = null;
+      return;
+    }
+    const loss = Math.max(0, best.mean - chosen.mean);
+    const margin = 1.96 * Math.hypot(best.se, chosen.se);
+    const verdict = chosen === best ? 'best' : loss <= margin ? 'close' : 'costly';
+    t.moves += 1;
+    if (verdict === 'costly') t.lost += loss;
+    else t.good += 1;
+    t.last = { verdict, loss, goal: r.goal, chosen: chosen.label, best: best.label, chosenMean: chosen.mean, bestMean: best.mean };
+  }
+
+  const fmtGoal = (goal, v) => (goal === 'pass' ? `${Math.round(100 * v)}%` : v.toFixed(2));
+  const goalUnit = (goal) => (goal === 'pass' ? 'pass chance' : 'Rainbows');
+
+  function renderGrade(st) {
+    const box = $('trainer-grade');
+    const t = ui.trainer && ui.trainer.seed === st.seed ? ui.trainer : null;
+    box.hidden = !t || (!t.last && !t.moves);
+    if (box.hidden) return;
+    let html = '';
+    const last = t.last;
+    if (last && last.verdict === 'pending') {
+      html += '<p class="trainer-eyebrow">Your last move</p><p class="trainer-verdict">Not graded: the trainer was still checking that position.</p>';
+    } else if (last) {
+      const title = last.verdict === 'best' ? 'The best move ✓' : last.verdict === 'close' ? 'Close to the best ✓' : `Cost about ${fmtGoal(last.goal, last.loss)} ${goalUnit(last.goal)}`;
+      const detail = last.verdict === 'best'
+        ? `${esc(last.chosen)}: ${fmtGoal(last.goal, last.chosenMean)} expected.`
+        : `You chose ${esc(last.chosen)} (${fmtGoal(last.goal, last.chosenMean)}). The trainer preferred ${esc(last.best)} (${fmtGoal(last.goal, last.bestMean)}).${last.verdict === 'close' ? ' That’s within the margin of error.' : ''}`;
+      html += `<p class="trainer-eyebrow">Your last move</p><p class="trainer-verdict is-${last.verdict}">${title}</p><p class="trainer-detail">${detail}</p>`;
+    }
+    if (t.moves) html += `<p class="trainer-session">This run: ${t.good} of ${T.plural(t.moves, 'graded move')} best or close${t.lost > 0.005 ? `, about ${t.lost.toFixed(2)} expected ${goalUnit(st.mode === 'challenge' ? 'pass' : 'rainbows')} given up` : ''}.</p>`;
+    setHTML(box, html);
+  }
+
   function renderSolver() {
     const st = ui.state;
     if (!ui.prefs.advisor || !solverFits(st)) return;
-    const r = solver.result;
+    const S = window.TartarusSolver;
+    const r = solver.key === solverKey(st) ? solver.result : null;
     const options = r ? r.options : [];
+    const goal = r ? r.goal : st.mode === 'challenge' ? 'pass' : 'rainbows';
+
+    // The recommendation, then the lesson from training for this decision.
+    const rec = recommendation(st);
+    const pickBox = $('trainer-pick');
+    if (rec) {
+      pickBox.hidden = false;
+      const source = rec.live ? `Checked by ${rec.rounds.toLocaleString()} playouts per option` : 'Instant pick from training · checking…';
+      setHTML(pickBox, `<p class="trainer-eyebrow">Recommended · ${esc(source)}</p><p class="trainer-move">${esc(rec.label)}</p>${rec.why ? `<p class="trainer-why">${esc(rec.why)}</p>` : ''}<p class="trainer-lesson">${esc(lessonFor(st, rec.action))}</p><div class="trainer-play"></div>`);
+      const slot = pickBox.querySelector('.trainer-play');
+      slot.appendChild(makeButton('Play it', () => playSolverMove(rec.action), 'primary'));
+    } else {
+      pickBox.hidden = true;
+    }
+    renderGrade(st);
+
+    // The live check: every option with its expected result.
     const status = $('solver-status');
-    if (!r) status.textContent = 'Simulating…';
+    if (!r) status.textContent = 'Live check: starting…';
     else if (options.length <= 1) status.textContent = options.length ? 'Only one move here.' : 'Nothing to decide right now.';
-    else status.textContent = r.done ? `Done: ${r.rounds.toLocaleString()} playouts per option` : `Simulating: ${r.rounds.toLocaleString()} playouts per option…`;
+    else status.textContent = r.done ? `Live check: ${r.rounds.toLocaleString()} playouts per option` : `Live check: ${r.rounds.toLocaleString()} playouts per option so far…`;
     const top = options[0];
     const max = Math.max(0.01, ...options.map((o) => o.mean));
     const close = top && options[1] && top.mean - options[1].mean < 1.96 * Math.hypot(top.se, options[1].se);
     $('solver-list').replaceChildren(
-      ...options.map((o, i) => {
+      ...(options.length > 1 ? options : []).map((o, i) => {
         const li = document.createElement('li');
-        li.className = 'solver-row' + (i === 0 ? ' is-best' : '');
+        const chosen = rec ? S.sameAction(o.action, rec.action) : i === 0;
+        li.className = 'solver-row' + (chosen ? ' is-best' : '');
         const label = document.createElement('span');
         label.className = 'solver-label';
         label.textContent = o.label;
@@ -1163,42 +1304,62 @@
           const tag = document.createElement('span');
           tag.className = 'solver-tag';
           tag.textContent = 'strategy';
-          tag.title = 'The tuned strategy would pick this move without simulating.';
+          tag.title = 'The trained strategy picks this move without simulating.';
           label.appendChild(tag);
         }
         const value = document.createElement('span');
         value.className = 'solver-value';
-        value.textContent = options.length > 1 ? `${o.mean.toFixed(2)}${o.n > 1 ? ` ±${(1.96 * o.se).toFixed(2)}` : ''}` : '';
-        value.title = 'Expected Rainbows vaulted by the end of the run, with a 95% margin';
-        li.append(label, value);
-        if (options.length > 1) {
-          const meter = document.createElement('span');
-          meter.className = 'solver-meter';
-          meter.innerHTML = `<span style="width:${Math.max(2, (100 * o.mean) / max).toFixed(1)}%"></span>`;
-          li.appendChild(meter);
-        }
+        value.textContent = `${fmtGoal(goal, o.mean)}${o.n > 1 ? ` ±${fmtGoal(goal, 1.96 * o.se)}` : ''}`;
+        value.title = goal === 'pass' ? 'Chance to pass the challenge, with a 95% margin' : 'Expected Rainbows vaulted by the end of the run, with a 95% margin';
+        const meter = document.createElement('span');
+        meter.className = 'solver-meter';
+        meter.innerHTML = `<span style="width:${Math.max(2, (100 * o.mean) / max).toFixed(1)}%"></span>`;
+        li.append(label, value, meter);
+        const subs = [];
+        if (goal === 'pass') subs.push(`about ${Math.round(o.best)} points on average`);
         // A devour also shows its exact chain odds.
         if (o.action.type === 'devour') {
-          const odds = window.TartarusSolver.chainOdds(st, st.position, o.action.to);
+          const odds = S.chainOdds(st, st.position, o.action.to);
+          subs.push(`chain: ${odds.bites.toFixed(1)} bites on average, ${(100 * odds.rainbow).toFixed(0)}% to Rainbow`);
+        }
+        if (subs.length) {
           const sub = document.createElement('span');
           sub.className = 'solver-sub';
-          sub.textContent = `Chain: ${odds.bites.toFixed(1)} bites on average, ${(100 * odds.rainbow).toFixed(0)}% to Rainbow`;
+          sub.textContent = subs.join(' · ');
           li.appendChild(sub);
         }
-        if (i === 0 || options.length <= 4) li.appendChild(makeButton(i === 0 ? 'Play' : 'Play this', () => playSolverMove(o.action), i === 0 ? 'primary' : null));
+        if (!chosen && options.length <= 5) li.appendChild(makeButton('Play this', () => playSolverMove(o.action)));
         return li;
       }),
     );
-    $('solver-note').textContent = close
-      ? 'The top moves are within the margin of error: either is fine.'
-      : 'Each option is played out from here with everything you can’t see re-rolled, and the tuned strategy making every later choice. Scores are Rainbows vaulted by the end of the run.';
+    $('solver-note').textContent = options.length < 2
+      ? ''
+      : close
+        ? 'The top moves are within the margin of error: either is fine.'
+        : `Each option is played out from here with everything you can’t see re-rolled, and the trained strategy making every later choice. Scores are ${goal === 'pass' ? 'the chance to pass the challenge' : 'Rainbows vaulted by the end of the run'}.`;
+  }
+
+  // Marks the recommended move on the board and the action bar.
+  function renderHints() {
+    const st = ui.state;
+    if (!st) return;
+    const rec = recommendation(st);
+    const a = rec ? rec.action : null;
+    const cell = a && a.type === 'patrol' ? a.cell : a && a.type === 'devour' ? a.to : null;
+    cellEls.forEach((el, n) => el.btn.classList.toggle('is-hint', n === cell));
+    for (const card of document.querySelectorAll('#dest-cards [data-dest]')) card.classList.toggle('is-hint', Number(card.dataset.dest) === cell);
+    $('btn-swap').classList.toggle('is-hint', !!a && a.type === 'swap');
+    $('btn-end').classList.toggle('is-hint', !!a && a.type === 'end');
   }
 
   function renderAdvisor() {
     const panel = $('panel-advisor');
     panel.hidden = !ui.prefs.advisor;
     $('btn-advisor').setAttribute('aria-pressed', String(ui.prefs.advisor));
-    if (!ui.prefs.advisor) return;
+    if (!ui.prefs.advisor) {
+      renderHints();
+      return;
+    }
     const st = ui.state;
     const fits = solverFits(st);
     $('solver-box').hidden = !fits;
@@ -1206,26 +1367,12 @@
     if (fits) {
       startSolver();
       renderSolver();
+      renderHints();
       return;
     }
-    const tips = T.advise(ui.state);
-    const list = $('advisor-list');
-    if (!tips.length) {
-      list.innerHTML = '<li class="tip"><span>The run is over. Open the handoff roster to review it.</span></li>';
-      return;
-    }
-    list.replaceChildren(
-      ...tips.map((tip) => {
-        const li = document.createElement('li');
-        li.className = 'tip';
-        const text = document.createElement('span');
-        text.textContent = tip.text;
-        li.appendChild(text);
-        const action = tipAction(tip);
-        if (action) li.appendChild(makeButton(action[0], action[1]));
-        return li;
-      }),
-    );
+    renderHints();
+    const t = ui.trainer && ui.trainer.seed === st.seed && ui.trainer.moves ? ui.trainer : null;
+    $('advisor-list').innerHTML = `<li class="tip"><span>The run is over. Open the handoff roster to review it.${t ? ` You made ${t.good} of ${T.plural(t.moves, 'graded move')} best or close.` : ''}</span></li>`;
   }
 
   function render() {
@@ -1271,6 +1418,7 @@
 
   function startRun(opts) {
     ui.state = T.newGame(Object.assign({ params: ui.labParams }, opts));
+    ui.trainer = null;
     ui.history = [];
     ui.selected = null;
     ui.pending = null;

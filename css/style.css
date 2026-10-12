@@ -1720,7 +1720,95 @@ a {
   list-style: none;
 }
 
-/* Solver: each option with its expected Rainbows and a bar to compare. */
+/* Trainer: the recommended move, your last move's grade, the live check. */
+.trainer-pick,
+.trainer-grade {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--teal);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--teal) 8%, var(--slab));
+}
+
+.trainer-grade {
+  border-color: var(--iron-hi);
+  background: var(--slab);
+}
+
+.trainer-pick p,
+.trainer-grade p {
+  margin: 0;
+}
+
+.trainer-eyebrow {
+  font: 500 10.5px/1.3 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ash);
+}
+
+.trainer-move {
+  font: 800 18px/1.15 var(--font-display);
+  letter-spacing: 0.03em;
+  color: var(--chalk);
+}
+
+.trainer-why,
+.trainer-detail {
+  font-size: 13px;
+  color: var(--chalk);
+}
+
+.trainer-lesson,
+.trainer-session {
+  font-size: 12px;
+  color: var(--ash);
+}
+
+.trainer-play {
+  margin-top: 4px;
+}
+
+.trainer-verdict {
+  font: 700 14px/1.2 var(--font-body);
+  color: var(--chalk);
+}
+
+.trainer-verdict.is-best,
+.trainer-verdict.is-close {
+  color: var(--moss);
+}
+
+.trainer-verdict.is-costly {
+  color: var(--blood);
+}
+
+/* The trainer's recommended cell, card or button. */
+.cell.is-hint {
+  outline: 2px dashed var(--teal);
+  outline-offset: 2px;
+}
+
+.cell.is-hint .cell-tag {
+  background: var(--teal);
+}
+
+.dest-card.is-hint {
+  border-color: var(--teal);
+}
+
+.dest-card.is-hint .dest-label::before {
+  content: "★ ";
+  color: var(--teal);
+}
+
+.actionbar .btn.is-hint {
+  box-shadow: 0 0 0 2px var(--teal);
+}
+
+/* Live check: each option with its expected result and a bar to compare. */
 .solver-status {
   margin: 0 0 8px;
   font: 500 11px/1.3 var(--font-mono);
@@ -1748,9 +1836,14 @@ a {
   background: var(--slab);
 }
 
+/* The recommended option, in the trainer's color. */
 .solver-row.is-best {
-  border-color: var(--bone);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bone) 25%, transparent);
+  border-color: var(--teal);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--teal) 25%, transparent);
+}
+
+.solver-row.is-best .solver-meter span {
+  background: var(--teal);
 }
 
 .solver-label {

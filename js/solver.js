@@ -38,13 +38,19 @@
     giftRank: null, // null scores the gifts on the spot; or a fixed order
   };
 
-  // Tuned weights for drills with and without tool rewards; the solver
-  // picks by the run's settings. From tools/results/tuned-*.json.
+  // Tuned weights for each kind of run: tool rewards on or off, standard or
+  // hard mode loop chain. The solver picks by the run's settings. From
+  // tools/results/train-report.json (25.9 million simulated runs).
   const PROFILES = {
-    notools: { tierBase: 2.5, rainbowMult: 2, wOpen: 1.5, wNow: 1, wWalk: 1, wStep: 1, wChain: 16, wStair: 0.25, swapMaxTier: 1, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['rope', 'revenge', 'skewer', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'] },
-    rewards: { tierBase: 3, rainbowMult: 1, wOpen: 2, wNow: 1.5, wWalk: 1, wStep: 1, wChain: 8, wStair: 1, swapMaxTier: 2, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['rope', 'revenge', 'skewer', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'] },
+    rewards: { tierBase: 3, rainbowMult: 1, wOpen: 2.5, wNow: 1.5, wWalk: 1, wStep: 1, wChain: 8, wStair: 0.5, swapMaxTier: 2, minDevour: 0, execMargin: 10, acceptChain: true, toolRank: ['rope', 'revenge', 'skewer', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'] },
+    notools: { tierBase: 2.5, rainbowMult: 2, wOpen: 1.875, wNow: 1, wWalk: 1, wStep: 1, wChain: 16, wStair: 0.25, swapMaxTier: 1, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['rope', 'revenge', 'skewer', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'] },
+    'loop-rewards': { tierBase: 3, rainbowMult: 1, wOpen: 2, wNow: 1.125, wWalk: 1, wStep: 1, wChain: 8, wStair: 0.5, swapMaxTier: 2, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['rope', 'revenge', 'skewer', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'] },
+    'loop-notools': { tierBase: 2.5, rainbowMult: 2, wOpen: 1.5, wNow: 1, wWalk: 1, wStep: 1, wChain: 16, wStair: 0.25, swapMaxTier: 1, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['rope', 'revenge', 'skewer', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'] },
   };
-  const paramsFor = (st) => PROFILES[st.params.rewards ? 'rewards' : 'notools'];
+  const paramsFor = (st) => {
+    const base = st.params.rewards ? 'rewards' : 'notools';
+    return (st.params.loopChain && PROFILES[`loop-${base}`]) || PROFILES[base];
+  };
 
   const withDefaults = (p) => Object.assign({}, DEFAULTS, p || {});
 
@@ -532,6 +538,7 @@
       case 'deliver': return T.deliver(st, action.cells, action.vaultIds, action.escort);
       case 'skip': return T.skipDelivery(st);
       case 'close': return T.cancelEarlyDelivery(st);
+      case 'early': return T.openEarlyDelivery(st);
       default: return { ok: false, reason: 'Unknown move.' };
     }
   }
@@ -580,7 +587,16 @@
       for (const id of st.pending[0].options) out.push({ action: { type: 'choose', id }, label: `Take ${T.toolName(id)}` });
       return out;
     }
-    if (st.challenge && st.challenge.window) return out;
+    if (st.challenge && st.challenge.window) {
+      const best = T.bestCargo(st);
+      if (best) {
+        const names = [...best.cells.map((n) => T.describe(st.cells[n].inmate)), ...best.vaultIds.map(() => 'a vault Rainbow')];
+        out.push({ action: { type: 'deliver', cells: best.cells, vaultIds: best.vaultIds, escort: best.escort }, label: `Deliver ${names.join(', ')} by ${T.ESCORTS[best.escort].name.toLowerCase()} (${best.points} points)` });
+      }
+      if (st.challenge.window.early) out.push({ action: { type: 'close' }, label: 'Close the early window' });
+      else out.push({ action: { type: 'skip' }, label: 'Skip this contract' });
+      return out;
+    }
     if (st.phase === 'event' && st.event) {
       const name = st.event.kind === 'chain' ? 'Chain reaction' : 'Execution';
       out.push({ action: { type: 'event', accept: true }, label: `Accept the ${name}` });
@@ -588,6 +604,7 @@
       return out;
     }
     if (st.phase === 'patrol') {
+      if (T.canOpenEarly(st)) out.push({ action: { type: 'early' }, label: 'Deliver the heavy contract early' });
       for (const n of T.patrolOptions(st)) {
         const c = st.cells[n];
         const opens = st.chain ? T.clockwisePath(st, n).filter((k) => st.cells[k].sealed).length : 0;
@@ -605,6 +622,7 @@
     if (st.used.swap < st.params.swapsPerDay && here && !here.sealed && here.inmate) {
       out.push({ action: { type: 'swap' }, label: `Swap the ${T.describe(here.inmate)} in ${T.cellLabel(here.n)}` });
     }
+    if (T.canOpenEarly(st)) out.push({ action: { type: 'early' }, label: 'Deliver the heavy contract early' });
     out.push({ action: { type: 'end' }, label: st.mode === 'drill' && st.day >= st.maxDays ? 'Finish the run' : 'End the day' });
     return out;
   }
@@ -621,6 +639,7 @@
     const list = candidates(base);
     const random = rng32(o.seed);
     const pick = list.length ? decide(clone(base), o.params, rng32(o.seed ^ 0x5bd1e995)) : null;
+    const goal = base.mode === 'challenge' ? 'pass' : 'rainbows';
     const rows = list.map((c) => ({ label: c.label, action: c.action, n: 0, sum: 0, sq: 0, best: 0, policy: sameAction(c.action, pick) }));
     let round = 0;
     const result = () => {
@@ -631,7 +650,7 @@
           return { label: r.label, action: r.action, mean, se: r.n > 1 ? sd / Math.sqrt(r.n) : 0, n: r.n, best: r.n ? r.best / r.n : 0, policy: r.policy };
         })
         .sort((a, b) => b.mean - a.mean || b.best - a.best);
-      return { done: round >= o.rollouts || rows.length <= 1, rounds: round, options: ranked };
+      return { done: round >= o.rollouts || rows.length <= 1, rounds: round, goal, options: ranked };
     };
     return {
       step(budgetMs) {
@@ -644,11 +663,13 @@
             if (!apply(trial, row.action).ok) continue;
             const roll = rng32(seed ^ 0x9e3779b9);
             playout(trial, o.params, roll);
-            const score = trial.vault.length;
+            const passed = goal === 'pass' && trial.challenge.result && trial.challenge.result.passed;
+            const score = goal === 'pass' ? (passed ? 1 : 0) : trial.vault.length;
             row.n += 1;
             row.sum += score;
             row.sq += score * score;
-            row.best += Math.max(0, ...trial.cells.filter((c) => !c.sealed && c.inmate).map((c) => c.inmate.tier), trial.vault.length ? RAINBOW : 0);
+            // Second measure: contract points, or the best rarity reached.
+            row.best += goal === 'pass' ? trial.challenge.score : Math.max(0, ...trial.cells.filter((c) => !c.sealed && c.inmate).map((c) => c.inmate.tier), trial.vault.length ? RAINBOW : 0);
           }
           round += 1;
         }
@@ -657,7 +678,106 @@
     };
   }
 
-  const api = { DEFAULTS, PROFILES, paramsFor, decide, apply, playout, candidates, solve, chainOdds, patrolScores, devourScores, context, composition, clone, hideFuture, rng32, executionValue };
+  // ---------- Trainer helpers ----------
+
+  // The strategy's own pick with a short reason. Instant: no playouts.
+  function instant(st, params) {
+    const P = params || paramsFor(st);
+    const action = decide(st, P, rng32(1));
+    if (!action) return null;
+    const match = candidates(st).find((c) => sameAction(c.action, action));
+    return { action, label: match ? match.label : action.type, why: reason(st, action, P) };
+  }
+
+  function reason(st, action, params) {
+    const ctx = context(st, params);
+    const here = st.cells[st.position];
+    switch (action.type) {
+      case 'patrol': {
+        const s = patrolScores(st, ctx).find((x) => x.cell === action.cell);
+        return s ? `${s.why[0].toUpperCase()}${s.why.slice(1)}.` : '';
+      }
+      case 'devour': {
+        const odds = chainOdds(st, st.position, action.to);
+        return `The best first meal: its chain averages ${odds.bites.toFixed(1)} bites, with ${(100 * odds.rainbow).toFixed(0)}% to reach Rainbow.`;
+      }
+      case 'swap':
+        if (here.ivory) return 'An Ivory cell: swapping it raises other inmates a tier.';
+        return `A ${T.tierName(here.inmate.tier)} inmate is worth less than a fresh roll on average.`;
+      case 'end':
+        return T.canDevourNow(st) && T.startOptions(st).length ? 'No devour here gains anything today.' : 'Nothing left today is worth doing.';
+      case 'event': {
+        if (st.event.kind === 'chain') return action.accept ? 'Your next walk opens every sealed door on the way.' : 'More inmates would hurt this block today.';
+        const exec = st.cells[st.event.cell].inmate;
+        const victims = T.executionVictims(st, st.event.cell).length;
+        return action.accept ? `The ${T.describe(exec)} removes ${T.plural(victims, 'inmate')} and rises as many tiers: it gains more than it removes.` : 'It would remove more than it gains.';
+      }
+      case 'choose': {
+        if (st.pending[0].kind === 'gift') return 'Worth the most on this board right now.';
+        const rank = ctx.P.toolRank.indexOf(action.id);
+        return rank >= 0 ? `Ranked #${rank + 1} of ${ctx.P.toolRank.length} tools in training.` : '';
+      }
+      case 'deliver': return 'Meets the contract for the most points.';
+      case 'skip': return 'Nothing on the block meets this contract.';
+      case 'close': return 'Nothing meets the heavy contract yet.';
+      case 'early': return 'The heavy contract can be met now.';
+      default: return '';
+    }
+  }
+
+  // The move that turned `before` into `after`, as an action, or null if it
+  // wasn't a game move (a Lab edit, say).
+  function moveBetween(before, after) {
+    if (!before || !after || before.phase === 'ended') return null;
+    // The log entries the move added. The log only grows, though it drops its
+    // oldest lines, so find where the last few lines it had before now sit.
+    const n = before.log.length;
+    const tail = Math.min(5, n);
+    const same = (a, b) => a && b && a.d === b.d && a.k === b.k && a.t === b.t;
+    const fits = (p) => {
+      for (let k = 1; k <= tail; k++) if (!same(after.log[p - k], before.log[n - k])) return false;
+      return true;
+    };
+    let from = 0;
+    for (let p = Math.min(after.log.length, n); p >= tail; p--) {
+      if (fits(p)) {
+        from = p;
+        break;
+      }
+    }
+    const added = after.log.slice(from);
+    const recent = (types) => {
+      for (const e of added) if (e.x && types.includes(e.x.type)) return e.x;
+      return null;
+    };
+    // While a choice is pending, nothing but the choice can be made.
+    if (before.pending.length) {
+      const x = recent(['tool', 'gift']);
+      return x ? { type: 'choose', id: x.id } : null;
+    }
+    const ch0 = before.challenge;
+    const ch1 = after.challenge;
+    if (ch0 && ch0.window) {
+      if (ch1.deliveries.length > ch0.deliveries.length) return ch1.deliveries[ch1.deliveries.length - 1].success ? { type: 'deliver' } : { type: 'skip' };
+      return ch1.window ? null : { type: 'close' };
+    }
+    if (ch1 && ch1.window && ch1.window.early && !(ch0 && ch0.window)) return { type: 'early' };
+    if (before.phase === 'event') {
+      if (after.phase === 'event') return null;
+      const x = recent(['skipped', 'armed', 'execution']);
+      return x ? { type: 'event', accept: x.type !== 'skipped' } : null;
+    }
+    if (before.phase === 'patrol') return after.stats.patrols > before.stats.patrols ? { type: 'patrol', cell: after.position } : null;
+    if (after.used.devour > before.used.devour) {
+      const x = recent(['devour']);
+      return x ? { type: 'devour', to: x.bites[0].cell } : null;
+    }
+    if (after.used.swap > before.used.swap) return { type: 'swap' };
+    if (after.day > before.day || after.phase === 'ended' || (ch1 && ch1.window && !(ch0 && ch0.window))) return { type: 'end' };
+    return null;
+  }
+
+  const api = { DEFAULTS, PROFILES, paramsFor, instant, moveBetween, sameAction, decide, apply, playout, candidates, solve, chainOdds, patrolScores, devourScores, context, composition, clone, hideFuture, rng32, executionValue };
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.TartarusSolver = api;
 })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);
