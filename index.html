@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=20261012f">
 </head>
 <body>
 <div class="app" id="app">
@@ -267,10 +267,10 @@
       <ol class="steps">
         <li><strong>Patrol.</strong> Each morning offers three destination cells from the next five clockwise from the warden, or two while you hold the Burning Stake. The office counts as one of those five steps but is never offered. They glow on the ring and appear as cards under it. A destination can be a locked cell, which opens when the warden arrives, or a cell whose inmate you already know. You can't see inside a locked cell until it opens. You must patrol before anything else.</li>
         <li><strong>Devour.</strong> Once a day, after the patrol, and only the inmate in the warden's cell can start it. Double-click a highlighted target to devour it, or click it once to preview the bite and again to confirm. If the eater then has another valid target, it chains on by itself: it devours a random valid target, and keeps going while targets remain. A chain can't be stopped. The log and the recap under the ring show every bite as icons.</li>
-        <li><strong>Swap.</strong> Once a day, replace an inmate with a brand-new random one. It can come out stronger or weaker.</li>
+        <li><strong>Swap.</strong> Once a day, replace the inmate in the warden's cell with a brand-new random one. It can come out stronger or weaker. No other cell can be swapped.</li>
         <li><strong>End the day.</strong> The next morning, prey marks grow, ripe nests hatch, and new destinations are drawn. A recap of the day you just finished appears under the destination cards.</li>
       </ol>
-      <p>When an inmate is devoured, swapped away or sent off, its cell seals again. The next time that door opens, someone new is inside.</p>
+      <p>When an inmate is devoured or sent off, its cell seals again. The next time that door opens, someone new is inside.</p>
 
       <h3>The food chain</h3>
       <p>Six relations, and both sides must share a rarity. Mammoth eats Lion and Wolf. Lion eats Wolf and Rat. Wolf eats Rat. Rat eats Mammoth. A Mammoth cannot eat a Rat, and no beast eats its own kind unless you hold the Rat-Head Skewer, which lets Rats eat Rats.</p>
@@ -291,7 +291,7 @@
       <h3>Markers</h3>
       <dl class="defs">
         <dt class="m-ivory">Ivory</dt>
-        <dd>Belongs to a cell. Swap that cell's inmate and four random inmates on the block each gain a tier. The mark stays until the cell empties.</dd>
+        <dd>Belongs to a cell. Swap that cell's inmate while the warden stands there, and four random inmates on the block each gain a tier. The mark stays until the cell empties.</dd>
         <dt class="m-prey">Prey</dt>
         <dd>A Lion marks a same-rarity inmate it can eat. On each of the next three mornings both gain a tier. The mark ends if either leaves the block or changes beast.</dd>
         <dt class="m-scratch">Scratch</dt>
@@ -579,8 +579,8 @@
   </div>
 </dialog>
 
-<script src="js/engine.js"></script>
-<script src="js/sound.js"></script>
-<script src="js/ui.js"></script>
+<script src="js/engine.js?v=20261012f"></script>
+<script src="js/sound.js?v=20261012f"></script>
+<script src="js/ui.js?v=20261012f"></script>
 </body>
 </html>

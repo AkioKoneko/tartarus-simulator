@@ -812,10 +812,10 @@
       const other = T.cellOf(st, hunter ? link.prey : link.lion);
       parts.push(`${hunter ? `Hunting cell ${other ? L(other.n) : '--'}` : `Prey of the Lion in cell ${other ? L(other.n) : '--'}`}: both rise a tier on each of the next ${T.plural(link.rounds, 'morning')}.`);
     }
-    if (free && st.phase === 'manage') {
+    if (free && st.phase === 'manage' && cell.n === st.position) {
       const left = st.params.swapsPerDay - st.used.swap;
       actions.push([`Swap (${Math.max(0, left)} left)`, () => askSwap(cell.n), null, left <= 0]);
-    }
+    } else if (st.phase === 'manage') parts.push("Only the inmate in the warden's cell can be swapped.");
     actions.push(['Deselect', cancel]);
     setDecision(`Cell ${L(cell.n)}: ${T.describe(inmate)}`, parts.join(' '), actions);
   }
@@ -847,11 +847,11 @@
     const free = !blocked(st);
     const swapBtn = $('btn-swap');
     const left = Math.max(0, st.params.swapsPerDay - st.used.swap);
-    const sel = ui.selected !== null ? st.cells[ui.selected] : null;
-    const canSwap = free && st.phase === 'manage' && left > 0 && sel && !sel.sealed && !!sel.inmate;
+    const here = st.cells[st.position];
+    const canSwap = free && st.phase === 'manage' && left > 0 && !here.sealed && !!here.inmate;
     swapBtn.textContent = `Swap (${left})`;
     swapBtn.disabled = !canSwap;
-    swapBtn.title = canSwap ? '' : 'Select an inmate after the patrol to swap it.';
+    swapBtn.title = canSwap ? `Swap the inmate in the warden's cell (${L(st.position)}).` : "Only the inmate in the warden's cell can be swapped, after the patrol.";
 
     const deliverBtn = $('btn-deliver');
     deliverBtn.hidden = st.mode !== 'challenge';
@@ -1747,7 +1747,7 @@
         renderBoard();
       }
     });
-    $('btn-swap').addEventListener('click', () => askSwap(ui.selected));
+    $('btn-swap').addEventListener('click', () => askSwap(ui.state && ui.state.position));
     $('btn-deliver').addEventListener('click', () => openDeliver());
     $('btn-undo').addEventListener('click', undo);
     $('btn-end').addEventListener('click', askEndDay);

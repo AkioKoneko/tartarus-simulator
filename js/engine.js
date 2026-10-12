@@ -525,7 +525,7 @@
       place(state, 7, 'wolf', 2);
       place(state, 12, 'mammoth', 3);
       place(state, 15, 'rat', 1);
-      note = `Ivory drill: cell 02 carries Ivory. Swap its inmate and ${plural(state.params.ivoryCount, 'inmate')} on the block each gain a tier.`;
+      note = `Ivory drill: cell 02, the warden's cell, carries Ivory. Swap its inmate and ${plural(state.params.ivoryCount, 'inmate')} on the block each gain a tier.`;
     } else if (s === 'prey') {
       const lion = place(state, 1, 'lion', 2);
       const wolf = place(state, 2, 'wolf', 2);
@@ -884,11 +884,13 @@
     return ok(events);
   }
 
-  function swap(state, n) {
+  // Swaps the inmate in the warden's cell; no other cell can be swapped.
+  function swap(state, n = state.position) {
     const blocked = guard(state, 'manage');
     if (blocked) return blocked;
+    if (n !== state.position) return fail(`Only the inmate in the warden's cell (${cellLabel(state.position)}) can be swapped.`);
     const cell = state.cells[n];
-    if (!cell || cell.sealed || !cell.inmate) return fail('Select an inmate on the block to swap.');
+    if (!cell || cell.sealed || !cell.inmate) return fail('The warden’s cell has no inmate to swap.');
     if (state.used.swap >= state.params.swapsPerDay) return fail('No swaps left today.');
     const weights = state.params.tierWeights.slice();
     if (has(state, 'rope')) weights[0] = weights[1] = 0;
@@ -1443,9 +1445,10 @@
     }
     // Only the inmate in the warden's cell can start the day's devour.
     for (const option of startOptions(state)) tips.push(devourTip(state, state.position, option, 'devour'));
-    if (state.used.swap < state.params.swapsPerDay) {
-      const ivory = boardCells(state).find((c) => c.ivory);
-      if (ivory) tips.push({ kind: 'swap', cell: ivory.n, score: 20 + Math.min(board.length, state.params.ivoryCount) * 6, text: `Swap the inmate in Ivory cell ${cellLabel(ivory.n)}: up to ${plural(state.params.ivoryCount, 'inmate')} gain a tier.` });
+    // Only the warden's cell can be swapped.
+    const here = state.cells[state.position];
+    if (state.used.swap < state.params.swapsPerDay && here.ivory && !here.sealed && here.inmate) {
+      tips.push({ kind: 'swap', cell: here.n, score: 20 + Math.min(board.length, state.params.ivoryCount) * 6, text: `Swap the inmate in Ivory cell ${cellLabel(here.n)}: up to ${plural(state.params.ivoryCount, 'inmate')} gain a tier.` });
     }
     tips.sort((a, b) => b.score - a.score);
     const out = tips.filter((t) => t.score > 0).slice(0, 4);
