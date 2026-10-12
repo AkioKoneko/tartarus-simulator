@@ -483,7 +483,7 @@ a {
 }
 
 .block {
-  --block-w: clamp(300px, min(100%, calc((100dvh - 170px) * 1.5)), 940px);
+  --block-w: clamp(300px, min(100%, calc((100dvh - 360px) * 1.5)), 940px);
   grid-area: block;
   min-width: 0;
   min-height: 0;
@@ -496,6 +496,7 @@ a {
 }
 
 .block > .board,
+.block > .dest-bar,
 .block > .actionbar {
   width: var(--block-w);
   max-width: 100%;
@@ -1072,6 +1073,136 @@ a {
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
+}
+
+/* Destination cards under the ring, one per door offered this morning. */
+.dest-bar {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.dest-title {
+  margin: 0;
+  font: 800 20px/1 var(--font-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bone);
+}
+
+.dest-cards {
+  display: flex;
+  justify-content: center;
+  gap: clamp(6px, 1.2vw, 12px);
+  width: 100%;
+}
+
+.dest-card {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 250px;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 12px 8px 10px;
+  border: 2px solid var(--iron-hi);
+  border-radius: 6px;
+  background:
+    radial-gradient(120% 80% at 50% 0%, var(--court-glow), transparent 70%),
+    linear-gradient(180deg, var(--slab-top), var(--slab));
+  color: var(--chalk);
+  cursor: pointer;
+  box-shadow: inset 0 0 0 3px var(--stone), 0 6px 18px var(--shade);
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.dest-card:hover:not(:disabled) {
+  border-color: var(--bone);
+  transform: translateY(-2px);
+}
+
+.dest-card.is-selected {
+  border-color: var(--bone);
+  box-shadow: inset 0 0 0 3px var(--stone), 0 0 24px 5px color-mix(in srgb, var(--bone) 55%, transparent);
+}
+
+.dest-card:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.dest-door {
+  width: 44px;
+  height: 52px;
+  border: 3px solid var(--bar);
+  border-bottom-width: 4px;
+  border-radius: 22px 22px 3px 3px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 8px, var(--bar) 8px 11px),
+    linear-gradient(180deg, var(--door-hi), var(--door));
+  box-shadow: inset 0 0 12px var(--shade);
+}
+
+.dest-face {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 2px solid var(--tc);
+  border-radius: 8px;
+  background: var(--floor);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--tc) 45%, transparent);
+}
+
+.dest-face .portrait {
+  width: 42px;
+}
+
+.dest-door.is-open {
+  background: radial-gradient(circle at 50% 75%, var(--court-glow), var(--floor));
+}
+
+.dest-label {
+  font: 800 clamp(13px, 1.6vw, 17px) / 1.1 var(--font-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.dest-meta {
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: var(--ash);
+  text-align: center;
+}
+
+.dest-event {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 2px 4px;
+  border: 1px solid var(--bone);
+  border-radius: 2px;
+  background: var(--stone);
+  color: var(--bone);
+  font: 500 9.5px/1 var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dest-hint {
+  margin: 0;
+  max-width: 60ch;
+  font-size: 12.5px;
+  color: var(--ash);
+  text-align: center;
+}
+
+.cell.is-dest.is-aim {
+  outline-width: 4px;
+  outline-offset: 2px;
+  box-shadow: 0 0 28px 7px color-mix(in srgb, var(--bone) 80%, transparent);
 }
 
 .actionbar .btn-primary {
@@ -2226,7 +2357,7 @@ textarea {
   }
 
   .block {
-    --block-w: clamp(300px, min(100%, calc((100dvh - 180px) * 1.5)), 900px);
+    --block-w: clamp(300px, min(100%, calc((100dvh - 360px) * 1.5)), 900px);
     overflow: visible;
   }
 

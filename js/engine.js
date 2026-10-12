@@ -49,7 +49,8 @@
   const DEFAULT_PARAMS = {
     drillDays: 20,
     destinations: 3,
-    scoutsPerDay: 1,
+    fewerDoorsChance: 10,
+    scoutsPerDay: 0,
     swapsPerDay: 1,
     reusableCells: true,
     tierWeights: [52, 27, 15, 6, 0],
@@ -67,24 +68,23 @@
     rewards: true,
     startTools: 0,
     loopChain: false,
-    oneDevour: false,
   };
 
   // Hard mode switches; the challenge accepts these even though its other values are fixed.
-  const HARD_MODE_KEYS = ['loopChain', 'oneDevour'];
+  const HARD_MODE_KEYS = ['loopChain'];
 
   // The contract challenge always plays with these values.
-  const CHALLENGE_PARAMS = Object.assign({}, DEFAULT_PARAMS, { executionSameTier: true, executionRerolls: true, rewards: true, startTools: 0, oneDevour: false });
+  const CHALLENGE_PARAMS = Object.assign({}, DEFAULT_PARAMS, { executionSameTier: true, executionRerolls: true, rewards: true, startTools: 0 });
 
   // Field definitions for the Lab form; normalizeParams clamps to these.
   const PARAM_FIELDS = [
     { key: 'drillDays', group: 'Pace', label: 'Drill length in days', type: 'int', min: 5, max: 60 },
-    { key: 'destinations', group: 'Pace', label: 'Patrol destinations offered each morning', type: 'int', min: 1, max: 16 },
-    { key: 'scoutsPerDay', group: 'Pace', label: 'Scouts per day', type: 'int', min: 0, max: 16 },
+    { key: 'destinations', group: 'Pace', label: 'Most patrol doors offered each morning', type: 'int', min: 1, max: 16 },
+    { key: 'fewerDoorsChance', group: 'Pace', label: 'Chance a morning offers one door fewer (%)', type: 'int', min: 0, max: 100 },
+    { key: 'scoutsPerDay', group: 'Pace', label: 'Scouts per day (0 means no scouting, as in live)', type: 'int', min: 0, max: 16 },
     { key: 'swapsPerDay', group: 'Pace', label: 'Swaps per day', type: 'int', min: 0, max: 16 },
     { key: 'reusableCells', group: 'Pace', label: 'Emptied cells seal again and can be reopened', type: 'bool' },
     { key: 'loopChain', group: 'Hard mode', label: 'Loop food chain: Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth', type: 'bool' },
-    { key: 'oneDevour', group: 'Hard mode', label: 'One devour per day, which then chains into random valid targets', type: 'bool' },
     { key: 'tierWeights', group: 'Odds', label: 'Rarity weights for new inmates', type: 'list', names: TIERS.slice(0, 5) },
     { key: 'beastWeights', group: 'Odds', label: 'Beast weights for new inmates', type: 'list', names: ['Mammoth', 'Lion', 'Wolf', 'Rat'] },
     { key: 'eventChance', group: 'Special events', label: 'Chance a sealed cell hides a special event (%)', type: 'int', min: 0, max: 100 },
@@ -312,7 +312,15 @@
     return eatsOf(state, eater.beast).includes(meal.beast) || (eater.beast === 'rat' && meal.beast === 'rat' && has(state, 'skewer'));
   }
 
-  const canDevourNow = (state) => !state.params.oneDevour || state.used.devour < 1;
+  // One devour a day, started by the inmate in the warden's cell; it then
+  // chains on by itself (see devour).
+  const canDevourNow = (state) => state.used.devour < 1;
+
+  function startOptions(state) {
+    const cell = state.cells[state.position];
+    if (!canDevourNow(state) || state.phase !== 'manage' || !cell || cell.sealed || !cell.inmate) return [];
+    return devourOptions(state, cell.n);
+  }
 
   function limits(state) {
     return { scout: state.mode === 'challenge' ? 1 : state.params.scoutsPerDay, swap: state.params.swapsPerDay };
@@ -415,6 +423,7 @@
   function guard(state, need) {
     if (state.phase === 'ended') return fail('This run is over. Start a new run to keep playing.');
     if (state.pending.length) return fail('Make your pending choice first.');
+    if (state.chainConsume) return fail('Finish the chain devour first: pick a target or stop the chain.');
     if (state.challenge && state.challenge.window) return fail('Finish the delivery window first.');
     if (state.phase === 'event') return fail('Decide on the special event first.');
     if (need === 'manage' && state.phase === 'patrol') return fail('Patrol first: walk to one of today’s destinations.');
@@ -449,6 +458,7 @@
       position: 0,
       destinations: [],
       chain: false,
+      chainConsume: null,
       event: null,
       cells: Array.from({ length: CELL_COUNT }, (_, n) => blankCell(n)),
       vault: [],
@@ -515,7 +525,7 @@
       place(state, 8, 'mammoth', 1);
       place(state, 12, 'rat', 1);
       state.prey.push({ lion: lion.id, prey: wolf.id, preyBeast: 'wolf', rounds: state.params.preyRounds, next: 2 });
-      note = `Prey drill: the Lion in cell 01 has marked the Wolf in cell 02. Each morning both rise a tier, for ${plural(state.params.preyRounds, 'morning')}. A devour by either one re-rolls its beast and ends the mark, and the Rare Mammoth in cell 05 could eat the Lion.`;
+      note = `Prey drill: the Lion in cell 01 has marked the Wolf in cell 02. Each morning both rise a tier, for ${plural(state.params.preyRounds, 'morning')}. The Lion stands in the warden's cell, so it could devour its prey today, but that re-rolls its beast and ends the mark.`;
     } else if (s === 'scratch') {
       place(state, 0, 'wolf', 1);
       hide(state, 1, 'mammoth', 1, { scratch: true, known: 1 });
@@ -577,27 +587,25 @@
 
   // ---------- Day flow ----------
 
+  // Today's door count: the base drawn each morning, less one for the Burning Stake.
   function destinationLimit(state) {
-    return Math.max(1, state.params.destinations - (has(state, 'fire') ? 1 : 0));
+    return Math.max(1, (state.destBase || state.params.destinations) - (has(state, 'fire') ? 1 : 0));
   }
 
+  // Destinations come from any cell: locked ones to open, or open ones whose
+  // inmates you already know, including the warden's own cell.
   function rollDestinations(state) {
-    const sealed = state.cells.filter((c) => c.sealed);
-    const pool = sealed.length ? sealed : state.cells;
+    // Some mornings offer one door fewer; the odds are a practice value.
+    const fewer = rand(state) * 100 < state.params.fewerDoorsChance;
+    state.destBase = Math.max(1, state.params.destinations - (fewer ? 1 : 0));
     const count = destinationLimit(state);
-    state.destinations = shuffle(state, pool).slice(0, count).map((c) => c.n);
-    fitDestinations(state);
+    state.destinations = shuffle(state, state.cells).slice(0, count).map((c) => c.n);
   }
 
-  // In the challenge, one option is always the nearest open cell clockwise
-  // from the warden, so a small block can stay small.
+  // Trims today's options after a tool such as the Burning Stake changes the count.
   function fitDestinations(state) {
     if (state.phase !== 'patrol') return;
-    const limit = destinationLimit(state);
-    const sealed = state.destinations.filter((n) => state.cells[n].sealed);
-    const open = state.cells.filter((c) => !c.sealed).sort((a, b) => stepsBetween(state.position, a.n) - stepsBetween(state.position, b.n))[0];
-    if (state.mode === 'challenge' && sealed.length && open) state.destinations = [...sealed.slice(0, Math.max(1, limit - 1)), open.n];
-    else state.destinations = state.destinations.slice(0, limit);
+    state.destinations = state.destinations.slice(0, destinationLimit(state));
   }
 
   function beginDay(state, events) {
@@ -729,8 +737,10 @@
       state.chain = false;
     } else if (cell.sealed) {
       event = openCell(state, cell, 'patrol', events);
+    } else if (cell.inmate) {
+      log(state, 'patrol', `Walked to cell ${cellLabel(n)}. Its ${describe(cell.inmate)} can start today's devour.`);
     } else {
-      log(state, 'patrol', `Walked to open cell ${cellLabel(n)}. No door opened.`);
+      log(state, 'patrol', `Walked to empty cell ${cellLabel(n)}.`);
     }
     state.position = n;
     if (state.challenge) state.challenge.intel = null;
@@ -861,23 +871,44 @@
     const blocked = guard(state, 'manage');
     if (blocked) return blocked;
     if (!canDevourNow(state)) return fail('Today’s devour is used. End the day for another.');
+    if (from !== state.position) return fail(`Only the inmate in the warden's cell (${cellLabel(state.position)}) can start a devour.`);
     const option = devourOptions(state, from).find((o) => o.cell === to);
     if (!option) return fail('That inmate cannot devour that target.');
     const events = [];
     const eaterId = state.cells[from].inmate.id;
     doDevour(state, from, option, events, false);
-    if (state.params.oneDevour) {
-      state.used.devour += 1;
-      // The day's one devour chains on into random valid targets while the
-      // eater still has one.
-      for (let step = 0; step < CELL_COUNT; step++) {
-        const cell = boardCellOf(state, eaterId);
-        const options = cell ? devourOptions(state, cell.n) : [];
-        if (!options.length) break;
-        doDevour(state, cell.n, pickOne(state, options), events, true);
-      }
-    }
+    state.used.devour += 1;
+    offerChain(state, eaterId);
     return ok(events);
+  }
+
+  // After a devour, an eater that still has a valid target may chain: the
+  // player picks the next meal, and it repeats while targets remain.
+  function offerChain(state, eaterId) {
+    const cell = boardCellOf(state, eaterId);
+    state.chainConsume = cell && devourOptions(state, cell.n).length ? eaterId : null;
+    if (state.chainConsume) log(state, 'devour', `Chain devour: the ${describe(cell.inmate)} in cell ${cellLabel(cell.n)} can devour again. Pick its next target, or stop the chain.`);
+  }
+
+  function chainDevour(state, to) {
+    if (state.phase === 'ended') return fail('This run is over.');
+    if (state.pending.length) return fail('Make your pending choice first.');
+    const eaterId = state.chainConsume;
+    const cell = eaterId ? boardCellOf(state, eaterId) : null;
+    if (!cell) return fail('There is no chain devour to make.');
+    const option = devourOptions(state, cell.n).find((o) => o.cell === to);
+    if (!option) return fail('That inmate is not a valid target for the chain.');
+    const events = [];
+    doDevour(state, cell.n, option, events, true);
+    offerChain(state, eaterId);
+    return ok(events);
+  }
+
+  function stopChain(state) {
+    if (!state.chainConsume) return fail('There is no chain to stop.');
+    state.chainConsume = null;
+    log(state, 'devour', 'You stopped the chain devour.');
+    return ok([]);
   }
 
   function swap(state, n) {
@@ -968,6 +999,7 @@
     if (state.phase === 'ended') return fail('This run is already over.');
     if (state.challenge) state.challenge.window = null;
     state.pending = [];
+    state.chainConsume = null;
     finish(state, true);
     return ok([{ type: 'end' }]);
   }
@@ -1191,7 +1223,7 @@
   function labCheck(state) {
     if (state.mode !== 'drill') return fail('The Lab only edits drills. The contract challenge uses fixed rules.');
     if (state.phase === 'ended') return fail('This run is over.');
-    if (state.phase === 'event' || state.pending.length) return fail('Finish the current decision first.');
+    if (state.phase === 'event' || state.pending.length || state.chainConsume) return fail('Finish the current decision first.');
     return null;
   }
 
@@ -1337,6 +1369,38 @@
     return best;
   }
 
+  // Scores one devour for the advisor, with a full and a short description.
+  function devourTip(state, from, option, kind) {
+    const eater = state.cells[from].inmate;
+    const t = eater.tier;
+    const { gain } = gainFor(state, from, option);
+    const to = Math.min(RAINBOW, t + gain);
+    const step = WORTH[Math.min(RAINBOW, t + 1)] - WORTH[t];
+    let score = WORTH[to] - 2 * WORTH[t] + (to === RAINBOW ? 200 : 0);
+    const notes = [];
+    const own = linkOf(state, eater.id);
+    if (own) {
+      score -= own.rounds * step * 1.5;
+      notes.push('ends its prey mark if its beast changes');
+    }
+    const meal = state.cells[option.cell];
+    const theirs = !meal.sealed ? linkOf(state, meal.inmate.id) : null;
+    if (theirs && theirs !== own) {
+      score -= theirs.rounds * step;
+      notes.push('ends a prey mark');
+    }
+    const target = meal.sealed ? 'the scratched door' : beastName(meal.inmate.beast);
+    const short = `${target} in ${cellLabel(option.cell)}, to ${TIERS[to]}`;
+    return {
+      kind,
+      from,
+      to: option.cell,
+      score,
+      short,
+      text: `${beastName(eater.beast)} in ${cellLabel(from)} eats ${target} in ${cellLabel(option.cell)}: ${TIERS[to]}${gain > 1 ? ` (+${gain})` : ''}${to === RAINBOW ? ', a Rainbow' : ''}${notes.length ? `; ${notes.join(', ')}` : ''}.`,
+    };
+  }
+
   // Ranks the moves available right now using visible information only.
   function advise(state) {
     if (state.phase === 'ended') return [];
@@ -1364,14 +1428,27 @@
       const keepSmall = has(state, 'muzzle') && board.length <= 3;
       return [{ kind: 'event', accept: !keepSmall, text: keepSmall ? 'Skip: a chain would flood the block and switch off the Agony Muzzle.' : 'Accept: your next patrol opens every sealed cell on the way to its destination.' }];
     }
+    if (state.chainConsume) {
+      const cell = boardCellOf(state, state.chainConsume);
+      const chain = (cell ? devourOptions(state, cell.n) : []).map((option) => devourTip(state, cell.n, option, 'chain'));
+      chain.sort((a, b) => b.score - a.score);
+      const out = chain.slice(0, 3);
+      if (!out.length || out[0].score <= 0) out.push({ kind: 'stop', text: 'Stop the chain: no target here is worth taking.' });
+      return out;
+    }
     if (state.phase === 'patrol') {
       for (const n of patrolOptions(state)) {
         const c = state.cells[n];
         let score;
         let why;
-        if (!c.sealed) {
-          score = has(state, 'muzzle') && board.length <= 3 ? 26 : 4;
-          why = 'an open cell, so no new inmate arrives';
+        if (!c.sealed && c.inmate) {
+          // Walking to a known inmate makes it the one that devours today.
+          const best = devourOptions(state, n).map((o) => devourTip(state, n, o, 'devour')).sort((a, b) => b.score - a.score)[0];
+          score = best ? 10 + best.score : has(state, 'muzzle') && board.length <= 3 ? 8 : 2;
+          why = best ? `its ${describe(c.inmate)} can then devour (${best.short})` : `its ${describe(c.inmate)} has no target from there`;
+        } else if (!c.sealed) {
+          score = 1;
+          why = 'an empty cell';
         } else if (c.nest) {
           score = -40;
           why = `it destroys the rat nest due on day ${c.nest.due}`;
@@ -1397,35 +1474,8 @@
       tips.sort((a, b) => b.score - a.score);
       return tips.slice(0, 3);
     }
-    for (const c of canDevourNow(state) ? boardCells(state) : []) {
-      const eater = c.inmate;
-      for (const option of devourOptions(state, c.n)) {
-        const t = eater.tier;
-        const { gain } = gainFor(state, c.n, option);
-        const to = Math.min(RAINBOW, t + gain);
-        const step = WORTH[Math.min(RAINBOW, t + 1)] - WORTH[t];
-        let score = WORTH[to] - 2 * WORTH[t] + (to === RAINBOW ? 200 : 0);
-        const notes = [];
-        const own = linkOf(state, eater.id);
-        if (own) {
-          score -= own.rounds * step * 1.5;
-          notes.push('ends its prey mark if its beast changes');
-        }
-        const meal = state.cells[option.cell];
-        const theirs = !meal.sealed ? linkOf(state, meal.inmate.id) : null;
-        if (theirs && theirs !== own) {
-          score -= theirs.rounds * step;
-          notes.push('ends a prey mark');
-        }
-        tips.push({
-          kind: 'devour',
-          from: c.n,
-          to: option.cell,
-          score,
-          text: `${beastName(eater.beast)} in ${cellLabel(c.n)} eats ${meal.sealed ? 'the scratched door' : beastName(meal.inmate.beast)} in ${cellLabel(option.cell)}: ${TIERS[to]}${gain > 1 ? ` (+${gain})` : ''}${to === RAINBOW ? ', a Rainbow' : ''}${notes.length ? `; ${notes.join(', ')}` : ''}.`,
-        });
-      }
-    }
+    // Only the inmate in the warden's cell can start the day's devour.
+    for (const option of startOptions(state)) tips.push(devourTip(state, state.position, option, 'devour'));
     if (state.used.swap < state.params.swapsPerDay) {
       const ivory = boardCells(state).find((c) => c.ivory);
       if (ivory) tips.push({ kind: 'swap', cell: ivory.n, score: 20 + Math.min(board.length, state.params.ivoryCount) * 6, text: `Swap the inmate in Ivory cell ${cellLabel(ivory.n)}: up to ${plural(state.params.ivoryCount, 'inmate')} gain a tier.` });
@@ -1473,6 +1523,7 @@
     data.rng = Number(data.rng) >>> 0;
     data.cache = Number(data.cache) || 0;
     data.position = clamp(Number(data.position) || 0, 0, CELL_COUNT - 1);
+    data.chainConsume = data.chainConsume || null;
     return data;
   }
 
@@ -1491,6 +1542,8 @@
     resolveEvent: bounded(resolveEvent),
     scout: bounded(scout),
     devour: bounded(devour),
+    chainDevour: bounded(chainDevour),
+    stopChain: bounded(stopChain),
     swap: bounded(swap),
     endDay: bounded(endDay),
     endRun: bounded(endRun),
@@ -1505,7 +1558,7 @@
     moveWarden: bounded(moveWarden),
     addTool: bounded(addTool),
     removeTool: bounded(removeTool),
-    patrolOptions, clockwisePath, devourOptions, gainFor, executionVictims, canScout, canEat, eatsOf, canDevourNow, canOpenEarly, canRefresh,
+    patrolOptions, clockwisePath, devourOptions, startOptions, gainFor, executionVictims, canScout, canEat, eatsOf, canDevourNow, canOpenEarly, canRefresh,
     linkOf, cellOf, boardInmates, currentContract, deliveryCheck, bestCargo, rosterOf, advise, limits,
     toolText, toolName, describe, tierName, beastName, cellLabel, plural, stepsBetween,
   };

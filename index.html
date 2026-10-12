@@ -100,6 +100,11 @@
           </div>
         </div>
       </div>
+      <div class="dest-bar" id="dest-bar" hidden>
+        <p class="dest-title">Select a destination</p>
+        <div class="dest-cards" id="dest-cards"></div>
+        <p class="dest-hint">Go to a locked cell to open it, or to a known inmate so it makes today's devour. Click a card to choose it, then click it again or press Enter to go.</p>
+      </div>
       <div class="actionbar">
         <button type="button" class="btn" id="btn-scout">Scout</button>
         <button type="button" class="btn" id="btn-swap">Swap</button>
@@ -202,9 +207,8 @@
         <legend>Hard mode</legend>
         <div class="toggles">
           <label class="toggle"><input type="checkbox" id="new-loop-chain"><span><strong>Harder food chain</strong><small>A simple loop: Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth. Each beast has one meal.</small></span></label>
-          <label class="toggle"><input type="checkbox" id="new-one-devour"><span><strong>One devour per day</strong><small>You make one devour a day. Afterwards the eater chains on by itself into random valid targets.</small></span></label>
         </div>
-        <p class="field-note">Both are off by default. Live rules are still uncertain, so these let you practice either version.</p>
+        <p class="field-note">Off by default. It's uncertain which food chain the live game uses, so this lets you practice either version.</p>
       </fieldset>
       <div class="field">
         <label class="field-label" for="new-seed">Seed</label>
@@ -258,9 +262,9 @@
 
       <h3>A day on the block</h3>
       <ol class="steps">
-        <li><strong>Patrol.</strong> Each morning offers three destination doors, which glow on the ring. Pick one: the warden walks there and the door opens. You must patrol before anything else.</li>
-        <li><strong>Scout.</strong> Before you patrol, you may look through one sealed door a day to learn the rarity inside. The beast stays hidden.</li>
-        <li><strong>Devour.</strong> Free and unlimited after the patrol. Select an inmate, then click a highlighted target. With the hard mode "One devour per day" switch, you get one devour a day, and the eater then chains on into random valid targets by itself.</li>
+        <li><strong>Patrol.</strong> Each morning offers three destination cells, and now and then only two. They glow on the ring and appear as cards under it. A destination can be a locked cell, which opens when the warden arrives, or a cell whose inmate you already know, even the warden's own. You must patrol before anything else.</li>
+        <li><strong>No scouting.</strong> As in live, you can't see inside a locked cell before you open it. The Lab can allow scouting for practice, and in the contract challenge you can pay 1 voucher to scout a destination.</li>
+        <li><strong>Devour.</strong> Once a day, after the patrol, and only the inmate in the warden's cell can start it. Click a highlighted target. If the eater then has another valid target, a chain devour starts: pick its next meal, or stop the chain. It repeats while targets remain.</li>
         <li><strong>Swap.</strong> Once a day, replace an inmate with a brand-new random one. It can come out stronger or weaker.</li>
         <li><strong>End the day.</strong> The next morning, prey marks grow, ripe nests hatch, and new destinations are drawn.</li>
       </ol>

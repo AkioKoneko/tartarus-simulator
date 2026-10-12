@@ -265,7 +265,7 @@
 
   function askPatrol(n) {
     if (ui.prefs.quick) {
-      run((st) => T.patrol(st, n), { select: null });
+      run((st) => T.patrol(st, n), { select: n });
       return;
     }
     ui.selected = n;
@@ -284,16 +284,15 @@
     render();
   }
 
+  // Targets open to today's devour, which only the warden's cell can start.
   function devoursAvailable(st) {
-    if (st.phase !== 'manage' || !T.canDevourNow(st)) return 0;
-    return st.cells.reduce((sum, c) => sum + (!c.sealed && c.inmate ? T.devourOptions(st, c.n).length : 0), 0);
+    return T.startOptions(st).length;
   }
 
   // Short labels for any hard mode switches in play.
   function hardModeLabels(st) {
     const labels = [];
     if (st.params.loopChain) labels.push('Loop chain');
-    if (st.params.oneDevour) labels.push('One devour');
     return labels;
   }
 
@@ -301,8 +300,7 @@
     const st = ui.state;
     if (!st || blocked(st) || st.phase !== 'manage') return;
     const warnings = [];
-    const devours = devoursAvailable(st);
-    if (devours) warnings.push(`${T.plural(devours, 'devour')} still possible.`);
+    if (devoursAvailable(st)) warnings.push('You haven’t used today’s devour yet.');
     const due = T.currentContract(st);
     const deliveryDay = due && due.deadline === st.day;
     const last = st.mode === 'drill' && st.day >= st.maxDays;
@@ -336,6 +334,13 @@
       inspect();
       return;
     }
+    // During a chain, a click on a highlighted target takes it at once.
+    if (st.chainConsume) {
+      const chainCell = T.cellOf(st, st.chainConsume);
+      if (chainCell && T.devourOptions(st, chainCell.n).some((o) => o.cell === n)) run((s) => T.chainDevour(s, n), { select: chainCell.n });
+      else toast('Pick a highlighted target for the chain, or stop the chain.');
+      return;
+    }
     if (ui.scouting) {
       if (T.canScout(st, cell)) run((s) => T.scout(s, n), { keepPending: true });
       else toast(st.mode === 'challenge' ? 'In the challenge you can only scout one of today’s sealed destinations.' : 'Pick a highlighted door: a sealed cell whose rarity you have not seen.');
@@ -353,7 +358,7 @@
       inspect();
       return;
     }
-    if (ui.selected !== null && ui.selected !== n) {
+    if (ui.selected === st.position && ui.selected !== n && T.canDevourNow(st)) {
       const option = T.devourOptions(st, ui.selected).find((o) => o.cell === n);
       if (option) {
         const from = ui.selected;
@@ -460,9 +465,14 @@
     const st = ui.state;
     const free = !blocked(st);
     const sel = ui.selected !== null ? st.cells[ui.selected] : null;
-    const hunting = free && st.phase === 'manage' && T.canDevourNow(st) && sel && !sel.sealed && sel.inmate && !ui.scouting;
+    // A chain shows its eater's targets; otherwise only the inmate in the
+    // warden's cell can start the day's devour.
+    const chainCell = st.chainConsume && !st.pending.length ? T.cellOf(st, st.chainConsume) : null;
+    const starter = free && st.phase === 'manage' && !ui.scouting && T.canDevourNow(st) && sel && sel.n === st.position && !sel.sealed && sel.inmate ? sel : null;
+    const hunter = chainCell || starter;
+    const hunting = !!hunter;
     const targets = new Map();
-    if (hunting) for (const o of T.devourOptions(st, sel.n)) targets.set(o.cell, o);
+    if (hunter) for (const o of T.devourOptions(st, hunter.n)) targets.set(o.cell, o);
     const victims = new Set(st.phase === 'event' && st.event && st.event.kind === 'execution' ? T.executionVictims(st, st.event.cell).map((c) => c.n) : []);
     const dests = free && st.phase === 'patrol' && !ui.scouting ? new Set(T.patrolOptions(st)) : new Set();
     $('board').classList.toggle('is-patrolling', dests.size > 0);
@@ -473,16 +483,17 @@
       const el = cellEls[cell.n];
       const p = cellParts(cell, st);
       let tag = '';
-      if (ui.selected === cell.n || pendingTarget === cell.n || (st.phase === 'event' && st.event && st.event.cell === cell.n)) p.cls.push('is-selected');
+      if (ui.selected === cell.n || pendingTarget === cell.n || (chainCell && chainCell.n === cell.n) || (st.phase === 'event' && st.event && st.event.cell === cell.n)) p.cls.push('is-selected');
       if (targets.has(cell.n)) {
         p.cls.push('is-target');
-        tag = `Eat +${T.gainFor(st, sel.n, targets.get(cell.n)).gain}`;
-      } else if (hunting && targets.size && ui.selected !== cell.n) {
+        tag = `Eat +${T.gainFor(st, hunter.n, targets.get(cell.n)).gain}`;
+      } else if (hunting && targets.size && hunter.n !== cell.n) {
         p.cls.push('is-dim');
       }
       if (victims.has(cell.n)) p.cls.push('is-victim');
       if (dests.has(cell.n)) {
         p.cls.push('is-dest');
+        if (ui.hover === cell.n) p.cls.push('is-aim');
         if (st.chain) {
           const opens = T.clockwisePath(st, cell.n).filter((k) => st.cells[k].sealed).length;
           tag = `Go +${opens}`;
@@ -505,6 +516,40 @@
       el.btn.setAttribute('aria-pressed', String(ui.selected === cell.n));
     }
     $('emblem-text').textContent = st.phase === 'ended' ? 'Run complete' : `Warden at cell ${L(st.position)} · clockwise`;
+  }
+
+  // The morning's destination doors as cards under the ring.
+  function renderDestBar() {
+    const st = ui.state;
+    const show = st.phase === 'patrol' && !blocked(st) && !ui.scouting;
+    $('dest-bar').hidden = !show;
+    if (!show) return;
+    const options = T.patrolOptions(st);
+    const chosen = ui.pending && ui.pending.kind === 'patrol' ? ui.pending.cell : null;
+    setHTML($('dest-cards'), st.destinations
+      .map((n) => {
+        const c = st.cells[n];
+        const usable = options.includes(n);
+        let meta;
+        if (!usable) meta = 'Route locked by your scout';
+        else if (st.chain) meta = `Chain opens ${T.plural(T.clockwisePath(st, n).filter((k) => st.cells[k].sealed).length, 'door')}`;
+        else if (!c.sealed && c.inmate) {
+          const count = T.devourOptions(st, n).length;
+          meta = `${T.describe(c.inmate)} · ${count ? T.plural(count, 'target') : 'no target'}`;
+        } else if (!c.sealed) meta = 'Empty cell';
+        else if (c.nest) meta = `Rat nest · hatches day ${c.nest.due}`;
+        else if (c.known === 2) meta = `${T.describe(c.hidden)} inside`;
+        else if (c.known === 1) meta = `${T.tierName(c.hidden.tier)} inside`;
+        else meta = 'Locked · unknown inside';
+        const event = c.sealed && c.event && !st.chain ? '<span class="dest-event">Event</span>' : '';
+        // A known inmate shows its portrait; a locked cell shows its door.
+        const face = !c.sealed && c.inmate
+          ? `<span class="dest-face t${c.inmate.tier}" aria-hidden="true">${PORTRAITS[c.inmate.beast]}</span>`
+          : `<span class="dest-door${c.sealed ? '' : ' is-open'}" aria-hidden="true"></span>`;
+        const here = n === st.position ? ' (warden here)' : '';
+        return `<button type="button" class="dest-card${chosen === n ? ' is-selected' : ''}" data-dest="${n}"${usable ? '' : ' disabled'}>${face}<span class="dest-label">Go to cell ${L(n)}</span><span class="dest-meta">${esc(meta + here)}</span>${event}</button>`;
+      })
+      .join(''));
   }
 
   function renderSample() {
@@ -540,7 +585,7 @@
       })
       .join('');
     $('sample-board').classList.add('is-patrolling');
-    $('sample-board').innerHTML = `${html}<div class="board-center"><div class="decision"><div class="decision-text"><p class="decision-title">Patrol: pick a door</p><p class="decision-detail">Day 9. The three glowing doors are today's destinations. The warden walks there and the door opens.</p></div></div></div>`;
+    $('sample-board').innerHTML = `${html}<div class="board-center"><div class="decision"><div class="decision-text"><p class="decision-title">Patrol: pick a door</p><p class="decision-detail">Day 9. The glowing doors are today's destinations. The warden walks to the one you pick and the door opens.</p></div></div></div>`;
   }
 
   // ---------- Rendering: decision panel ----------
@@ -583,6 +628,17 @@
       );
       return;
     }
+    if (st.chainConsume) {
+      const cell = T.cellOf(st, st.chainConsume);
+      const count = cell ? T.devourOptions(st, cell.n).length : 0;
+      setDecision(
+        'Chain devour',
+        cell ? `The ${T.describe(cell.inmate)} in cell ${L(cell.n)} can devour again. Click a highlighted target (${T.plural(count, 'option')}), or stop the chain.` : 'The chain is over.',
+        [['Stop chain', () => run((s) => T.stopChain(s))]],
+        true,
+      );
+      return;
+    }
     if (st.phase === 'event' && st.event) {
       renderEvent(st);
       return;
@@ -605,19 +661,21 @@
     }
     if (st.phase === 'patrol') {
       const options = T.patrolOptions(st);
-      const parts = [`The warden stands at cell ${L(st.position)}. Pick one of the ${T.plural(options.length, 'glowing door')}.`];
+      const parts = [`The warden stands at cell ${L(st.position)}. Pick one of the ${T.plural(options.length, 'cell')} below, or click a glowing cell on the ring. Whichever inmate the warden ends up with makes today's devour.`];
       if (st.chain) parts.push('Chain reaction armed: every sealed door on the clockwise walk opens.');
       if (st.mode === 'challenge' && st.challenge.intel !== null) parts.push(`Route locked to cell ${L(st.challenge.intel)} or an open cell.`);
       else if (st.cells.some((c) => T.canScout(st, c))) parts.push(st.mode === 'challenge' ? 'You can scout a destination for 1 voucher.' : 'You can scout a sealed door first.');
-      setDecision('Patrol: pick a door', parts.join(' '), []);
+      setDecision('Patrol: select a destination', parts.join(' '), []);
       return;
     }
     const devours = devoursAvailable(st);
     const due = T.currentContract(st);
+    const warden = st.cells[st.position];
     let lead;
     if (!T.canDevourNow(st)) lead = 'Today’s devour is used. Swap or end the day.';
-    else if (devours) lead = `${T.plural(devours, 'devour')} possible. Select an inmate to see its targets.${st.params.oneDevour ? ' You get one devour today, and it chains on by itself.' : ''}`;
-    else lead = 'No devours are possible right now. Swap or end the day.';
+    else if (!warden.inmate || warden.sealed) lead = `The warden's cell (${L(st.position)}) is empty, so there is no devour today. Swap or end the day.`;
+    else if (devours) lead = `The ${T.describe(warden.inmate)} in the warden's cell (${L(st.position)}) can make today's devour. Select it to see its ${T.plural(devours, 'target')}.`;
+    else lead = `The ${T.describe(warden.inmate)} in the warden's cell (${L(st.position)}) has no target today. Swap or end the day.`;
     const parts = [lead];
     if (due && due.deadline === st.day) parts.push(`"${due.name}" is due: ending the day opens its delivery window.`);
     setDecision('Manage the block', parts.join(' '), []);
@@ -656,14 +714,17 @@
       if (st.chain) {
         const opens = T.clockwisePath(st, p.cell).filter((k) => st.cells[k].sealed).length;
         parts.push(`Chain reaction: the walk from cell ${L(st.position)} opens ${T.plural(opens, 'sealed door')}, including this one.`);
-      } else if (!c.sealed) parts.push('An open cell: the warden walks there and no door opens.');
+      } else if (!c.sealed && c.inmate) {
+        const count = T.devourOptions(st, p.cell).length;
+        parts.push(`The warden walks to the ${T.describe(c.inmate)} in cell ${L(p.cell)}. It then makes today's devour${count ? ` (${T.plural(count, 'target')} from there)` : ', but it has no target from there'}.`);
+      } else if (!c.sealed) parts.push('An empty cell: the warden walks there.');
       else if (c.nest) parts.push(`This destroys the rat nest due on day ${c.nest.due}.`);
       else if (c.known === 2) parts.push(`A ${T.describe(c.hidden)} waits inside.`);
       else if (c.known === 1) parts.push(`A ${T.tierName(c.hidden.tier)} inmate waits inside. Its beast is unknown.`);
       else parts.push('The occupant stays unknown until the door opens.');
       if (c.sealed && c.event && !st.chain) parts.push('A special event waits behind this door.');
       if (st.tools.includes('keys') && c.sealed && !st.chain) parts.push('Lost Key Ring: 80% chance the neighbors open too.');
-      const actions = [[c.sealed || st.chain ? 'Open door' : 'Walk here', () => run((s) => T.patrol(s, p.cell), { select: null }), 'primary']];
+      const actions = [[c.sealed || st.chain ? 'Open door' : 'Walk here', () => run((s) => T.patrol(s, p.cell), { select: p.cell }), 'primary']];
       const scout = scoutAction(st, p.cell);
       if (scout) actions.push(scout);
       actions.push(['Cancel', cancel]);
@@ -684,7 +745,7 @@
       const meal = target.sealed ? `the ${T.tierName(target.hidden.tier)} inmate behind the scratched door` : `the ${T.describe(target.inmate)}`;
       const extras = [];
       if (notes.length) extras.push(`Bonus: ${notes.join(', ')}.`);
-      if (st.params.oneDevour) extras.push('This is today’s only devour. Afterwards it chains on by itself into random valid targets.');
+      extras.push('This is today’s devour. Afterwards the eater chains on by itself into random valid targets.');
       if (saw) extras.push('Rusty Saw may add +1.');
       if (revenge) extras.push("Avenger's Box may open a new meal.");
       if (T.linkOf(st, eater.id) && to < T.RAINBOW) extras.push('If its beast changes, its prey mark ends.');
@@ -749,11 +810,12 @@
     if (inmate.beast === 'rat' && st.tools.includes('skewer')) eats.push('Rat');
     const parts = [`Eats ${eats.join(' and ')} of the same rarity.`];
     if (inmate.beast === 'wolf') parts.push('Can also devour through scratched doors.');
-    if (st.phase === 'patrol') parts.push('Patrol first, then it can devour.');
+    if (st.phase === 'patrol') parts.push('Patrol first. Then the inmate in the warden’s cell can devour.');
     else if (st.phase === 'manage') {
       const options = T.devourOptions(st, cell.n);
-      if (!T.canDevourNow(st)) parts.push('Today’s devour is used.');
-      else parts.push(options.length ? `${T.plural(options.length, 'target')} highlighted. Click one to devour it.` : 'No targets on the block right now.');
+      if (cell.n !== st.position) parts.push(`Only the inmate in the warden's cell (${L(st.position)}) can start today's devour.`);
+      else if (!T.canDevourNow(st)) parts.push('Today’s devour is used.');
+      else parts.push(options.length ? `It stands in the warden's cell: ${T.plural(options.length, 'target')} highlighted. Click one to devour it.` : 'It stands in the warden’s cell but has no target right now.');
     }
     if (cell.ivory) parts.push(`Ivory cell: swapping here raises ${T.plural(st.params.ivoryCount, 'inmate')} a tier.`);
     const link = T.linkOf(st, inmate.id);
@@ -796,6 +858,8 @@
     const st = ui.state;
     const free = !blocked(st);
     const scoutBtn = $('btn-scout');
+    // Scouting is off by default in drills, as in live; the Lab can allow it.
+    scoutBtn.hidden = st.mode !== 'challenge' && st.params.scoutsPerDay === 0;
     const scoutable = free && st.cells.some((c) => T.canScout(st, c));
     if (st.mode === 'challenge') scoutBtn.textContent = ui.scouting ? 'Cancel scout' : 'Scout · 1 voucher';
     else scoutBtn.textContent = ui.scouting ? 'Cancel scout' : `Scout (${Math.max(0, st.params.scoutsPerDay - st.used.scout)})`;
@@ -805,7 +869,7 @@
     const swapBtn = $('btn-swap');
     const left = Math.max(0, st.params.swapsPerDay - st.used.swap);
     const sel = ui.selected !== null ? st.cells[ui.selected] : null;
-    const canSwap = free && st.phase === 'manage' && left > 0 && sel && !sel.sealed && !!sel.inmate;
+    const canSwap = free && st.phase === 'manage' && !st.chainConsume && left > 0 && sel && !sel.sealed && !!sel.inmate;
     swapBtn.textContent = `Swap (${left})`;
     swapBtn.disabled = !canSwap;
     swapBtn.title = canSwap ? '' : 'Select an inmate after the patrol to swap it.';
@@ -820,7 +884,7 @@
 
     $('btn-undo').disabled = !ui.history.length;
     const endBtn = $('btn-end');
-    endBtn.disabled = !free || st.phase !== 'manage';
+    endBtn.disabled = !free || st.phase !== 'manage' || !!st.chainConsume;
     const due = T.currentContract(st);
     endBtn.textContent = st.mode === 'drill' && st.day >= st.maxDays ? 'Finish run' : due && due.deadline === st.day ? 'End day · deliver' : 'End day';
   }
@@ -934,7 +998,7 @@
   function tipAction(tip) {
     switch (tip.kind) {
       case 'patrol':
-        return ['Go', () => run((s) => T.patrol(s, tip.cell), { select: null })];
+        return ['Go', () => run((s) => T.patrol(s, tip.cell), { select: tip.cell })];
       case 'devour':
         return ['Devour', () => run((s) => T.devour(s, tip.from, tip.to), { select: tip.from })];
       case 'swap':
@@ -947,6 +1011,10 @@
         return ['Load', () => openDeliver(tip.cargo)];
       case 'early':
         return ['Open', () => run((s) => T.openEarlyDelivery(s))];
+      case 'chain':
+        return ['Devour', () => run((s) => T.chainDevour(s, tip.to), { select: tip.from })];
+      case 'stop':
+        return ['Stop', () => run((s) => T.stopChain(s))];
       case 'end':
         return ['End day', askEndDay];
       default:
@@ -983,6 +1051,7 @@
     if (!ui.state || ui.screen !== 'game') return;
     renderTop();
     renderBoard();
+    renderDestBar();
     renderDecision();
     renderActions();
     renderLog();
@@ -1052,7 +1121,6 @@
       .join('');
     $('new-seed').value = T.randomSeed();
     $('new-loop-chain').checked = !!ui.labParams.loopChain;
-    $('new-one-devour').checked = !!ui.labParams.oneDevour;
     syncNewMode();
     $('new-replace').hidden = !(ui.state && ui.state.phase !== 'ended');
     openDialog('dlg-new');
@@ -1608,6 +1676,28 @@
     });
 
     $('btn-scout').addEventListener('click', toggleScout);
+    // A card click chooses that door; clicking the chosen card again goes there.
+    $('dest-cards').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-dest]');
+      if (!b || b.disabled) return;
+      const n = Number(b.dataset.dest);
+      if (ui.pending && ui.pending.kind === 'patrol' && ui.pending.cell === n) run((s) => T.patrol(s, n), { select: n });
+      else askPatrol(n);
+    });
+    $('dest-cards').addEventListener('mouseover', (e) => {
+      const b = e.target.closest('[data-dest]');
+      const n = b ? Number(b.dataset.dest) : null;
+      if (n !== null && ui.hover !== n && ui.state) {
+        ui.hover = n;
+        renderBoard();
+      }
+    });
+    $('dest-cards').addEventListener('mouseleave', () => {
+      if (ui.hover !== null && ui.state) {
+        ui.hover = null;
+        renderBoard();
+      }
+    });
     $('btn-swap').addEventListener('click', () => askSwap(ui.selected));
     $('btn-deliver').addEventListener('click', () => openDeliver());
     $('btn-undo').addEventListener('click', undo);
@@ -1632,7 +1722,7 @@
       e.preventDefault();
       const data = new FormData(e.target);
       // The hard mode switches are remembered for the next run too.
-      ui.labParams = T.normalizeParams(Object.assign({}, ui.labParams, { loopChain: $('new-loop-chain').checked, oneDevour: $('new-one-devour').checked }));
+      ui.labParams = T.normalizeParams(Object.assign({}, ui.labParams, { loopChain: $('new-loop-chain').checked }));
       store.set(KEYS.params, ui.labParams);
       closeDialog('dlg-new');
       startRun({ mode: data.get('mode'), scenario: data.get('scenario'), loadout: data.get('loadout'), seed: $('new-seed').value });
