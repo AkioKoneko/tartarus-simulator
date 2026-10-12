@@ -106,7 +106,6 @@
         <p class="dest-hint">Go to a locked cell to open it, or to a known inmate so it makes today's devour. Click a card to choose it, then click it again or press Enter to go.</p>
       </div>
       <div class="actionbar">
-        <button type="button" class="btn" id="btn-scout">Scout</button>
         <button type="button" class="btn" id="btn-swap">Swap</button>
         <button type="button" class="btn" id="btn-deliver" hidden>Deliver</button>
         <button type="button" class="btn" id="btn-undo">Undo</button>
@@ -201,7 +200,7 @@
       <fieldset class="field" id="new-loadouts" hidden>
         <legend>Starting kit</legend>
         <div class="options" id="loadout-options"></div>
-        <p class="field-note">12 days and 6 dispatch vouchers. Three contracts fall due at the end of days 4, 8 and 12. Each of your first two deliveries earns a refit. Scouting, escorts and refit refreshes share the vouchers. Pass by delivering at least two contracts, including the heavy one.</p>
+        <p class="field-note">12 days and 6 dispatch vouchers. Three contracts fall due at the end of days 4, 8 and 12. Each of your first two deliveries earns a refit. Escorts and refit refreshes share the vouchers. Pass by delivering at least two contracts, including the heavy one.</p>
       </fieldset>
       <fieldset class="field">
         <legend>Hard mode</legend>
@@ -262,8 +261,7 @@
 
       <h3>A day on the block</h3>
       <ol class="steps">
-        <li><strong>Patrol.</strong> Each morning offers three destination cells from the next five clockwise from the warden, or two while you hold the Burning Stake. They glow on the ring and appear as cards under it. A destination can be a locked cell, which opens when the warden arrives, or a cell whose inmate you already know. You must patrol before anything else.</li>
-        <li><strong>No scouting.</strong> As in live, you can't see inside a locked cell before you open it. The Lab can allow scouting for practice, and in the contract challenge you can pay 1 voucher to scout a destination.</li>
+        <li><strong>Patrol.</strong> Each morning offers three destination cells from the next five clockwise from the warden, or two while you hold the Burning Stake. They glow on the ring and appear as cards under it. A destination can be a locked cell, which opens when the warden arrives, or a cell whose inmate you already know. You can't see inside a locked cell until it opens. You must patrol before anything else.</li>
         <li><strong>Devour.</strong> Once a day, after the patrol, and only the inmate in the warden's cell can start it. Click a highlighted target. If the eater then has another valid target, a chain devour starts: pick its next meal, or stop the chain. It repeats while targets remain.</li>
         <li><strong>Swap.</strong> Once a day, replace an inmate with a brand-new random one. It can come out stronger or weaker.</li>
         <li><strong>End the day.</strong> The next morning, prey marks grow, ripe nests hatch, and new destinations are drawn.</li>
@@ -303,7 +301,7 @@
       <dl class="defs" id="hb-tools"></dl>
 
       <h3>Contract challenge</h3>
-      <p>Twelve days with 6 dispatch vouchers and a starting kit. Each morning one patrol option is the nearest open cell, which lets you walk without adding inmates. Scouting costs 1 voucher, once a day: it shows the full occupant of one destination, and that day you can then only go there or to an open cell.</p>
+      <p>Twelve days with 6 dispatch vouchers and a starting kit: a few inmates already on the block, plus one or two tools. Vouchers pay for escorts and refit refreshes.</p>
       <p>Three contracts fall due at the end of days 4, 8 and 12. Ending a due day opens the delivery window: pick inmates (vault Rainbows count) that meet the contract, choose an escort, and send them, or skip the contract. A light escort costs 1 voucher and carries up to 36 pressure; a heavy escort costs 3 and carries up to 72. Each inmate scores 2 to the power of its tier. Each of your first two deliveries earns a refit tool; you may refresh the offer once for 1 voucher. From day 9, once the first two contracts are settled, you can deliver the heavy contract early, which ends the run. You pass by delivering at least two contracts, including the heavy one.</p>
       <h3>Practice values</h3>
       <p>The live game's exact odds, daily limits and some timing details are not public. This simulator uses stated practice values for them. You can change the drill values in the Lab; the contract challenge always uses fixed values. Riots, followers, loot and combat are not simulated.</p>

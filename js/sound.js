@@ -81,10 +81,6 @@
       tone(c, { f: 92, to: 48, type: 'triangle', decay: 0.32, peak: 0.28 });
       noise(c, { at: 0.13, decay: 0.07, peak: 0.1, freq: 3200, filter: 'bandpass', q: 5 });
     },
-    scout(c) {
-      tone(c, { f: 1320, decay: 0.05, peak: 0.05, type: 'square' });
-      tone(c, { f: 1760, at: 0.07, decay: 0.07, peak: 0.045, type: 'square' });
-    },
     select(c) {
       tone(c, { f: 640, decay: 0.04, peak: 0.035, type: 'triangle' });
     },

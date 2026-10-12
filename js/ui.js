@@ -84,7 +84,6 @@
     state: null,
     history: [],
     selected: null,
-    scouting: false,
     pending: null,
     hover: null,
     screen: 'title',
@@ -176,7 +175,6 @@
     ui.history.push(snapshot);
     if (ui.history.length > HISTORY_LIMIT) ui.history.shift();
     if (!options.keepPending) ui.pending = null;
-    ui.scouting = false;
     if ('select' in options) ui.selected = options.select;
     tidySelection();
     persist();
@@ -216,7 +214,6 @@
     ui.state = T.deserialize(ui.history.pop());
     ui.selected = null;
     ui.pending = null;
-    ui.scouting = false;
     persist();
     closeRunDialogs();
     if (ui.screen !== 'game') showScreen('game');
@@ -227,11 +224,10 @@
   function cancel() {
     ui.pending = null;
     ui.selected = null;
-    ui.scouting = false;
     render();
   }
 
-  const SOUND_ORDER = ['end', 'rainbow', 'deliver', 'devour', 'hatch', 'open', 'swap', 'nest', 'scout', 'promote', 'tool', 'window', 'day', 'move'];
+  const SOUND_ORDER = ['end', 'rainbow', 'deliver', 'devour', 'hatch', 'open', 'swap', 'nest', 'promote', 'tool', 'window', 'day', 'move'];
   const SOUND_ALIAS = { window: 'tool', move: 'select' };
 
   function playEvents(events) {
@@ -306,19 +302,10 @@
     const last = st.mode === 'drill' && st.day >= st.maxDays;
     if (!ui.prefs.quick && (warnings.length || last)) {
       ui.pending = { kind: 'end', warnings, last, deliveryDay };
-      ui.scouting = false;
       render();
       return;
     }
     run((s) => T.endDay(s), { select: null });
-  }
-
-  function toggleScout() {
-    if (!ui.state) return;
-    ui.scouting = !ui.scouting;
-    ui.pending = null;
-    if (ui.scouting) ui.selected = null;
-    render();
   }
 
   function onCell(n) {
@@ -341,18 +328,9 @@
       else toast('Pick a highlighted target for the chain, or stop the chain.');
       return;
     }
-    if (ui.scouting) {
-      if (T.canScout(st, cell)) run((s) => T.scout(s, n), { keepPending: true });
-      else toast(st.mode === 'challenge' ? 'In the challenge you can only scout one of today’s sealed destinations.' : 'Pick a highlighted door: a sealed cell whose rarity you have not seen.');
-      return;
-    }
     if (st.phase === 'patrol') {
       if (T.patrolOptions(st).includes(n)) {
         askPatrol(n);
-        return;
-      }
-      if (st.destinations.includes(n)) {
-        toast(`You scouted cell ${L(st.challenge.intel)}, so today you can only go there or to an open cell.`);
         return;
       }
       inspect();
@@ -468,13 +446,13 @@
     // A chain shows its eater's targets; otherwise only the inmate in the
     // warden's cell can start the day's devour.
     const chainCell = st.chainConsume && !st.pending.length ? T.cellOf(st, st.chainConsume) : null;
-    const starter = free && st.phase === 'manage' && !ui.scouting && T.canDevourNow(st) && sel && sel.n === st.position && !sel.sealed && sel.inmate ? sel : null;
+    const starter = free && st.phase === 'manage' && T.canDevourNow(st) && sel && sel.n === st.position && !sel.sealed && sel.inmate ? sel : null;
     const hunter = chainCell || starter;
     const hunting = !!hunter;
     const targets = new Map();
     if (hunter) for (const o of T.devourOptions(st, hunter.n)) targets.set(o.cell, o);
     const victims = new Set(st.phase === 'event' && st.event && st.event.kind === 'execution' ? T.executionVictims(st, st.event.cell).map((c) => c.n) : []);
-    const dests = free && st.phase === 'patrol' && !ui.scouting ? new Set(T.patrolOptions(st)) : new Set();
+    const dests = free && st.phase === 'patrol' ? new Set(T.patrolOptions(st)) : new Set();
     $('board').classList.toggle('is-patrolling', dests.size > 0);
     const aim = ui.pending && ui.pending.kind === 'patrol' ? ui.pending.cell : ui.hover;
     const path = st.chain && st.phase === 'patrol' && dests.has(aim) ? new Set(T.clockwisePath(st, aim)) : new Set();
@@ -502,10 +480,6 @@
         }
       }
       if (path.has(cell.n)) p.cls.push('on-path');
-      if (ui.scouting && T.canScout(st, cell)) {
-        p.cls.push('can-scout');
-        tag = 'Scout';
-      }
       el.btn.className = p.cls.join(' ');
       setHTML(el.body, p.body);
       setHTML(el.hint, p.hint);
@@ -521,7 +495,7 @@
   // The morning's destination doors as cards under the ring.
   function renderDestBar() {
     const st = ui.state;
-    const show = st.phase === 'patrol' && !blocked(st) && !ui.scouting;
+    const show = st.phase === 'patrol' && !blocked(st);
     $('dest-bar').hidden = !show;
     if (!show) return;
     const options = T.patrolOptions(st);
@@ -531,8 +505,7 @@
         const c = st.cells[n];
         const usable = options.includes(n);
         let meta;
-        if (!usable) meta = 'Route locked by your scout';
-        else if (st.chain) meta = `Chain opens ${T.plural(T.clockwisePath(st, n).filter((k) => st.cells[k].sealed).length, 'door')}`;
+        if (st.chain) meta = `Chain opens ${T.plural(T.clockwisePath(st, n).filter((k) => st.cells[k].sealed).length, 'door')}`;
         else if (!c.sealed && c.inmate) {
           const count = T.devourOptions(st, n).length;
           meta = `${T.describe(c.inmate)} · ${count ? T.plural(count, 'target') : 'no target'}`;
@@ -597,11 +570,6 @@
     $('decision').classList.toggle('is-pending', !!pending);
   }
 
-  function scoutAction(st, n) {
-    if (!T.canScout(st, st.cells[n])) return null;
-    return [st.mode === 'challenge' ? 'Scout · 1 voucher' : 'Scout first', () => run((s) => T.scout(s, n), { keepPending: true })];
-  }
-
   function renderDecision() {
     const st = ui.state;
     if (st.phase === 'ended') {
@@ -647,14 +615,6 @@
       renderPending(ui.pending);
       return;
     }
-    if (ui.scouting) {
-      setDecision(
-        'Scout a door',
-        st.mode === 'challenge' ? 'Click one of today’s sealed destinations. For 1 voucher you see the full occupant, and today’s route locks to that door or an open cell.' : 'Click a highlighted door to see the rarity inside. The beast stays hidden.',
-        [['Cancel', cancel]],
-      );
-      return;
-    }
     if (ui.selected !== null) {
       renderSelection(st.cells[ui.selected]);
       return;
@@ -663,8 +623,6 @@
       const options = T.patrolOptions(st);
       const parts = [`The warden stands at cell ${L(st.position)}. Pick one of the ${T.plural(options.length, 'cell')} below, or click a glowing cell on the ring. Whichever inmate the warden ends up with makes today's devour.`];
       if (st.chain) parts.push('Chain reaction armed: every sealed door on the clockwise walk opens.');
-      if (st.mode === 'challenge' && st.challenge.intel !== null) parts.push(`Route locked to cell ${L(st.challenge.intel)} or an open cell.`);
-      else if (st.cells.some((c) => T.canScout(st, c))) parts.push(st.mode === 'challenge' ? 'You can scout a destination for 1 voucher.' : 'You can scout a sealed door first.');
       setDecision('Patrol: select a destination', parts.join(' '), []);
       return;
     }
@@ -725,8 +683,6 @@
       if (c.sealed && c.event && !st.chain) parts.push('A special event waits behind this door.');
       if (st.tools.includes('keys') && c.sealed && !st.chain) parts.push('Lost Key Ring: 80% chance the neighbors open too.');
       const actions = [[c.sealed || st.chain ? 'Open door' : 'Walk here', () => run((s) => T.patrol(s, p.cell), { select: p.cell }), 'primary']];
-      const scout = scoutAction(st, p.cell);
-      if (scout) actions.push(scout);
       actions.push(['Cancel', cancel]);
       setDecision(`Patrol to cell ${L(p.cell)}?`, parts.join(' '), actions, true);
       return;
@@ -795,8 +751,6 @@
       if (cell.scratch) parts.push(`A ${T.tierName(cell.hidden.tier)} Wolf can devour it through the scratched door.`);
       if (cell.event) parts.push('A special event waits behind this door. It triggers only when a patrol opens it.');
       if (free && st.phase === 'patrol' && !st.destinations.includes(cell.n)) parts.push('It is not one of today’s destinations.');
-      const scout = free ? scoutAction(st, cell.n) : null;
-      if (scout) actions.push(scout);
       actions.push(['Deselect', cancel]);
       setDecision(`Cell ${L(cell.n)}: sealed`, parts.join(' '), actions);
       return;
@@ -857,15 +811,6 @@
   function renderActions() {
     const st = ui.state;
     const free = !blocked(st);
-    const scoutBtn = $('btn-scout');
-    // Scouting is off by default in drills, as in live; the Lab can allow it.
-    scoutBtn.hidden = st.mode !== 'challenge' && st.params.scoutsPerDay === 0;
-    const scoutable = free && st.cells.some((c) => T.canScout(st, c));
-    if (st.mode === 'challenge') scoutBtn.textContent = ui.scouting ? 'Cancel scout' : 'Scout · 1 voucher';
-    else scoutBtn.textContent = ui.scouting ? 'Cancel scout' : `Scout (${Math.max(0, st.params.scoutsPerDay - st.used.scout)})`;
-    scoutBtn.disabled = !ui.scouting && !scoutable;
-    scoutBtn.setAttribute('aria-pressed', String(ui.scouting));
-
     const swapBtn = $('btn-swap');
     const left = Math.max(0, st.params.swapsPerDay - st.used.swap);
     const sel = ui.selected !== null ? st.cells[ui.selected] : null;
@@ -1092,7 +1037,6 @@
     ui.history = [];
     ui.selected = null;
     ui.pending = null;
-    ui.scouting = false;
     closeRunDialogs();
     persist();
     showScreen('game');
@@ -1276,7 +1220,6 @@
     ui.history = [];
     ui.selected = null;
     ui.pending = null;
-    ui.scouting = false;
     closeRunDialogs();
     persist();
     closeDialog('dlg-save');
@@ -1451,7 +1394,7 @@
       const rows = r.roster.rows.filter((x) => x.tier === t);
       if (rows.length) lines.push(`${T.TIERS[t]} ×${rows.length}: ${rows.map((x) => T.beastName(x.beast)).join(', ')}`);
     }
-    lines.push(`Moves: ${r.stats.patrols} patrols, ${r.stats.scouts} scouts, ${r.stats.devours} devours, ${r.stats.swaps} swaps, ${r.stats.executions} executions`);
+    lines.push(`Moves: ${r.stats.patrols} patrols, ${r.stats.devours} devours, ${r.stats.swaps} swaps, ${r.stats.executions} executions`);
     return lines.join('\n');
   }
 
@@ -1675,7 +1618,6 @@
       if (ui.prefs.sound) Sound.play('tool');
     });
 
-    $('btn-scout').addEventListener('click', toggleScout);
     // A card click chooses that door; clicking the chosen card again goes there.
     $('dest-cards').addEventListener('click', (e) => {
       const b = e.target.closest('[data-dest]');

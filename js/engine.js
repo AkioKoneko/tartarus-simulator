@@ -52,7 +52,6 @@
     patrolRange: 5,
     eventTwoDoors: false,
     fewerDoorsChance: 0,
-    scoutsPerDay: 0,
     swapsPerDay: 1,
     reusableCells: true,
     tierWeights: [52, 27, 15, 6, 0],
@@ -84,7 +83,6 @@
     { key: 'destinations', group: 'Pace', label: 'Most patrol doors offered each morning', type: 'int', min: 1, max: 15 },
     { key: 'patrolRange', group: 'Pace', label: 'Destinations come from this many cells clockwise ahead of the warden', type: 'int', min: 1, max: 15 },
     { key: 'fewerDoorsChance', group: 'Pace', label: 'Chance a morning offers one door fewer (%)', type: 'int', min: 0, max: 100 },
-    { key: 'scoutsPerDay', group: 'Pace', label: 'Scouts per day (0 means no scouting, as in live)', type: 'int', min: 0, max: 16 },
     { key: 'swapsPerDay', group: 'Pace', label: 'Swaps per day', type: 'int', min: 0, max: 16 },
     { key: 'reusableCells', group: 'Pace', label: 'Emptied cells seal again and can be reopened', type: 'bool' },
     { key: 'loopChain', group: 'Hard mode', label: 'Loop food chain: Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth', type: 'bool' },
@@ -183,7 +181,7 @@
   const ok = (events) => ({ ok: true, events: events || [] });
   const fail = (reason) => ({ ok: false, reason });
   const has = (state, tool) => state.tools.includes(tool);
-  const freshDay = () => ({ scout: 0, swap: 0, devour: 0 });
+  const freshDay = () => ({ swap: 0, devour: 0 });
   // Steps clockwise from a to b, so 0 means the same cell.
   const stepsBetween = (a, b) => (b - a + CELL_COUNT) % CELL_COUNT;
 
@@ -327,7 +325,7 @@
   }
 
   function limits(state) {
-    return { scout: state.mode === 'challenge' ? 1 : state.params.scoutsPerDay, swap: state.params.swapsPerDay };
+    return { swap: state.params.swapsPerDay };
   }
 
   // Ends every prey mark that is no longer valid and logs why.
@@ -474,7 +472,7 @@
       prey: [],
       nextId: 1,
       log: [],
-      stats: { patrols: 0, opened: 0, scouts: 0, devours: 0, chains: 0, swaps: 0, executions: 0, best: 0 },
+      stats: { patrols: 0, opened: 0, devours: 0, chains: 0, swaps: 0, executions: 0, best: 0 },
       challenge: null,
       result: null,
     };
@@ -568,8 +566,6 @@
       contracts: makeContracts(state),
       deliveries: [],
       window: null,
-      scoutedDay: 0,
-      intel: null,
     };
     beginDay(state, []);
     log(state, 'drill', `${kit.name}: ${plural(kit.inmates.length, 'inmate')} on the block. Deliver at least two contracts, including the heavy one, to pass.`);
@@ -619,7 +615,6 @@
   function beginDay(state, events) {
     state.phase = 'patrol';
     state.used = freshDay();
-    if (state.challenge) state.challenge.intel = null;
     checkPrey(state);
     for (const link of state.prey.slice()) {
       if (link.next > state.day) continue;
@@ -664,18 +659,7 @@
   }
 
   function patrolOptions(state) {
-    if (state.phase !== 'patrol') return [];
-    const intel = state.challenge && state.challenge.intel;
-    return state.destinations.filter((n) => intel === null || intel === undefined || n === intel || !state.cells[n].sealed);
-  }
-
-  function canScout(state, cell) {
-    if (!cell || !cell.sealed || state.phase !== 'patrol') return false;
-    if (state.mode === 'challenge') {
-      const ch = state.challenge;
-      return ch.scoutedDay !== state.day && ch.vouchers >= 1 && ch.intel === null && state.destinations.includes(cell.n);
-    }
-    return !cell.nest && !cell.known && state.used.scout < state.params.scoutsPerDay;
+    return state.phase === 'patrol' ? state.destinations.slice() : [];
   }
 
   function devourOptions(state, n) {
@@ -733,7 +717,6 @@
     const blocked = guard(state, 'patrol');
     if (blocked) return blocked;
     if (!state.destinations.includes(n)) return fail('Patrol one of today’s destinations.');
-    if (!patrolOptions(state).includes(n)) return fail(`You scouted cell ${cellLabel(state.challenge.intel)}, so today you can only go there or to an open cell.`);
     const events = [{ type: 'move', from: state.position, to: n }];
     const cell = state.cells[n];
     state.stats.patrols += 1;
@@ -751,7 +734,6 @@
       log(state, 'patrol', `Walked to empty cell ${cellLabel(n)}.`);
     }
     state.position = n;
-    if (state.challenge) state.challenge.intel = null;
     checkPrey(state);
     if (event && state.cells[n].inmate) {
       state.phase = 'event';
@@ -799,34 +781,6 @@
     state.event = null;
     state.phase = 'manage';
     return ok(events);
-  }
-
-  function scout(state, n) {
-    const blocked = guard(state, 'patrol');
-    if (blocked) return blocked;
-    const cell = state.cells[n];
-    if (state.mode === 'challenge') {
-      const ch = state.challenge;
-      if (ch.scoutedDay === state.day) return fail('You already scouted today.');
-      if (ch.vouchers < 1) return fail('Scouting costs 1 dispatch voucher, and you have none left.');
-      if (!cell || !cell.sealed || !state.destinations.includes(n)) return fail('Scout one of today’s sealed destinations.');
-      const inmate = hiddenOf(state, cell);
-      cell.known = 2;
-      ch.vouchers -= 1;
-      ch.scoutedDay = state.day;
-      ch.intel = n;
-      state.stats.scouts += 1;
-      log(state, 'scout', `Scouted cell ${cellLabel(n)} for 1 voucher: a ${describe(inmate)}. Today you can only patrol there or to an open cell.`);
-      return ok([{ type: 'scout', cell: n }]);
-    }
-    if (!cell || !cell.sealed || cell.nest || cell.known) return fail('Scout a sealed door whose rarity you have not seen yet.');
-    if (state.used.scout >= state.params.scoutsPerDay) return fail('No scouts left today.');
-    const inmate = hiddenOf(state, cell);
-    cell.known = 1;
-    state.used.scout += 1;
-    state.stats.scouts += 1;
-    log(state, 'scout', `Scouted cell ${cellLabel(n)}: a ${tierName(inmate.tier)} inmate waits inside. Its beast stays hidden.`);
-    return ok([{ type: 'scout', cell: n }]);
   }
 
   // Resolves one devour without the phase checks, so gifts and chains can reuse it.
@@ -1527,7 +1481,7 @@
     data.pending = Array.isArray(data.pending) ? data.pending : [];
     data.destinations = Array.isArray(data.destinations) ? data.destinations : [];
     data.used = Object.assign(freshDay(), data.used || {});
-    data.stats = Object.assign({ patrols: 0, opened: 0, scouts: 0, devours: 0, chains: 0, swaps: 0, executions: 0, best: 0 }, data.stats || {});
+    data.stats = Object.assign({ patrols: 0, opened: 0, devours: 0, chains: 0, swaps: 0, executions: 0, best: 0 }, data.stats || {});
     data.rng = Number(data.rng) >>> 0;
     data.cache = Number(data.cache) || 0;
     data.position = clamp(Number(data.position) || 0, 0, CELL_COUNT - 1);
@@ -1548,7 +1502,6 @@
     newGame, randomSeed, normalizeParams, serialize, deserialize,
     patrol: bounded(patrol),
     resolveEvent: bounded(resolveEvent),
-    scout: bounded(scout),
     devour: bounded(devour),
     chainDevour: bounded(chainDevour),
     stopChain: bounded(stopChain),
@@ -1566,7 +1519,7 @@
     moveWarden: bounded(moveWarden),
     addTool: bounded(addTool),
     removeTool: bounded(removeTool),
-    patrolOptions, clockwisePath, devourOptions, startOptions, gainFor, executionVictims, canScout, canEat, eatsOf, canDevourNow, canOpenEarly, canRefresh,
+    patrolOptions, clockwisePath, devourOptions, startOptions, gainFor, executionVictims, canEat, eatsOf, canDevourNow, canOpenEarly, canRefresh,
     linkOf, cellOf, boardInmates, currentContract, deliveryCheck, bestCargo, rosterOf, advise, limits,
     toolText, toolName, describe, tierName, beastName, cellLabel, plural, stepsBetween,
   };

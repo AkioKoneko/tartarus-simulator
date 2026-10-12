@@ -937,14 +937,8 @@ a {
 }
 
 .cell.is-target .cell-tag,
-.cell.is-dest .cell-tag,
-.cell.can-scout .cell-tag {
+.cell.is-dest .cell-tag {
   display: block;
-}
-
-.cell.can-scout {
-  outline: 2px dotted var(--bone);
-  outline-offset: -5px;
 }
 
 .cell.is-dim {
@@ -1287,7 +1281,6 @@ a {
 .log-entry.k-ivory,
 .log-entry.k-tool,
 .log-entry.k-event { --k: var(--bone); }
-.log-entry.k-scout { --k: var(--t1); }
 .log-entry.k-contract { --k: var(--moss); }
 .log-entry.k-swap { --k: var(--t2); }
 .log-entry.k-patrol { --k: var(--chalk); }
