@@ -49,13 +49,15 @@
   const DEFAULT_PARAMS = {
     drillDays: 20,
     destinations: 3,
-    fewerDoorsChance: 10,
+    patrolRange: 5,
+    eventTwoDoors: true,
+    fewerDoorsChance: 0,
     scoutsPerDay: 0,
     swapsPerDay: 1,
     reusableCells: true,
     tierWeights: [52, 27, 15, 6, 0],
     beastWeights: [25, 25, 25, 25],
-    eventChance: 18,
+    eventChance: 8,
     executionSameTier: false,
     executionRerolls: false,
     ivoryCount: 4,
@@ -79,7 +81,8 @@
   // Field definitions for the Lab form; normalizeParams clamps to these.
   const PARAM_FIELDS = [
     { key: 'drillDays', group: 'Pace', label: 'Drill length in days', type: 'int', min: 5, max: 60 },
-    { key: 'destinations', group: 'Pace', label: 'Most patrol doors offered each morning', type: 'int', min: 1, max: 16 },
+    { key: 'destinations', group: 'Pace', label: 'Most patrol doors offered each morning', type: 'int', min: 1, max: 15 },
+    { key: 'patrolRange', group: 'Pace', label: 'Destinations come from this many cells clockwise ahead of the warden', type: 'int', min: 1, max: 15 },
     { key: 'fewerDoorsChance', group: 'Pace', label: 'Chance a morning offers one door fewer (%)', type: 'int', min: 0, max: 100 },
     { key: 'scoutsPerDay', group: 'Pace', label: 'Scouts per day (0 means no scouting, as in live)', type: 'int', min: 0, max: 16 },
     { key: 'swapsPerDay', group: 'Pace', label: 'Swaps per day', type: 'int', min: 0, max: 16 },
@@ -88,6 +91,7 @@
     { key: 'tierWeights', group: 'Odds', label: 'Rarity weights for new inmates', type: 'list', names: TIERS.slice(0, 5) },
     { key: 'beastWeights', group: 'Odds', label: 'Beast weights for new inmates', type: 'list', names: ['Mammoth', 'Lion', 'Wolf', 'Rat'] },
     { key: 'eventChance', group: 'Special events', label: 'Chance a sealed cell hides a special event (%)', type: 'int', min: 0, max: 100 },
+    { key: 'eventTwoDoors', group: 'Special events', label: 'A morning whose doors include an event offers only 2 doors', type: 'bool' },
     { key: 'executionSameTier', group: 'Special events', label: 'Execution takes same-rarity prey (off: lower rarity only)', type: 'bool' },
     { key: 'executionRerolls', group: 'Special events', label: "Execution re-rolls the executioner's beast", type: 'bool' },
     { key: 'ivoryCount', group: 'Markers', label: 'Inmates raised when an Ivory cell is swapped', type: 'int', min: 1, max: 15 },
@@ -505,10 +509,9 @@
       place(state, 6, 'wolf', 0);
       place(state, 13, 'lion', 2);
       hide(state, 2, 'lion', 2, { event: 'execution', known: 1 });
-      hide(state, 9, 'mammoth', 1, { event: 'chain' });
-      hide(state, 11, 'wolf', 0);
-      destinations = [2, 9, 11];
-      note = 'Special events drill: cell 03 hides an Execution behind a Rare inmate, and cell 10 hides a Chain reaction. Patrol one, then accept or skip the event.';
+      hide(state, 3, 'mammoth', 1, { event: 'chain' });
+      destinations = [2, 3];
+      note = 'Special events drill: cell 03 hides an Execution behind a Rare inmate, and cell 04 hides a Chain reaction. Patrol one, then accept or skip the event.';
     } else if (s === 'ivory') {
       place(state, 0, 'wolf', 1);
       state.cells[0].ivory = true;
@@ -592,14 +595,19 @@
     return Math.max(1, (state.destBase || state.params.destinations) - (has(state, 'fire') ? 1 : 0));
   }
 
-  // Destinations come from any cell: locked ones to open, or open ones whose
-  // inmates you already know, including the warden's own cell.
+  // Destinations come from the cells just ahead of the warden, clockwise:
+  // locked ones to open, or open ones whose inmates you already know.
   function rollDestinations(state) {
     // Some mornings offer one door fewer; the odds are a practice value.
     const fewer = rand(state) * 100 < state.params.fewerDoorsChance;
     state.destBase = Math.max(1, state.params.destinations - (fewer ? 1 : 0));
-    const count = destinationLimit(state);
-    state.destinations = shuffle(state, state.cells).slice(0, count).map((c) => c.n);
+    const range = Math.min(state.params.patrolRange, CELL_COUNT - 1);
+    const ahead = Array.from({ length: range }, (_, i) => state.cells[(state.position + 1 + i) % CELL_COUNT]);
+    let picks = shuffle(state, ahead).slice(0, destinationLimit(state));
+    // A door with an event behind it means a two-door morning.
+    const hasEvent = (c) => c.sealed && c.event;
+    if (state.params.eventTwoDoors && picks.some(hasEvent)) picks = [...picks.filter(hasEvent), ...picks.filter((c) => !hasEvent(c))].slice(0, 2);
+    state.destinations = picks.map((c) => c.n).sort((a, b) => stepsBetween(state.position, a) - stepsBetween(state.position, b));
   }
 
   // Trims today's options after a tool such as the Burning Stake changes the count.
