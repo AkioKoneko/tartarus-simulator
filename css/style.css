@@ -710,6 +710,26 @@ a {
   width: 38cqi;
 }
 
+/* Portrait images supplied in assets/prisoners/ get a rarity-colored frame. */
+img.portrait {
+  display: block;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border: 2px solid var(--tc);
+  border-radius: 6px;
+  background: var(--p-dark);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--tc) 45%, transparent);
+  filter: none;
+}
+
+.vault-slot img.portrait {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 50%;
+  box-shadow: none;
+}
+
 .portrait .p-main { fill: var(--tc); }
 .portrait .p-shade { fill: color-mix(in srgb, var(--tc) 48%, var(--p-dark)); }
 .portrait .p-light { fill: color-mix(in srgb, var(--tc) 50%, var(--chalk)); }

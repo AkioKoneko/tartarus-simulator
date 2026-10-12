@@ -17,7 +17,8 @@
   // top-left corner, around a courtyard that holds the decision panel.
   const RING = [[1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [2, 6], [3, 6], [4, 6], [4, 5], [4, 4], [4, 3], [4, 2], [4, 1], [3, 1], [2, 1]];
 
-  // Beast portraits drawn for this simulator.
+  // Beast portraits drawn for this simulator. Square images saved as
+  // assets/prisoners/<beast>.png replace them when present (see README).
   const svg = (inner) => `<svg class="portrait" viewBox="0 0 64 64" aria-hidden="true">${inner}</svg>`;
   const PORTRAITS = {
     mammoth: svg(
@@ -56,6 +57,23 @@
       '<path class="p-line" d="M27 48L12 44M27 51L12 53M37 48l15-4M37 51l15 2"/>',
     ),
   };
+
+  // Swaps in any portrait images the site provides, then redraws.
+  function loadPortraitImages(done) {
+    let left = T.BEASTS.length;
+    for (const beast of T.BEASTS) {
+      const src = `assets/prisoners/${beast}.png`;
+      const img = new Image();
+      img.onload = () => {
+        PORTRAITS[beast] = `<img class="portrait" src="${src}" alt="" decoding="async" draggable="false">`;
+        if (--left === 0) done();
+      };
+      img.onerror = () => {
+        if (--left === 0) done();
+      };
+      img.src = src;
+    }
+  }
   const LANTERN = '<svg class="warden" viewBox="0 0 16 18" aria-hidden="true"><path d="M6 1h4v2H6z"/><path d="M4 4h8l-1 10H5z"/><path d="M5 15h6v2H5z"/><path class="flame" d="M8 6.5c1.4 1.6 1.6 3 0 4.6-1.6-1.6-1.4-3 0-4.6Z"/></svg>';
 
   const $ = (id) => document.getElementById(id);
@@ -1776,6 +1794,10 @@
     applyPrefs();
     showScreen(data.screen === 'game' ? 'game' : 'title');
     requestAnimationFrame(() => $('board').classList.add('is-live'));
+    loadPortraitImages(() => {
+      renderSample();
+      render();
+    });
   }
 
   const hot = window.claude && window.claude.hot;

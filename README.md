@@ -19,6 +19,10 @@ The rules and board layout follow the original Chinese tool, so the mechanics be
 - **Contract challenge.** 12 days and 6 dispatch vouchers. Contracts fall due at the end of days 4, 8 and 12, each with a delivery window. Scouting reveals the full occupant and locks the route. Light/heavy escorts carry pressure limits, the heavy contract can be delivered early from day 9, and you earn refit tools, a Supreme milestone tool and Warden's Cache gifts.
 - **Everything else.** Seeds, undo, autosave, export/import, a move advisor, a Lab (scene editor and adjustable practice values) and a handbook.
 
+## Custom portraits
+
+The beast portraits are drawn for this project. To use other artwork you have the rights to use, add square images named `mammoth.png`, `lion.png`, `wolf.png` and `rat.png` to `assets/prisoners/`. On GitHub, open that folder and choose **Add file → Upload files**. The site picks them up automatically, and any missing image falls back to the drawn portrait. If you add someone else's artwork, credit its owner here and in the About screen.
+
 ## Files
 
 | File | Purpose |
