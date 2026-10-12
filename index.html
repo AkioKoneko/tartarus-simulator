@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261012j">
+<link rel="stylesheet" href="css/style.css?v=20261012k">
 </head>
 <body>
 <div class="app" id="app">
@@ -43,6 +43,11 @@
           <span class="route-text">Fixed scenes for special events, Ivory, Prey, Scratch and Rat nest, so you can test each one on its own.</span>
           <span class="route-meta">5 scenes</span>
         </button>
+        <a class="route" href="strategy.html">
+          <span class="route-name">Strategy guide</span>
+          <span class="route-text">New here? Learn a rough strategy first: what over 25 million simulated runs say about vaulting Rainbows.</span>
+          <span class="route-meta">5-minute read</span>
+        </a>
       </div>
       <div class="title-utils">
         <button type="button" class="link" data-open="dlg-handbook">Handbook</button>
@@ -246,6 +251,7 @@
     </header>
     <nav class="sheet-body menu">
       <button type="button" class="menu-item" data-open="dlg-handbook"><strong>Handbook</strong><span>Patrols, events, the food chain, markers and tools</span></button>
+      <a class="menu-item" href="strategy.html"><strong>Strategy guide</strong><span>A rough strategy from over 25 million simulated runs</span></a>
       <button type="button" class="menu-item" data-open="dlg-run"><strong>Run &amp; saves</strong><span>Inmates, undo, export and import</span></button>
       <button type="button" class="menu-item" data-open="dlg-prefs"><strong>Preferences</strong><span>Trainer, quick decisions, motion and sound</span></button>
       <button type="button" class="menu-item" data-open="dlg-lab"><strong>Lab</strong><span>Scene editor and practice values (drills only)</span></button>
@@ -321,6 +327,7 @@
         <li><strong>Live check.</strong> Every option you have right now is played out hundreds of times from the current position. Everything you can't see is re-rolled each time, so it never peeks behind a door, and the trained strategy makes every later choice. Options are ranked by Rainbows vaulted by the end of the run (in the challenge, by the chance to pass), with a 95% margin. Once the check has enough playouts, its best option becomes the recommendation. Devour options also show their exact chain odds.</li>
         <li><strong>Grades.</strong> Each move you make is graded against the live check of the position before it: the best move, close to the best (within the margin of error), or what it cost. The panel keeps a tally for the run.</li>
       </ul>
+      <p>For the big picture before you play, read the <a href="strategy.html">strategy guide</a>.</p>
       <p>There's no AI involved: the strategy is a set of scoring rules whose weights were tuned over millions of simulated runs. Its main lessons: devour whenever you can, swap low-tier inmates in the warden's cell (Normal and Magic; Rare too when you have tools), accept Chain reactions, accept an Execution when it gains more than it removes, and walk further rather than shorter. A chain keeps going at a tier when a Rat, a Mammoth and a Lion or Wolf wait there. Any beast the eater re-rolls into then finds food. Held from day 1, the best tools were the Hangman's Rope, Avenger's Box, Rat-Head Skewer and Burning Stake. The Writhing Iron Box was the only one that hurt.</p>
 
       <h3>Practice values</h3>
@@ -595,9 +602,9 @@
   </div>
 </dialog>
 
-<script src="js/engine.js?v=20261012j"></script>
-<script src="js/sound.js?v=20261012j"></script>
-<script src="js/solver.js?v=20261012j"></script>
-<script src="js/ui.js?v=20261012j"></script>
+<script src="js/engine.js?v=20261012k"></script>
+<script src="js/sound.js?v=20261012k"></script>
+<script src="js/solver.js?v=20261012k"></script>
+<script src="js/ui.js?v=20261012k"></script>
 </body>
 </html>

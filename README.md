@@ -27,6 +27,7 @@ The board layout follows the original Chinese tool. The rules follow the video r
   - **Live check:** every option is played out hundreds of times from the current position, with everything you can't see re-rolled each time. Options are ranked by Rainbows vaulted, or by the chance to pass in the contract challenge.
   - **Grades:** each move you make is graded against that check (best, close, or what it cost), with a tally for the run.
   - **Where it runs:** in a Web Worker, or on the page itself when opened from disk.
+- **Strategy guide.** [strategy.html](https://blahdot3h.github.io/tartarus-simulator/strategy.html) is a rough strategy to learn before playing, built from the lab's data. It's linked from the title screen and the menu.
 - **Strategy lab.** `tools/strategy-sim.js` plays millions of simulated runs on every CPU core to tune that strategy and rank tools, gifts and chain setups. No AI: every choice comes from scoring rules. See [tools/README.md](tools/README.md).
 - **Everything else.** Seeds, undo, autosave, export/import, a Lab (scene editor and adjustable practice values) and a handbook.
 

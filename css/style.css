@@ -302,6 +302,12 @@ a {
   transition: border-color 0.15s, background-color 0.15s;
 }
 
+a.route,
+a.menu-item {
+  color: var(--chalk);
+  text-decoration: none;
+}
+
 .route:hover {
   border-color: var(--bone);
   background: var(--slab-hi);
