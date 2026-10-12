@@ -18,7 +18,7 @@
     <div class="title-copy">
       <p class="eyebrow">Torchlight: Infinite · Season 14 · Warden practice</p>
       <h1 class="brand"><span class="brand-main">Tartarus</span><span class="brand-sub">Prison simulator</span></h1>
-      <p class="lede">Walk a ring of sixteen cells as Warden. Patrol a door each morning, let beasts devour rivals of the same rarity, and raise inmates from Normal to Rainbow before the handoff.</p>
+      <p class="lede">Walk the ring of fifteen cells around the warden's office. Patrol a door each morning, let beasts devour rivals of the same rarity, and raise inmates from Normal to Rainbow before the handoff.</p>
       <p class="source-note">
         <span class="source-tag">Translation</span>
         This is an English translation of <a href="https://torchlightskill.com/talos/" target="_blank" rel="noopener">塔羅斯监狱 (Talos Prison)</a>, a free Chinese fan simulator by 爱玩游戏的吉吉罗. Its rules and layout follow the original. This English version was rebuilt independently, and the original author is not involved.
@@ -29,7 +29,7 @@
         </button>
         <button type="button" class="route" data-route="drill">
           <span class="route-name">Rules drill</span>
-          <span class="route-text">Start from an empty prison: day 1, all 16 doors sealed. Best for a first run.</span>
+          <span class="route-text">Start from an empty prison: day 1, all 15 cells sealed. Best for a first run.</span>
           <span class="route-meta">20 days · practice values</span>
         </button>
         <button type="button" class="route" data-route="challenge">
@@ -53,7 +53,7 @@
     </div>
     <figure class="title-art" aria-hidden="true">
       <div class="board board-sample" id="sample-board"></div>
-      <figcaption class="sample-caption">A sample block. Cells run clockwise from 01; the lantern marks the warden, and glowing doors are today's patrol choices.</figcaption>
+      <figcaption class="sample-caption">A sample block. Cell 01 is the warden's office, and the prison cells run clockwise from 02. The lantern marks the warden, and glowing cells are today's patrol choices.</figcaption>
     </figure>
   </section>
 
@@ -257,11 +257,11 @@
     </header>
     <div class="sheet-body prose">
       <h3>The ring</h3>
-      <p>Sixteen cells form a ring, numbered clockwise from 01 in the top-left corner: 01 to 06 across the top, 07 to 09 down the right, 10 to 14 back along the bottom and 15 to 16 up the left. Cell 16 sits next to cell 01. The lantern marks where the warden stands. You start at cell 01.</p>
+      <p>Sixteen cells form a ring, numbered clockwise from 01 in the top-left corner: 01 to 06 across the top, 07 to 09 down the right, 10 to 14 back along the bottom and 15 to 16 up the left. Cell 01 is the warden's office. Every run starts there, and nothing is ever held in it, so the other 15 cells hold the prisoners. The lantern marks where the warden stands.</p>
 
       <h3>A day on the block</h3>
       <ol class="steps">
-        <li><strong>Patrol.</strong> Each morning offers three destination cells from the next five clockwise from the warden, or two while you hold the Burning Stake. They glow on the ring and appear as cards under it. A destination can be a locked cell, which opens when the warden arrives, or a cell whose inmate you already know. You can't see inside a locked cell until it opens. You must patrol before anything else.</li>
+        <li><strong>Patrol.</strong> Each morning offers three destination cells from the next five clockwise from the warden, or two while you hold the Burning Stake. The office counts as one of those five steps but is never offered. They glow on the ring and appear as cards under it. A destination can be a locked cell, which opens when the warden arrives, or a cell whose inmate you already know. You can't see inside a locked cell until it opens. You must patrol before anything else.</li>
         <li><strong>Devour.</strong> Once a day, after the patrol, and only the inmate in the warden's cell can start it. Click a highlighted target. If the eater then has another valid target, a chain devour starts: pick its next meal, or stop the chain. It repeats while targets remain.</li>
         <li><strong>Swap.</strong> Once a day, replace an inmate with a brand-new random one. It can come out stronger or weaker.</li>
         <li><strong>End the day.</strong> The next morning, prey marks grow, ripe nests hatch, and new destinations are drawn.</li>
@@ -416,7 +416,9 @@
             <div class="mini-ring" id="lab-grid"></div>
           </div>
           <div class="lab-form">
-            <p class="field-label" id="lab-cell-label">Cell 01</p>
+            <p class="field-label" id="lab-cell-label">Cell 02</p>
+            <p class="field-note" id="lab-office-note" hidden>The warden's office never holds an inmate, marker or event. You can still move the warden here.</p>
+            <div class="lab-contents" id="lab-contents">
             <label class="field-label" for="lab-kind">Contents</label>
             <select id="lab-kind">
               <option value="open">Open cell with an inmate</option>
@@ -447,8 +449,9 @@
                 <option value="execution">Execution</option>
               </select>
             </div>
+            </div>
             <div class="button-row">
-              <button type="button" class="btn btn-primary" id="btn-lab-apply">Apply to cell 01</button>
+              <button type="button" class="btn btn-primary" id="btn-lab-apply">Apply to cell 02</button>
               <button type="button" class="btn" id="btn-lab-warden">Move the warden here</button>
             </div>
             <div id="lab-prey-wrap">

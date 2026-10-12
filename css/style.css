@@ -1,6 +1,7 @@
 /* Tartarus Simulator
    Layout: a night-shift cell block. Sixteen cells ring a stone courtyard,
-   numbered clockwise, with the warden's decisions in the middle. The log runs
+   numbered clockwise from the warden's office at 01, with the warden's
+   decisions in the middle. The log runs
    down the left rail and the ledger (objective, contracts, vault, tools, food
    chain) down the right. One deliberate dark look: rarity colors carry
    meaning, so the stone, iron and bone around them stay quiet. */
@@ -50,6 +51,12 @@
   --floor-glow: #1d232b;
   --claw: #d9dee6;
   --shade: rgb(0 0 0 / 0.45);
+
+  /* The warden's office: lamplight and wood instead of iron */
+  --office: #1b1813;
+  --office-hi: #2b241b;
+  --wood: #8b6a47;
+  --wood-lo: #5c4530;
 
   /* Type */
   --font-display: "Big Shoulders Stencil Display", "Arial Narrow", Impact, sans-serif;
@@ -788,6 +795,43 @@ a {
   letter-spacing: 0.05em;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+/* Cell 01, the warden's office. No door: a desk under candlelight. */
+.cell.is-office {
+  border-color: color-mix(in srgb, var(--bone) 30%, var(--iron));
+  background:
+    radial-gradient(60% 50% at 72% 30%, color-mix(in srgb, var(--t3) 14%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--office-hi), var(--office));
+}
+
+.office {
+  display: grid;
+  justify-items: center;
+  gap: 5cqi;
+  width: 100%;
+}
+
+.office-art {
+  width: 60cqi;
+  height: auto;
+  overflow: visible;
+}
+
+.office-art .o-glow { fill: color-mix(in srgb, var(--t3) 20%, transparent); }
+.office-art .o-paper { fill: var(--bone); }
+.office-art .o-line { fill: none; stroke: var(--bone-ink); stroke-width: 1.2; stroke-linecap: round; }
+.office-art .o-wax { fill: var(--bone-hi); }
+.office-art .o-flame { fill: var(--t3); }
+.office-art .o-wood { fill: var(--wood); }
+.office-art .o-wood-lo { fill: var(--wood-lo); }
+.office-art .o-knob { fill: var(--bone); }
+
+.office-name {
+  font: 800 clamp(9px, 12cqi, 16px) / 1 var(--font-display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bone);
 }
 
 .cell.has-inmate {
@@ -2017,12 +2061,18 @@ textarea {
   border-color: var(--bone);
 }
 
+.mini.is-office {
+  background: var(--office-hi);
+  color: var(--bone);
+}
+
 .mini[aria-pressed="true"] {
   outline: 2px solid var(--bone);
   outline-offset: 1px;
 }
 
-.lab-form {
+.lab-form,
+.lab-contents {
   display: grid;
   align-content: start;
   gap: 8px;

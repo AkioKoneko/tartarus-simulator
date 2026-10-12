@@ -57,6 +57,19 @@
     ),
   };
   const LANTERN = '<svg class="warden" viewBox="0 0 16 18" aria-hidden="true"><path d="M6 1h4v2H6z"/><path d="M4 4h8l-1 10H5z"/><path d="M5 15h6v2H5z"/><path class="flame" d="M8 6.5c1.4 1.6 1.6 3 0 4.6-1.6-1.6-1.4-3 0-4.6Z"/></svg>';
+  // Cell 01, the warden's office: a desk with the ledger open by a candle.
+  const OFFICE_ART =
+    '<span class="office"><svg class="office-art" viewBox="0 0 64 52" aria-hidden="true">' +
+    '<circle class="o-glow" cx="48" cy="13" r="12"/>' +
+    '<path class="o-paper" d="M10 27l12-3.5 12 3.5V15l-12-3.5L10 15Z"/>' +
+    '<path class="o-line" d="M22 11.5v12M13.5 17.6l5.5-1.7M13.5 21.1l5.5-1.7M25 15.9l5.5 1.7M25 19.4l5.5 1.7"/>' +
+    '<rect class="o-wax" x="45.5" y="17" width="5" height="10" rx="1"/>' +
+    '<path class="o-flame" d="M48 8.5c2.3 2.6 2.5 4.9 0 7.3-2.5-2.4-2.3-4.7 0-7.3Z"/>' +
+    '<rect class="o-wood" x="4" y="27" width="56" height="5" rx="1"/>' +
+    '<path class="o-wood" d="M8 32h5v16H8zM51 32h5v16h-5z"/>' +
+    '<rect class="o-wood-lo" x="29" y="32" width="18" height="8" rx="1"/>' +
+    '<rect class="o-knob" x="36" y="35.2" width="4" height="1.6" rx="0.8"/>' +
+    '</svg><span class="office-name">Office</span></span>';
 
   const $ = (id) => document.getElementById(id);
   const L = (n) => T.cellLabel(n);
@@ -89,7 +102,7 @@
     screen: 'title',
     prefs: Object.assign({}, DEFAULT_PREFS, store.get(KEYS.prefs) || {}),
     labParams: T.normalizeParams(store.get(KEYS.params)),
-    labCell: 0,
+    labCell: 1,
     labTab: 'scene',
     toastTimer: 0,
     endArmed: 0,
@@ -355,6 +368,11 @@
   // ---------- Rendering: cells ----------
 
   function cellParts(cell, st) {
+    const warden = st.position === cell.n;
+    if (cell.n === T.OFFICE) {
+      const label = `Cell ${L(cell.n)}: the warden's office. No inmate is ever held here${warden ? '. The warden is here' : ''}`;
+      return { cls: ['cell', 'is-office'], body: OFFICE_ART, hint: '', badges: '', label, warden };
+    }
     const inmate = cell.inmate;
     const visible = !cell.sealed && !!inmate;
     const known = cell.sealed && cell.hidden && cell.known ? cell.hidden : null;
@@ -406,7 +424,6 @@
       label += ', scratched door';
     }
     if (visible && badges.length) cls.push('has-badges');
-    const warden = st.position === cell.n;
     if (warden) label += '. The warden is here';
     return { cls, body, hint, badges: badges.join(''), label, warden };
   }
@@ -489,7 +506,11 @@
       el.btn.setAttribute('aria-label', p.label + (tag ? `. ${tag}` : ''));
       el.btn.setAttribute('aria-pressed', String(ui.selected === cell.n));
     }
-    $('emblem-text').textContent = st.phase === 'ended' ? 'Run complete' : `Warden at cell ${L(st.position)} · clockwise`;
+    $('emblem-text').textContent = st.phase === 'ended' ? 'Run complete' : `Warden ${wardenAt(st)} · clockwise`;
+  }
+
+  function wardenAt(st) {
+    return st.position === T.OFFICE ? 'in the office' : `at cell ${L(st.position)}`;
   }
 
   // The morning's destination doors as cards under the ring.
@@ -529,7 +550,7 @@
     const make = (id, beast, tier) => ({ id, beast, tier });
     const base = (n) => ({ n, sealed: true, inmate: null, hidden: null, known: 0, scratch: false, nest: null, event: null, ivory: false });
     const spec = [
-      { sealed: false, inmate: make(2, 'lion', 2) },
+      { sealed: false },
       { event: 'chain' },
       { sealed: false, inmate: make(3, 'wolf', 1), ivory: true },
       { hidden: make(4, 'rat', 3), known: 1 },
@@ -544,21 +565,23 @@
       { sealed: false, inmate: make(13, 'mammoth', 1) },
       {},
       { sealed: false, inmate: make(15, 'lion', 0) },
-      {},
+      { sealed: false, inmate: make(2, 'lion', 2) },
     ];
     const cells = spec.map((s, n) => Object.assign(base(n), s));
     const sample = { day: 9, position: 6, cells, prey: [{ lion: 2, prey: 12, rounds: 2 }] };
-    const dests = new Set([3, 9, 13]);
+    // Three of the five cells just ahead of the warden, as on a real morning.
+    const dests = new Set([8, 9, 10]);
     const html = cells
       .map((cell) => {
         const p = cellParts(cell, sample);
-        if (dests.has(cell.n)) p.cls.push('is-dest');
+        const tag = dests.has(cell.n) ? (cell.sealed ? 'Go' : 'Walk') : '';
+        if (tag) p.cls.push('is-dest');
         const [row, col] = RING[cell.n];
-        return `<div class="${p.cls.join(' ')}" style="grid-row:${row};grid-column:${col}"><span class="cell-body">${p.body}</span><span class="door"></span><span class="cell-no">${L(cell.n)}</span><span class="cell-hint">${p.hint}</span><span class="cell-badges">${p.badges}</span><span class="cell-tag">${dests.has(cell.n) ? 'Go' : ''}</span><span class="cell-warden">${p.warden ? LANTERN : ''}</span></div>`;
+        return `<div class="${p.cls.join(' ')}" style="grid-row:${row};grid-column:${col}"><span class="cell-body">${p.body}</span><span class="door"></span><span class="cell-no">${L(cell.n)}</span><span class="cell-hint">${p.hint}</span><span class="cell-badges">${p.badges}</span><span class="cell-tag">${tag}</span><span class="cell-warden">${p.warden ? LANTERN : ''}</span></div>`;
       })
       .join('');
     $('sample-board').classList.add('is-patrolling');
-    $('sample-board').innerHTML = `${html}<div class="board-center"><div class="decision"><div class="decision-text"><p class="decision-title">Patrol: pick a door</p><p class="decision-detail">Day 9. The glowing doors are today's destinations. The warden walks to the one you pick and the door opens.</p></div></div></div>`;
+    $('sample-board').innerHTML = `${html}<div class="board-center"><div class="decision"><div class="decision-text"><p class="decision-title">Patrol: pick a destination</p><p class="decision-detail">Day 9. The glowing cells are today's destinations, all within five steps clockwise of the warden. Open a locked door, or walk to an inmate you already know.</p></div></div></div>`;
   }
 
   // ---------- Rendering: decision panel ----------
@@ -621,7 +644,7 @@
     }
     if (st.phase === 'patrol') {
       const options = T.patrolOptions(st);
-      const parts = [`The warden stands at cell ${L(st.position)}. Pick one of the ${T.plural(options.length, 'cell')} below, or click a glowing cell on the ring. Whichever inmate the warden ends up with makes today's devour.`];
+      const parts = [`The warden stands ${wardenAt(st)}. Pick one of the ${T.plural(options.length, 'cell')} below, or click a glowing cell on the ring. Whichever inmate the warden ends up with makes today's devour.`];
       if (st.chain) parts.push('Chain reaction armed: every sealed door on the clockwise walk opens.');
       setDecision('Patrol: select a destination', parts.join(' '), []);
       return;
@@ -631,6 +654,7 @@
     const warden = st.cells[st.position];
     let lead;
     if (!T.canDevourNow(st)) lead = 'Today’s devour is used. Swap or end the day.';
+    else if (st.position === T.OFFICE) lead = 'The warden is in the office, so there is no devour today. Swap or end the day.';
     else if (!warden.inmate || warden.sealed) lead = `The warden's cell (${L(st.position)}) is empty, so there is no devour today. Swap or end the day.`;
     else if (devours) lead = `The ${T.describe(warden.inmate)} in the warden's cell (${L(st.position)}) can make today's devour. Select it to see its ${T.plural(devours, 'target')}.`;
     else lead = `The ${T.describe(warden.inmate)} in the warden's cell (${L(st.position)}) has no target today. Swap or end the day.`;
@@ -742,6 +766,10 @@
     const st = ui.state;
     const actions = [];
     const free = !blocked(st);
+    if (cell.n === T.OFFICE) {
+      setDecision(`Cell ${L(cell.n)}: the warden's office`, "Every run starts here. No inmate, marker or event is ever held in the office, so it is never a patrol destination. The warden passes it on the walk around the ring.", [['Deselect', cancel]]);
+      return;
+    }
     if (cell.sealed) {
       const parts = [];
       if (cell.nest) parts.push(`A rat nest. It hatches a ${T.tierName(st.params.nestTier)} Rat on the morning of day ${cell.nest.due}. Opening it earlier destroys it.`);
@@ -1446,14 +1474,15 @@
         const b = document.createElement('button');
         b.type = 'button';
         const open = !c.sealed && c.inmate;
-        b.className = 'mini' + (open ? ` t${c.inmate.tier}` : '') + (st.position === c.n ? ' is-warden' : '');
+        const office = c.n === T.OFFICE;
+        b.className = 'mini' + (open ? ` t${c.inmate.tier}` : '') + (office ? ' is-office' : '') + (st.position === c.n ? ' is-warden' : '');
         b.style.gridRow = RING[c.n][0];
         b.style.gridColumn = RING[c.n][1];
         b.setAttribute('aria-pressed', String(c.n === ui.labCell));
-        const mark = c.nest ? 'N' : open ? T.beastName(c.inmate.beast)[0] : c.sealed ? '#' : '·';
-        const sub = c.nest ? 'Nest' : open ? T.tierName(c.inmate.tier).slice(0, 4) : c.sealed ? (c.event ? 'Event' : 'Sealed') : 'Empty';
+        const mark = office ? '·' : c.nest ? 'N' : open ? T.beastName(c.inmate.beast)[0] : c.sealed ? '#' : '·';
+        const sub = office ? 'Office' : c.nest ? 'Nest' : open ? T.tierName(c.inmate.tier).slice(0, 4) : c.sealed ? (c.event ? 'Event' : 'Sealed') : 'Empty';
         b.innerHTML = `<b>${mark}</b>${L(c.n)}<br>${sub}`;
-        b.setAttribute('aria-label', `Edit cell ${L(c.n)}`);
+        b.setAttribute('aria-label', office ? "Cell 01, the warden's office" : `Edit cell ${L(c.n)}`);
         b.addEventListener('click', () => {
           ui.labCell = c.n;
           renderLabGrid();
@@ -1467,7 +1496,12 @@
   function fillLabForm() {
     const st = ui.state;
     const c = st.cells[ui.labCell];
-    $('lab-cell-label').textContent = `Cell ${L(c.n)}${st.position === c.n ? ' · warden here' : ''}`;
+    // The office takes no contents; the warden can still be moved there.
+    const office = c.n === T.OFFICE;
+    $('lab-cell-label').textContent = `Cell ${L(c.n)}${office ? " · the warden's office" : ''}${st.position === c.n ? ' · warden here' : ''}`;
+    $('lab-contents').hidden = office;
+    $('lab-office-note').hidden = !office;
+    $('btn-lab-apply').hidden = office;
     $('btn-lab-apply').textContent = `Apply to cell ${L(c.n)}`;
     // A sealed occupant stays hidden here too, so the editor never spoils a door.
     let kind = 'open';

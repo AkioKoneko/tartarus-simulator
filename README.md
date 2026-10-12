@@ -1,6 +1,6 @@
 # Tartarus Simulator
 
-A free, fan-made English translation of [塔羅斯监狱 (Talos Prison)](https://torchlightskill.com/talos/), the Chinese practice simulator for the Tartarus prison season (SS14) of *Torchlight: Infinite*. You walk a ring of sixteen cells as Warden: patrol a door each morning, let beasts devour same-rarity rivals, and raise inmates from Normal to Rainbow before the handoff.
+A free, fan-made English translation of [塔羅斯监狱 (Talos Prison)](https://torchlightskill.com/talos/), the Chinese practice simulator for the Tartarus prison season (SS14) of *Torchlight: Infinite*. You walk the ring of fifteen cells around the warden's office: patrol a door each morning, let beasts devour same-rarity rivals, and raise inmates from Normal to Rainbow before the handoff.
 
 ## Play it
 
@@ -12,8 +12,8 @@ A free, fan-made English translation of [塔羅斯监狱 (Talos Prison)](https:/
 
 The rules and board layout follow the original Chinese tool, so the mechanics behave the same way:
 
-- **The ring.** 16 cells sit around a 6×4 board, numbered clockwise from the top-left corner. Cell 16 neighbors cell 01, and the decision panel sits in the courtyard in the middle. A lantern marks the warden's cell.
-- **Patrols.** Each morning offers 3 destination cells from the next 5 clockwise from the warden, or 2 while you hold the Burning Stake. They appear as cards under the ring and glow on it. A destination can be a locked cell, which opens when the warden arrives, or a cell with an inmate you already know. You can't see inside a locked cell until it opens. Devoured, swapped and delivered inmates leave their cells sealed again.
+- **The ring.** 16 cells sit around a 6×4 board, numbered clockwise from the top-left corner. Cell 01 is the warden's office: every run starts there and nothing is ever held in it, so 15 cells hold prisoners. The decision panel sits in the courtyard in the middle, and a lantern marks the warden's cell.
+- **Patrols.** Each morning offers 3 destination cells from the next 5 clockwise from the warden, or 2 while you hold the Burning Stake. The office counts as one of the 5 steps but is never offered. They appear as cards under the ring and glow on it. A destination can be a locked cell, which opens when the warden arrives, or a cell with an inmate you already know. You can't see inside a locked cell until it opens. Devoured, swapped and delivered inmates leave their cells sealed again.
 - **Devours.** One devour a day, and only the inmate in the warden's cell can start it. If the eater then has another valid target, a chain devour starts and you pick its next meal, or stop the chain.
 - **Special events.** Chain reaction: the next patrol opens every sealed door on the clockwise walk. Execution: wipes out lower-rarity prey for one tier each. Both can be accepted or skipped.
 - **Markers.** Ivory, Prey, Scratch and Rat nest each have a focused drill, and can be placed with the Lab's scene editor.

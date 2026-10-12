@@ -4,14 +4,17 @@
  * which makes a run replayable from its seed. Public actions validate first and
  * only then change the state, and return { ok, events } or { ok: false, reason }.
  *
- * The block is a ring of 16 cells numbered clockwise. The warden stands on one
- * cell; each morning offers a few patrol destinations, and a chain reaction
- * opens every sealed cell on the clockwise walk to the next destination. */
+ * The block is a ring of 16 cells numbered clockwise. Cell 01 is the warden's
+ * office, where every run starts; nothing is ever held there, so 15 cells hold
+ * prisoners. Each morning offers a few patrol destinations ahead of the warden,
+ * and a chain reaction opens every sealed cell on the clockwise walk to the
+ * next destination. */
 (function (root) {
   'use strict';
 
-  const VERSION = 2;
+  const VERSION = 3;
   const CELL_COUNT = 16;
+  const OFFICE = 0;
   const SUPREME = 4;
   const RAINBOW = 5;
   const LOG_LIMIT = 400;
@@ -65,7 +68,6 @@
     scratchStacksBase: true,
     nestDays: 2,
     nestTier: 2,
-    circularNeighbors: true,
     rewards: true,
     startTools: 0,
     loopChain: false,
@@ -98,7 +100,6 @@
     { key: 'scratchStacksBase', group: 'Markers', label: 'Scratch bonus (+2) adds to the base +1', type: 'bool' },
     { key: 'nestDays', group: 'Markers', label: 'Days before a rat nest hatches', type: 'int', min: 1, max: 10 },
     { key: 'nestTier', group: 'Markers', label: 'Rarity of a hatched Rat', type: 'tier' },
-    { key: 'circularNeighbors', group: 'Tools', label: 'Cells 16 and 01 count as neighbors', type: 'bool' },
     { key: 'rewards', group: 'Rewards', label: "First Supreme earns a tool; each Rainbow opens the Warden's Cache", type: 'bool' },
     { key: 'startTools', group: 'Rewards', label: 'Random tools at the start of a drill', type: 'int', min: 0, max: 8 },
   ];
@@ -123,7 +124,7 @@
   };
   const GIFT_IDS = Object.keys(GIFTS);
 
-  const START_CELLS = [0, 1, 4, 5, 9, 10];
+  const START_CELLS = [1, 2, 5, 6, 10, 11];
   const LOADOUTS = {
     supply: { name: 'Supply start', level: 'Standard', text: 'Six inmates and the Lost Key Ring. Build numbers for the mixed convoys.', inmates: [['mammoth', 0], ['lion', 0], ['wolf', 1], ['rat', 1], ['rat', 2], ['mammoth', 2]], tools: ['keys'] },
     lean: { name: 'Lean start', level: 'Advanced', text: 'Three inmates and the Agony Muzzle. Keep the block small for big tier jumps.', inmates: [['mammoth', 0], ['lion', 0], ['wolf', 3]], tools: ['muzzle'] },
@@ -131,7 +132,7 @@
   };
 
   const SCENARIOS = {
-    empty: { name: 'Empty prison', text: 'Day 1 with all 16 doors sealed. Recommended for a first run.' },
+    empty: { name: 'Empty prison', text: 'Day 1 with all 15 prison cells sealed. Recommended for a first run.' },
     events: { name: 'Special events drill', text: 'Two doors on today’s route hide a Chain reaction and an Execution.' },
     ivory: { name: 'Ivory drill', text: 'Swap the inmate in an Ivory cell and four inmates rise a tier.' },
     prey: { name: 'Prey drill', text: 'A Lion and its marked prey both rise each morning for three days.' },
@@ -413,11 +414,8 @@
     afterGrowth(state, inmate, events);
     if (how === 'patrol' && has(state, 'keys') && rand(state) < 0.8) {
       log(state, 'tool', 'Lost Key Ring: the cells on both sides swing open too.');
-      for (const step of [-1, 1]) {
-        const k = cell.n + step;
-        const n = state.params.circularNeighbors ? (k + CELL_COUNT) % CELL_COUNT : k;
-        if (n >= 0 && n < CELL_COUNT) openCell(state, state.cells[n], 'side', events);
-      }
+      // Next to the office there is only one door to open.
+      for (const step of [-1, 1]) openCell(state, state.cells[(cell.n + step + CELL_COUNT) % CELL_COUNT], 'side', events);
     }
     return how === 'patrol' ? event : null;
   }
@@ -435,8 +433,9 @@
 
   // ---------- Setup ----------
 
+  // The office is never sealed and never holds anyone.
   function blankCell(n) {
-    return { n, sealed: true, inmate: null, hidden: null, known: 0, scratch: false, nest: null, event: null, ivory: false };
+    return { n, sealed: n !== OFFICE, inmate: null, hidden: null, known: 0, scratch: false, nest: null, event: null, ivory: false };
   }
 
   function newGame(options) {
@@ -457,7 +456,7 @@
       day: 1,
       maxDays: mode === 'challenge' ? CHALLENGE_DAYS : params.drillDays,
       phase: 'patrol',
-      position: 0,
+      position: OFFICE,
       destinations: [],
       chain: false,
       chainConsume: null,
@@ -476,7 +475,7 @@
       challenge: null,
       result: null,
     };
-    for (const cell of state.cells) if (rand(state) * 100 < params.eventChance) cell.event = rand(state) < 0.5 ? 'chain' : 'execution';
+    for (const cell of state.cells) if (cell.sealed && rand(state) * 100 < params.eventChance) cell.event = rand(state) < 0.5 ? 'chain' : 'execution';
     log(state, 'day', `Day 1 of ${state.maxDays}.`);
     if (mode === 'challenge') setupChallenge(state);
     else setupDrill(state);
@@ -484,6 +483,7 @@
   }
 
   function place(state, n, beast, tier) {
+    if (n === OFFICE) throw new Error('The office never holds an inmate.');
     const cell = state.cells[n];
     Object.assign(cell, blankCell(n), { sealed: false, inmate: makeInmate(state, beast, tier) });
     state.stats.best = Math.max(state.stats.best, tier);
@@ -491,6 +491,7 @@
   }
 
   function hide(state, n, beast, tier, extra) {
+    if (n === OFFICE) throw new Error('The office never holds an inmate.');
     const cell = state.cells[n];
     Object.assign(cell, blankCell(n), { hidden: makeInmate(state, beast, tier) }, extra || {});
     return cell;
@@ -498,60 +499,62 @@
 
   function setupDrill(state) {
     const s = state.scenario;
-    let note = 'All 16 doors are sealed. Pick one of today’s destinations to meet your first inmate.';
+    let note = 'All 15 prison cells are sealed, and the warden starts in the office at cell 01. Pick one of today’s destinations to meet your first inmate.';
     let destinations = null;
+    // Marker drills open after the day-1 patrol, with the warden at cell 02.
+    // The events drill is about the patrol itself, so it starts in the office.
+    const marker = s !== 'empty' && s !== 'events';
     if (s === 'events') {
-      place(state, 0, 'mammoth', 1);
       place(state, 4, 'wolf', 1);
       place(state, 5, 'mammoth', 0);
       place(state, 6, 'wolf', 0);
       place(state, 13, 'lion', 2);
+      place(state, 15, 'mammoth', 1);
       hide(state, 2, 'lion', 2, { event: 'execution', known: 1 });
       hide(state, 3, 'mammoth', 1, { event: 'chain' });
       destinations = [1, 2, 3];
       note = 'Special events drill: cell 03 hides an Execution behind a Rare inmate, and cell 04 hides a Chain reaction. Patrol one, then accept or skip the event.';
     } else if (s === 'ivory') {
-      place(state, 0, 'wolf', 1);
-      state.cells[0].ivory = true;
-      place(state, 1, 'lion', 2);
-      place(state, 2, 'mammoth', 0);
-      place(state, 6, 'wolf', 2);
-      place(state, 11, 'mammoth', 3);
-      place(state, 15, 'rat', 1);
-      note = `Ivory drill: cell 01 carries Ivory. Swap its inmate and ${plural(state.params.ivoryCount, 'inmate')} on the block each gain a tier.`;
-    } else if (s === 'prey') {
-      const lion = place(state, 0, 'lion', 2);
-      const wolf = place(state, 1, 'wolf', 2);
-      place(state, 4, 'mammoth', 2);
-      place(state, 8, 'mammoth', 1);
-      place(state, 12, 'rat', 1);
-      state.prey.push({ lion: lion.id, prey: wolf.id, preyBeast: 'wolf', rounds: state.params.preyRounds, next: 2 });
-      note = `Prey drill: the Lion in cell 01 has marked the Wolf in cell 02. Each morning both rise a tier, for ${plural(state.params.preyRounds, 'morning')}. The Lion stands in the warden's cell, so it could devour its prey today, but that re-rolls its beast and ends the mark.`;
-    } else if (s === 'scratch') {
-      place(state, 0, 'wolf', 1);
-      hide(state, 1, 'mammoth', 1, { scratch: true, known: 1 });
+      place(state, 1, 'wolf', 1);
+      state.cells[1].ivory = true;
+      place(state, 2, 'lion', 2);
+      place(state, 3, 'mammoth', 0);
       place(state, 7, 'wolf', 2);
-      hide(state, 8, 'lion', 2, { scratch: true, known: 1 });
-      place(state, 13, 'rat', 0);
+      place(state, 12, 'mammoth', 3);
+      place(state, 15, 'rat', 1);
+      note = `Ivory drill: cell 02 carries Ivory. Swap its inmate and ${plural(state.params.ivoryCount, 'inmate')} on the block each gain a tier.`;
+    } else if (s === 'prey') {
+      const lion = place(state, 1, 'lion', 2);
+      const wolf = place(state, 2, 'wolf', 2);
+      place(state, 5, 'mammoth', 2);
+      place(state, 9, 'mammoth', 1);
+      place(state, 13, 'rat', 1);
+      state.prey.push({ lion: lion.id, prey: wolf.id, preyBeast: 'wolf', rounds: state.params.preyRounds, next: 2 });
+      note = `Prey drill: the Lion in cell 02 has marked the Wolf in cell 03. Each morning both rise a tier, for ${plural(state.params.preyRounds, 'morning')}. The Lion stands in the warden's cell, so it could devour its prey today, but that re-rolls its beast and ends the mark.`;
+    } else if (s === 'scratch') {
+      place(state, 1, 'wolf', 1);
+      hide(state, 2, 'mammoth', 1, { scratch: true, known: 1 });
+      place(state, 8, 'wolf', 2);
+      hide(state, 9, 'lion', 2, { scratch: true, known: 1 });
+      place(state, 14, 'rat', 0);
       note = 'Scratch drill: a scratched door shows the rarity inside. A Wolf can devour a same-rarity inmate through it, whatever its beast, and gains +3.';
     } else if (s === 'nest') {
-      place(state, 0, 'lion', 2);
-      hide(state, 1, 'rat', 0, { nest: { due: 1 + state.params.nestDays } });
-      place(state, 4, 'mammoth', 2);
-      place(state, 10, 'wolf', 2);
-      place(state, 14, 'rat', 0);
-      note = `Rat nest drill: the nest in cell 02 hatches a ${tierName(state.params.nestTier)} Rat on the morning of day ${1 + state.params.nestDays}. Patrolling it before then destroys it.`;
+      place(state, 1, 'lion', 2);
+      hide(state, 2, 'rat', 0, { nest: { due: 1 + state.params.nestDays } });
+      place(state, 5, 'mammoth', 2);
+      place(state, 11, 'wolf', 2);
+      place(state, 15, 'rat', 0);
+      note = `Rat nest drill: the nest in cell 03 hatches a ${tierName(state.params.nestTier)} Rat on the morning of day ${1 + state.params.nestDays}. Patrolling it before then destroys it.`;
     }
     for (const cell of state.cells) if (!cell.sealed) cell.event = null;
     if (state.params.startTools > 0) {
       state.tools = shuffle(state, TOOL_IDS).slice(0, state.params.startTools);
       log(state, 'tool', `Starting tools: ${state.tools.map((t) => TOOLS[t].name).join(', ')}.`);
     }
+    if (marker) state.position = 1;
     beginDay(state, []);
     if (destinations) state.destinations = destinations;
-    // Marker drills open after the day-1 patrol, except the events drill,
-    // which is about the patrol itself.
-    if (s !== 'empty' && s !== 'events') state.phase = 'manage';
+    if (marker) state.phase = 'manage';
     log(state, 'drill', note);
   }
 
@@ -592,13 +595,19 @@
   }
 
   // Destinations come from the cells just ahead of the warden, clockwise:
-  // locked ones to open, or open ones whose inmates you already know.
+  // locked ones to open, or open ones whose inmates you already know. The
+  // office counts as a step on the walk but is never offered.
   function rollDestinations(state) {
     // Some mornings offer one door fewer; the odds are a practice value.
     const fewer = rand(state) * 100 < state.params.fewerDoorsChance;
     state.destBase = Math.max(1, state.params.destinations - (fewer ? 1 : 0));
     const range = Math.min(state.params.patrolRange, CELL_COUNT - 1);
-    const ahead = Array.from({ length: range }, (_, i) => state.cells[(state.position + 1 + i) % CELL_COUNT]);
+    const ahead = [];
+    // A one-step range that lands on the office reaches the cell past it.
+    for (let i = 1; i < CELL_COUNT && (i <= range || !ahead.length); i++) {
+      const cell = state.cells[(state.position + i) % CELL_COUNT];
+      if (cell.n !== OFFICE) ahead.push(cell);
+    }
     let picks = shuffle(state, ahead).slice(0, destinationLimit(state));
     // A door with an event behind it means a two-door morning.
     const hasEvent = (c) => c.sealed && c.event;
@@ -1194,6 +1203,7 @@
     if (blocked) return blocked;
     const cell = state.cells[n];
     if (!cell) return fail('Pick a cell to edit.');
+    if (n === OFFICE) return fail("Cell 01 is the warden's office. Nothing can be placed there.");
     Object.assign(cell, blankCell(n));
     const beast = BEASTS.includes(spec.beast) ? spec.beast : 'mammoth';
     const tier = clamp(Math.round(Number(spec.tier)) || 0, 0, RAINBOW - 1);
@@ -1223,8 +1233,6 @@
     }
     if (event && cell.sealed && !cell.nest) what += `, with a ${event === 'chain' ? 'Chain reaction' : 'Execution'} event`;
     checkPrey(state);
-    if (state.phase === 'patrol') state.destinations = state.destinations.filter((d) => state.cells[d].sealed || state.mode === 'challenge');
-    if (state.phase === 'patrol' && !state.destinations.length) rollDestinations(state);
     log(state, 'lab', `Scene editor: cell ${cellLabel(n)} is now ${what}.`);
     return ok([]);
   }
@@ -1247,7 +1255,9 @@
     if (blocked) return blocked;
     if (n < 0 || n >= CELL_COUNT) return fail('Pick a cell.');
     state.position = n;
-    log(state, 'lab', `Scene editor: the warden now stands at cell ${cellLabel(n)}.`);
+    // Destinations always come from the cells ahead of the warden.
+    if (state.phase === 'patrol') rollDestinations(state);
+    log(state, 'lab', `Scene editor: the warden now stands ${n === OFFICE ? 'in the office' : `at cell ${cellLabel(n)}`}.`);
     return ok([]);
   }
 
@@ -1497,7 +1507,7 @@
   };
 
   const api = {
-    VERSION, CELL_COUNT, SUPREME, RAINBOW, TIERS, BEASTS, BEAST_INFO, FOOD_CHAINS, HARD_MODE_KEYS, PRESSURE, ESCORTS, TOOLS, TOOL_IDS, GIFTS, GIFT_IDS,
+    VERSION, CELL_COUNT, OFFICE, SUPREME, RAINBOW, TIERS, BEASTS, BEAST_INFO, FOOD_CHAINS, HARD_MODE_KEYS, PRESSURE, ESCORTS, TOOLS, TOOL_IDS, GIFTS, GIFT_IDS,
     LOADOUTS, SCENARIOS, CONTRACT_SLOTS, DEFAULT_PARAMS, PARAM_FIELDS, CHALLENGE_DAYS, START_VOUCHERS,
     newGame, randomSeed, normalizeParams, serialize, deserialize,
     patrol: bounded(patrol),
