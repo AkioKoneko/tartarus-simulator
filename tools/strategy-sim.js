@@ -7,7 +7,7 @@
  * the same prisons and the comparisons are fair.
  *
  *   node tools/strategy-sim.js tune   [--games 40000] [--rounds 3] [--rewards off|on] [--loop]
- *   node tools/strategy-sim.js eval   [--games 1000000] [--rewards off|on] [--loop] [--params file.json]
+ *   node tools/strategy-sim.js eval   [--games 1000000] [--rewards off|on] [--loop] [--params file.json] [--only solver]
  *   node tools/strategy-sim.js tools  [--games 200000]
  *   node tools/strategy-sim.js gifts  [--games 200000]
  *   node tools/strategy-sim.js chains [--games 200000]
@@ -341,9 +341,13 @@ async function main() {
     console.log(`\nbest: ${fmt(stats)}\n${JSON.stringify(params)}\nsaved tools/results/${name}`);
   } else if (mode === 'eval') {
     const params = loadParams();
-    for (const policy of ['random', 'simple', 'solver']) {
+    const only = opt('only', null);
+    for (const policy of only ? String(only).split(',') : ['random', 'simple', 'solver']) {
+      const start = Date.now();
       const stats = await run(policy, params, game, games);
-      console.log(`${policy.padEnd(7)} ${fmt(stats)}  ${JSON.stringify(describe(stats))}`);
+      const secs = (Date.now() - start) / 1000;
+      console.log(`${policy.padEnd(7)} ${fmt(stats)}  ${stats.games.toLocaleString()} runs in ${secs.toFixed(1)}s (${Math.round(stats.games / secs).toLocaleString()} runs/s)`);
+      console.log(`        ${JSON.stringify(describe(stats))}`);
     }
   } else if (mode === 'tools') {
     const params = loadParams();
@@ -392,8 +396,9 @@ async function report(games) {
   const notools = { rewards: false };
   const rewards = { rewards: true };
 
+  // --params starts the tuning from saved weights instead of the defaults.
   console.log('\n== 1. No tools: tune the strategy ==');
-  const tuned = await tune(notools, tuneGames, Number(opt('rounds', 3)));
+  const tuned = await tune(notools, tuneGames, Number(opt('rounds', 3)), loadParams());
   save('tuned-notools.json', tuned.params);
   out.params = tuned.params;
 

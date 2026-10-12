@@ -38,4 +38,70 @@ The in-game Solver panel plays each candidate move out hundreds of times with th
 
 ## Results
 
-See `results/report.json` for the latest full study. The tuned weights are in `results/tuned-notools.json` and `results/tuned-rewards.json`.
+From the full study on 2026-10-12: 1,000,000 runs per test, standard food chain, default drill values. The ± figures are 95% margins.
+
+**Speed.** 1,000,000 runs take about 61 seconds with no tools (16,300 runs/s) and 77 seconds with tool and Cache rewards on (12,900 runs/s), on 31 threads of an i9-14900K.
+
+**No tools** (Rainbows vaulted per 20-day run):
+
+| Strategy | Rainbows/run | Runs with a Rainbow |
+| --- | --- | --- |
+| Random legal moves | 0.047 | 5% |
+| Simple: devour when possible, swap Normals, open doors | 0.411 | 40% |
+| Solver strategy, starting weights | 0.577 | 55% |
+| Solver strategy, tuned | **0.662 ± 0.001** | 62% |
+
+**Rewards on** (a tool at the first Supreme, a Warden's Cache gift per Rainbow):
+
+| Strategy | Rainbows/run |
+| --- | --- |
+| Random | 0.088 |
+| Simple | 0.648 |
+| Tuned for no tools, measured tool ranking | 1.336 |
+| Retuned with rewards on | **1.390 ± 0.002** (82% of runs vault one or more) |
+
+**Each tool held from day 1** (no other rewards; the baseline with no tool is 0.662):
+
+| Tool | Rainbows/run | Change |
+| --- | --- | --- |
+| Hangman's Rope | 1.749 | +1.087 |
+| Avenger's Box | 1.655 | +0.994 |
+| Rat-Head Skewer | 1.408 | +0.746 |
+| Burning Stake | 1.402 | +0.741 |
+| Rusty Saw | 1.258 | +0.596 |
+| Lost Key Ring | 1.033 | +0.372 |
+| Agony Muzzle | 0.902 | +0.240 |
+| Writhing Iron Box | 0.490 | **−0.172** |
+
+**Warden's Cache.** Scoring the gifts on the spot (1.336) beats always taking the same one. In order: Crimson Wine 1.302, Three-Headed Ring 1.260, Brand of Sin 1.181, Bronze War Horn 1.176.
+
+**Hard mode loop chain:** 0.269 with no tools, 0.706 with rewards. Each beast has only one meal, so chains break far more often.
+
+### What wins
+
+- **Devour every day you can.** Waiting for a bigger staircase never paid off. A devour threshold of +2 dropped results from 0.66 to 0.57, and +5 dropped them to 0.38.
+- **Swap the warden's low-tier inmates.** With no tools, swapping Normal and Magic is best. Never swapping halves the result (0.36), and swapping only Normals gives 0.61. With rewards on, swapping Rares too is best (1.38 vs 1.36).
+- **Accept Chain reactions** (0.66 vs 0.53 when skipped).
+- **Accept an Execution only when it gains more than it removes.** Always accepting gives 0.64, and never accepting 0.61.
+- **Walk further.** A bonus per step walked beat preferring short steps (0.66 vs 0.64).
+- **Open doors.** A new inmate is worth more than walking to a known one that has no meal.
+
+### Chains and how many beasts you need
+
+A chain re-rolls the eater's beast after every bite, so the next bite depends only on which beasts wait at the next tier. These are the exact odds that the chain finds its next meal:
+
+| Beasts waiting at the next tier | Standard chain | Loop chain |
+| --- | --- | --- |
+| Rat or Wolf | 50% | 25% |
+| Lion or Mammoth | 25% | 25% |
+| Rat + Mammoth, Rat + Lion, Rat + Wolf, Wolf + Mammoth | 75% | 50% |
+| Lion + Wolf, Lion + Mammoth | 50% | 50% |
+| **Rat + Mammoth + Lion, or Rat + Mammoth + Wolf** | **100%** | 75% |
+| Lion + Wolf + Rat, or Mammoth + Lion + Wolf | 75% | 75% |
+| All four | 100% | 100% |
+
+The chance a chain reaches Rainbow is the product over the tiers it still has to climb. For example, a Rare eater needs food at Legendary and at Supreme, so best pairs at both give 75% × 75% = 56%. The simulation agrees. A Legendary eater reached Rainbow in a chain 77% of the time with 3 beasts fed at Supreme, 55% with 2 and 31% with 1. A Rare eater with 2 fed at both Legendary and Supreme reached it 31% of the time. Extra copies of a beast don't help a single chain, since each chain eats one inmate per tier. They only keep the staircase ready for the next one.
+
+Chains produced 68% of all Rainbows. With rewards on, 64% of devours were a single bite, 26% two bites, 8% three, 1.8% four and 0.4% five.
+
+The full numbers are in `results/report.json`. The tuned weights are in `results/tuned-notools.json` and `results/tuned-rewards.json`, and `js/solver.js` uses them.

@@ -34,15 +34,15 @@
     swapMaxTier: 0, // swap the warden's inmate only at or below this tier
     execMargin: 0, // accept an Execution worth more than this
     acceptChain: true, // accept Chain reactions
-    toolRank: ['muzzle', 'saw', 'revenge', 'skewer', 'keys', 'rope', 'ironbox', 'fire'],
+    toolRank: ['rope', 'revenge', 'skewer', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'], // measured: each tool held from day 1
     giftRank: null, // null scores the gifts on the spot; or a fixed order
   };
 
   // Tuned weights for drills with and without tool rewards; the solver
   // picks by the run's settings. From tools/results/tuned-*.json.
   const PROFILES = {
-    notools: { tierBase: 2.5, rainbowMult: 2, wOpen: 1.5, wNow: 1, wWalk: 1, wStep: 1, wChain: 16, wStair: 0.25, swapMaxTier: 1, minDevour: 0, execMargin: 0, acceptChain: true },
-    rewards: { tierBase: 2.5, rainbowMult: 2, wOpen: 1.5, wNow: 1, wWalk: 1, wStep: 1, wChain: 16, wStair: 0.25, swapMaxTier: 1, minDevour: 0, execMargin: 0, acceptChain: true },
+    notools: { tierBase: 2.5, rainbowMult: 2, wOpen: 1.5, wNow: 1, wWalk: 1, wStep: 1, wChain: 16, wStair: 0.25, swapMaxTier: 1, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['rope', 'revenge', 'skewer', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'] },
+    rewards: { tierBase: 3, rainbowMult: 1, wOpen: 2, wNow: 1.5, wWalk: 1, wStep: 1, wChain: 8, wStair: 1, swapMaxTier: 2, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['rope', 'revenge', 'skewer', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'] },
   };
   const paramsFor = (st) => PROFILES[st.params.rewards ? 'rewards' : 'notools'];
 
