@@ -50,14 +50,14 @@
     drillDays: 20,
     destinations: 3,
     patrolRange: 5,
-    eventTwoDoors: true,
+    eventTwoDoors: false,
     fewerDoorsChance: 0,
     scoutsPerDay: 0,
     swapsPerDay: 1,
     reusableCells: true,
     tierWeights: [52, 27, 15, 6, 0],
     beastWeights: [25, 25, 25, 25],
-    eventChance: 8,
+    eventChance: 18,
     executionSameTier: false,
     executionRerolls: false,
     ivoryCount: 4,
@@ -510,7 +510,7 @@
       place(state, 13, 'lion', 2);
       hide(state, 2, 'lion', 2, { event: 'execution', known: 1 });
       hide(state, 3, 'mammoth', 1, { event: 'chain' });
-      destinations = [2, 3];
+      destinations = [1, 2, 3];
       note = 'Special events drill: cell 03 hides an Execution behind a Rare inmate, and cell 04 hides a Chain reaction. Patrol one, then accept or skip the event.';
     } else if (s === 'ivory') {
       place(state, 0, 'wolf', 1);
