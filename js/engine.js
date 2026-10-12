@@ -31,8 +31,9 @@
     rat: { name: 'Rat' },
   };
 
-  // Who eats whom. The standard chain has six relations; hard mode's loop
-  // gives each beast exactly one meal.
+  // Who eats whom. The single-meal loop is the default, since it's what the
+  // live game appears to use: each beast has exactly one meal. The two-meal
+  // chain from the Chinese sim ("standard" here) has six relations.
   const FOOD_CHAINS = {
     standard: { mammoth: ['lion', 'wolf'], lion: ['wolf', 'rat'], wolf: ['rat'], rat: ['mammoth'] },
     loop: { mammoth: ['lion'], lion: ['wolf'], wolf: ['rat'], rat: ['mammoth'] },
@@ -70,10 +71,10 @@
     nestTier: 2,
     rewards: true,
     startTools: 0,
-    loopChain: false,
+    loopChain: true,
   };
 
-  // Hard mode switches; the challenge accepts these even though its other values are fixed.
+  // Rule switches the challenge takes from the New Run screen, though its other values are fixed.
   const HARD_MODE_KEYS = ['loopChain'];
 
   // The contract challenge always plays with these values.
@@ -87,7 +88,7 @@
     { key: 'fewerDoorsChance', group: 'Pace', label: 'Chance a morning offers one door fewer (%)', type: 'int', min: 0, max: 100 },
     { key: 'swapsPerDay', group: 'Pace', label: 'Swaps per day', type: 'int', min: 0, max: 16 },
     { key: 'reusableCells', group: 'Pace', label: 'Emptied cells seal again and can be reopened', type: 'bool' },
-    { key: 'loopChain', group: 'Hard mode', label: 'Loop food chain: Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth', type: 'bool' },
+    { key: 'loopChain', group: 'Food chain', label: "Single-meal food chain: Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth (off: the Chinese sim's two-meal chain)", type: 'bool' },
     { key: 'tierWeights', group: 'Odds', label: 'Rarity weights for new inmates', type: 'list', names: TIERS.slice(0, 5) },
     { key: 'beastWeights', group: 'Odds', label: 'Beast weights for new inmates', type: 'list', names: ['Mammoth', 'Lion', 'Wolf', 'Rat'] },
     { key: 'eventChance', group: 'Special events', label: 'Chance a sealed cell hides a special event (%)', type: 'int', min: 0, max: 100 },
@@ -260,10 +261,10 @@
     return p;
   }
 
-  // Fixed challenge values, plus whichever hard mode switches were chosen.
+  // Fixed challenge values, plus whichever rule switches were chosen.
   function challengeParams(input) {
     const p = JSON.parse(JSON.stringify(CHALLENGE_PARAMS));
-    for (const key of HARD_MODE_KEYS) p[key] = !!(input && input[key]);
+    for (const key of HARD_MODE_KEYS) p[key] = input && key in input ? !!input[key] : DEFAULT_PARAMS[key];
     return p;
   }
 

@@ -15,7 +15,7 @@
   // The published single-file build sets this; its viewer cannot download files.
   const EMBEDDED = !!window.TARTARUS_EMBEDDED;
 
-  const KEYS = { save: 'tartarus-sim:save:v2', prefs: 'tartarus-sim:prefs:v1', params: 'tartarus-sim:params:v2' };
+  const KEYS = { save: 'tartarus-sim:save:v2', prefs: 'tartarus-sim:prefs:v1', params: 'tartarus-sim:params:v3' };
   const HISTORY_LIMIT = 40;
   const DEFAULT_PREFS = { advisor: false, quick: false, motion: true, sound: true, volume: 60, immersive: false };
 
@@ -109,7 +109,7 @@
     hover: null,
     screen: 'title',
     prefs: Object.assign({}, DEFAULT_PREFS, store.get(KEYS.prefs) || {}),
-    labParams: T.normalizeParams(store.get(KEYS.params)),
+    labParams: loadLabParams(),
     labCell: 1,
     actedOn: null,
     trainer: null,
@@ -120,6 +120,16 @@
 
   const cargo = { cells: new Set(), vault: new Set(), escort: 'light' };
   const cellEls = [];
+
+  // Practice values. Values saved before the single-meal food chain became the
+  // default keep everything except the food chain.
+  function loadLabParams() {
+    const saved = store.get(KEYS.params);
+    if (saved) return T.normalizeParams(saved);
+    const old = store.get('tartarus-sim:params:v2');
+    if (old && typeof old === 'object') delete old.loopChain;
+    return T.normalizeParams(old);
+  }
 
   // ---------- Small helpers ----------
 
@@ -316,10 +326,10 @@
     return T.startOptions(st).length;
   }
 
-  // Short labels for any hard mode switches in play.
+  // Short labels for any rules that differ from the default.
   function hardModeLabels(st) {
     const labels = [];
-    if (st.params.loopChain) labels.push('Loop chain');
+    if (!st.params.loopChain) labels.push('Two-meal chain');
     return labels;
   }
 
@@ -834,13 +844,13 @@
   function renderTop() {
     const st = ui.state;
     const hard = hardModeLabels(st);
-    $('mode-chip').textContent = `${modeName(st)}${hard.length ? ` · Hard: ${hard.join(', ')}` : ''} · ${st.seed}`;
+    $('mode-chip').textContent = `${modeName(st)}${hard.length ? ` · ${hard.join(', ')}` : ''} · ${st.seed}`;
     const chain = $('chain-svg');
     chain.classList.toggle('is-loop', !!st.params.loopChain);
     $('chain-desc').textContent = st.params.loopChain
-      ? 'Loop food chain: Mammoth eats Lion. Lion eats Wolf. Wolf eats Rat. Rat eats Mammoth.'
-      : 'Mammoth eats Lion and Wolf. Lion eats Wolf and Rat. Wolf eats Rat. Rat eats Mammoth.';
-    $('chain-note').textContent = `${st.params.loopChain ? 'Hard mode loop: each beast has one meal. ' : ''}Arrows point from eater to meal. Both must share a rarity. A devour raises the eater one tier, then re-rolls its beast.`;
+      ? 'Single-meal food chain: Mammoth eats Lion. Lion eats Wolf. Wolf eats Rat. Rat eats Mammoth.'
+      : 'Two-meal food chain: Mammoth eats Lion and Wolf. Lion eats Wolf and Rat. Wolf eats Rat. Rat eats Mammoth.';
+    $('chain-note').textContent = `${st.params.loopChain ? 'Each beast has one meal. ' : 'The Chinese sim\u2019s chain: Mammoth and Lion have two meals. '}Arrows point from eater to meal. Both must share a rarity. A devour raises the eater one tier, then re-rolls its beast.`;
     $('day-num').textContent = String(st.day).padStart(2, '0');
     $('day-of').textContent = `/ ${st.maxDays}`;
     const pill = $('phase-pill');
@@ -1096,25 +1106,49 @@
   const solverFits = (st) => st && st.phase !== 'ended';
 
   // What the training found for each kind of decision.
+  // What the training found for each kind of decision. When the run uses the
+  // same food chain as the guide's data (js/guide-data.js), lessons quote
+  // its numbers; otherwise they give the advice without numbers.
   const LESSONS = {
     patrol: 'Training: opening doors and walking further vaulted more Rainbows than walking to an inmate with nothing to eat.',
-    devour: 'Training: devour every day you can. Waiting for a bigger chain lost Rainbows (0.57 against 0.66 per run).',
-    swap: 'Training: swap low-tier inmates in the warden’s cell. Never swapping halved the Rainbows.',
+    devour: 'Training: devour every day you can. Waiting for a bigger chain cost Rainbows.',
+    swap: 'Training: swap low-tier inmates in the warden’s cell. Never swapping cost far more Rainbows than any other habit.',
     end: 'Training: end the day once nothing here gains.',
     early: 'Contracts: the heavy contract is needed to pass, and delivering it early ends the run.',
-    chain: 'Training: accepting Chain reactions vaulted 0.66 Rainbows per run, against 0.53 when skipped.',
+    chain: 'Training: accepting Chain reactions vaulted more Rainbows than skipping them.',
     execution: 'Training: accept an Execution only when it gains more than it removes.',
-    tool: 'Training ranking: Hangman’s Rope, Avenger’s Box, Rat-Head Skewer, Burning Stake, Rusty Saw, Lost Key Ring, Agony Muzzle. The Writhing Iron Box hurt.',
     gift: 'Training: picking the gift that fits the board beat always taking the same one.',
     window: 'Contracts: deliver when the cargo meets the contract. You need two, including the heavy one.',
   };
 
+  function guideFor(st) {
+    const g = window.TARTARUS_GUIDE;
+    return g && (g.chain === 'single') === !!st.params.loopChain ? g : null;
+  }
+
   function lessonFor(st, action) {
-    if (st.pending.length) return LESSONS[st.pending[0].kind === 'gift' ? 'gift' : 'tool'];
+    const g = guideFor(st);
+    const habit = (id) => (g ? g.habits.find((h) => h.id === id) : null);
+    const full = habit('full');
+    const vs = (id, text) => {
+      const h = habit(id);
+      return full && h ? `${text} (${h.value.toFixed(2)} Rainbows per run, against ${full.value.toFixed(2)})` : null;
+    };
+    if (st.pending.length) {
+      if (st.pending[0].kind === 'gift') return LESSONS.gift;
+      const names = window.TartarusSolver.paramsFor(st).toolRank.map((id) => T.toolName(id));
+      return `Training ranking for this food chain: ${names.join(', ')}.`;
+    }
     if (st.challenge && st.challenge.window) return LESSONS.window;
-    if (st.phase === 'event' && st.event) return LESSONS[st.event.kind === 'chain' ? 'chain' : 'execution'];
+    if (st.phase === 'event' && st.event) {
+      if (st.event.kind === 'chain') return (vs('skipChain', 'Training: skipping Chain reactions cost Rainbows') || LESSONS.chain) + (g ? '.' : '');
+      return LESSONS.execution;
+    }
     if (st.phase === 'patrol') return action && action.type === 'early' ? LESSONS.early : LESSONS.patrol;
-    return (action && LESSONS[action.type]) || '';
+    if (!action) return '';
+    if (action.type === 'devour') return (vs('wait2', 'Training: devour every day you can. Waiting for a bigger chain cost Rainbows') || LESSONS.devour) + (g ? '.' : '');
+    if (action.type === 'swap') return (vs('neverSwap', 'Training: swap low-tier inmates in the warden’s cell. Never swapping cost the most') || LESSONS.swap) + (g ? '.' : '');
+    return LESSONS[action.type] || '';
   }
 
   function startSolver() {
@@ -1449,7 +1483,8 @@
       .map(([key, k]) => `<label class="option"><input type="radio" name="loadout" value="${key}"${key === loadout ? ' checked' : ''}><strong>${esc(k.name)} · ${esc(k.level)}</strong><small>${esc(k.text)}</small></label>`)
       .join('');
     $('new-seed').value = T.randomSeed();
-    $('new-loop-chain').checked = !!ui.labParams.loopChain;
+    $('new-chain-single').checked = !!ui.labParams.loopChain;
+    $('new-chain-two').checked = !ui.labParams.loopChain;
     syncNewMode();
     $('new-replace').hidden = !(ui.state && ui.state.phase !== 'ended');
     openDialog('dlg-new');
@@ -1715,7 +1750,7 @@
     if (!st || !st.result) return;
     const r = st.result;
     const hard = hardModeLabels(st);
-    $('results-eyebrow').textContent = `${modeName(st)}${hard.length ? ` · Hard: ${hard.join(', ')}` : ''} · seed ${st.seed}`;
+    $('results-eyebrow').textContent = `${modeName(st)}${hard.length ? ` · ${hard.join(', ')}` : ''} · seed ${st.seed}`;
     const verdict = $('results-verdict');
     const ch = st.challenge;
     if (ch && ch.result) {
@@ -1768,7 +1803,7 @@
     const st = ui.state;
     const r = st.result;
     const hard = hardModeLabels(st);
-    const lines = [`Tartarus Simulator · ${modeName(st)}${hard.length ? ` · Hard: ${hard.join(', ')}` : ''} · seed ${st.seed}`, `Day ${r.day} of ${st.maxDays}${r.early ? ' (closed early)' : ''}`];
+    const lines = [`Tartarus Simulator · ${modeName(st)}${hard.length ? ` · ${hard.join(', ')}` : ''} · seed ${st.seed}`, `Day ${r.day} of ${st.maxDays}${r.early ? ' (closed early)' : ''}`];
     const ch = st.challenge;
     if (ch && ch.result) {
       lines.push(`${ch.result.passed ? 'Passed' : 'Failed'} · ${T.plural(ch.result.completed, 'contract')} delivered · score ${ch.result.score} · ${T.plural(ch.result.vouchers, 'voucher')} left`);
@@ -2054,8 +2089,8 @@
     $('form-new').addEventListener('submit', (e) => {
       e.preventDefault();
       const data = new FormData(e.target);
-      // The hard mode switches are remembered for the next run too.
-      ui.labParams = T.normalizeParams(Object.assign({}, ui.labParams, { loopChain: $('new-loop-chain').checked }));
+      // The food chain is remembered for the next run too.
+      ui.labParams = T.normalizeParams(Object.assign({}, ui.labParams, { loopChain: data.get('chain') !== 'two' }));
       store.set(KEYS.params, ui.labParams);
       closeDialog('dlg-new');
       startRun({ mode: data.get('mode'), scenario: data.get('scenario'), loadout: data.get('loadout'), seed: $('new-seed').value });

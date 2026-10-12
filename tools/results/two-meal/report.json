@@ -1,0 +1,3023 @@
+{
+  "games": 1000000,
+  "seed": "LAB",
+  "threads": 31,
+  "when": "2026-10-12T20:44:24.059Z",
+  "params": {
+    "tierBase": 2.5,
+    "rainbowMult": 2,
+    "wOpen": 1.5,
+    "wNow": 1,
+    "wWalk": 1,
+    "wStep": 1,
+    "wNest": -6,
+    "wChain": 16,
+    "wStair": 0.25,
+    "minDevour": 0,
+    "swapMaxTier": 1,
+    "execMargin": 0,
+    "acceptChain": true,
+    "toolRank": [
+      "muzzle",
+      "saw",
+      "revenge",
+      "skewer",
+      "keys",
+      "rope",
+      "ironbox",
+      "fire"
+    ],
+    "giftRank": null
+  },
+  "notools": {
+    "random": {
+      "games": 1000000,
+      "rainbowsPerRun": 0.047,
+      "ci95": 0.0004,
+      "runsWithRainbow": 0.0467,
+      "rainbowCounts": [
+        0.9533,
+        0.0463,
+        0.0004,
+        0,
+        0,
+        0
+      ],
+      "devoursPerRun": 6.2,
+      "bitesPerDevour": 1.42,
+      "chainLengths": [
+        0.6788,
+        0.2371,
+        0.0697,
+        0.014,
+        0.0005,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 23204,
+        "singleDevour": 3276,
+        "other": 20564
+      },
+      "firstRainbowDay": 14.3,
+      "swapsPerRun": 5.99,
+      "executionsPerRun": 0.513,
+      "doorsPerRun": 16.3
+    },
+    "simple": {
+      "games": 1000000,
+      "rainbowsPerRun": 0.4107,
+      "ci95": 0.001,
+      "runsWithRainbow": 0.402,
+      "rainbowCounts": [
+        0.598,
+        0.3933,
+        0.0086,
+        0,
+        0,
+        0
+      ],
+      "devoursPerRun": 8.32,
+      "bitesPerDevour": 1.405,
+      "chainLengths": [
+        0.6923,
+        0.227,
+        0.0654,
+        0.0138,
+        0.0015,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 262357,
+        "singleDevour": 121970,
+        "other": 26373
+      },
+      "firstRainbowDay": 16.14,
+      "swapsPerRun": 7.45,
+      "executionsPerRun": 1.092,
+      "doorsPerRun": 18.49
+    },
+    "default": {
+      "games": 1000000,
+      "rainbowsPerRun": 0.5768,
+      "ci95": 0.0011,
+      "runsWithRainbow": 0.5504,
+      "rainbowCounts": [
+        0.4496,
+        0.5241,
+        0.0261,
+        0.0002,
+        0,
+        0
+      ],
+      "devoursPerRun": 8.51,
+      "bitesPerDevour": 1.445,
+      "chainLengths": [
+        0.666,
+        0.243,
+        0.0729,
+        0.0161,
+        0.0019,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 353790,
+        "singleDevour": 187570,
+        "other": 35485
+      },
+      "firstRainbowDay": 15.03,
+      "swapsPerRun": 9.35,
+      "executionsPerRun": 0.208,
+      "doorsPerRun": 20.69
+    },
+    "tuned": {
+      "games": 1000000,
+      "rainbowsPerRun": 0.6615,
+      "ci95": 0.0011,
+      "runsWithRainbow": 0.6195,
+      "rainbowCounts": [
+        0.3805,
+        0.5779,
+        0.0412,
+        0.0004,
+        0,
+        0
+      ],
+      "devoursPerRun": 8.89,
+      "bitesPerDevour": 1.427,
+      "chainLengths": [
+        0.676,
+        0.2386,
+        0.0692,
+        0.0146,
+        0.0016,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 384830,
+        "singleDevour": 235898,
+        "other": 40766
+      },
+      "firstRainbowDay": 14.65,
+      "swapsPerRun": 13.21,
+      "executionsPerRun": 0.232,
+      "doorsPerRun": 20.94
+    }
+  },
+  "tools": {
+    "revenge": {
+      "games": 1000000,
+      "rainbowsPerRun": 1.6553,
+      "ci95": 0.0017,
+      "runsWithRainbow": 0.9241,
+      "rainbowCounts": [
+        0.0759,
+        0.3758,
+        0.3894,
+        0.1366,
+        0.0207,
+        0.0016
+      ],
+      "devoursPerRun": 9.93,
+      "bitesPerDevour": 1.785,
+      "chainLengths": [
+        0.5254,
+        0.2637,
+        0.1346,
+        0.0537,
+        0.0227,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 1375877,
+        "singleDevour": 252067,
+        "other": 27343
+      },
+      "firstRainbowDay": 10.72,
+      "swapsPerRun": 11.39,
+      "executionsPerRun": 0.188,
+      "doorsPerRun": 25.25
+    },
+    "muzzle": {
+      "games": 1000000,
+      "rainbowsPerRun": 0.9018,
+      "ci95": 0.0015,
+      "runsWithRainbow": 0.7106,
+      "rainbowCounts": [
+        0.2894,
+        0.5523,
+        0.1306,
+        0.0232,
+        0.0039,
+        0.0006
+      ],
+      "devoursPerRun": 8.89,
+      "bitesPerDevour": 1.416,
+      "chainLengths": [
+        0.6842,
+        0.2325,
+        0.0675,
+        0.0142,
+        0.0015,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 492430,
+        "singleDevour": 371459,
+        "other": 37896
+      },
+      "firstRainbowDay": 12.26,
+      "swapsPerRun": 13.02,
+      "executionsPerRun": 0.221,
+      "doorsPerRun": 20.91
+    },
+    "saw": {
+      "games": 1000000,
+      "rainbowsPerRun": 1.2577,
+      "ci95": 0.0015,
+      "runsWithRainbow": 0.8676,
+      "rainbowCounts": [
+        0.1324,
+        0.5226,
+        0.3017,
+        0.0415,
+        0.0018,
+        0
+      ],
+      "devoursPerRun": 9.24,
+      "bitesPerDevour": 1.349,
+      "chainLengths": [
+        0.7225,
+        0.2153,
+        0.0533,
+        0.0083,
+        0.0006,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 670804,
+        "singleDevour": 549948,
+        "other": 36971
+      },
+      "firstRainbowDay": 12.17,
+      "swapsPerRun": 12.24,
+      "executionsPerRun": 0.225,
+      "doorsPerRun": 20.47
+    },
+    "keys": {
+      "games": 1000000,
+      "rainbowsPerRun": 1.0333,
+      "ci95": 0.0012,
+      "runsWithRainbow": 0.8299,
+      "rainbowCounts": [
+        0.1701,
+        0.6347,
+        0.1872,
+        0.0079,
+        0.0001,
+        0
+      ],
+      "devoursPerRun": 11.9,
+      "bitesPerDevour": 1.538,
+      "chainLengths": [
+        0.6124,
+        0.2675,
+        0.0927,
+        0.024,
+        0.0034,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 611893,
+        "singleDevour": 364255,
+        "other": 57150
+      },
+      "firstRainbowDay": 12.84,
+      "swapsPerRun": 12.29,
+      "executionsPerRun": 0.231,
+      "doorsPerRun": 29.49
+    },
+    "rope": {
+      "games": 1000000,
+      "rainbowsPerRun": 1.7487,
+      "ci95": 0.0012,
+      "runsWithRainbow": 0.9822,
+      "rainbowCounts": [
+        0.0178,
+        0.2932,
+        0.6124,
+        0.076,
+        0.0007,
+        0
+      ],
+      "devoursPerRun": 8.79,
+      "bitesPerDevour": 1.364,
+      "chainLengths": [
+        0.689,
+        0.2584,
+        0.0526,
+        0,
+        0,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 1132101,
+        "singleDevour": 593276,
+        "other": 23321
+      },
+      "firstRainbowDay": 10.91,
+      "swapsPerRun": 14.2,
+      "executionsPerRun": 0.138,
+      "doorsPerRun": 20.09
+    },
+    "fire": {
+      "games": 1000000,
+      "rainbowsPerRun": 1.4022,
+      "ci95": 0.0013,
+      "runsWithRainbow": 0.9246,
+      "rainbowCounts": [
+        0.0754,
+        0.4849,
+        0.4021,
+        0.0371,
+        0.0004,
+        0
+      ],
+      "devoursPerRun": 7.55,
+      "bitesPerDevour": 1.371,
+      "chainLengths": [
+        0.7048,
+        0.2349,
+        0.0471,
+        0.0111,
+        0.0021,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 980637,
+        "singleDevour": 391687,
+        "other": 29878
+      },
+      "firstRainbowDay": 12.17,
+      "swapsPerRun": 14.64,
+      "executionsPerRun": 0.202,
+      "doorsPerRun": 19.37
+    },
+    "ironbox": {
+      "games": 1000000,
+      "rainbowsPerRun": 0.4897,
+      "ci95": 0.0011,
+      "runsWithRainbow": 0.4626,
+      "rainbowCounts": [
+        0.5374,
+        0.4357,
+        0.0265,
+        0.0003,
+        0,
+        0
+      ],
+      "devoursPerRun": 6.28,
+      "bitesPerDevour": 1.424,
+      "chainLengths": [
+        0.6769,
+        0.2373,
+        0.072,
+        0.0127,
+        0.0011,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 266350,
+        "singleDevour": 200427,
+        "other": 22935
+      },
+      "firstRainbowDay": 12.64,
+      "swapsPerRun": 8.67,
+      "executionsPerRun": 0.13,
+      "doorsPerRun": 23.99
+    },
+    "skewer": {
+      "games": 1000000,
+      "rainbowsPerRun": 1.4076,
+      "ci95": 0.0015,
+      "runsWithRainbow": 0.9099,
+      "rainbowCounts": [
+        0.0901,
+        0.4824,
+        0.3608,
+        0.0634,
+        0.0033,
+        0.0001
+      ],
+      "devoursPerRun": 9.22,
+      "bitesPerDevour": 1.437,
+      "chainLengths": [
+        0.6554,
+        0.264,
+        0.0693,
+        0.0107,
+        0.0006,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 876178,
+        "singleDevour": 498870,
+        "other": 32590
+      },
+      "firstRainbowDay": 11.44,
+      "swapsPerRun": 12.36,
+      "executionsPerRun": 0.212,
+      "doorsPerRun": 21.15
+    }
+  },
+  "rewards": {
+    "random": {
+      "games": 1000000,
+      "rainbowsPerRun": 0.0884,
+      "ci95": 0.0006,
+      "runsWithRainbow": 0.0826,
+      "rainbowCounts": [
+        0.9174,
+        0.0772,
+        0.0051,
+        0.0003,
+        0,
+        0
+      ],
+      "devoursPerRun": 6.23,
+      "bitesPerDevour": 1.437,
+      "chainLengths": [
+        0.6714,
+        0.2383,
+        0.073,
+        0.0159,
+        0.0013,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 59004,
+        "singleDevour": 8813,
+        "other": 20623
+      },
+      "firstRainbowDay": 15.12,
+      "swapsPerRun": 5.98,
+      "executionsPerRun": 0.509,
+      "doorsPerRun": 16.82
+    },
+    "simple": {
+      "games": 1000000,
+      "rainbowsPerRun": 0.6477,
+      "ci95": 0.0014,
+      "runsWithRainbow": 0.5395,
+      "rainbowCounts": [
+        0.4605,
+        0.445,
+        0.0824,
+        0.0107,
+        0.0013,
+        0.0002
+      ],
+      "devoursPerRun": 8.89,
+      "bitesPerDevour": 1.456,
+      "chainLengths": [
+        0.6656,
+        0.2373,
+        0.076,
+        0.0183,
+        0.0029,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 450220,
+        "singleDevour": 171501,
+        "other": 25936
+      },
+      "firstRainbowDay": 15.7,
+      "swapsPerRun": 7.1,
+      "executionsPerRun": 1.051,
+      "doorsPerRun": 21.26
+    },
+    "tuned": {
+      "games": 1000000,
+      "rainbowsPerRun": 1.3362,
+      "ci95": 0.0019,
+      "runsWithRainbow": 0.8088,
+      "rainbowCounts": [
+        0.1912,
+        0.406,
+        0.2978,
+        0.088,
+        0.0147,
+        0.0023
+      ],
+      "devoursPerRun": 9.15,
+      "bitesPerDevour": 1.489,
+      "chainLengths": [
+        0.6417,
+        0.2554,
+        0.0799,
+        0.018,
+        0.0049,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 901601,
+        "singleDevour": 370333,
+        "other": 64270
+      },
+      "firstRainbowDay": 13.78,
+      "swapsPerRun": 12.96,
+      "executionsPerRun": 0.224,
+      "doorsPerRun": 22.23
+    },
+    "always-ring": {
+      "games": 1000000,
+      "rainbowsPerRun": 1.2604,
+      "ci95": 0.0017,
+      "runsWithRainbow": 0.8088,
+      "rainbowCounts": [
+        0.1912,
+        0.4503,
+        0.2807,
+        0.0649,
+        0.0108,
+        0.0021
+      ],
+      "devoursPerRun": 9.52,
+      "bitesPerDevour": 1.509,
+      "chainLengths": [
+        0.6352,
+        0.2534,
+        0.0847,
+        0.0203,
+        0.0064,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 869559,
+        "singleDevour": 350848,
+        "other": 40040
+      },
+      "firstRainbowDay": 13.78,
+      "swapsPerRun": 13.13,
+      "executionsPerRun": 0.227,
+      "doorsPerRun": 24.65
+    },
+    "always-horn": {
+      "games": 1000000,
+      "rainbowsPerRun": 1.1759,
+      "ci95": 0.0016,
+      "runsWithRainbow": 0.8088,
+      "rainbowCounts": [
+        0.1912,
+        0.4889,
+        0.2761,
+        0.0407,
+        0.003,
+        0.0002
+      ],
+      "devoursPerRun": 8.8,
+      "bitesPerDevour": 1.479,
+      "chainLengths": [
+        0.6509,
+        0.2467,
+        0.0796,
+        0.0178,
+        0.005,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 780987,
+        "singleDevour": 334022,
+        "other": 60877
+      },
+      "firstRainbowDay": 13.78,
+      "swapsPerRun": 13.17,
+      "executionsPerRun": 0.224,
+      "doorsPerRun": 21.6
+    },
+    "always-wine": {
+      "games": 1000000,
+      "rainbowsPerRun": 1.3016,
+      "ci95": 0.0018,
+      "runsWithRainbow": 0.8088,
+      "rainbowCounts": [
+        0.1912,
+        0.4212,
+        0.2955,
+        0.0804,
+        0.0107,
+        0.0011
+      ],
+      "devoursPerRun": 8.94,
+      "bitesPerDevour": 1.482,
+      "chainLengths": [
+        0.6449,
+        0.2547,
+        0.0789,
+        0.0172,
+        0.0044,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 894395,
+        "singleDevour": 368695,
+        "other": 38540
+      },
+      "firstRainbowDay": 13.78,
+      "swapsPerRun": 12.97,
+      "executionsPerRun": 0.221,
+      "doorsPerRun": 21.2
+    },
+    "always-brand": {
+      "games": 1000000,
+      "rainbowsPerRun": 1.1805,
+      "ci95": 0.0016,
+      "runsWithRainbow": 0.8088,
+      "rainbowCounts": [
+        0.1912,
+        0.4838,
+        0.2817,
+        0.0402,
+        0.003,
+        0.0001
+      ],
+      "devoursPerRun": 9.03,
+      "bitesPerDevour": 1.481,
+      "chainLengths": [
+        0.6502,
+        0.2471,
+        0.0797,
+        0.0177,
+        0.0052,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 792350,
+        "singleDevour": 349316,
+        "other": 38820
+      },
+      "firstRainbowDay": 13.78,
+      "swapsPerRun": 13.1,
+      "executionsPerRun": 0.226,
+      "doorsPerRun": 21.42
+    },
+    "retuned": {
+      "games": 1000000,
+      "rainbowsPerRun": 1.3898,
+      "ci95": 0.0019,
+      "runsWithRainbow": 0.821,
+      "rainbowCounts": [
+        0.179,
+        0.3927,
+        0.3099,
+        0.0992,
+        0.0167,
+        0.0025
+      ],
+      "devoursPerRun": 8.91,
+      "bitesPerDevour": 1.483,
+      "chainLengths": [
+        0.6426,
+        0.2573,
+        0.078,
+        0.0182,
+        0.0039,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 943434,
+        "singleDevour": 381131,
+        "other": 65203
+      },
+      "firstRainbowDay": 13.72,
+      "swapsPerRun": 14.07,
+      "executionsPerRun": 0.226,
+      "doorsPerRun": 21.94
+    }
+  },
+  "paramsRewards": {
+    "tierBase": 3,
+    "rainbowMult": 1,
+    "wOpen": 2,
+    "wNow": 1.5,
+    "wWalk": 1,
+    "wStep": 1,
+    "wNest": -6,
+    "wChain": 8,
+    "wStair": 1,
+    "minDevour": 0,
+    "swapMaxTier": 2,
+    "execMargin": 0,
+    "acceptChain": true,
+    "toolRank": [
+      "rope",
+      "revenge",
+      "skewer",
+      "fire",
+      "saw",
+      "keys",
+      "muzzle",
+      "ironbox"
+    ],
+    "giftRank": null
+  },
+  "coverage": {
+    "standard": [
+      {
+        "beasts": "Wolf",
+        "size": 1,
+        "continues": 0.5,
+        "eatersFed": "Mammoth, Lion"
+      },
+      {
+        "beasts": "Rat",
+        "size": 1,
+        "continues": 0.5,
+        "eatersFed": "Lion, Wolf"
+      },
+      {
+        "beasts": "Mammoth",
+        "size": 1,
+        "continues": 0.25,
+        "eatersFed": "Rat"
+      },
+      {
+        "beasts": "Lion",
+        "size": 1,
+        "continues": 0.25,
+        "eatersFed": "Mammoth"
+      },
+      {
+        "beasts": "Mammoth + Wolf",
+        "size": 2,
+        "continues": 0.75,
+        "eatersFed": "Mammoth, Lion, Rat"
+      },
+      {
+        "beasts": "Mammoth + Rat",
+        "size": 2,
+        "continues": 0.75,
+        "eatersFed": "Lion, Wolf, Rat"
+      },
+      {
+        "beasts": "Lion + Rat",
+        "size": 2,
+        "continues": 0.75,
+        "eatersFed": "Mammoth, Lion, Wolf"
+      },
+      {
+        "beasts": "Wolf + Rat",
+        "size": 2,
+        "continues": 0.75,
+        "eatersFed": "Mammoth, Lion, Wolf"
+      },
+      {
+        "beasts": "Mammoth + Lion",
+        "size": 2,
+        "continues": 0.5,
+        "eatersFed": "Mammoth, Rat"
+      },
+      {
+        "beasts": "Lion + Wolf",
+        "size": 2,
+        "continues": 0.5,
+        "eatersFed": "Mammoth, Lion"
+      },
+      {
+        "beasts": "Mammoth + Lion + Rat",
+        "size": 3,
+        "continues": 1,
+        "eatersFed": "Mammoth, Lion, Wolf, Rat"
+      },
+      {
+        "beasts": "Mammoth + Wolf + Rat",
+        "size": 3,
+        "continues": 1,
+        "eatersFed": "Mammoth, Lion, Wolf, Rat"
+      },
+      {
+        "beasts": "Mammoth + Lion + Wolf",
+        "size": 3,
+        "continues": 0.75,
+        "eatersFed": "Mammoth, Lion, Rat"
+      },
+      {
+        "beasts": "Lion + Wolf + Rat",
+        "size": 3,
+        "continues": 0.75,
+        "eatersFed": "Mammoth, Lion, Wolf"
+      },
+      {
+        "beasts": "Mammoth + Lion + Wolf + Rat",
+        "size": 4,
+        "continues": 1,
+        "eatersFed": "Mammoth, Lion, Wolf, Rat"
+      }
+    ],
+    "loop": [
+      {
+        "beasts": "Mammoth",
+        "size": 1,
+        "continues": 0.25,
+        "eatersFed": "Rat"
+      },
+      {
+        "beasts": "Lion",
+        "size": 1,
+        "continues": 0.25,
+        "eatersFed": "Mammoth"
+      },
+      {
+        "beasts": "Wolf",
+        "size": 1,
+        "continues": 0.25,
+        "eatersFed": "Lion"
+      },
+      {
+        "beasts": "Rat",
+        "size": 1,
+        "continues": 0.25,
+        "eatersFed": "Wolf"
+      },
+      {
+        "beasts": "Mammoth + Lion",
+        "size": 2,
+        "continues": 0.5,
+        "eatersFed": "Mammoth, Rat"
+      },
+      {
+        "beasts": "Mammoth + Wolf",
+        "size": 2,
+        "continues": 0.5,
+        "eatersFed": "Lion, Rat"
+      },
+      {
+        "beasts": "Lion + Wolf",
+        "size": 2,
+        "continues": 0.5,
+        "eatersFed": "Mammoth, Lion"
+      },
+      {
+        "beasts": "Mammoth + Rat",
+        "size": 2,
+        "continues": 0.5,
+        "eatersFed": "Wolf, Rat"
+      },
+      {
+        "beasts": "Lion + Rat",
+        "size": 2,
+        "continues": 0.5,
+        "eatersFed": "Mammoth, Wolf"
+      },
+      {
+        "beasts": "Wolf + Rat",
+        "size": 2,
+        "continues": 0.5,
+        "eatersFed": "Lion, Wolf"
+      },
+      {
+        "beasts": "Mammoth + Lion + Wolf",
+        "size": 3,
+        "continues": 0.75,
+        "eatersFed": "Mammoth, Lion, Rat"
+      },
+      {
+        "beasts": "Mammoth + Lion + Rat",
+        "size": 3,
+        "continues": 0.75,
+        "eatersFed": "Mammoth, Wolf, Rat"
+      },
+      {
+        "beasts": "Mammoth + Wolf + Rat",
+        "size": 3,
+        "continues": 0.75,
+        "eatersFed": "Lion, Wolf, Rat"
+      },
+      {
+        "beasts": "Lion + Wolf + Rat",
+        "size": 3,
+        "continues": 0.75,
+        "eatersFed": "Mammoth, Lion, Wolf"
+      },
+      {
+        "beasts": "Mammoth + Lion + Wolf + Rat",
+        "size": 4,
+        "continues": 1,
+        "eatersFed": "Mammoth, Lion, Wolf, Rat"
+      }
+    ]
+  },
+  "chains": {
+    "games": 1000000,
+    "rainbowsPerRun": 1.3898,
+    "ci95": 0.0019,
+    "runsWithRainbow": 0.821,
+    "rainbowCounts": [
+      0.179,
+      0.3927,
+      0.3099,
+      0.0992,
+      0.0167,
+      0.0025
+    ],
+    "devoursPerRun": 8.91,
+    "bitesPerDevour": 1.483,
+    "chainLengths": [
+      0.6426,
+      0.2573,
+      0.078,
+      0.0182,
+      0.0039,
+      0
+    ],
+    "rainbowSources": {
+      "chain": 943434,
+      "singleDevour": 381131,
+      "other": 65203
+    },
+    "firstRainbowDay": 13.72,
+    "swapsPerRun": 14.07,
+    "executionsPerRun": 0.226,
+    "doorsPerRun": 21.94
+  },
+  "stairs": [
+    {
+      "key": "4:",
+      "n": 339252,
+      "rainbow": 1,
+      "bites": 1
+    },
+    {
+      "key": "3:3",
+      "n": 75875,
+      "rainbow": 0.7688,
+      "bites": 1.752
+    },
+    {
+      "key": "2:33",
+      "n": 7754,
+      "rainbow": 0.5916,
+      "bites": 2.327
+    },
+    {
+      "key": "3:2",
+      "n": 515124,
+      "rainbow": 0.5461,
+      "bites": 1.519
+    },
+    {
+      "key": "2:42",
+      "n": 807,
+      "rainbow": 0.513,
+      "bites": 2.488
+    },
+    {
+      "key": "1:233",
+      "n": 582,
+      "rainbow": 0.4708,
+      "bites": 2.5
+    },
+    {
+      "key": "1:332",
+      "n": 2645,
+      "rainbow": 0.4586,
+      "bites": 2.763
+    },
+    {
+      "key": "1:323",
+      "n": 865,
+      "rainbow": 0.4254,
+      "bites": 2.591
+    },
+    {
+      "key": "2:32",
+      "n": 82592,
+      "rainbow": 0.4178,
+      "bites": 2.148
+    },
+    {
+      "key": "2:23",
+      "n": 35690,
+      "rainbow": 0.4144,
+      "bites": 1.922
+    },
+    {
+      "key": "1:232",
+      "n": 8967,
+      "rainbow": 0.3474,
+      "bites": 2.336
+    },
+    {
+      "key": "1:322",
+      "n": 12675,
+      "rainbow": 0.3353,
+      "bites": 2.514
+    },
+    {
+      "key": "1:223",
+      "n": 3346,
+      "rainbow": 0.3261,
+      "bites": 2.203
+    },
+    {
+      "key": "3:1",
+      "n": 491983,
+      "rainbow": 0.3094,
+      "bites": 1.28
+    },
+    {
+      "key": "2:22",
+      "n": 241045,
+      "rainbow": 0.3088,
+      "bites": 1.814
+    },
+    {
+      "key": "1:133",
+      "n": 501,
+      "rainbow": 0.3054,
+      "bites": 1.968
+    },
+    {
+      "key": "1:331",
+      "n": 3054,
+      "rainbow": 0.2891,
+      "bites": 2.591
+    },
+    {
+      "key": "0:3322",
+      "n": 2260,
+      "rainbow": 0.2841,
+      "bites": 2.997
+    },
+    {
+      "key": "2:41",
+      "n": 872,
+      "rainbow": 0.2764,
+      "bites": 2.259
+    },
+    {
+      "key": "0:2332",
+      "n": 821,
+      "rainbow": 0.2741,
+      "bites": 2.565
+    },
+    {
+      "key": "1:222",
+      "n": 34985,
+      "rainbow": 0.2561,
+      "bites": 2.143
+    },
+    {
+      "key": "0:3232",
+      "n": 1354,
+      "rainbow": 0.2511,
+      "bites": 2.753
+    },
+    {
+      "key": "1:313",
+      "n": 892,
+      "rainbow": 0.25,
+      "bites": 2.2
+    },
+    {
+      "key": "0:3331",
+      "n": 502,
+      "rainbow": 0.245,
+      "bites": 3.074
+    },
+    {
+      "key": "1:132",
+      "n": 8054,
+      "rainbow": 0.2435,
+      "bites": 1.892
+    },
+    {
+      "key": "2:31",
+      "n": 82969,
+      "rainbow": 0.237,
+      "bites": 1.966
+    },
+    {
+      "key": "1:231",
+      "n": 9307,
+      "rainbow": 0.2329,
+      "bites": 2.225
+    },
+    {
+      "key": "1:123",
+      "n": 3025,
+      "rainbow": 0.2317,
+      "bites": 1.792
+    },
+    {
+      "key": "2:13",
+      "n": 31239,
+      "rainbow": 0.2294,
+      "bites": 1.49
+    },
+    {
+      "key": "1:312",
+      "n": 12759,
+      "rainbow": 0.2247,
+      "bites": 2.192
+    },
+    {
+      "key": "0:3223",
+      "n": 573,
+      "rainbow": 0.2182,
+      "bites": 2.59
+    },
+    {
+      "key": "0:2322",
+      "n": 4010,
+      "rainbow": 0.2177,
+      "bites": 2.505
+    },
+    {
+      "key": "1:213",
+      "n": 3333,
+      "rainbow": 0.2106,
+      "bites": 1.95
+    },
+    {
+      "key": "1:321",
+      "n": 12640,
+      "rainbow": 0.2073,
+      "bites": 2.363
+    },
+    {
+      "key": "0:2232",
+      "n": 2745,
+      "rainbow": 0.2,
+      "bites": 2.332
+    },
+    {
+      "key": "0:1332",
+      "n": 679,
+      "rainbow": 0.1944,
+      "bites": 2.028
+    },
+    {
+      "key": "0:2223",
+      "n": 1251,
+      "rainbow": 0.1934,
+      "bites": 2.221
+    },
+    {
+      "key": "2:12",
+      "n": 201201,
+      "rainbow": 0.1914,
+      "bites": 1.463
+    },
+    {
+      "key": "1:122",
+      "n": 31383,
+      "rainbow": 0.1901,
+      "bites": 1.775
+    },
+    {
+      "key": "0:3222",
+      "n": 5915,
+      "rainbow": 0.1897,
+      "bites": 2.638
+    },
+    {
+      "key": "1:033",
+      "n": 786,
+      "rainbow": 0.1819,
+      "bites": 1.491
+    },
+    {
+      "key": "2:21",
+      "n": 222846,
+      "rainbow": 0.1792,
+      "bites": 1.684
+    },
+    {
+      "key": "0:3231",
+      "n": 1408,
+      "rainbow": 0.1783,
+      "bites": 2.649
+    },
+    {
+      "key": "0:2331",
+      "n": 883,
+      "rainbow": 0.1767,
+      "bites": 2.51
+    },
+    {
+      "key": "0:3312",
+      "n": 2293,
+      "rainbow": 0.1762,
+      "bites": 2.676
+    },
+    {
+      "key": "1:212",
+      "n": 32620,
+      "rainbow": 0.1727,
+      "bites": 1.91
+    },
+    {
+      "key": "1:221",
+      "n": 34556,
+      "rainbow": 0.1714,
+      "bites": 2.068
+    },
+    {
+      "key": "1:131",
+      "n": 8377,
+      "rainbow": 0.1694,
+      "bites": 1.829
+    },
+    {
+      "key": "0:2312",
+      "n": 4155,
+      "rainbow": 0.1639,
+      "bites": 2.325
+    },
+    {
+      "key": "0:3213",
+      "n": 525,
+      "rainbow": 0.1638,
+      "bites": 2.444
+    },
+    {
+      "key": "0:2222",
+      "n": 11434,
+      "rainbow": 0.1636,
+      "bites": 2.273
+    },
+    {
+      "key": "1:032",
+      "n": 8522,
+      "rainbow": 0.1619,
+      "bites": 1.538
+    },
+    {
+      "key": "0:3132",
+      "n": 1223,
+      "rainbow": 0.1611,
+      "bites": 2.365
+    },
+    {
+      "key": "1:303",
+      "n": 1828,
+      "rainbow": 0.1608,
+      "bites": 2.004
+    },
+    {
+      "key": "0:1322",
+      "n": 3733,
+      "rainbow": 0.1597,
+      "bites": 2.03
+    },
+    {
+      "key": "0:3321",
+      "n": 2361,
+      "rainbow": 0.1571,
+      "bites": 2.825
+    },
+    {
+      "key": "0:1232",
+      "n": 2685,
+      "rainbow": 0.1531,
+      "bites": 1.897
+    },
+    {
+      "key": "1:311",
+      "n": 13082,
+      "rainbow": 0.1505,
+      "bites": 2.121
+    },
+    {
+      "key": "1:023",
+      "n": 3706,
+      "rainbow": 0.1484,
+      "bites": 1.459
+    },
+    {
+      "key": "1:113",
+      "n": 3013,
+      "rainbow": 0.145,
+      "bites": 1.592
+    },
+    {
+      "key": "0:1223",
+      "n": 1156,
+      "rainbow": 0.1445,
+      "bites": 1.877
+    },
+    {
+      "key": "0:1331",
+      "n": 755,
+      "rainbow": 0.1444,
+      "bites": 1.996
+    },
+    {
+      "key": "0:2213",
+      "n": 1149,
+      "rainbow": 0.1427,
+      "bites": 2.146
+    },
+    {
+      "key": "0:2231",
+      "n": 2928,
+      "rainbow": 0.1349,
+      "bites": 2.242
+    },
+    {
+      "key": "0:3212",
+      "n": 5708,
+      "rainbow": 0.1344,
+      "bites": 2.46
+    },
+    {
+      "key": "0:0332",
+      "n": 755,
+      "rainbow": 0.1325,
+      "bites": 1.567
+    },
+    {
+      "key": "0:3122",
+      "n": 5395,
+      "rainbow": 0.1323,
+      "bites": 2.287
+    },
+    {
+      "key": "0:2321",
+      "n": 4223,
+      "rainbow": 0.1291,
+      "bites": 2.374
+    },
+    {
+      "key": "1:112",
+      "n": 28602,
+      "rainbow": 0.1286,
+      "bites": 1.61
+    },
+    {
+      "key": "1:022",
+      "n": 25084,
+      "rainbow": 0.127,
+      "bites": 1.471
+    },
+    {
+      "key": "0:0322",
+      "n": 3578,
+      "rainbow": 0.1249,
+      "bites": 1.633
+    },
+    {
+      "key": "1:121",
+      "n": 30664,
+      "rainbow": 0.1246,
+      "bites": 1.711
+    },
+    {
+      "key": "0:1222",
+      "n": 11339,
+      "rainbow": 0.1243,
+      "bites": 1.884
+    },
+    {
+      "key": "0:1312",
+      "n": 4034,
+      "rainbow": 0.1225,
+      "bites": 1.896
+    },
+    {
+      "key": "1:211",
+      "n": 32070,
+      "rainbow": 0.1223,
+      "bites": 1.85
+    },
+    {
+      "key": "0:3221",
+      "n": 5954,
+      "rainbow": 0.1219,
+      "bites": 2.551
+    },
+    {
+      "key": "0:2132",
+      "n": 2632,
+      "rainbow": 0.1212,
+      "bites": 2.014
+    },
+    {
+      "key": "0:3311",
+      "n": 2463,
+      "rainbow": 0.121,
+      "bites": 2.669
+    },
+    {
+      "key": "2:11",
+      "n": 190782,
+      "rainbow": 0.1203,
+      "bites": 1.391
+    },
+    {
+      "key": "1:302",
+      "n": 15102,
+      "rainbow": 0.12,
+      "bites": 1.98
+    },
+    {
+      "key": "0:0223",
+      "n": 1372,
+      "rainbow": 0.1166,
+      "bites": 1.553
+    },
+    {
+      "key": "1:203",
+      "n": 5613,
+      "rainbow": 0.1154,
+      "bites": 1.771
+    },
+    {
+      "key": "0:3131",
+      "n": 1321,
+      "rainbow": 0.1136,
+      "bites": 2.32
+    },
+    {
+      "key": "0:0331",
+      "n": 801,
+      "rainbow": 0.1124,
+      "bites": 1.674
+    },
+    {
+      "key": "0:2123",
+      "n": 1226,
+      "rainbow": 0.1117,
+      "bites": 1.918
+    },
+    {
+      "key": "1:031",
+      "n": 8097,
+      "rainbow": 0.1114,
+      "bites": 1.478
+    },
+    {
+      "key": "0:1231",
+      "n": 2766,
+      "rainbow": 0.1067,
+      "bites": 1.864
+    },
+    {
+      "key": "0:2221",
+      "n": 11200,
+      "rainbow": 0.1041,
+      "bites": 2.202
+    },
+    {
+      "key": "0:2122",
+      "n": 10529,
+      "rainbow": 0.1037,
+      "bites": 1.978
+    },
+    {
+      "key": "0:2303",
+      "n": 657,
+      "rainbow": 0.1035,
+      "bites": 2.125
+    },
+    {
+      "key": "0:2212",
+      "n": 10724,
+      "rainbow": 0.1026,
+      "bites": 2.096
+    },
+    {
+      "key": "0:3302",
+      "n": 3402,
+      "rainbow": 0.0996,
+      "bites": 2.481
+    },
+    {
+      "key": "1:013",
+      "n": 3392,
+      "rainbow": 0.0991,
+      "bites": 1.346
+    },
+    {
+      "key": "0:1321",
+      "n": 3974,
+      "rainbow": 0.0979,
+      "bites": 1.986
+    },
+    {
+      "key": "0:3112",
+      "n": 5116,
+      "rainbow": 0.0968,
+      "bites": 2.221
+    },
+    {
+      "key": "0:2311",
+      "n": 4183,
+      "rainbow": 0.0966,
+      "bites": 2.23
+    },
+    {
+      "key": "0:1132",
+      "n": 2591,
+      "rainbow": 0.0965,
+      "bites": 1.678
+    },
+    {
+      "key": "0:0232",
+      "n": 2838,
+      "rainbow": 0.0958,
+      "bites": 1.524
+    },
+    {
+      "key": "1:240",
+      "n": 564,
+      "rainbow": 0.0957,
+      "bites": 2.101
+    },
+    {
+      "key": "0:3211",
+      "n": 5771,
+      "rainbow": 0.0917,
+      "bites": 2.419
+    },
+    {
+      "key": "0:2302",
+      "n": 5404,
+      "rainbow": 0.0909,
+      "bites": 2.141
+    },
+    {
+      "key": "0:1123",
+      "n": 1138,
+      "rainbow": 0.0905,
+      "bites": 1.642
+    },
+    {
+      "key": "2:02",
+      "n": 159655,
+      "rainbow": 0.0902,
+      "bites": 1.17
+    },
+    {
+      "key": "1:103",
+      "n": 4946,
+      "rainbow": 0.0898,
+      "bites": 1.488
+    },
+    {
+      "key": "0:3032",
+      "n": 1450,
+      "rainbow": 0.0897,
+      "bites": 2.057
+    },
+    {
+      "key": "0:1213",
+      "n": 1151,
+      "rainbow": 0.0886,
+      "bites": 1.759
+    },
+    {
+      "key": "1:111",
+      "n": 28507,
+      "rainbow": 0.0885,
+      "bites": 1.558
+    },
+    {
+      "key": "0:1212",
+      "n": 10730,
+      "rainbow": 0.087,
+      "bites": 1.783
+    },
+    {
+      "key": "0:2131",
+      "n": 2685,
+      "rainbow": 0.0868,
+      "bites": 2
+    },
+    {
+      "key": "1:202",
+      "n": 31430,
+      "rainbow": 0.0867,
+      "bites": 1.726
+    },
+    {
+      "key": "0:0312",
+      "n": 3843,
+      "rainbow": 0.0864,
+      "bites": 1.568
+    },
+    {
+      "key": "0:2113",
+      "n": 1093,
+      "rainbow": 0.086,
+      "bites": 1.847
+    },
+    {
+      "key": "0:3121",
+      "n": 5408,
+      "rainbow": 0.0858,
+      "bites": 2.236
+    },
+    {
+      "key": "1:021",
+      "n": 23762,
+      "rainbow": 0.0846,
+      "bites": 1.423
+    },
+    {
+      "key": "0:1122",
+      "n": 10053,
+      "rainbow": 0.0818,
+      "bites": 1.668
+    },
+    {
+      "key": "2:03",
+      "n": 36778,
+      "rainbow": 0.0814,
+      "bites": 1.133
+    },
+    {
+      "key": "0:0222",
+      "n": 10070,
+      "rainbow": 0.0806,
+      "bites": 1.518
+    },
+    {
+      "key": "0:0303",
+      "n": 748,
+      "rainbow": 0.0789,
+      "bites": 1.496
+    },
+    {
+      "key": "1:012",
+      "n": 21178,
+      "rainbow": 0.0777,
+      "bites": 1.327
+    },
+    {
+      "key": "0:0213",
+      "n": 1300,
+      "rainbow": 0.0777,
+      "bites": 1.455
+    },
+    {
+      "key": "0:0231",
+      "n": 2772,
+      "rainbow": 0.0772,
+      "bites": 1.523
+    },
+    {
+      "key": "0:1311",
+      "n": 4056,
+      "rainbow": 0.0767,
+      "bites": 1.896
+    },
+    {
+      "key": "0:1221",
+      "n": 11075,
+      "rainbow": 0.0763,
+      "bites": 1.811
+    },
+    {
+      "key": "0:3023",
+      "n": 701,
+      "rainbow": 0.0742,
+      "bites": 2.016
+    },
+    {
+      "key": "0:2112",
+      "n": 9859,
+      "rainbow": 0.0723,
+      "bites": 1.883
+    },
+    {
+      "key": "1:301",
+      "n": 14683,
+      "rainbow": 0.0719,
+      "bites": 1.914
+    },
+    {
+      "key": "0:2211",
+      "n": 10749,
+      "rainbow": 0.0713,
+      "bites": 2.055
+    },
+    {
+      "key": "1:102",
+      "n": 26258,
+      "rainbow": 0.0711,
+      "bites": 1.48
+    },
+    {
+      "key": "0:0321",
+      "n": 3766,
+      "rainbow": 0.069,
+      "bites": 1.605
+    },
+    {
+      "key": "0:1302",
+      "n": 5298,
+      "rainbow": 0.0685,
+      "bites": 1.759
+    },
+    {
+      "key": "0:0123",
+      "n": 1263,
+      "rainbow": 0.0681,
+      "bites": 1.368
+    },
+    {
+      "key": "0:1113",
+      "n": 1135,
+      "rainbow": 0.067,
+      "bites": 1.549
+    },
+    {
+      "key": "0:1303",
+      "n": 659,
+      "rainbow": 0.0668,
+      "bites": 1.744
+    },
+    {
+      "key": "0:2121",
+      "n": 10357,
+      "rainbow": 0.0662,
+      "bites": 1.928
+    },
+    {
+      "key": "0:3022",
+      "n": 5335,
+      "rainbow": 0.0639,
+      "bites": 2.006
+    },
+    {
+      "key": "0:2203",
+      "n": 1988,
+      "rainbow": 0.0634,
+      "bites": 1.925
+    },
+    {
+      "key": "0:3202",
+      "n": 6633,
+      "rainbow": 0.0618,
+      "bites": 2.301
+    },
+    {
+      "key": "0:2103",
+      "n": 2024,
+      "rainbow": 0.0613,
+      "bites": 1.851
+    },
+    {
+      "key": "0:0132",
+      "n": 2584,
+      "rainbow": 0.0611,
+      "bites": 1.352
+    },
+    {
+      "key": "1:011",
+      "n": 20006,
+      "rainbow": 0.0604,
+      "bites": 1.313
+    },
+    {
+      "key": "0:3203",
+      "n": 933,
+      "rainbow": 0.06,
+      "bites": 2.245
+    },
+    {
+      "key": "0:3111",
+      "n": 4984,
+      "rainbow": 0.0596,
+      "bites": 2.153
+    },
+    {
+      "key": "0:1112",
+      "n": 9432,
+      "rainbow": 0.0596,
+      "bites": 1.594
+    },
+    {
+      "key": "1:201",
+      "n": 29773,
+      "rainbow": 0.0585,
+      "bites": 1.689
+    },
+    {
+      "key": "0:0113",
+      "n": 1306,
+      "rainbow": 0.0582,
+      "bites": 1.339
+    },
+    {
+      "key": "0:1131",
+      "n": 2543,
+      "rainbow": 0.0578,
+      "bites": 1.628
+    },
+    {
+      "key": "2:01",
+      "n": 144553,
+      "rainbow": 0.0577,
+      "bites": 1.142
+    },
+    {
+      "key": "0:1211",
+      "n": 10620,
+      "rainbow": 0.0575,
+      "bites": 1.735
+    },
+    {
+      "key": "0:3103",
+      "n": 912,
+      "rainbow": 0.057,
+      "bites": 2.114
+    },
+    {
+      "key": "0:0311",
+      "n": 3886,
+      "rainbow": 0.0569,
+      "bites": 1.547
+    },
+    {
+      "key": "0:2202",
+      "n": 11742,
+      "rainbow": 0.0558,
+      "bites": 1.987
+    },
+    {
+      "key": "0:3102",
+      "n": 6373,
+      "rainbow": 0.0555,
+      "bites": 2.107
+    },
+    {
+      "key": "0:0212",
+      "n": 9459,
+      "rainbow": 0.0552,
+      "bites": 1.438
+    },
+    {
+      "key": "0:1121",
+      "n": 10006,
+      "rainbow": 0.0546,
+      "bites": 1.649
+    },
+    {
+      "key": "0:3301",
+      "n": 3399,
+      "rainbow": 0.0544,
+      "bites": 2.442
+    },
+    {
+      "key": "0:3013",
+      "n": 732,
+      "rainbow": 0.0533,
+      "bites": 1.917
+    },
+    {
+      "key": "0:0302",
+      "n": 4714,
+      "rainbow": 0.053,
+      "bites": 1.494
+    },
+    {
+      "key": "0:0221",
+      "n": 9763,
+      "rainbow": 0.0525,
+      "bites": 1.485
+    },
+    {
+      "key": "0:1203",
+      "n": 2122,
+      "rainbow": 0.0504,
+      "bites": 1.666
+    },
+    {
+      "key": "0:2102",
+      "n": 11165,
+      "rainbow": 0.0502,
+      "bites": 1.854
+    },
+    {
+      "key": "0:2111",
+      "n": 9658,
+      "rainbow": 0.0492,
+      "bites": 1.838
+    },
+    {
+      "key": "0:1032",
+      "n": 2728,
+      "rainbow": 0.0488,
+      "bites": 1.497
+    },
+    {
+      "key": "0:2022",
+      "n": 9315,
+      "rainbow": 0.0478,
+      "bites": 1.722
+    },
+    {
+      "key": "0:2032",
+      "n": 2898,
+      "rainbow": 0.0469,
+      "bites": 1.695
+    },
+    {
+      "key": "0:3021",
+      "n": 5082,
+      "rainbow": 0.0457,
+      "bites": 1.998
+    },
+    {
+      "key": "0:0122",
+      "n": 8923,
+      "rainbow": 0.0454,
+      "bites": 1.341
+    },
+    {
+      "key": "0:3031",
+      "n": 1409,
+      "rainbow": 0.0447,
+      "bites": 1.958
+    },
+    {
+      "key": "1:003",
+      "n": 4889,
+      "rainbow": 0.0434,
+      "bites": 1.248
+    },
+    {
+      "key": "0:3012",
+      "n": 5092,
+      "rainbow": 0.0434,
+      "bites": 1.957
+    },
+    {
+      "key": "0:0131",
+      "n": 2558,
+      "rainbow": 0.0434,
+      "bites": 1.342
+    },
+    {
+      "key": "0:1202",
+      "n": 10996,
+      "rainbow": 0.0423,
+      "bites": 1.678
+    },
+    {
+      "key": "0:2023",
+      "n": 1425,
+      "rainbow": 0.0421,
+      "bites": 1.674
+    },
+    {
+      "key": "1:101",
+      "n": 24562,
+      "rainbow": 0.0416,
+      "bites": 1.44
+    },
+    {
+      "key": "0:2301",
+      "n": 5367,
+      "rainbow": 0.0416,
+      "bites": 2.085
+    },
+    {
+      "key": "0:2031",
+      "n": 2783,
+      "rainbow": 0.0413,
+      "bites": 1.711
+    },
+    {
+      "key": "0:3201",
+      "n": 6613,
+      "rainbow": 0.041,
+      "bites": 2.282
+    },
+    {
+      "key": "0:1023",
+      "n": 1446,
+      "rainbow": 0.0408,
+      "bites": 1.45
+    },
+    {
+      "key": "0:1103",
+      "n": 2095,
+      "rainbow": 0.0401,
+      "bites": 1.541
+    },
+    {
+      "key": "3:0",
+      "n": 834391,
+      "rainbow": 0.04,
+      "bites": 1.025
+    },
+    {
+      "key": "0:2013",
+      "n": 1658,
+      "rainbow": 0.0392,
+      "bites": 1.703
+    },
+    {
+      "key": "0:0112",
+      "n": 8878,
+      "rainbow": 0.0392,
+      "bites": 1.328
+    },
+    {
+      "key": "0:0203",
+      "n": 2232,
+      "rainbow": 0.039,
+      "bites": 1.385
+    },
+    {
+      "key": "0:1022",
+      "n": 8592,
+      "rainbow": 0.0372,
+      "bites": 1.499
+    },
+    {
+      "key": "0:0211",
+      "n": 9255,
+      "rainbow": 0.0367,
+      "bites": 1.438
+    },
+    {
+      "key": "1:230",
+      "n": 41075,
+      "rainbow": 0.0362,
+      "bites": 1.926
+    },
+    {
+      "key": "0:1111",
+      "n": 9357,
+      "rainbow": 0.0358,
+      "bites": 1.576
+    },
+    {
+      "key": "0:1102",
+      "n": 10557,
+      "rainbow": 0.0355,
+      "bites": 1.57
+    },
+    {
+      "key": "0:1301",
+      "n": 5002,
+      "rainbow": 0.0346,
+      "bites": 1.761
+    },
+    {
+      "key": "0:2201",
+      "n": 11223,
+      "rainbow": 0.0339,
+      "bites": 1.965
+    },
+    {
+      "key": "0:1031",
+      "n": 2684,
+      "rainbow": 0.0339,
+      "bites": 1.478
+    },
+    {
+      "key": "1:030",
+      "n": 20089,
+      "rainbow": 0.0335,
+      "bites": 1.193
+    },
+    {
+      "key": "0:2012",
+      "n": 8522,
+      "rainbow": 0.0334,
+      "bites": 1.704
+    },
+    {
+      "key": "0:0121",
+      "n": 8758,
+      "rainbow": 0.0331,
+      "bites": 1.329
+    },
+    {
+      "key": "0:3011",
+      "n": 4979,
+      "rainbow": 0.0331,
+      "bites": 1.939
+    },
+    {
+      "key": "0:3101",
+      "n": 6125,
+      "rainbow": 0.033,
+      "bites": 2.09
+    },
+    {
+      "key": "1:130",
+      "n": 29185,
+      "rainbow": 0.0324,
+      "bites": 1.532
+    },
+    {
+      "key": "0:0202",
+      "n": 9543,
+      "rainbow": 0.0308,
+      "bites": 1.411
+    },
+    {
+      "key": "1:002",
+      "n": 18102,
+      "rainbow": 0.0299,
+      "bites": 1.23
+    },
+    {
+      "key": "0:2021",
+      "n": 8940,
+      "rainbow": 0.0294,
+      "bites": 1.691
+    },
+    {
+      "key": "0:0103",
+      "n": 2156,
+      "rainbow": 0.0292,
+      "bites": 1.311
+    },
+    {
+      "key": "0:1012",
+      "n": 8105,
+      "rainbow": 0.0291,
+      "bites": 1.478
+    },
+    {
+      "key": "0:2101",
+      "n": 10703,
+      "rainbow": 0.0279,
+      "bites": 1.801
+    },
+    {
+      "key": "0:1201",
+      "n": 10429,
+      "rainbow": 0.0276,
+      "bites": 1.66
+    },
+    {
+      "key": "0:1101",
+      "n": 9251,
+      "rainbow": 0.027,
+      "bites": 1.56
+    },
+    {
+      "key": "1:330",
+      "n": 19816,
+      "rainbow": 0.0266,
+      "bites": 2.33
+    },
+    {
+      "key": "0:0102",
+      "n": 8482,
+      "rainbow": 0.0265,
+      "bites": 1.326
+    },
+    {
+      "key": "0:0301",
+      "n": 4418,
+      "rainbow": 0.0265,
+      "bites": 1.472
+    },
+    {
+      "key": "2:30",
+      "n": 202455,
+      "rainbow": 0.0253,
+      "bites": 1.762
+    },
+    {
+      "key": "0:1021",
+      "n": 8050,
+      "rainbow": 0.0246,
+      "bites": 1.467
+    },
+    {
+      "key": "0:0023",
+      "n": 1369,
+      "rainbow": 0.0241,
+      "bites": 1.25
+    },
+    {
+      "key": "0:0032",
+      "n": 2426,
+      "rainbow": 0.0239,
+      "bites": 1.232
+    },
+    {
+      "key": "0:2011",
+      "n": 8245,
+      "rainbow": 0.0237,
+      "bites": 1.685
+    },
+    {
+      "key": "0:3003",
+      "n": 1097,
+      "rainbow": 0.0237,
+      "bites": 1.909
+    },
+    {
+      "key": "0:1013",
+      "n": 1444,
+      "rainbow": 0.0229,
+      "bites": 1.427
+    },
+    {
+      "key": "0:0111",
+      "n": 8652,
+      "rainbow": 0.0223,
+      "bites": 1.305
+    },
+    {
+      "key": "0:3002",
+      "n": 4986,
+      "rainbow": 0.0223,
+      "bites": 1.916
+    },
+    {
+      "key": "0:1003",
+      "n": 2189,
+      "rainbow": 0.0219,
+      "bites": 1.45
+    },
+    {
+      "key": "1:001",
+      "n": 16260,
+      "rainbow": 0.0218,
+      "bites": 1.217
+    },
+    {
+      "key": "0:2003",
+      "n": 2191,
+      "rainbow": 0.021,
+      "bites": 1.644
+    },
+    {
+      "key": "0:2002",
+      "n": 8218,
+      "rainbow": 0.0202,
+      "bites": 1.654
+    },
+    {
+      "key": "0:1011",
+      "n": 7797,
+      "rainbow": 0.0198,
+      "bites": 1.455
+    },
+    {
+      "key": "0:0022",
+      "n": 7167,
+      "rainbow": 0.0188,
+      "bites": 1.241
+    },
+    {
+      "key": "2:40",
+      "n": 9321,
+      "rainbow": 0.0188,
+      "bites": 2.004
+    },
+    {
+      "key": "0:0031",
+      "n": 2344,
+      "rainbow": 0.0183,
+      "bites": 1.246
+    },
+    {
+      "key": "0:0101",
+      "n": 7934,
+      "rainbow": 0.0166,
+      "bites": 1.317
+    },
+    {
+      "key": "0:0201",
+      "n": 8723,
+      "rainbow": 0.0165,
+      "bites": 1.375
+    },
+    {
+      "key": "0:0013",
+      "n": 1493,
+      "rainbow": 0.0161,
+      "bites": 1.255
+    },
+    {
+      "key": "2:20",
+      "n": 408402,
+      "rainbow": 0.016,
+      "bites": 1.514
+    },
+    {
+      "key": "0:3001",
+      "n": 4632,
+      "rainbow": 0.0158,
+      "bites": 1.927
+    },
+    {
+      "key": "1:020",
+      "n": 50596,
+      "rainbow": 0.0153,
+      "bites": 1.115
+    },
+    {
+      "key": "1:220",
+      "n": 124385,
+      "rainbow": 0.0152,
+      "bites": 1.785
+    },
+    {
+      "key": "0:0021",
+      "n": 6529,
+      "rainbow": 0.0152,
+      "bites": 1.238
+    },
+    {
+      "key": "2:10",
+      "n": 313510,
+      "rainbow": 0.0151,
+      "bites": 1.269
+    },
+    {
+      "key": "0:0012",
+      "n": 6490,
+      "rainbow": 0.0146,
+      "bites": 1.239
+    },
+    {
+      "key": "1:120",
+      "n": 89722,
+      "rainbow": 0.0145,
+      "bites": 1.433
+    },
+    {
+      "key": "0:2001",
+      "n": 7698,
+      "rainbow": 0.014,
+      "bites": 1.63
+    },
+    {
+      "key": "0:1002",
+      "n": 7555,
+      "rainbow": 0.014,
+      "bites": 1.446
+    },
+    {
+      "key": "1:320",
+      "n": 69012,
+      "rainbow": 0.012,
+      "bites": 2.136
+    },
+    {
+      "key": "1:010",
+      "n": 43779,
+      "rainbow": 0.012,
+      "bites": 1.075
+    },
+    {
+      "key": "0:2230",
+      "n": 11963,
+      "rainbow": 0.012,
+      "bites": 1.956
+    },
+    {
+      "key": "1:110",
+      "n": 78658,
+      "rainbow": 0.0119,
+      "bites": 1.356
+    },
+    {
+      "key": "1:210",
+      "n": 108922,
+      "rainbow": 0.0118,
+      "bites": 1.651
+    },
+    {
+      "key": "0:0003",
+      "n": 2074,
+      "rainbow": 0.0116,
+      "bites": 1.247
+    },
+    {
+      "key": "0:0011",
+      "n": 6087,
+      "rainbow": 0.0108,
+      "bites": 1.227
+    },
+    {
+      "key": "0:4220",
+      "n": 1428,
+      "rainbow": 0.0105,
+      "bites": 2.777
+    },
+    {
+      "key": "0:1230",
+      "n": 10503,
+      "rainbow": 0.0105,
+      "bites": 1.508
+    },
+    {
+      "key": "0:1001",
+      "n": 6677,
+      "rainbow": 0.0096,
+      "bites": 1.42
+    },
+    {
+      "key": "0:2330",
+      "n": 5978,
+      "rainbow": 0.0087,
+      "bites": 2.175
+    },
+    {
+      "key": "0:3230",
+      "n": 9468,
+      "rainbow": 0.0087,
+      "bites": 2.403
+    },
+    {
+      "key": "0:0002",
+      "n": 6400,
+      "rainbow": 0.0086,
+      "bites": 1.239
+    },
+    {
+      "key": "1:310",
+      "n": 71633,
+      "rainbow": 0.0085,
+      "bites": 1.946
+    },
+    {
+      "key": "0:3130",
+      "n": 7162,
+      "rainbow": 0.0081,
+      "bites": 2.081
+    },
+    {
+      "key": "0:0230",
+      "n": 10047,
+      "rainbow": 0.0078,
+      "bites": 1.075
+    },
+    {
+      "key": "0:1330",
+      "n": 3856,
+      "rainbow": 0.0078,
+      "bites": 1.597
+    },
+    {
+      "key": "0:4210",
+      "n": 1279,
+      "rainbow": 0.0078,
+      "bites": 2.648
+    },
+    {
+      "key": "0:3330",
+      "n": 4328,
+      "rainbow": 0.0069,
+      "bites": 2.71
+    },
+    {
+      "key": "0:1130",
+      "n": 8836,
+      "rainbow": 0.0065,
+      "bites": 1.384
+    },
+    {
+      "key": "0:4010",
+      "n": 1108,
+      "rainbow": 0.0063,
+      "bites": 2.038
+    },
+    {
+      "key": "1:420",
+      "n": 1451,
+      "rainbow": 0.0062,
+      "bites": 2.494
+    },
+    {
+      "key": "0:0330",
+      "n": 4062,
+      "rainbow": 0.0062,
+      "bites": 1.074
+    },
+    {
+      "key": "0:0001",
+      "n": 5611,
+      "rainbow": 0.0059,
+      "bites": 1.219
+    },
+    {
+      "key": "0:2130",
+      "n": 11406,
+      "rainbow": 0.0059,
+      "bites": 1.727
+    },
+    {
+      "key": "0:2220",
+      "n": 40286,
+      "rainbow": 0.0055,
+      "bites": 1.893
+    },
+    {
+      "key": "0:3030",
+      "n": 6814,
+      "rainbow": 0.0053,
+      "bites": 1.776
+    },
+    {
+      "key": "0:3220",
+      "n": 29084,
+      "rainbow": 0.005,
+      "bites": 2.311
+    },
+    {
+      "key": "0:1220",
+      "n": 34507,
+      "rainbow": 0.0048,
+      "bites": 1.474
+    },
+    {
+      "key": "0:4320",
+      "n": 832,
+      "rainbow": 0.0048,
+      "bites": 3.108
+    },
+    {
+      "key": "0:2210",
+      "n": 39386,
+      "rainbow": 0.0047,
+      "bites": 1.82
+    },
+    {
+      "key": "0:4020",
+      "n": 1274,
+      "rainbow": 0.0047,
+      "bites": 2.027
+    },
+    {
+      "key": "0:1120",
+      "n": 28178,
+      "rainbow": 0.0046,
+      "bites": 1.374
+    },
+    {
+      "key": "0:3010",
+      "n": 17363,
+      "rainbow": 0.0045,
+      "bites": 1.779
+    },
+    {
+      "key": "0:1030",
+      "n": 8705,
+      "rainbow": 0.0044,
+      "bites": 1.284
+    },
+    {
+      "key": "0:3210",
+      "n": 26594,
+      "rainbow": 0.0044,
+      "bites": 2.233
+    },
+    {
+      "key": "0:1320",
+      "n": 16606,
+      "rainbow": 0.0043,
+      "bites": 1.564
+    },
+    {
+      "key": "0:3020",
+      "n": 20921,
+      "rainbow": 0.0043,
+      "bites": 1.782
+    },
+    {
+      "key": "0:4310",
+      "n": 695,
+      "rainbow": 0.0043,
+      "bites": 2.997
+    },
+    {
+      "key": "0:1210",
+      "n": 31297,
+      "rainbow": 0.0042,
+      "bites": 1.446
+    },
+    {
+      "key": "0:3310",
+      "n": 14790,
+      "rainbow": 0.0041,
+      "bites": 2.454
+    },
+    {
+      "key": "0:4110",
+      "n": 986,
+      "rainbow": 0.0041,
+      "bites": 2.311
+    },
+    {
+      "key": "0:0130",
+      "n": 7981,
+      "rainbow": 0.004,
+      "bites": 1.056
+    },
+    {
+      "key": "0:3320",
+      "n": 15241,
+      "rainbow": 0.0039,
+      "bites": 2.586
+    },
+    {
+      "key": "0:3120",
+      "n": 24857,
+      "rainbow": 0.0038,
+      "bites": 2.044
+    },
+    {
+      "key": "0:2120",
+      "n": 38635,
+      "rainbow": 0.0036,
+      "bites": 1.7
+    },
+    {
+      "key": "0:2110",
+      "n": 32038,
+      "rainbow": 0.0035,
+      "bites": 1.671
+    },
+    {
+      "key": "0:2310",
+      "n": 22540,
+      "rainbow": 0.0035,
+      "bites": 1.983
+    },
+    {
+      "key": "0:2320",
+      "n": 22278,
+      "rainbow": 0.0035,
+      "bites": 2.081
+    },
+    {
+      "key": "1:410",
+      "n": 1413,
+      "rainbow": 0.0035,
+      "bites": 2.248
+    },
+    {
+      "key": "0:1110",
+      "n": 24464,
+      "rainbow": 0.0034,
+      "bites": 1.356
+    },
+    {
+      "key": "0:4120",
+      "n": 1181,
+      "rainbow": 0.0034,
+      "bites": 2.387
+    },
+    {
+      "key": "0:1310",
+      "n": 19252,
+      "rainbow": 0.0032,
+      "bites": 1.509
+    },
+    {
+      "key": "0:2030",
+      "n": 10844,
+      "rainbow": 0.0031,
+      "bites": 1.529
+    },
+    {
+      "key": "0:0220",
+      "n": 30657,
+      "rainbow": 0.003,
+      "bites": 1.054
+    },
+    {
+      "key": "0:0210",
+      "n": 28192,
+      "rainbow": 0.0029,
+      "bites": 1.046
+    },
+    {
+      "key": "2:00",
+      "n": 285227,
+      "rainbow": 0.0026,
+      "bites": 1.011
+    },
+    {
+      "key": "0:0030",
+      "n": 7292,
+      "rainbow": 0.0026,
+      "bites": 1.039
+    },
+    {
+      "key": "0:0320",
+      "n": 15208,
+      "rainbow": 0.0024,
+      "bites": 1.056
+    },
+    {
+      "key": "0:2020",
+      "n": 31247,
+      "rainbow": 0.0024,
+      "bites": 1.525
+    },
+    {
+      "key": "0:3110",
+      "n": 21912,
+      "rainbow": 0.0024,
+      "bites": 1.993
+    },
+    {
+      "key": "0:2010",
+      "n": 25837,
+      "rainbow": 0.0022,
+      "bites": 1.523
+    },
+    {
+      "key": "0:1010",
+      "n": 18967,
+      "rainbow": 0.0022,
+      "bites": 1.276
+    },
+    {
+      "key": "0:1020",
+      "n": 23592,
+      "rainbow": 0.002,
+      "bites": 1.281
+    },
+    {
+      "key": "0:0120",
+      "n": 24616,
+      "rainbow": 0.0019,
+      "bites": 1.039
+    },
+    {
+      "key": "0:0310",
+      "n": 16622,
+      "rainbow": 0.0018,
+      "bites": 1.037
+    },
+    {
+      "key": "1:100",
+      "n": 75150,
+      "rainbow": 0.0017,
+      "bites": 1.264
+    },
+    {
+      "key": "1:200",
+      "n": 108525,
+      "rainbow": 0.0017,
+      "bites": 1.509
+    },
+    {
+      "key": "1:300",
+      "n": 67017,
+      "rainbow": 0.0016,
+      "bites": 1.76
+    },
+    {
+      "key": "0:3200",
+      "n": 27801,
+      "rainbow": 0.0013,
+      "bites": 2.129
+    },
+    {
+      "key": "0:4100",
+      "n": 1542,
+      "rainbow": 0.0013,
+      "bites": 2.259
+    },
+    {
+      "key": "0:2400",
+      "n": 763,
+      "rainbow": 0.0013,
+      "bites": 2.014
+    },
+    {
+      "key": "0:0110",
+      "n": 21291,
+      "rainbow": 0.0012,
+      "bites": 1.039
+    },
+    {
+      "key": "0:0020",
+      "n": 22043,
+      "rainbow": 0.0012,
+      "bites": 1.026
+    },
+    {
+      "key": "0:3000",
+      "n": 20075,
+      "rainbow": 0.0011,
+      "bites": 1.762
+    },
+    {
+      "key": "0:2200",
+      "n": 42034,
+      "rainbow": 0.0011,
+      "bites": 1.759
+    },
+    {
+      "key": "0:3300",
+      "n": 17055,
+      "rainbow": 0.0009,
+      "bites": 2.323
+    },
+    {
+      "key": "0:0010",
+      "n": 18748,
+      "rainbow": 0.0009,
+      "bites": 1.026
+    },
+    {
+      "key": "0:2100",
+      "n": 33235,
+      "rainbow": 0.0009,
+      "bites": 1.642
+    },
+    {
+      "key": "1:400",
+      "n": 2282,
+      "rainbow": 0.0009,
+      "bites": 2
+    },
+    {
+      "key": "1:000",
+      "n": 74307,
+      "rainbow": 0.0008,
+      "bites": 1.012
+    },
+    {
+      "key": "0:1200",
+      "n": 33198,
+      "rainbow": 0.0008,
+      "bites": 1.382
+    },
+    {
+      "key": "0:1100",
+      "n": 24151,
+      "rainbow": 0.0007,
+      "bites": 1.327
+    },
+    {
+      "key": "0:2300",
+      "n": 23374,
+      "rainbow": 0.0006,
+      "bites": 1.881
+    },
+    {
+      "key": "0:2000",
+      "n": 35108,
+      "rainbow": 0.0006,
+      "bites": 1.511
+    },
+    {
+      "key": "0:3100",
+      "n": 21757,
+      "rainbow": 0.0006,
+      "bites": 1.938
+    },
+    {
+      "key": "0:4000",
+      "n": 1861,
+      "rainbow": 0.0005,
+      "bites": 2.005
+    },
+    {
+      "key": "0:4200",
+      "n": 1973,
+      "rainbow": 0.0005,
+      "bites": 2.502
+    },
+    {
+      "key": "0:1300",
+      "n": 19801,
+      "rainbow": 0.0004,
+      "bites": 1.446
+    },
+    {
+      "key": "0:0100",
+      "n": 29890,
+      "rainbow": 0.0003,
+      "bites": 1.011
+    },
+    {
+      "key": "0:1000",
+      "n": 25771,
+      "rainbow": 0.0003,
+      "bites": 1.256
+    },
+    {
+      "key": "0:0300",
+      "n": 20003,
+      "rainbow": 0.0003,
+      "bites": 1.016
+    },
+    {
+      "key": "0:0200",
+      "n": 38804,
+      "rainbow": 0.0002,
+      "bites": 1.013
+    },
+    {
+      "key": "0:0000",
+      "n": 67160,
+      "rainbow": 0,
+      "bites": 1.002
+    },
+    {
+      "key": "0:0400",
+      "n": 656,
+      "rainbow": 0,
+      "bites": 1.011
+    },
+    {
+      "key": "0:1400",
+      "n": 630,
+      "rainbow": 0,
+      "bites": 1.456
+    },
+    {
+      "key": "0:3400",
+      "n": 610,
+      "rainbow": 0,
+      "bites": 2.52
+    },
+    {
+      "key": "0:4300",
+      "n": 1025,
+      "rainbow": 0,
+      "bites": 2.753
+    }
+  ],
+  "loop": {
+    "notools": {
+      "games": 1000000,
+      "rainbowsPerRun": 0.2685,
+      "ci95": 0.0009,
+      "runsWithRainbow": 0.261,
+      "rainbowCounts": [
+        0.739,
+        0.2536,
+        0.0074,
+        0,
+        0,
+        0
+      ],
+      "devoursPerRun": 7.47,
+      "bitesPerDevour": 1.346,
+      "chainLengths": [
+        0.7268,
+        0.2108,
+        0.0526,
+        0.0091,
+        0.0007,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 157126,
+        "singleDevour": 84468,
+        "other": 26888
+      },
+      "firstRainbowDay": 15.05,
+      "swapsPerRun": 13.65,
+      "executionsPerRun": 0.196,
+      "doorsPerRun": 20.37
+    },
+    "rewards": {
+      "games": 1000000,
+      "rainbowsPerRun": 0.7063,
+      "ci95": 0.0017,
+      "runsWithRainbow": 0.4971,
+      "rainbowCounts": [
+        0.5029,
+        0.3285,
+        0.1336,
+        0.0297,
+        0.0046,
+        0.0006
+      ],
+      "devoursPerRun": 7.57,
+      "bitesPerDevour": 1.394,
+      "chainLengths": [
+        0.6991,
+        0.2255,
+        0.0604,
+        0.0123,
+        0.0026,
+        0
+      ],
+      "rainbowSources": {
+        "chain": 491961,
+        "singleDevour": 180461,
+        "other": 33922
+      },
+      "firstRainbowDay": 14.75,
+      "swapsPerRun": 14.26,
+      "executionsPerRun": 0.192,
+      "doorsPerRun": 20.78
+    }
+  }
+}

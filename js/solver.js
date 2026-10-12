@@ -38,14 +38,15 @@
     giftRank: null, // null scores the gifts on the spot; or a fixed order
   };
 
-  // Tuned weights for each kind of run: tool rewards on or off, standard or
-  // hard mode loop chain. The solver picks by the run's settings. From
-  // tools/results/train-report.json (25.9 million simulated runs).
+  // Tuned weights for each kind of run: tool rewards on or off, on the
+  // two-meal chain or the default single-meal loop. The solver picks by the
+  // run's settings. From tools/results/ (train-report.json for the two-meal
+  // chain, guide-data-single.json for the single-meal one).
   const PROFILES = {
     rewards: { tierBase: 3, rainbowMult: 1, wOpen: 2.5, wNow: 1.5, wWalk: 1, wStep: 1, wChain: 8, wStair: 0.5, swapMaxTier: 2, minDevour: 0, execMargin: 10, acceptChain: true, toolRank: ['rope', 'revenge', 'skewer', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'] },
     notools: { tierBase: 2.5, rainbowMult: 2, wOpen: 1.875, wNow: 1, wWalk: 1, wStep: 1, wChain: 16, wStair: 0.25, swapMaxTier: 1, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['rope', 'revenge', 'skewer', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'] },
-    'loop-rewards': { tierBase: 3, rainbowMult: 1, wOpen: 2, wNow: 1.125, wWalk: 1, wStep: 1, wChain: 8, wStair: 0.5, swapMaxTier: 2, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['rope', 'revenge', 'skewer', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'] },
-    'loop-notools': { tierBase: 2.5, rainbowMult: 2, wOpen: 1.5, wNow: 1, wWalk: 1, wStep: 1, wChain: 16, wStair: 0.25, swapMaxTier: 1, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['rope', 'revenge', 'skewer', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'] },
+    'loop-rewards': { tierBase: 2.75, rainbowMult: 1, wOpen: 2, wNow: 1.125, wWalk: 1, wStep: 1, wChain: 4, wStair: 0.5, swapMaxTier: 2, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['skewer', 'revenge', 'rope', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'] },
+    'loop-notools': { tierBase: 2.5, rainbowMult: 8, wOpen: 3, wNow: 0.5, wWalk: 1.5, wStep: 1, wChain: 16, wStair: 0.25, swapMaxTier: 1, minDevour: 0, execMargin: 5, acceptChain: true, toolRank: ['skewer', 'revenge', 'rope', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'] },
   };
   const paramsFor = (st) => {
     const base = st.params.rewards ? 'rewards' : 'notools';

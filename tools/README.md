@@ -39,9 +39,25 @@ The in-game Trainer shows this strategy's pick right away. It then plays each ca
 
 The strategy has four tuned profiles, chosen by the run's settings: drills with rewards on (the default), drills with no tools, and the same two with the hard mode loop chain. `train` refines all four on a finer grid around their current weights. It then scores the old and new weights on a separate set of 1,000,000 fresh prisons, so the before/after comparison is fair.
 
+## The strategy guide's data
+
+`strategy.html` reads `js/guide-data.js`, which the `guide` mode generates. The data is based on the **single-meal food chain** (Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth), since that's what the live game appears to use, and it's the simulator's default. `guide` tunes the strategy for the chain, ranks tools and gifts, measures each habit, and plays the 2,000,000-run headline:
+
+```
+node tools/strategy-sim.js guide --games 2000000 --chain single
+```
+
+The latest run took 28,200,000 runs in 24.3 minutes. Its full numbers are in `results/guide-data-single.json`.
+
+**Two-meal chain data, kept separately.** If live turns out to use the Chinese sim's two-meal chain, its data is ready:
+- `results/guide-data-two.json`: the same measurements, from `guide --chain two`.
+- `results/two-meal/`: the original million-run study, the training report, and the strategy guide page as it was built on that chain.
+
+To switch the page's data to it, run `guide --chain two --no-tune --publish`. Then update the few sentences in `strategy.html` that name the food chain.
+
 ## Results
 
-From the full study on 2026-10-12: 1,000,000 runs per test, standard food chain, default drill values. The ± figures are 95% margins.
+From the full study on 2026-10-12, run on the two-meal food chain (the default at the time): 1,000,000 runs per test, default drill values. "Hard mode loop chain" below is the single-meal chain that is now the default. The ± figures are 95% margins.
 
 **Speed.** 1,000,000 runs take about 61 seconds with no tools (16,300 runs/s) and 77 seconds with tool and Cache rewards on (12,900 runs/s), on 31 threads of an i9-14900K.
 

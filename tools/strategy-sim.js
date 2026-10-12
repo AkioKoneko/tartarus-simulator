@@ -13,6 +13,7 @@
  *   node tools/strategy-sim.js chains [--games 200000]
  *   node tools/strategy-sim.js report [--games 1000000]   (everything, written to tools/results)
  *   node tools/strategy-sim.js train  [--games 150000] [--final 1000000]   (fine-tunes every profile the solver uses)
+ *   node tools/strategy-sim.js guide  [--games 2000000] [--chain single|two] [--no-tune] [--publish]   (the data behind strategy.html)
  *
  *   Options: --threads N (default: cores - 1), --seed WORD, --params file.json
  */
@@ -368,6 +369,137 @@ trained on ${GAMES_PLAYED.toLocaleString()} simulated runs in ${(out.seconds / 6
 
 // ---------- Chain math (exact, no simulation) ----------
 
+// The data behind strategy.html, for one food chain. Tunes the strategy for
+// that chain (skip with --no-tune), ranks tools and gifts with it, then
+// measures everything the guide shows. Writes tools/results/guide-data-*.json
+// and, for the default single-meal chain, js/guide-data.js for the page.
+async function guide(games) {
+  const t0 = Date.now();
+  const start = GAMES_PLAYED;
+  const loop = opt('chain', 'single') !== 'two';
+  const name = loop ? 'single' : 'two';
+  const notools = { rewards: false, loop };
+  const rewards = { rewards: true, loop };
+  const seed = 'GUIDE';
+  const tuneGames = Number(opt('tune-games', 50000));
+  const rounds = Number(opt('rounds', 2));
+  const side = Number(opt('side', 500000));
+  const habitGames = Number(opt('habit-games', 200000));
+  const prefix = loop ? 'loop-' : '';
+  let pNotools = Object.assign({}, S.DEFAULTS, S.PROFILES[`${prefix}notools`]);
+  let pRewards = Object.assign({}, S.DEFAULTS, S.PROFILES[`${prefix}rewards`]);
+  const out = { chain: name, generated: new Date().toISOString().slice(0, 10), headlineRuns: games, seed };
+
+  if (!opt('no-tune', false)) {
+    console.log(`\n== ${name} chain: tune with no tools (${tuneGames.toLocaleString()} runs per test) ==`);
+    pNotools = (await tune(notools, tuneGames, rounds, pNotools)).params;
+  }
+
+  console.log('\n== tools, one held from day 1 ==');
+  const base = await run('solver', pNotools, notools, side, { seed });
+  out.toolBase = +mean(base).toFixed(4);
+  out.tools = [];
+  for (const tool of T.TOOL_IDS) {
+    const stats = await run('solver', pNotools, Object.assign({}, notools, { tool }), side, { seed });
+    out.tools.push({ id: tool, name: T.TOOLS[tool].name, value: +mean(stats).toFixed(4), delta: +(mean(stats) - mean(base)).toFixed(4) });
+    console.log(`${T.TOOLS[tool].name.padEnd(18)} ${fmt(stats)}`);
+  }
+  out.tools.sort((a, b) => b.value - a.value);
+  const toolRank = out.tools.map((t) => t.id);
+  pNotools.toolRank = toolRank;
+  pRewards.toolRank = toolRank;
+
+  if (!opt('no-tune', false)) {
+    console.log(`\n== ${name} chain: tune with rewards on ==`);
+    pRewards = (await tune(rewards, tuneGames, rounds, pRewards)).params;
+    pRewards.toolRank = toolRank;
+  }
+
+  console.log('\n== Warden\'s Cache ==');
+  const scored = await run('solver', Object.assign({}, pRewards, { giftRank: null }), rewards, side, { seed });
+  out.gifts = [{ id: 'scored', value: +mean(scored).toFixed(4) }];
+  for (const id of T.GIFT_IDS) {
+    const order = [id, ...T.GIFT_IDS.filter((g) => g !== id)];
+    const stats = await run('solver', Object.assign({}, pRewards, { giftRank: order }), rewards, side, { seed });
+    out.gifts.push({ id, name: T.GIFTS[id].name, value: +mean(stats).toFixed(4) });
+    console.log(`always ${T.GIFTS[id].name.padEnd(18)} ${fmt(stats)}`);
+  }
+  const fixed = out.gifts.slice(1).sort((a, b) => b.value - a.value);
+  pRewards.giftRank = fixed[0].value > out.gifts[0].value + 1.96 * se(scored) ? fixed.map((g) => g.id) : null;
+  out.gifts = [out.gifts[0], ...fixed];
+
+  console.log(`\n== headline: ${games.toLocaleString()} runs with rewards on ==`);
+  const head = await run('solver', pRewards, rewards, games, { seed, stairs: true });
+  out.headline = describe(head);
+  console.log(fmt(head));
+  out.stairs = Object.entries(head.stairs)
+    .filter(([, v]) => v.n >= 1000)
+    .map(([k, v]) => ({ key: k, n: v.n, rainbow: +(v.rainbow / v.n).toFixed(4), bites: +(v.bites / v.n).toFixed(3) }))
+    .sort((a, b) => b.n - a.n);
+
+  console.log('\n== strategy comparison ==');
+  const compareGames = Number(opt('compare', 1000000));
+  out.compare = { notools: {}, rewards: {} };
+  for (const policy of ['random', 'simple']) {
+    out.compare.notools[policy] = describe(await run(policy, null, notools, compareGames, { seed }));
+    out.compare.rewards[policy] = describe(await run(policy, null, rewards, compareGames, { seed }));
+  }
+  out.compare.notools.tuned = describe(await run('solver', pNotools, notools, compareGames, { seed }));
+  out.compare.rewards.tuned = out.headline;
+  for (const k of ['notools', 'rewards']) console.log(k, Object.entries(out.compare[k]).map(([p, d]) => `${p} ${d.rainbowsPerRun}`).join('  '));
+
+  console.log('\n== habits, one changed at a time (no tools) ==');
+  const variants = [
+    ['full', 'The full strategy', {}],
+    ['alwaysExec', 'Always accepting Executions', { execMargin: -1e9 }],
+    ['neverExec', 'Never accepting Executions', { execMargin: 1e9 }],
+    ['shortWalks', 'Preferring short walks', { wStep: -1 }],
+    ['noSpread', 'Ignoring the beast spread', { wStair: 0 }],
+    ['swapNormals', 'Swapping Normals only', { swapMaxTier: 0 }],
+    ['swapRares', 'Swapping Rares too', { swapMaxTier: 2 }],
+    ['wait2', 'Waiting for bigger chains (small threshold)', { minDevour: 2 }],
+    ['wait5', 'Waiting for bigger chains (large threshold)', { minDevour: 5 }],
+    ['skipChain', 'Skipping Chain reactions', { acceptChain: false }],
+    ['neverSwap', 'Never swapping', { swapMaxTier: -1 }],
+  ];
+  out.habits = [];
+  for (const [id, label, change] of variants) {
+    if (id === 'swapRares' && pNotools.swapMaxTier >= 2) continue;
+    if (id === 'swapNormals' && pNotools.swapMaxTier === 0) continue;
+    const stats = await run('solver', Object.assign({}, pNotools, change), notools, habitGames, { seed });
+    out.habits.push({ id, label, value: +mean(stats).toFixed(4), ci: +(1.96 * se(stats)).toFixed(4) });
+    console.log(`${label.padEnd(46)} ${fmt(stats)}`);
+  }
+  out.habits.push({ id: 'simple', label: 'A simple player', value: out.compare.notools.simple.rainbowsPerRun });
+  out.habits.push({ id: 'random', label: 'Random moves', value: out.compare.notools.random.rainbowsPerRun });
+  out.habitRuns = habitGames;
+  out.sideRuns = side;
+  out.compareRuns = compareGames;
+
+  // The other food chain, for comparison.
+  const other = { rewards: true, loop: !loop };
+  const otherPrefix = loop ? '' : 'loop-';
+  out.otherChain = {
+    chain: loop ? 'two' : 'single',
+    notools: +mean(await run('solver', S.PROFILES[`${otherPrefix}notools`], { rewards: false, loop: !loop }, compareGames, { seed })).toFixed(4),
+    rewards: +mean(await run('solver', S.PROFILES[`${otherPrefix}rewards`], other, compareGames, { seed })).toFixed(4),
+  };
+
+  out.coverage = coverageTable(loop).map((r) => ({ beasts: r.beasts, size: r.size, continues: r.continues }));
+  out.params = { notools: pNotools, rewards: pRewards };
+  out.totalRuns = GAMES_PLAYED - start;
+  out.minutes = +((Date.now() - t0) / 60000).toFixed(1);
+  save(`guide-data-${name}.json`, out);
+  save(`tuned-${prefix}notools.json`, pNotools);
+  save(`tuned-${prefix}rewards.json`, pRewards);
+  // The page reads js/guide-data.js. The single-meal chain is the default;
+  // --publish makes any chain's data the page's data.
+  if (loop || opt('publish', false)) {
+    fs.writeFileSync(path.join(__dirname, '..', 'js', 'guide-data.js'), `/* Generated by tools/strategy-sim.js guide on ${out.generated}. Do not edit by hand. */\nwindow.TARTARUS_GUIDE = ${JSON.stringify(out)};\n`);
+  }
+  console.log(`\n${out.totalRuns.toLocaleString()} runs in ${out.minutes} minutes; saved tools/results/guide-data-${name}.json${loop || opt('publish', false) ? ' and js/guide-data.js' : ''}`);
+}
+
 function coverageTable(loop) {
   const chain = T.FOOD_CHAINS[loop ? 'loop' : 'standard'];
   const rows = [];
@@ -442,6 +574,8 @@ async function main() {
     for (const r of rows.slice(0, 25)) console.log(`  ${r.key.padEnd(8)} n=${String(r.n).padStart(8)}  Rainbow ${pct(r.rainbow).padStart(6)}  bites ${r.bites.toFixed(2)}`);
   } else if (mode === 'report') {
     await report(games);
+  } else if (mode === 'guide') {
+    await guide(games);
   } else if (mode === 'train') {
     await train(games);
   }

@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261012k">
+<link rel="stylesheet" href="css/style.css?v=20261012l">
 </head>
 <body>
 <div class="app" id="app">
@@ -161,8 +161,8 @@
 
       <section class="panel" id="panel-chain">
         <h2 class="panel-title">Food chain</h2>
-        <svg class="chain" id="chain-svg" viewBox="0 0 240 200" role="img" aria-labelledby="chain-desc">
-          <desc id="chain-desc">Mammoth eats Lion and Wolf. Lion eats Wolf and Rat. Wolf eats Rat. Rat eats Mammoth.</desc>
+        <svg class="chain is-loop" id="chain-svg" viewBox="0 0 240 200" role="img" aria-labelledby="chain-desc">
+          <desc id="chain-desc">Single-meal food chain: Mammoth eats Lion. Lion eats Wolf. Wolf eats Rat. Rat eats Mammoth.</desc>
           <defs>
             <marker id="chain-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
               <path d="M0 0 L10 5 L0 10 z"></path>
@@ -219,11 +219,12 @@
         <p class="field-note">12 days and 6 dispatch vouchers. Three contracts fall due at the end of days 4, 8 and 12. Each of your first two deliveries earns a refit. Escorts and refit refreshes share the vouchers. Pass by delivering at least two contracts, including the heavy one.</p>
       </fieldset>
       <fieldset class="field">
-        <legend>Hard mode</legend>
-        <div class="toggles">
-          <label class="toggle"><input type="checkbox" id="new-loop-chain"><span><strong>Harder food chain</strong><small>A simple loop: Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth. Each beast has one meal.</small></span></label>
+        <legend>Food chain</legend>
+        <div class="segmented">
+          <label><input type="radio" name="chain" value="single" id="new-chain-single" checked><span>Single meal</span></label>
+          <label><input type="radio" name="chain" value="two" id="new-chain-two"><span>Two meals</span></label>
         </div>
-        <p class="field-note">Off by default. It's uncertain which food chain the live game uses, so this lets you practice either version.</p>
+        <p class="field-note">Single meal is the default, since it's what the live game appears to use: Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth. Two meals is the Chinese sim's chain, where Mammoth also eats Wolf and Lion also eats Rat.</p>
       </fieldset>
       <div class="field">
         <label class="field-label" for="new-seed">Seed</label>
@@ -286,8 +287,8 @@
       <p>When an inmate is devoured or sent off, its cell seals again. The next time that door opens, someone new is inside.</p>
 
       <h3>The food chain</h3>
-      <p>Six relations, and both sides must share a rarity. Mammoth eats Lion and Wolf. Lion eats Wolf and Rat. Wolf eats Rat. Rat eats Mammoth. A Mammoth cannot eat a Rat, and no beast eats its own kind unless you hold the Rat-Head Skewer, which lets Rats eat Rats.</p>
-      <p>The hard mode "Harder food chain" switch uses a simple loop instead: Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, and Rat eats Mammoth. Each beast then has exactly one meal. It's uncertain which version the live game uses, so you can practice both.</p>
+      <p>Each beast has one meal, and both sides must share a rarity: Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, and Rat eats Mammoth. No beast eats its own kind unless you hold the Rat-Head Skewer, which lets Rats eat Rats. This single-meal chain is the default because it's what the live game appears to use.</p>
+      <p>The New Run screen and the Lab can switch to the Chinese sim's two-meal chain instead. There, Mammoth also eats Wolf and Lion also eats Rat, for six relations in all.</p>
 
       <h3>Rarity</h3>
       <p>Normal, Magic, Rare, Legendary, Supreme, Rainbow. A devour raises the eater one tier, then re-rolls its beast, so check its new matchups before the next meal. An inmate that reaches Rainbow leaves its cell for the vault and adds a Warden's Cache claim. You can keep raising more Rainbows for the rest of the run.</p>
@@ -602,9 +603,10 @@
   </div>
 </dialog>
 
-<script src="js/engine.js?v=20261012k"></script>
-<script src="js/sound.js?v=20261012k"></script>
-<script src="js/solver.js?v=20261012k"></script>
-<script src="js/ui.js?v=20261012k"></script>
+<script src="js/engine.js?v=20261012l"></script>
+<script src="js/sound.js?v=20261012l"></script>
+<script src="js/guide-data.js?v=20261012l"></script>
+<script src="js/solver.js?v=20261012l"></script>
+<script src="js/ui.js?v=20261012l"></script>
 </body>
 </html>
