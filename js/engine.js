@@ -269,14 +269,19 @@
 
   // ---------- State helpers ----------
 
-  function log(state, kind, text) {
-    state.log.push({ d: state.day, k: kind, t: text });
+  // An entry can carry `x`, a small record of what happened (who opened,
+  // who ate whom), which the page draws as beast icons in the log and recap.
+  const entry = (state, kind, text, x) => (x ? { d: state.day, k: kind, t: text, x } : { d: state.day, k: kind, t: text });
+  const snap = (inmate) => ({ beast: inmate.beast, tier: inmate.tier });
+
+  function log(state, kind, text, x) {
+    state.log.push(entry(state, kind, text, x));
   }
 
   // Inserts an entry earlier in the log, so a summary line can come before the
   // side effects that were logged while it resolved.
-  function logAt(state, index, kind, text) {
-    state.log.splice(index, 0, { d: state.day, k: kind, t: text });
+  function logAt(state, index, kind, text, x) {
+    state.log.splice(index, 0, entry(state, kind, text, x));
   }
 
   function trimLog(state) {
@@ -372,7 +377,7 @@
     emptyCell(state, cell);
     state.vault.push({ id: inmate.id, beast: inmate.beast, day: state.day });
     state.cache += 1;
-    log(state, 'rainbow', `Rainbow ${beastName(inmate.beast)}! It left cell ${cellLabel(cell.n)} for the vault. Warden's Cache claims: ${state.cache}.`);
+    log(state, 'rainbow', `Rainbow ${beastName(inmate.beast)}! It left cell ${cellLabel(cell.n)} for the vault. Warden's Cache claims: ${state.cache}.`, { type: 'rainbow', cell: cell.n, who: snap(inmate) });
     events.push({ type: 'rainbow', cell: cell.n });
     if (state.params.rewards) state.pending.push({ kind: 'gift', options: GIFT_IDS.slice() });
   }
@@ -409,7 +414,7 @@
     state.stats.opened += 1;
     events.push({ type: 'open', cell: cell.n });
     const extra = how === 'patrol' ? '' : ' (extra door)';
-    log(state, 'patrol', `Opened cell ${cellLabel(cell.n)}${extra}: ${describe(inmate)}.${lostNest ? ' The rat nest inside was destroyed.' : ''}`);
+    log(state, 'patrol', `Opened cell ${cellLabel(cell.n)}${extra}: ${describe(inmate)}.${lostNest ? ' The rat nest inside was destroyed.' : ''}`, { type: 'open', cell: cell.n, side: how !== 'patrol', who: snap(inmate) });
     if (event && how !== 'patrol') log(state, 'event', `The special event behind cell ${cellLabel(cell.n)} was used up without triggering.`);
     afterGrowth(state, inmate, events);
     if (how === 'patrol' && has(state, 'keys') && rand(state) < 0.8) {
@@ -423,7 +428,6 @@
   function guard(state, need) {
     if (state.phase === 'ended') return fail('This run is over. Start a new run to keep playing.');
     if (state.pending.length) return fail('Make your pending choice first.');
-    if (state.chainConsume) return fail('Finish the chain devour first: pick its next target.');
     if (state.challenge && state.challenge.window) return fail('Finish the delivery window first.');
     if (state.phase === 'event') return fail('Decide on the special event first.');
     if (need === 'manage' && state.phase === 'patrol') return fail('Patrol first: walk to one of today’s destinations.');
@@ -459,7 +463,6 @@
       position: OFFICE,
       destinations: [],
       chain: false,
-      chainConsume: null,
       event: null,
       cells: Array.from({ length: CELL_COUNT }, (_, n) => blankCell(n)),
       vault: [],
@@ -732,15 +735,15 @@
     let event = null;
     if (state.chain) {
       const path = clockwisePath(state, n);
-      log(state, 'event', `Chain reaction: walking clockwise from cell ${cellLabel(state.position)} to cell ${cellLabel(n)} opens every sealed door on the way.`);
+      log(state, 'event', `Chain reaction: walking clockwise from cell ${cellLabel(state.position)} to cell ${cellLabel(n)} opens every sealed door on the way.`, { type: 'sweep', from: state.position, cell: n });
       for (const k of path) openCell(state, state.cells[k], 'side', events);
       state.chain = false;
     } else if (cell.sealed) {
       event = openCell(state, cell, 'patrol', events);
     } else if (cell.inmate) {
-      log(state, 'patrol', `Walked to cell ${cellLabel(n)}. Its ${describe(cell.inmate)} can start today's devour.`);
+      log(state, 'patrol', `Walked to cell ${cellLabel(n)}. Its ${describe(cell.inmate)} can start today's devour.`, { type: 'walk', cell: n, who: snap(cell.inmate) });
     } else {
-      log(state, 'patrol', `Walked to empty cell ${cellLabel(n)}.`);
+      log(state, 'patrol', `Walked to empty cell ${cellLabel(n)}.`, { type: 'walk', cell: n, who: null });
     }
     state.position = n;
     checkPrey(state);
@@ -759,15 +762,16 @@
     if (state.pending.length) return fail('Make your pending choice first.');
     const { kind, cell: n } = state.event;
     const events = [];
+    const name = kind === 'chain' ? 'Chain reaction' : 'Execution';
     if (!accept) {
       state.event = null;
       state.phase = 'manage';
-      log(state, 'event', 'Skipped the special event.');
+      log(state, 'event', `Skipped the ${name}.`, { type: 'skipped', name });
       return ok(events);
     }
     if (kind === 'chain') {
       state.chain = true;
-      log(state, 'event', 'Chain reaction armed: your next patrol opens every sealed cell on the clockwise walk to its destination.');
+      log(state, 'event', 'Chain reaction armed: your next patrol opens every sealed cell on the clockwise walk to its destination.', { type: 'armed' });
     } else {
       const cell = state.cells[n];
       const exec = cell.inmate;
@@ -775,6 +779,7 @@
       const victims = executionVictims(state, n);
       const at = state.log.length;
       const names = victims.map((c) => `${describe(c.inmate)} (${cellLabel(c.n)})`);
+      const record = { type: 'execution', cell: n, who: snap(exec), victims: victims.map((c) => snap(c.inmate)) };
       for (const c of victims) {
         emptyCell(state, c);
         events.push({ type: 'devour', from: n, to: c.n });
@@ -783,25 +788,26 @@
       checkPrey(state);
       const before = describe(exec);
       if (victims.length) promote(state, exec, victims.length, state.params.executionRerolls, events);
+      record.after = snap(exec);
       logAt(state, at, 'event', victims.length
         ? `Execution: the ${before} in cell ${cellLabel(n)} removed ${names.join(', ')} and rose ${victims.length} ${victims.length === 1 ? 'tier' : 'tiers'}.`
-        : `Execution: the ${before} in cell ${cellLabel(n)} found nobody to execute.`);
+        : `Execution: the ${before} in cell ${cellLabel(n)} found nobody to execute.`, record);
     }
     state.event = null;
     state.phase = 'manage';
     return ok(events);
   }
 
-  // Resolves one devour without the phase checks, so gifts and chains can reuse it.
-  function doDevour(state, from, option, events, chained) {
+  // Resolves one bite without the phase checks, so gifts and chains can reuse
+  // it. Returns a record of the bite for the log.
+  function doDevour(state, from, option, events) {
     const eaterCell = state.cells[from];
     const mealCell = state.cells[option.cell];
     const eater = eaterCell.inmate;
     const meal = mealCell.sealed ? mealCell.hidden : mealCell.inmate;
-    const before = describe(eater);
+    const bite = { from, cell: option.cell, scratch: !!option.scratch, eater: snap(eater), meal: snap(meal) };
     const wasRat = eater.beast === 'rat';
     const crowd = boardCells(state).length;
-    const at = state.log.length;
     emptyCell(state, mealCell);
     let gain = option.scratch ? 2 + (state.params.scratchStacksBase ? 1 : 0) : 1;
     const notes = [];
@@ -822,12 +828,9 @@
     events.push({ type: 'devour', from, to: option.cell });
     promote(state, eater, gain, true, events);
     state.stats.devours += 1;
-    const still = boardCellOf(state, eater.id);
-    const outcome = eater.tier < RAINBOW ? ` and ${still ? `is now a ${beastName(eater.beast)}` : 'left'}` : '';
-    if (chained) state.stats.chains += 1;
-    logAt(state, at, 'devour', `${chained ? 'Chain devour: the' : 'The'} ${before} in cell ${cellLabel(from)} devoured the ${option.scratch ? 'scratched-door ' : ''}${describe(meal)} in cell ${cellLabel(option.cell)}. It rose to ${tierName(eater.tier)}${outcome}${notes.length ? ` (${notes.join(', ')})` : ''}.`);
+    Object.assign(bite, { gain, notes, after: snap(eater) });
     checkPrey(state);
-    if (revenge && still) {
+    if (revenge && boardCellOf(state, eater.id)) {
       const sealed = state.cells.filter((c) => c.sealed);
       if (sealed.length) {
         const target = pickOne(state, sealed);
@@ -836,6 +839,24 @@
         openCell(state, target, 'side', events, { beast: food, tier: eater.tier });
       }
     }
+    return bite;
+  }
+
+  // One log entry for a whole devour, inserted before the side effects that
+  // were logged while it resolved. Its record lists every bite.
+  function logDevour(state, at, bites) {
+    const first = bites[0];
+    const last = bites[bites.length - 1];
+    const end = last.after.tier >= RAINBOW ? ' It reached Rainbow and left for the vault.' : '';
+    let text;
+    if (bites.length === 1) {
+      const outcome = last.after.tier < RAINBOW ? ` and is now a ${beastName(last.after.beast)}` : '';
+      text = `The ${describe(first.eater)} in cell ${cellLabel(first.from)} devoured the ${first.scratch ? 'scratched-door ' : ''}${describe(first.meal)} in cell ${cellLabel(first.cell)}. It rose to ${tierName(last.after.tier)}${outcome}${first.notes.length ? ` (${first.notes.join(', ')})` : ''}.`;
+    } else {
+      const steps = bites.map((b) => `${describe(b.eater)} ate ${b.scratch ? 'the scratched-door ' : ''}${describe(b.meal)} (${cellLabel(b.cell)})${b.notes.length ? ` [${b.notes.join(', ')}]` : ''}`);
+      text = `Devour chain, ${bites.length} bites, from cell ${cellLabel(first.from)}: ${steps.join('; then ')}.${end || ` It ended as a ${describe(last.after)}.`}`;
+    }
+    logAt(state, at, 'devour', text, { type: 'devour', from: first.from, bites });
   }
 
   function devour(state, from, to) {
@@ -846,43 +867,20 @@
     const option = devourOptions(state, from).find((o) => o.cell === to);
     if (!option) return fail('That inmate cannot devour that target.');
     const events = [];
+    const at = state.log.length;
     const eaterId = state.cells[from].inmate.id;
-    doDevour(state, from, option, events, false);
     state.used.devour += 1;
-    offerChain(state, eaterId);
-    return ok(events);
-  }
-
-  // After a devour, an eater that still has a valid target must chain: the
-  // player picks the next meal, and it repeats while targets remain. As in
-  // live, a chain can't be stopped.
-  function offerChain(state, eaterId) {
-    const cell = boardCellOf(state, eaterId);
-    state.chainConsume = cell && devourOptions(state, cell.n).length ? eaterId : null;
-    if (state.chainConsume) log(state, 'devour', `Chain devour: the ${describe(cell.inmate)} in cell ${cellLabel(cell.n)} must devour again. Pick its next target.`);
-  }
-
-  // A gift taken mid-chain can change the board. With no way to stop a chain,
-  // one whose eater left or lost every target ends by itself.
-  function checkChain(state) {
-    if (!state.chainConsume) return;
-    const cell = boardCellOf(state, state.chainConsume);
-    if (cell && devourOptions(state, cell.n).length) return;
-    state.chainConsume = null;
-    log(state, 'devour', 'The chain devour ended: its eater has no target left.');
-  }
-
-  function chainDevour(state, to) {
-    if (state.phase === 'ended') return fail('This run is over.');
-    if (state.pending.length) return fail('Make your pending choice first.');
-    const eaterId = state.chainConsume;
-    const cell = eaterId ? boardCellOf(state, eaterId) : null;
-    if (!cell) return fail('There is no chain devour to make.');
-    const option = devourOptions(state, cell.n).find((o) => o.cell === to);
-    if (!option) return fail('That inmate is not a valid target for the chain.');
-    const events = [];
-    doDevour(state, cell.n, option, events, true);
-    offerChain(state, eaterId);
+    const bites = [doDevour(state, from, option, events)];
+    // The eater then chains on by itself: while it has a valid target it
+    // devours one at random. A chain can't be stopped, and every bite raises
+    // a tier, so it ends by Rainbow at the latest.
+    for (let cell = boardCellOf(state, eaterId); cell; cell = boardCellOf(state, eaterId)) {
+      const options = devourOptions(state, cell.n);
+      if (!options.length) break;
+      bites.push(doDevour(state, cell.n, pickOne(state, options), events));
+      state.stats.chains += 1;
+    }
+    logDevour(state, at, bites);
     return ok(events);
   }
 
@@ -909,13 +907,13 @@
     cell.inmate = fresh;
     state.used.swap += 1;
     state.stats.swaps += 1;
-    logAt(state, at, 'swap', `Swapped out the ${describe(old)} in cell ${cellLabel(n)}. In came a ${describe(fresh)}${fired ? ' (Burning Stake)' : ''}.`);
+    logAt(state, at, 'swap', `Swapped out the ${describe(old)} in cell ${cellLabel(n)}. In came a ${describe(fresh)}${fired ? ' (Burning Stake)' : ''}.`, { type: 'swap', cell: n, old: snap(old), fresh: snap(fresh) });
     afterGrowth(state, fresh, events);
     if (cell.ivory && boardCellOf(state, fresh.id)) {
       const pool = boardInmates(state).filter((i) => state.params.ivoryIncludesSwapped || i.id !== fresh.id);
       const picks = shuffle(state, pool).slice(0, state.params.ivoryCount);
       if (picks.length) {
-        log(state, 'ivory', `Ivory: ${plural(picks.length, 'inmate')} each gain a tier (cells ${picks.map((i) => cellLabel(cellOf(state, i.id).n)).join(', ')}).`);
+        log(state, 'ivory', `Ivory: ${plural(picks.length, 'inmate')} each gain a tier (cells ${picks.map((i) => cellLabel(cellOf(state, i.id).n)).join(', ')}).`, { type: 'ivory', count: picks.length });
         for (const i of picks) if (boardCellOf(state, i.id)) promote(state, i, 1, false, events);
       }
     }
@@ -957,7 +955,6 @@
     state.destinations = [];
     state.event = null;
     state.chain = false;
-    state.chainConsume = null;
     const roster = rosterOf(state);
     state.result = {
       day: state.day,
@@ -975,7 +972,6 @@
     if (state.phase === 'ended') return fail('This run is already over.');
     if (state.challenge) state.challenge.window = null;
     state.pending = [];
-    state.chainConsume = null;
     finish(state, true);
     return ok([{ type: 'end' }]);
   }
@@ -1066,7 +1062,7 @@
     ch.vouchers -= check.cost;
     ch.score += check.points;
     ch.deliveries.push({ slot: contract.slot, day: state.day, success: true, points: check.points, cost: check.cost, pressure: check.pressure, escort: escortKey, names, early: !!ch.window.early });
-    log(state, 'contract', `Delivered "${contract.name}" by ${ESCORTS[escortKey].name.toLowerCase()} (${plural(check.cost, 'voucher')}, pressure ${check.pressure}, ${check.points} points): ${names.join(', ')}.`);
+    log(state, 'contract', `Delivered "${contract.name}" by ${ESCORTS[escortKey].name.toLowerCase()} (${plural(check.cost, 'voucher')}, pressure ${check.pressure}, ${check.points} points): ${names.join(', ')}.`, { type: 'deliver', name: contract.name, points: check.points });
     afterDelivery(state, events);
     if (state.phase !== 'ended' && ch.deliveries.length <= 2) queueRefit(state, contract.slot);
     return ok(events);
@@ -1078,7 +1074,7 @@
     if (ch.window.early) return fail('Close the early window instead. The heavy contract can still be delivered by day 12.');
     const contract = currentContract(state);
     ch.deliveries.push({ slot: contract.slot, day: state.day, success: false, points: 0, cost: 0, pressure: 0, escort: null, names: [], early: false });
-    log(state, 'contract', `Skipped "${contract.name}". Your inmates and vouchers stay put.`);
+    log(state, 'contract', `Skipped "${contract.name}". Your inmates and vouchers stay put.`, { type: 'skip', name: contract.name });
     const events = [];
     afterDelivery(state, events);
     return ok(events);
@@ -1086,7 +1082,7 @@
 
   function canOpenEarly(state) {
     const ch = state.challenge;
-    return !!ch && !ch.window && state.phase !== 'ended' && ch.deliveries.length === 2 && state.day >= 9 && state.day <= CHALLENGE_DAYS && ['patrol', 'manage'].includes(state.phase) && !state.pending.length && !state.event && !state.chainConsume;
+    return !!ch && !ch.window && state.phase !== 'ended' && ch.deliveries.length === 2 && state.day >= 9 && state.day <= CHALLENGE_DAYS && ['patrol', 'manage'].includes(state.phase) && !state.pending.length && !state.event;
   }
 
   function openEarlyDelivery(state) {
@@ -1144,10 +1140,9 @@
     if (choice.kind === 'gift') applyGift(state, id, events);
     else {
       state.tools.push(id);
-      log(state, 'tool', `Took the ${TOOLS[id].name}.`);
+      log(state, 'tool', `Took the ${TOOLS[id].name}.`, { type: 'tool', id });
       if (state.phase === 'patrol') fitDestinations(state);
     }
-    checkChain(state);
     return ok(events);
   }
 
@@ -1168,7 +1163,7 @@
   }
 
   function applyGift(state, id, events) {
-    log(state, 'tool', `Warden's Cache: ${GIFTS[id].name}.`);
+    log(state, 'tool', `Warden's Cache: ${GIFTS[id].name}.`, { type: 'gift', id });
     if (id === 'ring') {
       for (const c of shuffle(state, state.cells.filter((x) => x.sealed)).slice(0, 3)) openCell(state, c, 'side', events);
     } else if (id === 'horn') {
@@ -1176,7 +1171,9 @@
         const cell = boardCellOf(state, inmateId);
         if (!cell) continue;
         const options = devourOptions(state, cell.n).filter((o) => !o.scratch);
-        if (options.length) doDevour(state, cell.n, pickOne(state, options), events);
+        if (!options.length) continue;
+        const at = state.log.length;
+        logDevour(state, at, [doDevour(state, cell.n, pickOne(state, options), events)]);
       }
     } else if (id === 'wine') {
       for (const i of boardInmates(state).filter((x) => x.tier < 3)) if (boardCellOf(state, i.id)) promote(state, i, 1, false, events);
@@ -1200,7 +1197,7 @@
   function labCheck(state) {
     if (state.mode !== 'drill') return fail('The Lab only edits drills. The contract challenge uses fixed rules.');
     if (state.phase === 'ended') return fail('This run is over.');
-    if (state.phase === 'event' || state.pending.length || state.chainConsume) return fail('Finish the current decision first.');
+    if (state.phase === 'event' || state.pending.length) return fail('Finish the current decision first.');
     return null;
   }
 
@@ -1406,15 +1403,6 @@
       const keepSmall = has(state, 'muzzle') && board.length <= 3;
       return [{ kind: 'event', accept: !keepSmall, text: keepSmall ? 'Skip: a chain would flood the block and switch off the Agony Muzzle.' : 'Accept: your next patrol opens every sealed cell on the way to its destination.' }];
     }
-    if (state.chainConsume) {
-      const cell = boardCellOf(state, state.chainConsume);
-      const chain = (cell ? devourOptions(state, cell.n) : []).map((option) => devourTip(state, cell.n, option, 'chain'));
-      chain.sort((a, b) => b.score - a.score);
-      const out = chain.slice(0, 3);
-      // A chain can't be stopped, so the advice is the least costly meal.
-      if (out.length && out[0].score <= 0) out.push({ kind: 'note', text: 'Every target here costs you value, but a chain cannot be stopped. The first pick costs the least.' });
-      return out;
-    }
     if (state.phase === 'patrol') {
       for (const n of patrolOptions(state)) {
         const c = state.cells[n];
@@ -1502,7 +1490,7 @@
     data.rng = Number(data.rng) >>> 0;
     data.cache = Number(data.cache) || 0;
     data.position = clamp(Number(data.position) || 0, 0, CELL_COUNT - 1);
-    data.chainConsume = data.chainConsume || null;
+    delete data.chainConsume;
     return data;
   }
 
@@ -1520,7 +1508,6 @@
     patrol: bounded(patrol),
     resolveEvent: bounded(resolveEvent),
     devour: bounded(devour),
-    chainDevour: bounded(chainDevour),
     swap: bounded(swap),
     endDay: bounded(endDay),
     endRun: bounded(endRun),

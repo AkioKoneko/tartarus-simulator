@@ -504,6 +504,7 @@ a {
 
 .block > .board,
 .block > .dest-bar,
+.block > .recap,
 .block > .actionbar {
   width: var(--block-w);
   max-width: 100%;
@@ -1235,6 +1236,160 @@ a {
   font-size: 12.5px;
   color: var(--ash);
   text-align: center;
+}
+
+/* ---------- Beast icons and the day recap ---------- */
+
+/* A small portrait in its rarity color, used by the log and the recap. */
+.tok {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--tc, var(--iron-hi));
+  border-radius: 5px;
+  background: var(--floor);
+  vertical-align: middle;
+}
+
+.tok .portrait {
+  width: 17px;
+  filter: none;
+}
+
+/* A meal: dimmed and struck through. */
+.tok.is-eaten {
+  opacity: 0.62;
+}
+
+.tok.is-eaten::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 3px;
+  background: linear-gradient(135deg, transparent 45%, var(--blood) 45% 57%, transparent 57%);
+}
+
+.tok.is-rainbow {
+  border-color: transparent;
+  background: linear-gradient(var(--floor), var(--floor)) padding-box, var(--rainbow) border-box;
+}
+
+.chain-strip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 3px;
+  max-width: 100%;
+}
+
+/* One bite stays on one line: eater, fangs and gain, meal. */
+.bite {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.fang {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  color: var(--blood);
+  font: 600 10px/1 var(--font-mono);
+}
+
+.fangs {
+  width: 12px;
+  height: auto;
+  fill: var(--blood);
+}
+
+.then {
+  color: var(--ash);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.vault-note {
+  font: 500 9.5px/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ash);
+}
+
+.log-text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.log-icons {
+  display: block;
+}
+
+/* Under the destination cards each morning, under the ring after the patrol. */
+.recap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 10px;
+}
+
+.recap-title {
+  margin: 0;
+  font: 500 11px/1.2 var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bone);
+}
+
+.recap-items {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recap-item {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 5px;
+  max-width: 100%;
+  padding: 3px 7px 3px 6px;
+  border: 1px solid var(--iron);
+  border-radius: 4px;
+  background: var(--slab);
+  font-size: 12.5px;
+}
+
+.recap-item.is-devour {
+  border-color: color-mix(in srgb, var(--blood) 50%, var(--iron));
+}
+
+.recap-item.is-rainbow {
+  border-color: transparent;
+  background: linear-gradient(var(--slab), var(--slab)) padding-box, var(--rainbow) border-box;
+}
+
+.recap-label {
+  font: 500 10.5px/1 var(--font-mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ash);
+  white-space: nowrap;
+}
+
+.recap-note {
+  color: var(--chalk);
 }
 
 .cell.is-dest.is-aim {

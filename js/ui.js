@@ -57,6 +57,8 @@
     ),
   };
   const LANTERN = '<svg class="warden" viewBox="0 0 16 18" aria-hidden="true"><path d="M6 1h4v2H6z"/><path d="M4 4h8l-1 10H5z"/><path d="M5 15h6v2H5z"/><path class="flame" d="M8 6.5c1.4 1.6 1.6 3 0 4.6-1.6-1.6-1.4-3 0-4.6Z"/></svg>';
+  // Two rows of teeth: "ate" in the devour icons.
+  const FANGS = '<svg class="fangs" viewBox="0 0 16 14" aria-hidden="true"><path d="M1 1h14l-1.75 4.5-1.75-3-1.75 3-1.75-3-1.75 3-1.75-3-1.75 3-1.75-3Z"/><path d="M1 13h14l-1.75-4.5-1.75 3-1.75-3-1.75 3-1.75-3-1.75 3-1.75-3-1.75 3Z"/></svg>';
   // Cell 01, the warden's office: a desk with the ledger open by a candle.
   const OFFICE_ART =
     '<span class="office"><svg class="office-art" viewBox="0 0 64 52" aria-hidden="true">' +
@@ -103,6 +105,7 @@
     prefs: Object.assign({}, DEFAULT_PREFS, store.get(KEYS.prefs) || {}),
     labParams: T.normalizeParams(store.get(KEYS.params)),
     labCell: 1,
+    actedOn: null,
     labTab: 'scene',
     toastTimer: 0,
     endArmed: 0,
@@ -244,12 +247,18 @@
   const SOUND_ALIAS = { window: 'tool', move: 'select' };
 
   function playEvents(events) {
+    // The bites of a chain flash one after another, so you can follow it.
+    let bites = 0;
     for (const ev of events) {
       if (ev.type === 'open') fx(ev.cell, 'fx-open');
       else if (ev.type === 'move') fx(ev.to, 'fx-move');
       else if (ev.type === 'devour') {
-        fx(ev.to, 'fx-devour');
-        fx(ev.from, 'fx-promote');
+        const show = () => {
+          fx(ev.to, 'fx-devour');
+          fx(ev.from, 'fx-promote');
+        };
+        if (bites++ && ui.prefs.motion) setTimeout(show, (bites - 1) * 380);
+        else show();
       } else if (ev.type === 'promote') fx(ev.cell, 'fx-promote');
       else if (ev.type === 'rainbow') fx(ev.cell, 'fx-rainbow');
       else if (ev.type === 'swap') fx(ev.cell, 'fx-swap');
@@ -321,48 +330,59 @@
     run((s) => T.endDay(s), { select: null });
   }
 
-  function onCell(n) {
+  // `clicks` is the click count, so the second click of a double-click acts at
+  // once: it goes to a destination or devours a target, and on any other cell
+  // it keeps the cell selected instead of toggling it off.
+  function onCell(n, clicks) {
     const st = ui.state;
     if (!st) return;
-    const cell = st.cells[n];
+    const double = clicks >= 2;
+    // The first click may already have acted (quick decisions); a double-click
+    // then has nothing left to do.
+    const acted = ui.actedOn === n;
+    ui.actedOn = null;
+    if (double && acted) return;
+    const act = (action, opts) => {
+      ui.actedOn = n;
+      run(action, opts);
+    };
     const inspect = () => {
       ui.pending = null;
-      ui.selected = ui.selected === n ? null : n;
+      ui.selected = ui.selected === n && !double ? null : n;
       render();
     };
     if (blocked(st)) {
       inspect();
       return;
     }
-    // During a chain, a click on a highlighted target takes it at once.
-    if (st.chainConsume) {
-      const chainCell = T.cellOf(st, st.chainConsume);
-      if (chainCell && T.devourOptions(st, chainCell.n).some((o) => o.cell === n)) run((s) => T.chainDevour(s, n), { select: chainCell.n });
-      else toast("Pick a highlighted target. A chain can't be stopped.");
-      return;
-    }
     if (st.phase === 'patrol') {
       if (T.patrolOptions(st).includes(n)) {
-        askPatrol(n);
+        // Clicking the chosen destination again goes there.
+        const again = ui.pending && ui.pending.kind === 'patrol' && ui.pending.cell === n;
+        if (double || again || ui.prefs.quick) act((s) => T.patrol(s, n), { select: n });
+        else askPatrol(n);
         return;
       }
       inspect();
       return;
     }
-    if (ui.selected === st.position && ui.selected !== n && T.canDevourNow(st)) {
-      const option = T.devourOptions(st, ui.selected).find((o) => o.cell === n);
-      if (option) {
-        const from = ui.selected;
-        if (ui.prefs.quick) run((s) => T.devour(s, from, n));
-        else {
-          ui.pending = { kind: 'devour', from, to: n };
-          render();
-        }
-        return;
+    // Only the warden's cell can start today's devour. With it selected, a
+    // click previews a target and a second click devours it; a double-click
+    // devours whatever is selected.
+    const option = T.startOptions(st).find((o) => o.cell === n);
+    if (option && (double || ui.selected === st.position)) {
+      const from = st.position;
+      const again = ui.pending && ui.pending.kind === 'devour' && ui.pending.to === n;
+      if (double || again || ui.prefs.quick) act((s) => T.devour(s, from, n), { select: from });
+      else {
+        ui.selected = from;
+        ui.pending = { kind: 'devour', from, to: n };
+        render();
       }
+      return;
     }
     inspect();
-    if (ui.selected !== null) Sound.play('select');
+    if (ui.selected !== null && !double) Sound.play('select');
   }
 
   // ---------- Rendering: cells ----------
@@ -438,7 +458,7 @@
       b.style.gridColumn = RING[n][1];
       b.innerHTML = '<span class="cell-body"></span><span class="door" aria-hidden="true"></span><span class="cell-no"></span><span class="cell-hint"></span><span class="cell-badges"></span><span class="cell-tag"></span><span class="cell-warden"></span><span class="cell-fx"></span>';
       b.children[2].textContent = L(n);
-      b.addEventListener('click', () => onCell(n));
+      b.addEventListener('click', (e) => onCell(n, e.detail));
       b.addEventListener('mouseenter', () => {
         if (ui.state && ui.state.chain && ui.state.phase === 'patrol') {
           ui.hover = n;
@@ -460,11 +480,8 @@
     const st = ui.state;
     const free = !blocked(st);
     const sel = ui.selected !== null ? st.cells[ui.selected] : null;
-    // A chain shows its eater's targets; otherwise only the inmate in the
-    // warden's cell can start the day's devour.
-    const chainCell = st.chainConsume && !st.pending.length ? T.cellOf(st, st.chainConsume) : null;
-    const starter = free && st.phase === 'manage' && T.canDevourNow(st) && sel && sel.n === st.position && !sel.sealed && sel.inmate ? sel : null;
-    const hunter = chainCell || starter;
+    // Only the inmate in the warden's cell can start the day's devour.
+    const hunter = free && st.phase === 'manage' && T.canDevourNow(st) && sel && sel.n === st.position && !sel.sealed && sel.inmate ? sel : null;
     const hunting = !!hunter;
     const targets = new Map();
     if (hunter) for (const o of T.devourOptions(st, hunter.n)) targets.set(o.cell, o);
@@ -478,7 +495,7 @@
       const el = cellEls[cell.n];
       const p = cellParts(cell, st);
       let tag = '';
-      if (ui.selected === cell.n || pendingTarget === cell.n || (chainCell && chainCell.n === cell.n) || (st.phase === 'event' && st.event && st.event.cell === cell.n)) p.cls.push('is-selected');
+      if (ui.selected === cell.n || pendingTarget === cell.n || (st.phase === 'event' && st.event && st.event.cell === cell.n)) p.cls.push('is-selected');
       if (targets.has(cell.n)) {
         p.cls.push('is-target');
         tag = `Eat +${T.gainFor(st, hunter.n, targets.get(cell.n)).gain}`;
@@ -619,17 +636,6 @@
       );
       return;
     }
-    if (st.chainConsume) {
-      const cell = T.cellOf(st, st.chainConsume);
-      const count = cell ? T.devourOptions(st, cell.n).length : 0;
-      setDecision(
-        'Chain devour',
-        cell ? `The ${T.describe(cell.inmate)} in cell ${L(cell.n)} must devour again. Click a highlighted target (${T.plural(count, 'option')}). A chain can't be stopped: it goes on while the eater has a target.` : 'The chain is over.',
-        [],
-        true,
-      );
-      return;
-    }
     if (st.phase === 'event' && st.event) {
       renderEvent(st);
       return;
@@ -644,7 +650,7 @@
     }
     if (st.phase === 'patrol') {
       const options = T.patrolOptions(st);
-      const parts = [`The warden stands ${wardenAt(st)}. Pick one of the ${T.plural(options.length, 'cell')} below, or click a glowing cell on the ring. Whichever inmate the warden ends up with makes today's devour.`];
+      const parts = [`The warden stands ${wardenAt(st)}. Pick one of the ${T.plural(options.length, 'cell')} below, or double-click a glowing cell on the ring. Whichever inmate the warden ends up with makes today's devour.`];
       if (st.chain) parts.push('Chain reaction armed: every sealed door on the clockwise walk opens.');
       setDecision('Patrol: select a destination', parts.join(' '), []);
       return;
@@ -656,7 +662,7 @@
     if (!T.canDevourNow(st)) lead = 'Today’s devour is used. Swap or end the day.';
     else if (st.position === T.OFFICE) lead = 'The warden is in the office, so there is no devour today. Swap or end the day.';
     else if (!warden.inmate || warden.sealed) lead = `The warden's cell (${L(st.position)}) is empty, so there is no devour today. Swap or end the day.`;
-    else if (devours) lead = `The ${T.describe(warden.inmate)} in the warden's cell (${L(st.position)}) can make today's devour. Select it to see its ${T.plural(devours, 'target')}.`;
+    else if (devours) lead = `The ${T.describe(warden.inmate)} in the warden's cell (${L(st.position)}) can make today's devour. Select it to see its ${T.plural(devours, 'target')}, or double-click a target to devour it. The eater then chains on by itself.`;
     else lead = `The ${T.describe(warden.inmate)} in the warden's cell (${L(st.position)}) has no target today. Swap or end the day.`;
     const parts = [lead];
     if (due && due.deadline === st.day) parts.push(`"${due.name}" is due: ending the day opens its delivery window.`);
@@ -725,7 +731,7 @@
       const meal = target.sealed ? `the ${T.tierName(target.hidden.tier)} inmate behind the scratched door` : `the ${T.describe(target.inmate)}`;
       const extras = [];
       if (notes.length) extras.push(`Bonus: ${notes.join(', ')}.`);
-      extras.push('This is today’s devour. Afterwards the eater chains on by itself into random valid targets.');
+      extras.push('This is today’s devour. Afterwards the eater chains on by itself into random valid targets. Click the target again to devour.');
       if (saw) extras.push('Rusty Saw may add +1.');
       if (revenge) extras.push("Avenger's Box may open a new meal.");
       if (T.linkOf(st, eater.id) && to < T.RAINBOW) extras.push('If its beast changes, its prey mark ends.');
@@ -797,7 +803,7 @@
       const options = T.devourOptions(st, cell.n);
       if (cell.n !== st.position) parts.push(`Only the inmate in the warden's cell (${L(st.position)}) can start today's devour.`);
       else if (!T.canDevourNow(st)) parts.push('Today’s devour is used.');
-      else parts.push(options.length ? `It stands in the warden's cell: ${T.plural(options.length, 'target')} highlighted. Click one to devour it.` : 'It stands in the warden’s cell but has no target right now.');
+      else parts.push(options.length ? `It stands in the warden's cell: ${T.plural(options.length, 'target')} highlighted. Double-click one to devour it, or click once to preview the bite.` : 'It stands in the warden’s cell but has no target right now.');
     }
     if (cell.ivory) parts.push(`Ivory cell: swapping here raises ${T.plural(st.params.ivoryCount, 'inmate')} a tier.`);
     const link = T.linkOf(st, inmate.id);
@@ -842,7 +848,7 @@
     const swapBtn = $('btn-swap');
     const left = Math.max(0, st.params.swapsPerDay - st.used.swap);
     const sel = ui.selected !== null ? st.cells[ui.selected] : null;
-    const canSwap = free && st.phase === 'manage' && !st.chainConsume && left > 0 && sel && !sel.sealed && !!sel.inmate;
+    const canSwap = free && st.phase === 'manage' && left > 0 && sel && !sel.sealed && !!sel.inmate;
     swapBtn.textContent = `Swap (${left})`;
     swapBtn.disabled = !canSwap;
     swapBtn.title = canSwap ? '' : 'Select an inmate after the patrol to swap it.';
@@ -857,7 +863,7 @@
 
     $('btn-undo').disabled = !ui.history.length;
     const endBtn = $('btn-end');
-    endBtn.disabled = !free || st.phase !== 'manage' || !!st.chainConsume;
+    endBtn.disabled = !free || st.phase !== 'manage';
     const due = T.currentContract(st);
     endBtn.textContent = st.mode === 'drill' && st.day >= st.maxDays ? 'Finish run' : due && due.deadline === st.day ? 'End day · deliver' : 'End day';
   }
@@ -877,9 +883,79 @@
         day = e.d;
         items.push(`<li class="log-day">Day ${String(e.d).padStart(2, '0')}</li>`);
       }
-      items.push(`<li class="log-entry k-${esc(e.k)}">${esc(e.t)}</li>`);
+      // A devour also shows its bites as icons; the text says the same.
+      const icons = e.x && e.x.type === 'devour' ? `<span class="log-icons" aria-hidden="true">${chainStrip(e.x)}</span>` : '';
+      items.push(`<li class="log-entry k-${esc(e.k)}"><span class="log-text">${esc(e.t)}${icons}</span></li>`);
     }
     list.innerHTML = items.join('') || '<li class="log-empty">Nothing logged yet.</li>';
+  }
+
+  // ---------- Beast icons and the day recap ----------
+
+  // A small portrait in its rarity color. Meals are struck through, and a
+  // Rainbow gets the rainbow ring.
+  function tok(who, opts) {
+    const o = opts || {};
+    const cls = ['tok', `t${who.tier}`];
+    if (o.eaten) cls.push('is-eaten');
+    if (who.tier >= T.RAINBOW) cls.push('is-rainbow');
+    const title = `${T.describe(who)}${o.cell !== undefined ? `, cell ${L(o.cell)}` : ''}${o.eaten ? ', eaten' : ''}`;
+    return `<span class="${cls.join(' ')}" title="${esc(title)}">${PORTRAITS[who.beast]}</span>`;
+  }
+
+  // A devour as icons: each bite is the eater, its fangs with the tiers it
+  // gained, and the meal. Every bite re-rolls the eater, so the next bite
+  // starts from its new form, and the strip ends with how it finished.
+  function chainStrip(x) {
+    const then = '<span class="then">›</span>';
+    const bites = x.bites.map((b) => `<span class="bite">${tok(b.eater, { cell: b.from })}<span class="fang">${FANGS}<b>+${b.gain}</b></span>${tok(b.meal, { cell: b.cell, eaten: true })}</span>`);
+    const end = x.bites[x.bites.length - 1].after;
+    return `<span class="chain-strip">${bites.join(then)}${then}${tok(end)}${end.tier >= T.RAINBOW ? '<span class="vault-note">Vault</span>' : ''}</span>`;
+  }
+
+  // Each morning the recap under the ring looks back at yesterday; after the
+  // patrol it follows today. On day 1 the patrol hint has the space.
+  function renderRecap() {
+    const st = ui.state;
+    const day = st.phase === 'patrol' ? st.day - 1 : st.day;
+    const items = day >= 1 ? recapItems(st, day) : [];
+    const box = $('day-recap');
+    box.hidden = !items.length;
+    $('dest-hint').hidden = items.length > 0;
+    if (!items.length) return;
+    $('recap-title').textContent = st.phase === 'patrol' || st.phase === 'ended' ? `Day ${String(day).padStart(2, '0')} recap` : 'Today so far';
+    setHTML($('recap-items'), items.join(''));
+  }
+
+  function recapItems(st, day) {
+    const item = (label, body, cls) => `<li class="recap-item${cls ? ` ${cls}` : ''}"><span class="recap-label">${esc(label)}</span>${body}</li>`;
+    const records = st.log.filter((e) => e.d === day && e.x).map((e) => e.x);
+    const out = [];
+    for (let i = 0; i < records.length; i++) {
+      const x = records[i];
+      if (x.type === 'open' && x.side) {
+        // Doors opened together (Key Ring, a chain reaction) share one item.
+        const group = [x];
+        while (records[i + 1] && records[i + 1].type === 'open' && records[i + 1].side) group.push(records[++i]);
+        out.push(item(group.length === 1 ? `Also opened ${L(x.cell)}` : `${group.length} extra doors`, group.map((g) => tok(g.who, { cell: g.cell })).join('')));
+      } else if (x.type === 'open') out.push(item(`Opened ${L(x.cell)}`, tok(x.who, { cell: x.cell })));
+      else if (x.type === 'walk') out.push(item(`Walked to ${L(x.cell)}`, x.who ? tok(x.who, { cell: x.cell }) : ''));
+      else if (x.type === 'sweep') out.push(item(`Chain walk ${L(x.from)} to ${L(x.cell)}`, ''));
+      else if (x.type === 'armed') out.push(item('Chain reaction armed', ''));
+      else if (x.type === 'skipped') out.push(item(`Skipped ${x.name}`, ''));
+      else if (x.type === 'execution') {
+        const took = x.victims.length ? `<span class="fang">${FANGS}<b>×${x.victims.length}</b></span>${x.victims.map((v) => tok(v, { eaten: true })).join('')}` : '<span class="recap-note">no one</span>';
+        out.push(item('Execution', `${tok(x.who, { cell: x.cell })}${took}`, 'is-devour'));
+      } else if (x.type === 'devour') out.push(item(x.bites.length > 1 ? `Chain ×${x.bites.length}` : 'Devour', chainStrip(x), 'is-devour'));
+      else if (x.type === 'swap') out.push(item(`Swap ${L(x.cell)}`, `${tok(x.old, { cell: x.cell, eaten: true })}<span class="then">›</span>${tok(x.fresh, { cell: x.cell })}`));
+      else if (x.type === 'rainbow') out.push(item('Rainbow', tok(x.who), 'is-rainbow'));
+      else if (x.type === 'tool') out.push(item('Tool', `<span class="recap-note">${esc(T.toolName(x.id))}</span>`));
+      else if (x.type === 'gift') out.push(item('Cache', `<span class="recap-note">${esc(T.toolName(x.id))}</span>`));
+      else if (x.type === 'ivory') out.push(item('Ivory', `<span class="recap-note">${T.plural(x.count, 'inmate')} +1</span>`));
+      else if (x.type === 'deliver') out.push(item('Delivered', `<span class="recap-note">${esc(x.name)} · ${x.points} pts</span>`));
+      else if (x.type === 'skip') out.push(item('Skipped', `<span class="recap-note">${esc(x.name)}</span>`));
+    }
+    return out;
   }
 
   function facts(pairs) {
@@ -984,8 +1060,6 @@
         return ['Load', () => openDeliver(tip.cargo)];
       case 'early':
         return ['Open', () => run((s) => T.openEarlyDelivery(s))];
-      case 'chain':
-        return ['Devour', () => run((s) => T.chainDevour(s, tip.to), { select: tip.from })];
       case 'end':
         return ['End day', askEndDay];
       default:
@@ -1023,6 +1097,7 @@
     renderTop();
     renderBoard();
     renderDestBar();
+    renderRecap();
     renderDecision();
     renderActions();
     renderLog();
