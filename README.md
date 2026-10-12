@@ -1,6 +1,6 @@
 # Tartarus Simulator
 
-A free, fan-made English practice simulator for the Tartarus prison season (SS14) of *Torchlight: Infinite*. You walk a ring of sixteen cells as Warden: patrol a door each morning, let beasts devour same-rarity rivals, and raise inmates from Normal to Rainbow before the handoff.
+A free, fan-made English translation of [塔羅斯监狱 (Talos Prison)](https://torchlightskill.com/talos/), the Chinese practice simulator for the Tartarus prison season (SS14) of *Torchlight: Infinite*. You walk a ring of sixteen cells as Warden: patrol a door each morning, let beasts devour same-rarity rivals, and raise inmates from Normal to Rainbow before the handoff.
 
 ## Play it
 
@@ -35,6 +35,6 @@ The beast portraits are drawn for this project. To use other artwork you have th
 
 ## Credits
 
-Rules and board layout follow the Chinese fan tool [塔羅斯监狱 (Talos Prison)](https://torchlightskill.com/talos/) by 爱玩游戏的吉吉罗. This English version is an independent re-implementation with its own code and artwork: the beast portraits and the courtyard backdrop were drawn for this project. No code, images or audio were copied from that tool.
+This is an English translation of the Chinese fan simulator [塔羅斯监狱 (Talos Prison)](https://torchlightskill.com/talos/) by 爱玩游戏的吉吉罗 ([Douyin](https://v.douyin.com/okD24Xnc6wo/), also 二零后游戏荒 on [Bilibili](https://space.bilibili.com/39881994)). Its rules and board layout follow the original, and the original author is not involved in this version. This English version is an independent re-implementation with its own code and artwork: the beast portraits and the courtyard backdrop were drawn for this project. No code, images or audio were copied from that tool.
 
 Unofficial. Not affiliated with or endorsed by the developers or publishers of *Torchlight: Infinite*. Odds, daily limits and the contract challenge are practice values and may differ from the live game.
