@@ -6,6 +6,12 @@
 
   const T = window.Tartarus;
   const Sound = window.TartarusSound;
+  // This script's version tag, so the solver worker loads matching files.
+  const SCRIPT_QUERY = (() => {
+    const src = document.currentScript ? document.currentScript.src : '';
+    const q = src.indexOf('?');
+    return q >= 0 ? src.slice(q) : '';
+  })();
   // The published single-file build sets this; its viewer cannot download files.
   const EMBEDDED = !!window.TARTARUS_EMBEDDED;
 
@@ -1067,11 +1073,141 @@
     }
   }
 
+  // ---------- Solver ----------
+
+  // The solver panel: every option at this point of the run, played out many
+  // times from here by js/solver.js and ranked by Rainbows vaulted. It runs in
+  // a Web Worker when the page allows one, and on this thread otherwise.
+  const SOLVER_ROLLOUTS = 800;
+  const SOLVER_ROLLOUTS_HERE = 300;
+  const solver = { worker: null, failed: false, id: 0, key: '', result: null };
+
+  const solverKey = (st) => [st.seed, st.day, st.phase, st.position, st.log.length, st.pending.length, st.used.swap, st.used.devour, ui.history.length].join('|');
+
+  // The contract challenge scores contracts, not Rainbows, and delivery
+  // windows are about cargo, so those get the quick tips instead.
+  const solverFits = (st) => st && st.mode === 'drill' && st.phase !== 'ended';
+
+  function startSolver() {
+    const st = ui.state;
+    const key = solverKey(st);
+    if (key === solver.key) return;
+    solver.key = key;
+    solver.id += 1;
+    solver.result = null;
+    const id = solver.id;
+    const state = Object.assign({}, st, { log: [] });
+    if (!solver.worker && !solver.failed) {
+      try {
+        solver.worker = new Worker(`js/solver-worker.js${SCRIPT_QUERY}`);
+        solver.worker.onmessage = (e) => {
+          if (e.data.id !== solver.id) return;
+          solver.result = e.data.result;
+          renderSolver();
+        };
+        solver.worker.onerror = () => {
+          // Fall back to this thread, and redo the current position.
+          solver.failed = true;
+          solver.worker = null;
+          solver.key = '';
+          if (ui.prefs.advisor && solverFits(ui.state)) startSolver();
+        };
+      } catch (e) {
+        solver.failed = true;
+        solver.worker = null;
+      }
+    }
+    if (solver.worker) solver.worker.postMessage({ id, state: JSON.parse(JSON.stringify(state)), rollouts: SOLVER_ROLLOUTS });
+    else solveHere(id, state);
+  }
+
+  function solveHere(id, state) {
+    const job = window.TartarusSolver.solve(JSON.parse(JSON.stringify(state)), { rollouts: SOLVER_ROLLOUTS_HERE, seed: (id * 7919 + 1) >>> 0 });
+    const tick = () => {
+      if (id !== solver.id) return;
+      solver.result = job.step(12);
+      renderSolver();
+      if (!solver.result.done) setTimeout(tick, 16);
+    };
+    setTimeout(tick, 0);
+  }
+
+  function playSolverMove(action) {
+    const st = ui.state;
+    if (action.type === 'patrol') run((s) => window.TartarusSolver.apply(s, action), { select: action.cell });
+    else if (action.type === 'devour' || action.type === 'swap') run((s) => window.TartarusSolver.apply(s, action), { select: st.position });
+    else if (action.type === 'end') run((s) => T.endDay(s), { select: null });
+    else run((s) => window.TartarusSolver.apply(s, action));
+  }
+
+  function renderSolver() {
+    const st = ui.state;
+    if (!ui.prefs.advisor || !solverFits(st)) return;
+    const r = solver.result;
+    const options = r ? r.options : [];
+    const status = $('solver-status');
+    if (!r) status.textContent = 'Simulating…';
+    else if (options.length <= 1) status.textContent = options.length ? 'Only one move here.' : 'Nothing to decide right now.';
+    else status.textContent = r.done ? `Done: ${r.rounds.toLocaleString()} playouts per option` : `Simulating: ${r.rounds.toLocaleString()} playouts per option…`;
+    const top = options[0];
+    const max = Math.max(0.01, ...options.map((o) => o.mean));
+    const close = top && options[1] && top.mean - options[1].mean < 1.96 * Math.hypot(top.se, options[1].se);
+    $('solver-list').replaceChildren(
+      ...options.map((o, i) => {
+        const li = document.createElement('li');
+        li.className = 'solver-row' + (i === 0 ? ' is-best' : '');
+        const label = document.createElement('span');
+        label.className = 'solver-label';
+        label.textContent = o.label;
+        if (o.policy) {
+          const tag = document.createElement('span');
+          tag.className = 'solver-tag';
+          tag.textContent = 'strategy';
+          tag.title = 'The tuned strategy would pick this move without simulating.';
+          label.appendChild(tag);
+        }
+        const value = document.createElement('span');
+        value.className = 'solver-value';
+        value.textContent = options.length > 1 ? `${o.mean.toFixed(2)}${o.n > 1 ? ` ±${(1.96 * o.se).toFixed(2)}` : ''}` : '';
+        value.title = 'Expected Rainbows vaulted by the end of the run, with a 95% margin';
+        li.append(label, value);
+        if (options.length > 1) {
+          const meter = document.createElement('span');
+          meter.className = 'solver-meter';
+          meter.innerHTML = `<span style="width:${Math.max(2, (100 * o.mean) / max).toFixed(1)}%"></span>`;
+          li.appendChild(meter);
+        }
+        // A devour also shows its exact chain odds.
+        if (o.action.type === 'devour') {
+          const odds = window.TartarusSolver.chainOdds(st, st.position, o.action.to);
+          const sub = document.createElement('span');
+          sub.className = 'solver-sub';
+          sub.textContent = `Chain: ${odds.bites.toFixed(1)} bites on average, ${(100 * odds.rainbow).toFixed(0)}% to Rainbow`;
+          li.appendChild(sub);
+        }
+        if (i === 0 || options.length <= 4) li.appendChild(makeButton(i === 0 ? 'Play' : 'Play this', () => playSolverMove(o.action), i === 0 ? 'primary' : null));
+        return li;
+      }),
+    );
+    $('solver-note').textContent = close
+      ? 'The top moves are within the margin of error: either is fine.'
+      : 'Each option is played out from here with everything you can’t see re-rolled, and the tuned strategy making every later choice. Scores are Rainbows vaulted by the end of the run.';
+  }
+
   function renderAdvisor() {
     const panel = $('panel-advisor');
     panel.hidden = !ui.prefs.advisor;
     $('btn-advisor').setAttribute('aria-pressed', String(ui.prefs.advisor));
     if (!ui.prefs.advisor) return;
+    const st = ui.state;
+    const fits = solverFits(st);
+    $('solver-box').hidden = !fits;
+    $('advisor-list').hidden = fits;
+    if (fits) {
+      startSolver();
+      renderSolver();
+      return;
+    }
     const tips = T.advise(ui.state);
     const list = $('advisor-list');
     if (!tips.length) {

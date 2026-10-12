@@ -22,7 +22,9 @@ The board layout follows the original Chinese tool. The rules follow the video r
 - **Hard mode.** An optional harder food chain on the New Run screen and in the Lab, off by default: a simple loop where Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat and Rat eats Mammoth. It's uncertain which food chain live uses, so you can practice either version.
 - **Tools and the Warden's Cache.** In drills and the challenge alike, your first Supreme earns a tool (pick one of three), and each Rainbow opens the Warden's Cache for a gift. The Lab can start drills with random tools, or switch rewards off for pure rules practice.
 - **Contract challenge.** 12 days and 6 dispatch vouchers. Contracts fall due at the end of days 4, 8 and 12, each with a delivery window. Vouchers pay for escorts and refit refreshes. Light/heavy escorts carry pressure limits, the heavy contract can be delivered early from day 9, and you earn refit tools, a Supreme milestone tool and Warden's Cache gifts.
-- **Everything else.** Seeds, undo, autosave, export/import, a move advisor, a Lab (scene editor and adjustable practice values) and a handbook.
+- **Solver.** Toggle it from the top bar to see every option at the current point of the run. Each option is played out hundreds of times from there, with everything you can't see re-rolled each time and a tuned strategy making every later choice. Options are ranked by Rainbows vaulted. It runs in a Web Worker, and on the page itself when opened from disk.
+- **Strategy lab.** `tools/strategy-sim.js` plays millions of simulated runs on every CPU core to tune that strategy and rank tools, gifts and chain setups. No AI: every choice comes from scoring rules. See [tools/README.md](tools/README.md).
+- **Everything else.** Seeds, undo, autosave, export/import, a Lab (scene editor and adjustable practice values) and a handbook.
 
 ## Files
 
@@ -32,6 +34,9 @@ The board layout follows the original Chinese tool. The rules follow the video r
 | `css/style.css` | All styles, including the board backdrop |
 | `js/engine.js` | Rules and game state. No DOM, so it also runs under Node (`require('./js/engine.js')`) |
 | `js/sound.js` | Web Audio sound effects |
+| `js/solver.js` | The strategy, the chain math and the Monte Carlo solver. No DOM, so it also runs under Node |
+| `js/solver-worker.js` | Runs the solver off the page's main thread |
+| `tools/strategy-sim.js` | The strategy lab: millions of simulated runs, tuning and reports |
 | `js/ui.js` | Rendering, input, saves, preferences and the beast portraits |
 
 ## Credits
