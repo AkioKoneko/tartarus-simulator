@@ -338,7 +338,7 @@
     if (st.chainConsume) {
       const chainCell = T.cellOf(st, st.chainConsume);
       if (chainCell && T.devourOptions(st, chainCell.n).some((o) => o.cell === n)) run((s) => T.chainDevour(s, n), { select: chainCell.n });
-      else toast('Pick a highlighted target for the chain, or stop the chain.');
+      else toast("Pick a highlighted target. A chain can't be stopped.");
       return;
     }
     if (st.phase === 'patrol') {
@@ -624,8 +624,8 @@
       const count = cell ? T.devourOptions(st, cell.n).length : 0;
       setDecision(
         'Chain devour',
-        cell ? `The ${T.describe(cell.inmate)} in cell ${L(cell.n)} can devour again. Click a highlighted target (${T.plural(count, 'option')}), or stop the chain.` : 'The chain is over.',
-        [['Stop chain', () => run((s) => T.stopChain(s))]],
+        cell ? `The ${T.describe(cell.inmate)} in cell ${L(cell.n)} must devour again. Click a highlighted target (${T.plural(count, 'option')}). A chain can't be stopped: it goes on while the eater has a target.` : 'The chain is over.',
+        [],
         true,
       );
       return;
@@ -986,8 +986,6 @@
         return ['Open', () => run((s) => T.openEarlyDelivery(s))];
       case 'chain':
         return ['Devour', () => run((s) => T.chainDevour(s, tip.to), { select: tip.from })];
-      case 'stop':
-        return ['Stop', () => run((s) => T.stopChain(s))];
       case 'end':
         return ['End day', askEndDay];
       default:

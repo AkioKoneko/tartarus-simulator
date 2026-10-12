@@ -423,7 +423,7 @@
   function guard(state, need) {
     if (state.phase === 'ended') return fail('This run is over. Start a new run to keep playing.');
     if (state.pending.length) return fail('Make your pending choice first.');
-    if (state.chainConsume) return fail('Finish the chain devour first: pick a target or stop the chain.');
+    if (state.chainConsume) return fail('Finish the chain devour first: pick its next target.');
     if (state.challenge && state.challenge.window) return fail('Finish the delivery window first.');
     if (state.phase === 'event') return fail('Decide on the special event first.');
     if (need === 'manage' && state.phase === 'patrol') return fail('Patrol first: walk to one of today’s destinations.');
@@ -853,12 +853,23 @@
     return ok(events);
   }
 
-  // After a devour, an eater that still has a valid target may chain: the
-  // player picks the next meal, and it repeats while targets remain.
+  // After a devour, an eater that still has a valid target must chain: the
+  // player picks the next meal, and it repeats while targets remain. As in
+  // live, a chain can't be stopped.
   function offerChain(state, eaterId) {
     const cell = boardCellOf(state, eaterId);
     state.chainConsume = cell && devourOptions(state, cell.n).length ? eaterId : null;
-    if (state.chainConsume) log(state, 'devour', `Chain devour: the ${describe(cell.inmate)} in cell ${cellLabel(cell.n)} can devour again. Pick its next target, or stop the chain.`);
+    if (state.chainConsume) log(state, 'devour', `Chain devour: the ${describe(cell.inmate)} in cell ${cellLabel(cell.n)} must devour again. Pick its next target.`);
+  }
+
+  // A gift taken mid-chain can change the board. With no way to stop a chain,
+  // one whose eater left or lost every target ends by itself.
+  function checkChain(state) {
+    if (!state.chainConsume) return;
+    const cell = boardCellOf(state, state.chainConsume);
+    if (cell && devourOptions(state, cell.n).length) return;
+    state.chainConsume = null;
+    log(state, 'devour', 'The chain devour ended: its eater has no target left.');
   }
 
   function chainDevour(state, to) {
@@ -873,13 +884,6 @@
     doDevour(state, cell.n, option, events, true);
     offerChain(state, eaterId);
     return ok(events);
-  }
-
-  function stopChain(state) {
-    if (!state.chainConsume) return fail('There is no chain to stop.');
-    state.chainConsume = null;
-    log(state, 'devour', 'You stopped the chain devour.');
-    return ok([]);
   }
 
   function swap(state, n) {
@@ -953,6 +957,7 @@
     state.destinations = [];
     state.event = null;
     state.chain = false;
+    state.chainConsume = null;
     const roster = rosterOf(state);
     state.result = {
       day: state.day,
@@ -1081,7 +1086,7 @@
 
   function canOpenEarly(state) {
     const ch = state.challenge;
-    return !!ch && !ch.window && state.phase !== 'ended' && ch.deliveries.length === 2 && state.day >= 9 && state.day <= CHALLENGE_DAYS && ['patrol', 'manage'].includes(state.phase) && !state.pending.length && !state.event;
+    return !!ch && !ch.window && state.phase !== 'ended' && ch.deliveries.length === 2 && state.day >= 9 && state.day <= CHALLENGE_DAYS && ['patrol', 'manage'].includes(state.phase) && !state.pending.length && !state.event && !state.chainConsume;
   }
 
   function openEarlyDelivery(state) {
@@ -1142,6 +1147,7 @@
       log(state, 'tool', `Took the ${TOOLS[id].name}.`);
       if (state.phase === 'patrol') fitDestinations(state);
     }
+    checkChain(state);
     return ok(events);
   }
 
@@ -1405,7 +1411,8 @@
       const chain = (cell ? devourOptions(state, cell.n) : []).map((option) => devourTip(state, cell.n, option, 'chain'));
       chain.sort((a, b) => b.score - a.score);
       const out = chain.slice(0, 3);
-      if (!out.length || out[0].score <= 0) out.push({ kind: 'stop', text: 'Stop the chain: no target here is worth taking.' });
+      // A chain can't be stopped, so the advice is the least costly meal.
+      if (out.length && out[0].score <= 0) out.push({ kind: 'note', text: 'Every target here costs you value, but a chain cannot be stopped. The first pick costs the least.' });
       return out;
     }
     if (state.phase === 'patrol') {
@@ -1514,7 +1521,6 @@
     resolveEvent: bounded(resolveEvent),
     devour: bounded(devour),
     chainDevour: bounded(chainDevour),
-    stopChain: bounded(stopChain),
     swap: bounded(swap),
     endDay: bounded(endDay),
     endRun: bounded(endRun),
