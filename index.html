@@ -141,7 +141,7 @@
 
       <section class="panel" id="panel-chain">
         <h2 class="panel-title">Food chain</h2>
-        <svg class="chain" viewBox="0 0 240 200" role="img" aria-labelledby="chain-desc">
+        <svg class="chain" id="chain-svg" viewBox="0 0 240 200" role="img" aria-labelledby="chain-desc">
           <desc id="chain-desc">Mammoth eats Lion and Wolf. Lion eats Wolf and Rat. Wolf eats Rat. Rat eats Mammoth.</desc>
           <defs>
             <marker id="chain-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
@@ -153,8 +153,8 @@
             <line x1="190" y1="74" x2="190" y2="124"></line>
             <line x1="168" y1="148" x2="74" y2="148"></line>
             <line x1="50" y1="126" x2="50" y2="76"></line>
-            <line x1="68.1" y1="64.4" x2="168.6" y2="133.3"></line>
-            <line x1="171.9" y1="64.4" x2="71.4" y2="133.3"></line>
+            <line class="chain-extra" x1="68.1" y1="64.4" x2="168.6" y2="133.3"></line>
+            <line class="chain-extra" x1="171.9" y1="64.4" x2="71.4" y2="133.3"></line>
           </g>
           <g class="chain-nodes">
             <circle cx="50" cy="52" r="20"></circle><text x="50" y="60">M</text><text class="chain-name" x="50" y="20">Mammoth</text>
@@ -163,7 +163,7 @@
             <circle cx="50" cy="148" r="20"></circle><text x="50" y="156">R</text><text class="chain-name" x="50" y="190">Rat</text>
           </g>
         </svg>
-        <p class="panel-note">Arrows point from eater to meal. Both must share a rarity. A devour raises the eater one tier, then re-rolls its beast.</p>
+        <p class="panel-note" id="chain-note">Arrows point from eater to meal. Both must share a rarity. A devour raises the eater one tier, then re-rolls its beast.</p>
         <ol class="ladder" aria-label="Rarity ladder">
           <li class="t0">Normal</li><li class="t1">Magic</li><li class="t2">Rare</li><li class="t3">Legendary</li><li class="t4">Supreme</li><li class="t5">Rainbow</li>
         </ol>
@@ -197,6 +197,14 @@
         <legend>Starting kit</legend>
         <div class="options" id="loadout-options"></div>
         <p class="field-note">12 days and 6 dispatch vouchers. Three contracts fall due at the end of days 4, 8 and 12. Each of your first two deliveries earns a refit. Scouting, escorts and refit refreshes share the vouchers. Pass by delivering at least two contracts, including the heavy one.</p>
+      </fieldset>
+      <fieldset class="field">
+        <legend>Hard mode</legend>
+        <div class="toggles">
+          <label class="toggle"><input type="checkbox" id="new-loop-chain"><span><strong>Harder food chain</strong><small>A simple loop: Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth. Each beast has one meal.</small></span></label>
+          <label class="toggle"><input type="checkbox" id="new-one-devour"><span><strong>One devour per day</strong><small>You make one devour a day. Afterwards the eater chains on by itself into random valid targets.</small></span></label>
+        </div>
+        <p class="field-note">Both are off by default. Live rules are still uncertain, so these let you practice either version.</p>
       </fieldset>
       <div class="field">
         <label class="field-label" for="new-seed">Seed</label>
@@ -252,14 +260,15 @@
       <ol class="steps">
         <li><strong>Patrol.</strong> Each morning offers three destination doors, which glow on the ring. Pick one: the warden walks there and the door opens. You must patrol before anything else.</li>
         <li><strong>Scout.</strong> Before you patrol, you may look through one sealed door a day to learn the rarity inside. The beast stays hidden.</li>
-        <li><strong>Devour.</strong> Free and unlimited after the patrol. Select an inmate, then click a highlighted target.</li>
+        <li><strong>Devour.</strong> Free and unlimited after the patrol. Select an inmate, then click a highlighted target. With the hard mode "One devour per day" switch, you get one devour a day, and the eater then chains on into random valid targets by itself.</li>
         <li><strong>Swap.</strong> Once a day, replace an inmate with a brand-new random one. It can come out stronger or weaker.</li>
         <li><strong>End the day.</strong> The next morning, prey marks grow, ripe nests hatch, and new destinations are drawn.</li>
       </ol>
       <p>When an inmate is devoured, swapped away or sent off, its cell seals again. The next time that door opens, someone new is inside.</p>
 
       <h3>The food chain</h3>
-      <p>Six relations, and both sides must share a rarity. Mammoth eats Lion and Wolf. Lion eats Wolf and Rat. Wolf eats Rat. Rat eats Mammoth. A Mammoth cannot eat a Rat, and no beast eats its own kind.</p>
+      <p>Six relations, and both sides must share a rarity. Mammoth eats Lion and Wolf. Lion eats Wolf and Rat. Wolf eats Rat. Rat eats Mammoth. A Mammoth cannot eat a Rat, and no beast eats its own kind unless you hold the Rat-Head Skewer, which lets Rats eat Rats.</p>
+      <p>The hard mode "Harder food chain" switch uses a simple loop instead: Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, and Rat eats Mammoth. Each beast then has exactly one meal. It's uncertain which version the live game uses, so you can practice both.</p>
 
       <h3>Rarity</h3>
       <p>Normal, Magic, Rare, Legendary, Supreme, Rainbow. A devour raises the eater one tier, then re-rolls its beast, so check its new matchups before the next meal. An inmate that reaches Rainbow leaves its cell for the vault and adds a Warden's Cache claim. You can keep raising more Rainbows for the rest of the run.</p>

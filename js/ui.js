@@ -285,8 +285,16 @@
   }
 
   function devoursAvailable(st) {
-    if (st.phase !== 'manage') return 0;
+    if (st.phase !== 'manage' || !T.canDevourNow(st)) return 0;
     return st.cells.reduce((sum, c) => sum + (!c.sealed && c.inmate ? T.devourOptions(st, c.n).length : 0), 0);
+  }
+
+  // Short labels for any hard mode switches in play.
+  function hardModeLabels(st) {
+    const labels = [];
+    if (st.params.loopChain) labels.push('Loop chain');
+    if (st.params.oneDevour) labels.push('One devour');
+    return labels;
   }
 
   function askEndDay() {
@@ -452,7 +460,7 @@
     const st = ui.state;
     const free = !blocked(st);
     const sel = ui.selected !== null ? st.cells[ui.selected] : null;
-    const hunting = free && st.phase === 'manage' && sel && !sel.sealed && sel.inmate && !ui.scouting;
+    const hunting = free && st.phase === 'manage' && T.canDevourNow(st) && sel && !sel.sealed && sel.inmate && !ui.scouting;
     const targets = new Map();
     if (hunting) for (const o of T.devourOptions(st, sel.n)) targets.set(o.cell, o);
     const victims = new Set(st.phase === 'event' && st.event && st.event.kind === 'execution' ? T.executionVictims(st, st.event.cell).map((c) => c.n) : []);
@@ -606,7 +614,11 @@
     }
     const devours = devoursAvailable(st);
     const due = T.currentContract(st);
-    const parts = [devours ? `${T.plural(devours, 'devour')} possible. Select an inmate to see its targets.` : 'No devours are possible right now. Swap or end the day.'];
+    let lead;
+    if (!T.canDevourNow(st)) lead = 'Today’s devour is used. Swap or end the day.';
+    else if (devours) lead = `${T.plural(devours, 'devour')} possible. Select an inmate to see its targets.${st.params.oneDevour ? ' You get one devour today, and it chains on by itself.' : ''}`;
+    else lead = 'No devours are possible right now. Swap or end the day.';
+    const parts = [lead];
     if (due && due.deadline === st.day) parts.push(`"${due.name}" is due: ending the day opens its delivery window.`);
     setDecision('Manage the block', parts.join(' '), []);
   }
@@ -672,6 +684,7 @@
       const meal = target.sealed ? `the ${T.tierName(target.hidden.tier)} inmate behind the scratched door` : `the ${T.describe(target.inmate)}`;
       const extras = [];
       if (notes.length) extras.push(`Bonus: ${notes.join(', ')}.`);
+      if (st.params.oneDevour) extras.push('This is today’s only devour. Afterwards it chains on by itself into random valid targets.');
       if (saw) extras.push('Rusty Saw may add +1.');
       if (revenge) extras.push("Avenger's Box may open a new meal.");
       if (T.linkOf(st, eater.id) && to < T.RAINBOW) extras.push('If its beast changes, its prey mark ends.');
@@ -732,14 +745,15 @@
       return;
     }
     const inmate = cell.inmate;
-    const eats = T.BEAST_INFO[inmate.beast].eats.map(T.beastName);
+    const eats = T.eatsOf(st, inmate.beast).map(T.beastName);
     if (inmate.beast === 'rat' && st.tools.includes('skewer')) eats.push('Rat');
     const parts = [`Eats ${eats.join(' and ')} of the same rarity.`];
     if (inmate.beast === 'wolf') parts.push('Can also devour through scratched doors.');
     if (st.phase === 'patrol') parts.push('Patrol first, then it can devour.');
     else if (st.phase === 'manage') {
       const options = T.devourOptions(st, cell.n);
-      parts.push(options.length ? `${T.plural(options.length, 'target')} highlighted. Click one to devour it.` : 'No targets on the block right now.');
+      if (!T.canDevourNow(st)) parts.push('Today’s devour is used.');
+      else parts.push(options.length ? `${T.plural(options.length, 'target')} highlighted. Click one to devour it.` : 'No targets on the block right now.');
     }
     if (cell.ivory) parts.push(`Ivory cell: swapping here raises ${T.plural(st.params.ivoryCount, 'inmate')} a tier.`);
     const link = T.linkOf(st, inmate.id);
@@ -760,7 +774,14 @@
 
   function renderTop() {
     const st = ui.state;
-    $('mode-chip').textContent = `${modeName(st)} · ${st.seed}`;
+    const hard = hardModeLabels(st);
+    $('mode-chip').textContent = `${modeName(st)}${hard.length ? ` · Hard: ${hard.join(', ')}` : ''} · ${st.seed}`;
+    const chain = $('chain-svg');
+    chain.classList.toggle('is-loop', !!st.params.loopChain);
+    $('chain-desc').textContent = st.params.loopChain
+      ? 'Loop food chain: Mammoth eats Lion. Lion eats Wolf. Wolf eats Rat. Rat eats Mammoth.'
+      : 'Mammoth eats Lion and Wolf. Lion eats Wolf and Rat. Wolf eats Rat. Rat eats Mammoth.';
+    $('chain-note').textContent = `${st.params.loopChain ? 'Hard mode loop: each beast has one meal. ' : ''}Arrows point from eater to meal. Both must share a rarity. A devour raises the eater one tier, then re-rolls its beast.`;
     $('day-num').textContent = String(st.day).padStart(2, '0');
     $('day-of').textContent = `/ ${st.maxDays}`;
     const pill = $('phase-pill');
@@ -1030,6 +1051,8 @@
       .map(([key, k]) => `<label class="option"><input type="radio" name="loadout" value="${key}"${key === loadout ? ' checked' : ''}><strong>${esc(k.name)} · ${esc(k.level)}</strong><small>${esc(k.text)}</small></label>`)
       .join('');
     $('new-seed').value = T.randomSeed();
+    $('new-loop-chain').checked = !!ui.labParams.loopChain;
+    $('new-one-devour').checked = !!ui.labParams.oneDevour;
     syncNewMode();
     $('new-replace').hidden = !(ui.state && ui.state.phase !== 'ended');
     openDialog('dlg-new');
@@ -1295,7 +1318,8 @@
     const st = ui.state;
     if (!st || !st.result) return;
     const r = st.result;
-    $('results-eyebrow').textContent = `${modeName(st)} · seed ${st.seed}`;
+    const hard = hardModeLabels(st);
+    $('results-eyebrow').textContent = `${modeName(st)}${hard.length ? ` · Hard: ${hard.join(', ')}` : ''} · seed ${st.seed}`;
     const verdict = $('results-verdict');
     const ch = st.challenge;
     if (ch && ch.result) {
@@ -1347,7 +1371,8 @@
   function summaryText() {
     const st = ui.state;
     const r = st.result;
-    const lines = [`Tartarus Simulator · ${modeName(st)} · seed ${st.seed}`, `Day ${r.day} of ${st.maxDays}${r.early ? ' (closed early)' : ''}`];
+    const hard = hardModeLabels(st);
+    const lines = [`Tartarus Simulator · ${modeName(st)}${hard.length ? ` · Hard: ${hard.join(', ')}` : ''} · seed ${st.seed}`, `Day ${r.day} of ${st.maxDays}${r.early ? ' (closed early)' : ''}`];
     const ch = st.challenge;
     if (ch && ch.result) {
       lines.push(`${ch.result.passed ? 'Passed' : 'Failed'} · ${T.plural(ch.result.completed, 'contract')} delivered · score ${ch.result.score} · ${T.plural(ch.result.vouchers, 'voucher')} left`);
@@ -1606,6 +1631,9 @@
     $('form-new').addEventListener('submit', (e) => {
       e.preventDefault();
       const data = new FormData(e.target);
+      // The hard mode switches are remembered for the next run too.
+      ui.labParams = T.normalizeParams(Object.assign({}, ui.labParams, { loopChain: $('new-loop-chain').checked, oneDevour: $('new-one-devour').checked }));
+      store.set(KEYS.params, ui.labParams);
       closeDialog('dlg-new');
       startRun({ mode: data.get('mode'), scenario: data.get('scenario'), loadout: data.get('loadout'), seed: $('new-seed').value });
     });

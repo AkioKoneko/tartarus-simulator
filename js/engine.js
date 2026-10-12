@@ -22,11 +22,19 @@
 
   const BEASTS = ['mammoth', 'lion', 'wolf', 'rat'];
   const BEAST_INFO = {
-    mammoth: { name: 'Mammoth', eats: ['lion', 'wolf'] },
-    lion: { name: 'Lion', eats: ['wolf', 'rat'] },
-    wolf: { name: 'Wolf', eats: ['rat'] },
-    rat: { name: 'Rat', eats: ['mammoth'] },
+    mammoth: { name: 'Mammoth' },
+    lion: { name: 'Lion' },
+    wolf: { name: 'Wolf' },
+    rat: { name: 'Rat' },
   };
+
+  // Who eats whom. The standard chain has six relations; hard mode's loop
+  // gives each beast exactly one meal.
+  const FOOD_CHAINS = {
+    standard: { mammoth: ['lion', 'wolf'], lion: ['wolf', 'rat'], wolf: ['rat'], rat: ['mammoth'] },
+    loop: { mammoth: ['lion'], lion: ['wolf'], wolf: ['rat'], rat: ['mammoth'] },
+  };
+  const eatsOf = (state, beast) => FOOD_CHAINS[state.params.loopChain ? 'loop' : 'standard'][beast] || [];
 
   // Convoy pressure each inmate adds to an escort, by tier.
   const PRESSURE = [2, 4, 8, 16, 32, 65];
@@ -58,10 +66,15 @@
     circularNeighbors: true,
     rewards: true,
     startTools: 0,
+    loopChain: false,
+    oneDevour: false,
   };
 
+  // Hard mode switches; the challenge accepts these even though its other values are fixed.
+  const HARD_MODE_KEYS = ['loopChain', 'oneDevour'];
+
   // The contract challenge always plays with these values.
-  const CHALLENGE_PARAMS = Object.assign({}, DEFAULT_PARAMS, { executionSameTier: true, executionRerolls: true, rewards: true, startTools: 0 });
+  const CHALLENGE_PARAMS = Object.assign({}, DEFAULT_PARAMS, { executionSameTier: true, executionRerolls: true, rewards: true, startTools: 0, oneDevour: false });
 
   // Field definitions for the Lab form; normalizeParams clamps to these.
   const PARAM_FIELDS = [
@@ -70,6 +83,8 @@
     { key: 'scoutsPerDay', group: 'Pace', label: 'Scouts per day', type: 'int', min: 0, max: 16 },
     { key: 'swapsPerDay', group: 'Pace', label: 'Swaps per day', type: 'int', min: 0, max: 16 },
     { key: 'reusableCells', group: 'Pace', label: 'Emptied cells seal again and can be reopened', type: 'bool' },
+    { key: 'loopChain', group: 'Hard mode', label: 'Loop food chain: Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth', type: 'bool' },
+    { key: 'oneDevour', group: 'Hard mode', label: 'One devour per day, which then chains into random valid targets', type: 'bool' },
     { key: 'tierWeights', group: 'Odds', label: 'Rarity weights for new inmates', type: 'list', names: TIERS.slice(0, 5) },
     { key: 'beastWeights', group: 'Odds', label: 'Beast weights for new inmates', type: 'list', names: ['Mammoth', 'Lion', 'Wolf', 'Rat'] },
     { key: 'eventChance', group: 'Special events', label: 'Chance a sealed cell hides a special event (%)', type: 'int', min: 0, max: 100 },
@@ -164,7 +179,7 @@
   const ok = (events) => ({ ok: true, events: events || [] });
   const fail = (reason) => ({ ok: false, reason });
   const has = (state, tool) => state.tools.includes(tool);
-  const freshDay = () => ({ scout: 0, swap: 0 });
+  const freshDay = () => ({ scout: 0, swap: 0, devour: 0 });
   // Steps clockwise from a to b, so 0 means the same cell.
   const stepsBetween = (a, b) => (b - a + CELL_COUNT) % CELL_COUNT;
 
@@ -242,6 +257,13 @@
     return p;
   }
 
+  // Fixed challenge values, plus whichever hard mode switches were chosen.
+  function challengeParams(input) {
+    const p = JSON.parse(JSON.stringify(CHALLENGE_PARAMS));
+    for (const key of HARD_MODE_KEYS) p[key] = !!(input && input[key]);
+    return p;
+  }
+
   // ---------- State helpers ----------
 
   function log(state, kind, text) {
@@ -287,8 +309,10 @@
 
   function canEat(state, eater, meal) {
     if (!eater || !meal || eater.id === meal.id || eater.tier !== meal.tier || eater.tier >= RAINBOW) return false;
-    return BEAST_INFO[eater.beast].eats.includes(meal.beast) || (eater.beast === 'rat' && meal.beast === 'rat' && has(state, 'skewer'));
+    return eatsOf(state, eater.beast).includes(meal.beast) || (eater.beast === 'rat' && meal.beast === 'rat' && has(state, 'skewer'));
   }
+
+  const canDevourNow = (state) => !state.params.oneDevour || state.used.devour < 1;
 
   function limits(state) {
     return { scout: state.mode === 'challenge' ? 1 : state.params.scoutsPerDay, swap: state.params.swapsPerDay };
@@ -409,7 +433,7 @@
     const mode = opts.mode === 'challenge' ? 'challenge' : 'drill';
     const scenario = mode === 'drill' && SCENARIOS[opts.scenario] ? opts.scenario : 'empty';
     const loadout = mode === 'challenge' ? (LOADOUTS[opts.loadout] ? opts.loadout : 'supply') : null;
-    const params = mode === 'challenge' ? JSON.parse(JSON.stringify(CHALLENGE_PARAMS)) : normalizeParams(opts.params);
+    const params = mode === 'challenge' ? challengeParams(opts.params) : normalizeParams(opts.params);
     const seed = String(opts.seed || '').trim().toUpperCase().slice(0, 40) || randomSeed();
     const state = {
       v: VERSION,
@@ -436,7 +460,7 @@
       prey: [],
       nextId: 1,
       log: [],
-      stats: { patrols: 0, opened: 0, scouts: 0, devours: 0, swaps: 0, executions: 0, best: 0 },
+      stats: { patrols: 0, opened: 0, scouts: 0, devours: 0, chains: 0, swaps: 0, executions: 0, best: 0 },
       challenge: null,
       result: null,
     };
@@ -468,7 +492,7 @@
       place(state, 0, 'mammoth', 1);
       place(state, 4, 'wolf', 1);
       place(state, 5, 'mammoth', 0);
-      place(state, 6, 'rat', 1);
+      place(state, 6, 'wolf', 0);
       place(state, 13, 'lion', 2);
       hide(state, 2, 'lion', 2, { event: 'execution', known: 1 });
       hide(state, 9, 'mammoth', 1, { event: 'chain' });
@@ -486,12 +510,12 @@
       note = `Ivory drill: cell 01 carries Ivory. Swap its inmate and ${plural(state.params.ivoryCount, 'inmate')} on the block each gain a tier.`;
     } else if (s === 'prey') {
       const lion = place(state, 0, 'lion', 2);
-      const rat = place(state, 1, 'rat', 2);
-      place(state, 4, 'wolf', 2);
+      const wolf = place(state, 1, 'wolf', 2);
+      place(state, 4, 'mammoth', 2);
       place(state, 8, 'mammoth', 1);
       place(state, 12, 'rat', 1);
-      state.prey.push({ lion: lion.id, prey: rat.id, preyBeast: 'rat', rounds: state.params.preyRounds, next: 2 });
-      note = `Prey drill: the Lion in cell 01 has marked the Rat in cell 02. Each morning both rise a tier, for ${plural(state.params.preyRounds, 'morning')}. A devour by either one re-rolls its beast and ends the mark.`;
+      state.prey.push({ lion: lion.id, prey: wolf.id, preyBeast: 'wolf', rounds: state.params.preyRounds, next: 2 });
+      note = `Prey drill: the Lion in cell 01 has marked the Wolf in cell 02. Each morning both rise a tier, for ${plural(state.params.preyRounds, 'morning')}. A devour by either one re-rolls its beast and ends the mark, and the Rare Mammoth in cell 05 could eat the Lion.`;
     } else if (s === 'scratch') {
       place(state, 0, 'wolf', 1);
       hide(state, 1, 'mammoth', 1, { scratch: true, known: 1 });
@@ -503,7 +527,7 @@
       place(state, 0, 'lion', 2);
       hide(state, 1, 'rat', 0, { nest: { due: 1 + state.params.nestDays } });
       place(state, 4, 'mammoth', 2);
-      place(state, 10, 'wolf', 1);
+      place(state, 10, 'wolf', 2);
       place(state, 14, 'rat', 0);
       note = `Rat nest drill: the nest in cell 02 hatches a ${tierName(state.params.nestTier)} Rat on the morning of day ${1 + state.params.nestDays}. Patrolling it before then destroys it.`;
     }
@@ -672,7 +696,7 @@
     const cell = state.cells[n];
     const exec = cell && !cell.sealed ? cell.inmate : null;
     if (!exec) return [];
-    const eats = BEAST_INFO[exec.beast].eats;
+    const eats = eatsOf(state, exec.beast);
     return boardCells(state).filter((c) => c !== cell && eats.includes(c.inmate.beast) && (state.params.executionSameTier ? c.inmate.tier === exec.tier : c.inmate.tier < exec.tier));
   }
 
@@ -787,8 +811,8 @@
     return ok([{ type: 'scout', cell: n }]);
   }
 
-  // Resolves one devour without the phase checks, so gifts can reuse it.
-  function doDevour(state, from, option, events) {
+  // Resolves one devour without the phase checks, so gifts and chains can reuse it.
+  function doDevour(state, from, option, events, chained) {
     const eaterCell = state.cells[from];
     const mealCell = state.cells[option.cell];
     const eater = eaterCell.inmate;
@@ -819,13 +843,14 @@
     state.stats.devours += 1;
     const still = boardCellOf(state, eater.id);
     const outcome = eater.tier < RAINBOW ? ` and ${still ? `is now a ${beastName(eater.beast)}` : 'left'}` : '';
-    logAt(state, at, 'devour', `The ${before} in cell ${cellLabel(from)} devoured the ${option.scratch ? 'scratched-door ' : ''}${describe(meal)} in cell ${cellLabel(option.cell)}. It rose to ${tierName(eater.tier)}${outcome}${notes.length ? ` (${notes.join(', ')})` : ''}.`);
+    if (chained) state.stats.chains += 1;
+    logAt(state, at, 'devour', `${chained ? 'Chain devour: the' : 'The'} ${before} in cell ${cellLabel(from)} devoured the ${option.scratch ? 'scratched-door ' : ''}${describe(meal)} in cell ${cellLabel(option.cell)}. It rose to ${tierName(eater.tier)}${outcome}${notes.length ? ` (${notes.join(', ')})` : ''}.`);
     checkPrey(state);
     if (revenge && still) {
       const sealed = state.cells.filter((c) => c.sealed);
       if (sealed.length) {
         const target = pickOne(state, sealed);
-        const food = pickOne(state, BEAST_INFO[eater.beast].eats);
+        const food = pickOne(state, eatsOf(state, eater.beast));
         log(state, 'tool', `Avenger's Box: cell ${cellLabel(target.n)} opens with a meal for the ${describe(eater)}.`);
         openCell(state, target, 'side', events, { beast: food, tier: eater.tier });
       }
@@ -835,10 +860,23 @@
   function devour(state, from, to) {
     const blocked = guard(state, 'manage');
     if (blocked) return blocked;
+    if (!canDevourNow(state)) return fail('Today’s devour is used. End the day for another.');
     const option = devourOptions(state, from).find((o) => o.cell === to);
     if (!option) return fail('That inmate cannot devour that target.');
     const events = [];
-    doDevour(state, from, option, events);
+    const eaterId = state.cells[from].inmate.id;
+    doDevour(state, from, option, events, false);
+    if (state.params.oneDevour) {
+      state.used.devour += 1;
+      // The day's one devour chains on into random valid targets while the
+      // eater still has one.
+      for (let step = 0; step < CELL_COUNT; step++) {
+        const cell = boardCellOf(state, eaterId);
+        const options = cell ? devourOptions(state, cell.n) : [];
+        if (!options.length) break;
+        doDevour(state, cell.n, pickOne(state, options), events, true);
+      }
+    }
     return ok(events);
   }
 
@@ -1359,7 +1397,7 @@
       tips.sort((a, b) => b.score - a.score);
       return tips.slice(0, 3);
     }
-    for (const c of boardCells(state)) {
+    for (const c of canDevourNow(state) ? boardCells(state) : []) {
       const eater = c.inmate;
       for (const option of devourOptions(state, c.n)) {
         const t = eater.tier;
@@ -1424,14 +1462,14 @@
     if (data && data.app === 'tartarus-sim') data = data.state;
     const valid = data && data.v === VERSION && Array.isArray(data.cells) && data.cells.length === CELL_COUNT && Array.isArray(data.log) && typeof data.day === 'number';
     if (!valid) throw new Error('That save is not from this version of the simulator.');
-    data.params = data.mode === 'challenge' ? JSON.parse(JSON.stringify(CHALLENGE_PARAMS)) : normalizeParams(data.params);
+    data.params = data.mode === 'challenge' ? challengeParams(data.params) : normalizeParams(data.params);
     data.prey = Array.isArray(data.prey) ? data.prey : [];
     data.vault = Array.isArray(data.vault) ? data.vault : [];
     data.tools = Array.isArray(data.tools) ? data.tools.filter((t) => TOOLS[t]) : [];
     data.pending = Array.isArray(data.pending) ? data.pending : [];
     data.destinations = Array.isArray(data.destinations) ? data.destinations : [];
     data.used = Object.assign(freshDay(), data.used || {});
-    data.stats = Object.assign({ patrols: 0, opened: 0, scouts: 0, devours: 0, swaps: 0, executions: 0, best: 0 }, data.stats || {});
+    data.stats = Object.assign({ patrols: 0, opened: 0, scouts: 0, devours: 0, chains: 0, swaps: 0, executions: 0, best: 0 }, data.stats || {});
     data.rng = Number(data.rng) >>> 0;
     data.cache = Number(data.cache) || 0;
     data.position = clamp(Number(data.position) || 0, 0, CELL_COUNT - 1);
@@ -1446,7 +1484,7 @@
   };
 
   const api = {
-    VERSION, CELL_COUNT, SUPREME, RAINBOW, TIERS, BEASTS, BEAST_INFO, PRESSURE, ESCORTS, TOOLS, TOOL_IDS, GIFTS, GIFT_IDS,
+    VERSION, CELL_COUNT, SUPREME, RAINBOW, TIERS, BEASTS, BEAST_INFO, FOOD_CHAINS, HARD_MODE_KEYS, PRESSURE, ESCORTS, TOOLS, TOOL_IDS, GIFTS, GIFT_IDS,
     LOADOUTS, SCENARIOS, CONTRACT_SLOTS, DEFAULT_PARAMS, PARAM_FIELDS, CHALLENGE_DAYS, START_VOUCHERS,
     newGame, randomSeed, normalizeParams, serialize, deserialize,
     patrol: bounded(patrol),
@@ -1467,7 +1505,7 @@
     moveWarden: bounded(moveWarden),
     addTool: bounded(addTool),
     removeTool: bounded(removeTool),
-    patrolOptions, clockwisePath, devourOptions, gainFor, executionVictims, canScout, canEat, canOpenEarly, canRefresh,
+    patrolOptions, clockwisePath, devourOptions, gainFor, executionVictims, canScout, canEat, eatsOf, canDevourNow, canOpenEarly, canRefresh,
     linkOf, cellOf, boardInmates, currentContract, deliveryCheck, bestCargo, rosterOf, advise, limits,
     toolText, toolName, describe, tierName, beastName, cellLabel, plural, stepsBetween,
   };
