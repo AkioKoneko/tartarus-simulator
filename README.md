@@ -1,0 +1,36 @@
+# Tartarus Simulator
+
+A free, fan-made English practice simulator for the Tartarus prison season (SS14) of *Torchlight: Infinite*. You walk a ring of sixteen cells as Warden: patrol a door each morning, let beasts devour same-rarity rivals, and raise inmates from Normal to Rainbow before the handoff.
+
+## Play it
+
+**Online:** https://blahdot3h.github.io/tartarus-simulator/
+
+**Locally:** open `index.html` in a browser. There is no build step and no server to start. Fonts load from Google Fonts; without a connection the page falls back to system fonts.
+
+## How it plays
+
+The rules and board layout follow the original Chinese tool, so the mechanics behave the same way:
+
+- **The ring.** 16 cells sit around a 6×4 board, numbered clockwise from the top-left corner. Cell 16 neighbors cell 01, and the decision panel sits in the courtyard in the middle. A lantern marks the warden's cell.
+- **Patrols.** Each morning offers 3 destination doors. The warden walks to the one you pick and that door opens. Devoured, swapped and delivered inmates leave their cells sealed again.
+- **Special events.** Chain reaction: the next patrol opens every sealed door on the clockwise walk. Execution: wipes out lower-rarity prey for one tier each. Both can be accepted or skipped.
+- **Markers.** Ivory, Prey, Scratch and Rat nest each have a focused drill, and can be placed with the Lab's scene editor.
+- **Contract challenge.** 12 days and 6 dispatch vouchers. Contracts fall due at the end of days 4, 8 and 12, each with a delivery window. Scouting reveals the full occupant and locks the route. Light/heavy escorts carry pressure limits, the heavy contract can be delivered early from day 9, and you earn refit tools, a Supreme milestone tool and Warden's Cache gifts.
+- **Everything else.** Seeds, undo, autosave, export/import, a move advisor, a Lab (scene editor and adjustable practice values) and a handbook.
+
+## Files
+
+| File | Purpose |
+| --- | --- |
+| `index.html` | Page markup and dialogs |
+| `css/style.css` | All styles, including the board backdrop |
+| `js/engine.js` | Rules and game state. No DOM, so it also runs under Node (`require('./js/engine.js')`) |
+| `js/sound.js` | Web Audio sound effects |
+| `js/ui.js` | Rendering, input, saves, preferences and the beast portraits |
+
+## Credits
+
+Rules and board layout follow the Chinese fan tool [塔羅斯监狱 (Talos Prison)](https://torchlightskill.com/talos/) by 爱玩游戏的吉吉罗. This English version is an independent re-implementation with its own code and artwork: the beast portraits and the courtyard backdrop were drawn for this project. No code, images or audio were copied from that tool.
+
+Unofficial. Not affiliated with or endorsed by the developers or publishers of *Torchlight: Infinite*. Odds, daily limits and the contract challenge are practice values and may differ from the live game.
