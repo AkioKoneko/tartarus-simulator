@@ -56,10 +56,12 @@
     nestDays: 2,
     nestTier: 2,
     circularNeighbors: true,
+    rewards: true,
+    startTools: 0,
   };
 
   // The contract challenge always plays with these values.
-  const CHALLENGE_PARAMS = Object.assign({}, DEFAULT_PARAMS, { executionSameTier: true, executionRerolls: true });
+  const CHALLENGE_PARAMS = Object.assign({}, DEFAULT_PARAMS, { executionSameTier: true, executionRerolls: true, rewards: true, startTools: 0 });
 
   // Field definitions for the Lab form; normalizeParams clamps to these.
   const PARAM_FIELDS = [
@@ -80,6 +82,8 @@
     { key: 'nestDays', group: 'Markers', label: 'Days before a rat nest hatches', type: 'int', min: 1, max: 10 },
     { key: 'nestTier', group: 'Markers', label: 'Rarity of a hatched Rat', type: 'tier' },
     { key: 'circularNeighbors', group: 'Tools', label: 'Cells 16 and 01 count as neighbors', type: 'bool' },
+    { key: 'rewards', group: 'Rewards', label: "First Supreme earns a tool; each Rainbow opens the Warden's Cache", type: 'bool' },
+    { key: 'startTools', group: 'Rewards', label: 'Random tools at the start of a drill', type: 'int', min: 0, max: 8 },
   ];
 
   const TOOLS = {
@@ -319,7 +323,7 @@
   // vault for anyone who reaches Rainbow.
   function afterGrowth(state, inmate, events) {
     state.stats.best = Math.max(state.stats.best, inmate.tier);
-    if (state.mode === 'challenge' && !state.milestone && inmate.tier >= SUPREME) {
+    if (state.params.rewards && !state.milestone && inmate.tier >= SUPREME) {
       state.milestone = true;
       const options = shuffle(state, TOOL_IDS.filter((t) => !has(state, t))).slice(0, 3);
       if (options.length) {
@@ -335,7 +339,7 @@
     state.cache += 1;
     log(state, 'rainbow', `Rainbow ${beastName(inmate.beast)}! It left cell ${cellLabel(cell.n)} for the vault. Warden's Cache claims: ${state.cache}.`);
     events.push({ type: 'rainbow', cell: cell.n });
-    if (state.mode === 'challenge') state.pending.push({ kind: 'gift', options: GIFT_IDS.slice() });
+    if (state.params.rewards) state.pending.push({ kind: 'gift', options: GIFT_IDS.slice() });
   }
 
   function reroll(state, inmate) {
@@ -504,6 +508,10 @@
       note = `Rat nest drill: the nest in cell 02 hatches a ${tierName(state.params.nestTier)} Rat on the morning of day ${1 + state.params.nestDays}. Patrolling it before then destroys it.`;
     }
     for (const cell of state.cells) if (!cell.sealed) cell.event = null;
+    if (state.params.startTools > 0) {
+      state.tools = shuffle(state, TOOL_IDS).slice(0, state.params.startTools);
+      log(state, 'tool', `Starting tools: ${state.tools.map((t) => TOOLS[t].name).join(', ')}.`);
+    }
     beginDay(state, []);
     if (destinations) state.destinations = destinations;
     // Marker drills open after the day-1 patrol, except the events drill,

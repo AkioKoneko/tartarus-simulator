@@ -17,8 +17,7 @@
   // top-left corner, around a courtyard that holds the decision panel.
   const RING = [[1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [2, 6], [3, 6], [4, 6], [4, 5], [4, 4], [4, 3], [4, 2], [4, 1], [3, 1], [2, 1]];
 
-  // Beast portraits drawn for this simulator. Square images saved as
-  // assets/prisoners/<beast>.png replace them when present (see README).
+  // Beast portraits drawn for this simulator.
   const svg = (inner) => `<svg class="portrait" viewBox="0 0 64 64" aria-hidden="true">${inner}</svg>`;
   const PORTRAITS = {
     mammoth: svg(
@@ -57,23 +56,6 @@
       '<path class="p-line" d="M27 48L12 44M27 51L12 53M37 48l15-4M37 51l15 2"/>',
     ),
   };
-
-  // Swaps in any portrait images the site provides, then redraws.
-  function loadPortraitImages(done) {
-    let left = T.BEASTS.length;
-    for (const beast of T.BEASTS) {
-      const src = `assets/prisoners/${beast}.png`;
-      const img = new Image();
-      img.onload = () => {
-        PORTRAITS[beast] = `<img class="portrait" src="${src}" alt="" decoding="async" draggable="false">`;
-        if (--left === 0) done();
-      };
-      img.onerror = () => {
-        if (--left === 0) done();
-      };
-      img.src = src;
-    }
-  }
   const LANTERN = '<svg class="warden" viewBox="0 0 16 18" aria-hidden="true"><path d="M6 1h4v2H6z"/><path d="M4 4h8l-1 10H5z"/><path d="M5 15h6v2H5z"/><path class="flame" d="M8 6.5c1.4 1.6 1.6 3 0 4.6-1.6-1.6-1.4-3 0-4.6Z"/></svg>';
 
   const $ = (id) => document.getElementById(id);
@@ -236,7 +218,7 @@
     ui.pending = null;
     ui.scouting = false;
     persist();
-    for (const id of ['dlg-choice', 'dlg-deliver', 'dlg-results']) closeDialog(id);
+    closeRunDialogs();
     if (ui.screen !== 'game') showScreen('game');
     else render();
     toast('Undid the last move.', true);
@@ -881,16 +863,23 @@
         : '<span class="vault-slot" aria-hidden="true"></span>';
     }
     $('vault').innerHTML = html;
+    const cache = st.params.rewards ? `Warden's Cache gifts earned: ${st.cache}.` : `Warden's Cache claims: ${st.cache}.`;
     $('vault-note').textContent = st.vault.length
-      ? `${T.plural(st.vault.length, 'Rainbow')} in the vault. Warden's Cache claims: ${st.cache}.${st.mode === 'challenge' ? ' Vault Rainbows count for the heavy contract.' : ''}`
-      : "Inmates that reach Rainbow leave the block and wait here. Each one adds a Warden's Cache claim.";
+      ? `${T.plural(st.vault.length, 'Rainbow')} in the vault. ${cache}${st.mode === 'challenge' ? ' Vault Rainbows count for the heavy contract.' : ''}`
+      : st.params.rewards
+        ? "Inmates that reach Rainbow leave the block and wait here. Each one opens the Warden's Cache, where you pick a gift."
+        : "Inmates that reach Rainbow leave the block and wait here. Each one adds a Warden's Cache claim.";
   }
 
   function renderTools() {
     const st = ui.state;
     const list = $('tool-list');
     if (!st.tools.length) {
-      list.innerHTML = `<li class="tool-text">${st.mode === 'challenge' ? 'No tools yet. Your first Supreme and each of your first two deliveries earn one.' : 'This drill has no tools. Add some in the Lab to test them.'}</li>`;
+      let empty;
+      if (st.mode === 'challenge') empty = 'No tools yet. Your first Supreme and each of your first two deliveries earn one.';
+      else if (st.params.rewards) empty = 'No tools yet. Your first Supreme earns one. The Lab can add more, or start drills with random tools.';
+      else empty = 'Rewards are off for this drill. Add tools in the Lab to test them.';
+      list.innerHTML = `<li class="tool-text">${empty}</li>`;
       return;
     }
     list.innerHTML = st.tools.map((id) => `<li class="tool"><span class="tool-name">${esc(T.toolName(id))}</span><span class="tool-text">${esc(T.toolText(id))}</span></li>`).join('');
@@ -1003,12 +992,18 @@
     $('btn-title-sound').textContent = `Sound: ${ui.prefs.sound ? 'on' : 'off'}`;
   }
 
+  // Dialogs that belong to one run close whenever the run is replaced.
+  function closeRunDialogs() {
+    for (const id of ['dlg-choice', 'dlg-deliver', 'dlg-results']) closeDialog(id);
+  }
+
   function startRun(opts) {
     ui.state = T.newGame(Object.assign({ params: ui.labParams }, opts));
     ui.history = [];
     ui.selected = null;
     ui.pending = null;
     ui.scouting = false;
+    closeRunDialogs();
     persist();
     showScreen('game');
     Sound.play('open');
@@ -1191,6 +1186,7 @@
     ui.selected = null;
     ui.pending = null;
     ui.scouting = false;
+    closeRunDialogs();
     persist();
     closeDialog('dlg-save');
     showScreen('game');
@@ -1329,7 +1325,7 @@
       $('results-contracts').innerHTML = '';
       $('results-facts').innerHTML = facts([
         ['Rainbows', r.roster.byTier[T.RAINBOW]],
-        ["Cache claims", r.cache],
+        [st.params.rewards ? 'Cache gifts' : 'Cache claims', r.cache],
         ['Best rarity', T.tierName(r.best), true],
         ['Inmates', r.roster.rows.length],
         ['Patrols', r.stats.patrols],
@@ -1706,10 +1702,9 @@
     $('choice-options').addEventListener('click', (e) => {
       const b = e.target.closest('[data-take]');
       if (!b) return;
-      if (run((s) => T.choose(s, b.dataset.take))) {
-        if (ui.state.pending.length) openChoice();
-        else closeDialog('dlg-choice');
-      }
+      run((s) => T.choose(s, b.dataset.take));
+      // Shows the next waiting choice, or closes when none is left.
+      openChoice();
     });
     $('btn-choice-refresh').addEventListener('click', () => {
       if (run((s) => T.refreshRefit(s))) openChoice();
@@ -1796,10 +1791,6 @@
     applyPrefs();
     showScreen(data.screen === 'game' ? 'game' : 'title');
     requestAnimationFrame(() => $('board').classList.add('is-live'));
-    loadPortraitImages(() => {
-      renderSample();
-      render();
-    });
   }
 
   const hot = window.claude && window.claude.hot;
