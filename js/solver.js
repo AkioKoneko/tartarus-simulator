@@ -134,16 +134,11 @@
     };
   }
 
-  // Tier odds for a swapped-in inmate, after Hangman's Rope and Burning Stake.
+  // Tier odds for a swapped-in inmate, after Hangman's Noose.
   function swapDist(ctx, oldTier) {
     const w = ctx.st.params.tierWeights.slice();
     if (has(ctx.st, 'rope')) w[0] = w[1] = 0;
-    let dist = normalize(w);
-    if (has(ctx.st, 'fire') && oldTier < 3) {
-      dist = dist.map((p) => p * 0.6);
-      dist[3] += 0.4;
-    }
-    return dist;
+    return normalize(w);
   }
 
   // Value from here on for an eater that just reached tier t: its beast
@@ -153,7 +148,7 @@
     let sum = 0;
     for (let b = 0; b < 4; b++) {
       if (ctx.revenge) {
-        // Avenger's Box: 30% of the time a meal for the new form appears.
+        // Avenger's Casket: 30% of the time a meal for the new form appears.
         const foods = ctx.eats[b];
         let spawned = 0;
         for (const f of foods) {
@@ -469,7 +464,7 @@
   }
 
   // A swap in the warden's cell: the new inmate's worth over the old one,
-  // less any prey mark it ends, plus the Ivory bonus if the cell has one.
+  // less any prey mark it ends, plus the Tusk bonus if the cell has one.
   function swapGainHere(st, ctx) {
     const here = st.cells[st.position];
     if (!here || here.sealed || !here.inmate || st.used.swap >= st.params.swapsPerDay) return -Infinity;
@@ -601,7 +596,7 @@
 
   // The inmates that could ship, grouped by tier and beast: inmates in a group
   // are interchangeable for every contract. Within a group, cells with a prey
-  // mark or Ivory go last, since they're worth more on the block.
+  // mark or Tusk go last, since they're worth more on the block.
   function cargoGroups(st) {
     const byKey = new Map();
     const add = (tier, beast, ref, last) => {
@@ -1053,7 +1048,7 @@
         return `The best first meal: its chain averages ${odds.bites.toFixed(1)} bites, with ${(100 * odds.rainbow).toFixed(0)}% to reach Rainbow.`;
       }
       case 'swap':
-        if (here.ivory) return 'An Ivory cell: swapping it raises other inmates a tier.';
+        if (here.ivory) return 'A Tusk cell: swapping it raises other inmates a tier.';
         return `A ${T.tierName(here.inmate.tier)} inmate is worth less than a fresh roll on average.`;
       case 'end':
         return T.canDevourNow(st) && T.startOptions(st).length ? 'No devour here gains anything today.' : 'Nothing left today is worth doing.';

@@ -89,7 +89,6 @@ function newDrill(game, i, seedWord) {
   const st = T.newGame({ mode: 'drill', scenario: game.scenario || 'empty', seed: `${seedWord}-${i}`, params });
   if (game.tool) {
     st.tools = [game.tool];
-    if (game.tool === 'fire') st.destinations = st.destinations.slice(0, 2);
   }
   return st;
 }

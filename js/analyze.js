@@ -69,6 +69,7 @@
     switch (c.kind) {
       case 'inmate': return ['inmate', c.beast, toInt(c.tier, 0), !!c.ivory, c.prey ? [c.prey.cell, c.prey.rounds] : null].join('|');
       case 'scratch': return ['scratch', toInt(c.tier, 0), c.event || ''].join('|');
+      case 'scouted': return ['scouted', c.beast, toInt(c.tier, 0), c.event || ''].join('|');
       case 'sealed': return ['sealed', c.event || ''].join('|');
       case 'nest': return ['nest', toInt(c.due, 0)].join('|');
       default: return c.kind;
@@ -153,6 +154,10 @@
       } else if (c.kind === 'nest') {
         // A nest due today hatched this morning, so a sealed one is due later.
         cell.nest = { due: Math.max(st.day + 1, toInt(c.due, st.day + 1)) };
+      } else if (c.kind === 'scouted') {
+        cell.known = 2;
+        cell.hidden = make(c.beast, c.tier);
+        setEvent();
       } else if (c.kind === 'scratch') {
         cell.scratch = true;
         cell.known = 1;
@@ -282,6 +287,7 @@
       if (c.sealed) {
         if (c.nest) return { kind: 'nest', due: c.nest.due };
         if (c.scratch && c.hidden && c.known) return { kind: 'scratch', tier: Math.min(TOP_TIER, c.hidden.tier), event };
+        if (c.hidden && c.known >= 2) return { kind: 'scouted', beast: c.hidden.beast, tier: Math.min(TOP_TIER, c.hidden.tier), event };
         return { kind: 'sealed', event };
       }
       if (!c.inmate) return { kind: 'empty' };
@@ -523,45 +529,50 @@
       b.innerHTML = B.CELL_HTML;
       b.children[2].textContent = L(n);
       b.addEventListener('click', () => {
+        const open = !$('az-pick').hidden && $('az-pick').dataset.cell === String(n);
         select(n);
-        openPick(n);
+        if (open) closePick(true);
+        else openPick(n);
       });
       board.appendChild(b);
       cellEls[n] = { btn: b, body: b.children[0], hint: b.children[3], badges: b.children[4], tag: b.children[5], warden: b.children[6] };
     }
-    // What's in a cell, picked from one list that opens right on the cell.
-    const pick = document.createElement('select');
+    // What's in a cell, picked from icons that open right on the cell.
+    const pick = document.createElement('div');
     pick.id = 'az-pick';
     pick.className = 'az-pick';
     pick.hidden = true;
+    pick.setAttribute('role', 'dialog');
     pick.setAttribute('aria-label', "What's in this cell");
-    pick.innerHTML = pickOptions();
+    pick.innerHTML = pickHTML();
     board.appendChild(pick);
   }
 
-  function pickOptions() {
-    const opt = (value, label) => `<option value="${value}">${esc(label)}</option>`;
+  // Every inmate by rarity, then the doors and marks a cell can have.
+  function pickHTML() {
     const tiers = T.TIERS.slice(0, TOP_TIER + 1);
-    let html = `<optgroup label="Doors">${[
-      opt('sealed', 'Sealed door'),
-      opt('sealed:unknown', 'Sealed door, event (kind unknown)'),
-      opt('sealed:chain', 'Sealed door, Chain reaction'),
-      opt('sealed:execution', 'Sealed door, Execution'),
-      opt('nest', 'Rat nest'),
-      opt('empty', 'Empty'),
-    ].join('')}</optgroup>`;
-    html += `<optgroup label="Scratched door (shows its rarity)">${tiers.map((name, t) => opt(`scratch:${t}`, `Scratched door, ${name}`)).join('')}</optgroup>`;
-    tiers.forEach((name, t) => {
-      html += `<optgroup label="${esc(name)}">${T.BEASTS.map((b) => opt(`inmate:${b}:${t}`, `${name} ${T.beastName(b)}`)).join('')}</optgroup>`;
-    });
-    return html;
+    const btn = (value, label, art, cls) => `<button type="button" class="az-ico${cls ? ` ${cls}` : ''}" data-pick="${value}" title="${esc(label)}" aria-label="${esc(label)}">${art}</button>`;
+    const row = (label, cls, items) => `<div class="az-pick-row"><span class="az-pick-label${cls ? ` ${cls}` : ''}">${esc(label)}</span>${items.join('')}</div>`;
+    return [
+      ...tiers.map((name, t) => row(name, `t${t}`, T.BEASTS.map((b) => btn(`inmate:${b}:${t}`, `${name} ${T.beastName(b)}`, B.PORTRAITS[b], `t${t}`)))),
+      row('Locked', '', [
+        btn('sealed', 'Locked door', B.MARKS.sealed),
+        btn('sealed:unknown', 'Locked door with an event (kind unknown)', B.MARKS.event),
+        btn('sealed:chain', 'Locked door with a Chain reaction', B.MARKS.chain),
+        btn('sealed:execution', 'Locked door with an Execution', B.MARKS.execution),
+        btn('scouted', "Scouted door (Warden's Scales): set its beast and rarity in the panel below", B.MARKS.scouted),
+      ]),
+      row('Other', '', [btn('nest', 'Rat nest', B.MARKS.nest), btn('empty', 'Empty cell', B.MARKS.empty), btn('ivory', 'Tusk mark: toggles on the inmate here', B.MARKS.ivory)]),
+      row('Scratched', '', tiers.map((name, t) => btn(`scratch:${t}`, `Scratched door showing ${name}`, B.MARKS.scratch, `t${t}`))),
+    ].join('');
   }
 
-  // The dropdown's value for a cell.
+  // The picker's choice for what a cell holds.
   function pickValue(c) {
     const tier = clamp(toInt(c.tier, 0), 0, TOP_TIER);
     if (c.kind === 'inmate') return `inmate:${c.beast}:${tier}`;
     if (c.kind === 'scratch') return `scratch:${tier}`;
+    if (c.kind === 'scouted') return 'scouted';
     if (c.kind === 'sealed') return c.event ? `sealed:${c.event}` : 'sealed';
     return c.kind;
   }
@@ -641,14 +652,15 @@
     if (office) return;
     pressGroup('az-kind', c.kind);
     const inmate = c.kind === 'inmate';
-    const tiered = inmate || c.kind === 'scratch';
-    $('az-beast-field').hidden = !inmate;
+    const scouted = c.kind === 'scouted';
+    const tiered = inmate || scouted || c.kind === 'scratch';
+    $('az-beast-field').hidden = !(inmate || scouted);
     $('az-tier-field').hidden = !tiered;
-    $('az-tier-legend').textContent = inmate ? 'Rarity' : 'Rarity you can see on the door';
+    $('az-tier-legend').textContent = inmate ? 'Rarity' : scouted ? 'Rarity the scales showed' : 'Rarity you can see on the door';
     const tier = tiered ? clamp(toInt(c.tier, 0), 0, TOP_TIER) : 0;
     for (const b of $('az-beasts').querySelectorAll('button')) {
       b.className = `az-beast t${tier}`;
-      b.setAttribute('aria-pressed', String(inmate && b.dataset.v === c.beast));
+      b.setAttribute('aria-pressed', String((inmate || scouted) && b.dataset.v === c.beast));
     }
     for (const b of $('az-tiers').querySelectorAll('button')) b.setAttribute('aria-pressed', String(tiered && Number(b.dataset.v) === tier));
     $('az-inmate-extra').hidden = !inmate;
@@ -668,7 +680,7 @@
       $('az-prey-of').hidden = hunter < 0;
       if (hunter >= 0) $('az-prey-of').textContent = `Marked as prey by the Lion in cell ${L(hunter)}: both rise a tier each morning for ${T.plural(model.cells[hunter].prey.rounds, 'more morning')}.`;
     }
-    $('az-event-field').hidden = !(c.kind === 'sealed' || c.kind === 'scratch');
+    $('az-event-field').hidden = !(c.kind === 'sealed' || c.kind === 'scratch' || scouted);
     pressGroup('az-event', c.event || 'none');
     $('az-nest-field').hidden = c.kind !== 'nest';
     if (c.kind === 'nest') $('az-nest-due').value = String(toInt(c.due, model.day + 2));
@@ -679,8 +691,11 @@
     pressGroup('az-mode', model.mode);
     pressGroup('az-chain', model.chain);
     const maxDays = challenge ? T.CHALLENGE_DAYS : clamp(toInt(model.maxDays, 20), 5, 60);
-    $('az-day').value = String(model.day);
-    $('az-day').max = String(maxDays);
+    // The game counts down: "N day(s) until Riot" on day maxDays - N.
+    const riot = $('az-riot');
+    riot.max = String(maxDays - 1);
+    if (document.activeElement !== riot) riot.value = String(maxDays - clamp(toInt(model.day, 1), 1, maxDays));
+    $('az-dayof').textContent = `Day ${model.day} of ${maxDays}`;
     $('az-days').value = String(maxDays);
     $('az-days-wrap').hidden = challenge;
     $('az-days-fixed').hidden = !challenge;
@@ -697,9 +712,9 @@
       if (n !== T.OFFICE) ahead.push(n);
     }
     const doors = [...new Set([...ahead, ...model.dest])];
-    $('az-doors').innerHTML = doors
-      .map((n) => `<button type="button" class="az-door" data-door="${n}" aria-pressed="${model.dest.includes(n)}">${L(n)}<small>${esc(cellShort(model.cells[n]))}</small></button>`)
-      .join('');
+    setHTML($('az-doors'), doors
+      .map((n) => `<button type="button" class="az-doorcard" data-door="${n}" aria-pressed="${model.dest.includes(n)}"><span class="az-doorcard-arch" aria-hidden="true"></span><span class="az-doorcard-go">Go to Cell ${n + 1}</span><small>${esc(cellShort(model.cells[n]))}</small></button>`)
+      .join(''));
     $('az-devoured').checked = !!model.devourUsed;
     $('az-swapped').checked = !!model.swapUsed;
     pressGroup('az-event-kind', model.eventKind);
@@ -709,13 +724,18 @@
     const next = challenge ? nextContract() : null;
     $('az-window-note').textContent = !next ? '' : model.windowKind === 'early' ? 'From day 9, once the first two contracts are settled. Delivering it ends the run.' : `"${next.name}": ${next.needs.join(', ').toLowerCase()}.`;
     $('az-armed').checked = !!model.chainArmed;
-    $('az-tools').innerHTML = T.TOOL_IDS.map((id) => `<button type="button" class="az-tool" data-tool="${id}" aria-pressed="${model.tools.includes(id)}" title="${esc(T.toolText(id))}">${esc(T.toolName(id))}</button>`).join('');
+    for (const b of $('az-tools').querySelectorAll('[data-tool]')) b.setAttribute('aria-pressed', String(model.tools.includes(b.dataset.tool)));
     $('az-rewards-wrap').hidden = challenge;
     $('az-rewards').checked = challenge || !!model.rewards;
     $('az-milestone').checked = !!model.milestone;
-    $('az-vault').innerHTML = model.vault.length
-      ? model.vault.map((beast, i) => `<span class="az-vault-item t5">${B.PORTRAITS[beast]}<span>${esc(T.beastName(beast))}</span><button type="button" data-unvault="${i}" aria-label="Remove a Rainbow ${esc(T.beastName(beast))}">×</button></span>`).join('')
-      : '<span class="az-empty">None yet.</span>';
+    // Ten slots like the game's, more if the vault holds more.
+    const slots = Math.max(10, model.vault.length + (model.vault.length % 2));
+    setHTML($('az-vault'), Array.from({ length: slots }, (_, i) => {
+      const beast = model.vault[i];
+      return beast
+        ? `<button type="button" class="az-hex is-filled t5" data-unvault="${i}" title="Chromatic ${esc(T.beastName(beast))}: click to remove">${B.PORTRAITS[beast]}</button>`
+        : '<span class="az-hex" aria-hidden="true"></span>';
+    }).join(''));
     $('az-challenge').hidden = !challenge;
     if (challenge) renderContracts();
   }
@@ -724,6 +744,7 @@
     if (!c) return '';
     if (c.kind === 'inmate') return `${T.tierName(c.tier).slice(0, 3)} ${T.beastName(c.beast)}`;
     if (c.kind === 'scratch') return `${T.tierName(c.tier).slice(0, 3)} door`;
+    if (c.kind === 'scouted') return `Scouted ${T.tierName(c.tier).slice(0, 3)} ${T.beastName(c.beast)}`;
     if (c.kind === 'nest') return 'Nest';
     if (c.kind === 'empty') return 'Empty';
     if (c.kind === 'office') return 'Office';
@@ -950,29 +971,31 @@
     renderEditor();
   }
 
-  // Opens the dropdown over cell n, already expanded where the browser allows.
+  // Opens the picker by cell n, below it if it fits on the board, else above.
   function openPick(n) {
     const pick = $('az-pick');
     if (n === T.OFFICE) {
-      pick.hidden = true;
+      closePick(false);
       return;
     }
+    const c = model.cells[n];
+    const current = pickValue(c);
+    pick.dataset.cell = String(n);
+    for (const b of pick.querySelectorAll('[data-pick]')) {
+      const ivory = b.dataset.pick === 'ivory';
+      b.setAttribute('aria-pressed', String(ivory ? c.kind === 'inmate' && !!c.ivory : b.dataset.pick === current));
+      if (ivory) b.disabled = c.kind !== 'inmate';
+    }
+    pick.hidden = false;
     const cell = cellEls[n].btn;
     const board = $('az-board');
-    pick.value = pickValue(model.cells[n]);
-    pick.dataset.cell = String(n);
-    pick.hidden = false;
-    // Centered on the cell, at least wide enough to read, and inside the board.
-    const width = Math.min(board.clientWidth, Math.max(cell.offsetWidth, 150));
-    pick.style.width = `${width}px`;
-    pick.style.left = `${clamp(cell.offsetLeft + (cell.offsetWidth - width) / 2, 0, board.clientWidth - width)}px`;
-    pick.style.top = `${cell.offsetTop + Math.max(0, (cell.offsetHeight - pick.offsetHeight) / 2)}px`;
-    pick.focus();
-    try {
-      pick.showPicker();
-    } catch (e) {
-      // Older browsers: the dropdown sits on the cell, ready to open.
-    }
+    const w = pick.offsetWidth;
+    const h = pick.offsetHeight;
+    const below = cell.offsetTop + cell.offsetHeight + 6;
+    const above = cell.offsetTop - h - 6;
+    pick.style.left = `${clamp(cell.offsetLeft + (cell.offsetWidth - w) / 2, 0, Math.max(0, board.clientWidth - w))}px`;
+    pick.style.top = `${below + h <= board.clientHeight || above < 0 ? below : above}px`;
+    (pick.querySelector('[aria-pressed="true"]:not([data-pick="ivory"])') || pick.querySelector('[data-pick]')).focus();
   }
 
   function closePick(refocus) {
@@ -984,6 +1007,15 @@
   }
 
   function pickCell(n, value) {
+    if (value === 'ivory') {
+      if (model.cells[n].kind === 'inmate') setCell(n, { ivory: !model.cells[n].ivory });
+      return;
+    }
+    if (value === 'scouted') {
+      const c = model.cells[n];
+      setCell(n, { kind: 'scouted', beast: c.beast || 'mammoth', tier: toInt(c.tier, 0) });
+      return;
+    }
     const [kind, a, b] = value.split(':');
     if (kind === 'inmate') setCell(n, { kind, beast: a, tier: Number(b) });
     else if (kind === 'scratch') setCell(n, { kind, tier: Number(a) });
@@ -1016,6 +1048,10 @@
       c.ivory = false;
     }
     if (c.kind === 'scratch') c.tier = clamp(toInt(c.tier, 1), 0, TOP_TIER);
+    if (c.kind === 'scouted') {
+      c.beast = T.BEASTS.includes(c.beast) ? c.beast : 'mammoth';
+      c.tier = clamp(toInt(c.tier, 0), 0, TOP_TIER);
+    }
     if (c.kind === 'nest') {
       c.due = toInt(c.due, model.day + 2);
       c.event = null;
@@ -1149,6 +1185,19 @@
   const reader = { worker: null, failed: false, id: 0, pending: null, image: null, result: null, reading: null, ms: 0 };
   const SHORT_TIER = ['Normal', 'Magic', 'Rare', 'Legend.', 'Supreme'];
 
+  // A notice pinned to the window while a screenshot is read, so a paste
+  // shows it's working wherever the page is scrolled. kind: busy, ok or bad.
+  let toastTimer = 0;
+  function toast(text, kind, actions) {
+    const box = $('az-toast');
+    clearTimeout(toastTimer);
+    box.className = `az-toast is-${kind}`;
+    $('az-toast-text').textContent = text;
+    $('az-toast-actions').innerHTML = (actions || []).map((a) => `<button type="button" class="btn${a.primary ? ' btn-primary' : ''}" data-toast="${a.id}">${esc(a.label)}</button>`).join('');
+    box.hidden = false;
+    if (kind !== 'busy') toastTimer = setTimeout(() => (box.hidden = true), actions && actions.length ? 15000 : 6000);
+  }
+
   function scanStatus(text, bad) {
     const el = $('az-scan-status');
     el.textContent = text;
@@ -1158,14 +1207,17 @@
   async function readImageFile(file) {
     if (!file || !/^image\//.test(file.type)) {
       scanStatus('That isn’t an image. Paste, drop or choose a screenshot (PNG or JPG).', true);
+      toast('That isn’t an image. Copy a screenshot of the prison screen, then paste it here.', 'bad');
       return;
     }
     scanStatus('Reading your screenshot…');
+    toast('Reading your screenshot to load the board…', 'busy');
     let source;
     try {
       source = await createImageBitmap(file);
     } catch (e) {
       scanStatus('This browser couldn’t open that image.', true);
+      toast('This browser couldn’t open that image.', 'bad');
       return;
     }
     // Very large screenshots are scaled down; the reader works at any size.
@@ -1191,12 +1243,20 @@
       if (error || !result) {
         reader.result = null;
         scanStatus(`The reader hit a problem: ${error || 'no result'}.`, true);
+        toast(`The reader hit a problem: ${error || 'no result'}.`, 'bad');
         renderScan();
         return;
       }
       reader.result = result;
       reader.reading = result.ok ? scanToModel(result, model) : null;
       scanStatus(result.ok ? `Read in ${(reader.ms / 1000).toFixed(1)} s. Check it below, then use it.` : `${result.reason} Try a screenshot of the prison screen, with the whole board in view.`, !result.ok);
+      if (!result.ok) toast(`${result.reason} Try a screenshot of the prison screen, with the whole board in view.`, 'bad');
+      else {
+        const m = reader.reading.model;
+        const max = m.mode === 'challenge' ? T.CHALLENGE_DAYS : m.maxDays;
+        const unsure = reader.reading.checks.size;
+        toast(`Read your board: day ${m.day} of ${max}${unsure ? `, ${T.plural(unsure, 'cell')} to check` : ''}. Load it as your new board?`, 'ok', [{ id: 'use', label: 'Use this board', primary: true }, { id: 'review', label: 'Review it first' }]);
+      }
       renderScan();
     };
     // The worker outlives this call, so it answers whichever reading is newest.
@@ -1452,6 +1512,7 @@
     renderScan();
     changed();
     scanStatus(rd.checks.size ? `Board filled in. Check the ${T.plural(rd.checks.size, 'cell')} marked Check, then ask what to do.` : 'Board filled in. Look it over, then ask what to do.');
+    toast(rd.checks.size ? `Loaded day ${model.day}. Check the ${T.plural(rd.checks.size, 'cell')} marked Check, then ask what to do.` : `Loaded day ${model.day}. Ask what to do when it looks right.`, 'ok');
     $('az-board').scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
 
@@ -1469,13 +1530,15 @@
     // Beast and rarity pickers, built once.
     $('az-beasts').innerHTML = T.BEASTS.map((b) => `<button type="button" class="az-beast" data-v="${b}">${B.PORTRAITS[b]}<span>${esc(T.beastName(b))}</span></button>`).join('');
     $('az-tiers').innerHTML = T.TIERS.slice(0, TOP_TIER + 1).map((name, t) => `<button type="button" class="az-tier t${t}" data-v="${t}">${esc(name)}</button>`).join('');
-    $('az-vault-beast').innerHTML = T.BEASTS.map((b) => `<option value="${b}">${esc(T.beastName(b))}</option>`).join('');
+    // The instruments: every one the simulator knows, clicked on and off.
+    $('az-tools').innerHTML = T.TOOL_IDS.map((id) => `<button type="button" class="az-instrument" data-tool="${id}" aria-pressed="false" title="${esc(`${T.toolName(id)}: ${T.toolText(id)}`)}">${B.INSTRUMENTS[id] || ''}<span>${esc(T.toolName(id))}</span></button>`).join('');
+    $('az-vault-add').innerHTML = `<span class="field-label">Add</span>${T.BEASTS.map((b) => `<button type="button" class="az-ico t5" data-vault-add="${b}" title="Add a Chromatic ${esc(T.beastName(b))}" aria-label="Add a Chromatic ${esc(T.beastName(b))}">${B.PORTRAITS[b]}</button>`).join('')}`;
 
     segment('az-kind', (v) => setKind(v));
-    segment('az-beasts', (v) => setCell(selected, { kind: 'inmate', beast: v }));
+    segment('az-beasts', (v) => setCell(selected, { kind: model.cells[selected].kind === 'scouted' ? 'scouted' : 'inmate', beast: v }));
     segment('az-tiers', (v) => {
       const c = model.cells[selected];
-      setCell(selected, { kind: c.kind === 'scratch' ? 'scratch' : 'inmate', tier: Number(v) });
+      setCell(selected, { kind: c.kind === 'scratch' || c.kind === 'scouted' ? c.kind : 'inmate', tier: Number(v) });
     });
     segment('az-event', (v) => setCell(selected, { event: v === 'none' ? null : v }));
     $('az-ivory').addEventListener('change', (e) => setCell(selected, { ivory: e.target.checked }));
@@ -1502,9 +1565,9 @@
       cleanPrey();
       changed();
     });
-    $('az-day').addEventListener('change', (e) => {
+    $('az-riot').addEventListener('change', (e) => {
       const max = model.mode === 'challenge' ? T.CHALLENGE_DAYS : clamp(toInt(model.maxDays, 20), 5, 60);
-      model.day = clamp(toInt(e.target.value, 1), 1, max);
+      model.day = clamp(max - toInt(e.target.value, max - model.day), 1, max);
       changed();
     });
     $('az-days').addEventListener('change', (e) => {
@@ -1571,8 +1634,10 @@
       model.milestone = e.target.checked;
       changed();
     });
-    $('az-vault-add').addEventListener('click', () => {
-      model.vault = [...model.vault, $('az-vault-beast').value];
+    $('az-vault-add').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-vault-add]');
+      if (!b) return;
+      model.vault = [...model.vault, b.dataset.vaultAdd];
       changed();
     });
     $('az-vault').addEventListener('click', (e) => {
@@ -1614,14 +1679,37 @@
       if (e.target.closest('[data-match]')) confirmAll();
     });
     $('az-match').addEventListener('click', () => confirmCell(selected));
-    $('az-pick').addEventListener('change', (e) => {
-      const n = Number(e.target.dataset.cell);
+    $('az-pick').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-pick]');
+      if (!b || b.disabled) return;
+      const n = Number($('az-pick').dataset.cell);
       closePick(true);
-      pickCell(n, e.target.value);
+      pickCell(n, b.dataset.pick);
     });
-    $('az-pick').addEventListener('blur', () => closePick(false));
+    // Arrows move around the picker's grid; Escape closes it.
     $('az-pick').addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' || e.key === 'Tab') closePick(e.key === 'Escape');
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closePick(true);
+        return;
+      }
+      const d = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0] }[e.key];
+      if (!d) return;
+      e.preventDefault();
+      const rows = [...$('az-pick').querySelectorAll('.az-pick-row')].map((r) => [...r.querySelectorAll('[data-pick]:not(:disabled)')]);
+      let r = rows.findIndex((row) => row.includes(document.activeElement));
+      if (r < 0) return;
+      let c = rows[r].indexOf(document.activeElement);
+      r = clamp(r + d[0], 0, rows.length - 1);
+      c = clamp(c + d[1], 0, rows[r].length - 1);
+      rows[r][c].focus();
+    });
+    document.addEventListener('pointerdown', (e) => {
+      if (!$('az-pick').hidden && !e.target.closest('#az-pick, #az-board .cell')) closePick(false);
+    });
+    $('az-pick').addEventListener('focusout', (e) => {
+      const to = e.relatedTarget;
+      if (to && !$('az-pick').contains(to) && !to.closest('#az-board .cell')) closePick(false);
     });
     $('az-share').addEventListener('click', (e) => {
       const b = e.target.closest('[data-share]');
@@ -1697,6 +1785,13 @@
       if (file) readImageFile(file);
     });
     $('az-scan-use').addEventListener('click', useScan);
+    $('az-toast-actions').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-toast]');
+      if (!b) return;
+      $('az-toast').hidden = true;
+      if (b.dataset.toast === 'use') useScan();
+      else $('az-scan').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
     $('az-scan-discard').addEventListener('click', () => {
       reader.result = null;
       reader.reading = null;
@@ -1713,7 +1808,7 @@
 
     // Keyboard entry on the board.
     $('az-board').addEventListener('keydown', (e) => {
-      if (e.ctrlKey || e.metaKey || e.altKey || e.target.id === 'az-pick') return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest('#az-pick')) return;
       const key = e.key.toLowerCase();
       const move = { arrowright: 1, arrowdown: 1, arrowleft: -1, arrowup: -1 }[key];
       if (move) {
@@ -1726,7 +1821,7 @@
       const c = model.cells[selected];
       let handled = true;
       if (BEAST_KEYS[key]) setCell(selected, { kind: 'inmate', beast: BEAST_KEYS[key] });
-      else if (key >= '1' && key <= '5') setCell(selected, { kind: c.kind === 'scratch' ? 'scratch' : 'inmate', tier: Number(key) - 1 });
+      else if (key >= '1' && key <= '5') setCell(selected, { kind: c.kind === 'scratch' || c.kind === 'scouted' ? c.kind : 'inmate', tier: Number(key) - 1 });
       else if (key === 's' || key === 'delete' || key === 'backspace') setCell(selected, { kind: 'sealed' });
       else if (key === 'x') setCell(selected, { kind: 'scratch' });
       else if (key === 'n') setCell(selected, { kind: 'nest' });

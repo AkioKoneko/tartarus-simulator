@@ -27,15 +27,15 @@ const BOARD_REF = 'chrome_avP3jtNJHL.png';
 // The instruments, with the simulator tool each one is (null: not simulated
 // yet), and where its art is on a reward card screenshot.
 const TOOLS = {
-  scales: { name: "Warden's Scales", sim: null, card: ['chrome_D9Kttgh2tL.png', 395, 245, 140, 140] },
+  scales: { name: "Warden's Scales", sim: 'scales', card: ['chrome_D9Kttgh2tL.png', 395, 245, 140, 140] },
   noose: { name: "Hangman's Noose", sim: 'rope', card: ['chrome_D9Kttgh2tL.png', 895, 180, 100, 170] },
-  pestle: { name: 'Iron Pestle', sim: null, card: ['chrome_D9Kttgh2tL.png', 1365, 230, 120, 170] },
-  brand: { name: 'Searing Branding Iron', sim: null, card: ['chrome_EslGxHjQL3.png', 395, 275, 140, 145] },
+  pestle: { name: 'Iron Pestle', sim: 'pestle', card: ['chrome_D9Kttgh2tL.png', 1365, 230, 120, 170] },
+  brand: { name: 'Searing Branding Iron', sim: 'fire', card: ['chrome_EslGxHjQL3.png', 395, 275, 140, 145] },
   keys: { name: 'Lost Ring of Keys', sim: 'keys', card: ['chrome_EslGxHjQL3.png', 880, 225, 130, 140] },
-  hook: { name: 'Sorting Hook', sim: null, card: ['chrome_EslGxHjQL3.png', 1370, 265, 110, 160] },
-  tongs: { name: 'Iron Tongs of Lust: Mammoth', sim: null, card: ['chrome_tWbki0rB4N.png', 400, 250, 130, 140] },
+  hook: { name: 'Sorting Hook', sim: 'hook', card: ['chrome_EslGxHjQL3.png', 1370, 265, 110, 160] },
+  tongs: { name: 'Iron Tongs of Lust: Mammoth', sim: 'tongs', card: ['chrome_tWbki0rB4N.png', 400, 250, 130, 140] },
   skewer: { name: 'Skewered Rat Heads: Colossal Rat', sim: 'skewer', card: ['chrome_tWbki0rB4N.png', 875, 195, 140, 160] },
-  guillotine: { name: 'Fanged Guillotine: Alpha Wolf', sim: null, card: ['chrome_tWbki0rB4N.png', 1355, 250, 140, 140] },
+  guillotine: { name: 'Fanged Guillotine: Alpha Wolf', sim: 'guillotine', card: ['chrome_tWbki0rB4N.png', 1355, 250, 140, 140] },
   casket: { name: "Avenger's Casket", sim: 'revenge', card: ['chrome_ZjcmxiWWmC.png', 350, 235, 140, 150] },
   muzzle: { name: "Raging Beast's Agonizing Muzzle", sim: 'muzzle', card: ['chrome_ZjcmxiWWmC.png', 830, 190, 140, 150] },
   saw: { name: 'Rusty Saw', sim: 'saw', card: ['chrome_ZjcmxiWWmC.png', 1305, 240, 140, 150] },

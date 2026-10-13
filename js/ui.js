@@ -612,7 +612,7 @@
       else if (c.known === 1) parts.push(`A ${T.tierName(c.hidden.tier)} inmate waits inside. Its beast is unknown.`);
       else parts.push('The occupant stays unknown until the door opens.');
       if (c.sealed && c.event && !st.chain) parts.push('A special event waits behind this door.');
-      if (st.tools.includes('keys') && c.sealed && !st.chain) parts.push('Lost Key Ring: 80% chance the neighbors open too.');
+      if (st.tools.includes('keys') && c.sealed && !st.chain) parts.push('Lost Ring of Keys: 80% chance the neighbors open too.');
       const actions = [[c.sealed || st.chain ? 'Open door' : 'Walk here', () => run((s) => T.patrol(s, p.cell), { select: p.cell }), 'primary']];
       actions.push(['Cancel', cancel]);
       setDecision(`Patrol to cell ${L(p.cell)}?`, parts.join(' '), actions, true);
@@ -634,7 +634,7 @@
       if (notes.length) extras.push(`Bonus: ${notes.join(', ')}.`);
       extras.push('This is today’s devour. Afterwards the eater chains on by itself into random valid targets. Click the target again to devour.');
       if (saw) extras.push('Rusty Saw may add +1.');
-      if (revenge) extras.push("Avenger's Box may open a new meal.");
+      if (revenge) extras.push("Avenger's Casket may open a new meal.");
       if (T.linkOf(st, eater.id) && to < T.RAINBOW) extras.push('If its beast changes, its prey mark ends.');
       const outcome = to === T.RAINBOW ? 'reaches Rainbow and leaves for the vault' : `rises to ${T.tierName(to)}, then its beast re-rolls`;
       setDecision(`Devour, +${gain}?`, `The ${T.describe(eater)} in cell ${L(p.from)} eats ${meal} in cell ${L(p.to)}. It ${outcome}. ${extras.join(' ')}`.trim(), [
@@ -651,9 +651,8 @@
         return;
       }
       const parts = [`A brand-new random inmate replaces the ${T.describe(cell.inmate)}. It can come out stronger or weaker.`];
-      if (st.tools.includes('rope')) parts.push("Hangman's Rope: never Normal or Magic.");
-      if (st.tools.includes('fire') && cell.inmate.tier < 3) parts.push('Burning Stake: 40% chance of a Legendary.');
-      if (cell.ivory) parts.push(`Ivory cell: ${T.plural(st.params.ivoryCount, 'inmate')} then gain a tier.`);
+      if (st.tools.includes('rope')) parts.push("Hangman's Noose: never Normal or Magic.");
+      if (cell.ivory) parts.push(`Tusk cell: ${T.plural(st.params.ivoryCount, 'inmate')} then gain a tier.`);
       setDecision(`Swap cell ${L(p.cell)}?`, parts.join(' '), [
         ['Swap', () => run((s) => T.swap(s, p.cell)), 'primary'],
         ['Cancel', back],
@@ -706,7 +705,7 @@
       else if (!T.canDevourNow(st)) parts.push('Today’s devour is used.');
       else parts.push(options.length ? `It stands in the warden's cell: ${T.plural(options.length, 'target')} highlighted. Double-click one to devour it, or click once to preview the bite.` : 'It stands in the warden’s cell but has no target right now.');
     }
-    if (cell.ivory) parts.push(`Ivory cell: swapping here raises ${T.plural(st.params.ivoryCount, 'inmate')} a tier.`);
+    if (cell.ivory) parts.push(`Tusk cell: swapping here raises ${T.plural(st.params.ivoryCount, 'inmate')} a tier.`);
     const link = T.linkOf(st, inmate.id);
     if (link) {
       const hunter = link.lion === inmate.id;
@@ -835,7 +834,7 @@
     for (let i = 0; i < records.length; i++) {
       const x = records[i];
       if (x.type === 'open' && x.side) {
-        // Doors opened together (Key Ring, a chain reaction) share one item.
+        // Doors opened together (Ring of Keys, a chain reaction) share one item.
         const group = [x];
         while (records[i + 1] && records[i + 1].type === 'open' && records[i + 1].side) group.push(records[++i]);
         out.push(item(group.length === 1 ? `Also opened ${L(x.cell)}` : `${group.length} extra doors`, group.map((g) => tok(g.who, { cell: g.cell })).join('')));
@@ -852,7 +851,7 @@
       else if (x.type === 'rainbow') out.push(item('Rainbow', tok(x.who), 'is-rainbow'));
       else if (x.type === 'tool') out.push(item('Tool', `<span class="recap-note">${esc(T.toolName(x.id))}</span>`));
       else if (x.type === 'gift') out.push(item('Cache', `<span class="recap-note">${esc(T.toolName(x.id))}</span>`));
-      else if (x.type === 'ivory') out.push(item('Ivory', `<span class="recap-note">${T.plural(x.count, 'inmate')} +1</span>`));
+      else if (x.type === 'ivory') out.push(item('Tusk', `<span class="recap-note">${T.plural(x.count, 'inmate')} +1</span>`));
       else if (x.type === 'deliver') out.push(item('Delivered', `<span class="recap-note">${esc(x.name)} · ${x.points} pts</span>`));
       else if (x.type === 'skip') out.push(item('Skipped', `<span class="recap-note">${esc(x.name)}</span>`));
     }
@@ -1636,7 +1635,7 @@
     ]);
     const cells = st.cells.filter((c) => !c.sealed && c.inmate).sort((a, b) => b.inmate.tier - a.inmate.tier || a.n - b.n);
     $('run-inmates').innerHTML = cells.length
-      ? cells.map((c) => `<li class="t${c.inmate.tier}"><b>${T.tierName(c.inmate.tier)}</b> ${T.beastName(c.inmate.beast)} · cell ${L(c.n)}${c.ivory ? ' · Ivory' : ''}</li>`).join('')
+      ? cells.map((c) => `<li class="t${c.inmate.tier}"><b>${T.tierName(c.inmate.tier)}</b> ${T.beastName(c.inmate.beast)} · cell ${L(c.n)}${c.ivory ? ' · Tusk' : ''}</li>`).join('')
       : '<li>No inmates on the block.</li>';
     $('btn-run-undo').disabled = !ui.history.length;
     $('btn-run-export').disabled = false;

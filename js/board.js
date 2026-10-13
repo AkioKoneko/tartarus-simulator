@@ -68,6 +68,124 @@
     '<rect class="o-knob" x="36" y="35.2" width="4" height="1.6" rx="0.8"/>' +
     '</svg><span class="office-name">Office</span></span>';
 
+  // The Torture Instruments, drawn after their art in the live game (the
+  // reward cards and the instrument panel). Keyed by the simulator's tool id.
+  const icon = (cls, inner) => `<svg class="instrument ${cls}" viewBox="0 0 48 48" aria-hidden="true">${inner}</svg>`;
+  // One key hanging from the ring at x, tilted a little.
+  const key = (x, a) =>
+    `<path d="M24 16L${x} 21" stroke="#6f7488" stroke-width="1.2"/><g transform="rotate(${a} ${x} 21)"><circle cx="${x}" cy="23.5" r="2.4" fill="none" stroke="#a3a8bd" stroke-width="1.6"/>` +
+    `<rect x="${x - 0.8}" y="25.8" width="1.6" height="15" fill="#a3a8bd"/><path d="M${x + 0.8} 36h2.6v1.5h-2.6zM${x + 0.8} 38.8h1.9v1.5h-1.9z" fill="#a3a8bd"/></g>`;
+  const ratHead = (x, y, a) =>
+    `<g transform="translate(${x} ${y}) rotate(${a})"><circle cx="-3.6" cy="-4.4" r="2.4" fill="#5d5b62"/><circle cx="3.6" cy="-4.4" r="2.4" fill="#5d5b62"/>` +
+    '<path d="M-6 -1.5c0-3.6 2.7-5 6-5s6 1.4 6 5c0 3-3.2 6.5-6 8.5-2.8-2-6-5.5-6-8.5Z" fill="#9b99a0"/>' +
+    '<circle cx="-2.2" cy="-1" r="0.9" fill="#1d1b20"/><circle cx="2.2" cy="-1" r="0.9" fill="#1d1b20"/><circle cx="0" cy="6.2" r="1.1" fill="#c47c84"/></g>';
+  const INSTRUMENTS = {
+    // Avenger's Casket: an iron maiden, its spiked door swung open.
+    revenge: icon('glow-red',
+      '<path d="M14 12c0-5 4.5-8 9.5-8S33 7 33 12v32H14Z" fill="#2c2c33" stroke="#5a5b66" stroke-width="1.2"/>' +
+      '<path d="M17 14h13v27H17Z" fill="#5a1418"/><path d="M23.5 14v27" stroke="#2c2c33" stroke-width="1.4"/>' +
+      '<path d="M17 18h-2.6M17 24h-2.6M17 30h-2.6M17 36h-2.6M30 18h2.6M30 24h2.6M30 30h2.6M30 36h2.6" stroke="#b9bcc6" stroke-width="1.2"/>' +
+      '<path d="M18 4.5l2-2.5 1.5 2.5 2-3 2 3 1.5-2.5 2 2.5" fill="none" stroke="#b9bcc6" stroke-width="1"/>' +
+      '<path d="M34.5 13l7 2.5v26l-7 2.5Z" fill="#3a3b44" stroke="#6b6c78" stroke-width="1"/>' +
+      '<path d="M36.5 19h-2.4M36.5 25h-2.4M36.5 31h-2.4M36.5 37h-2.4" stroke="#b9bcc6" stroke-width="1.2"/>'),
+    // Raging Beast's Agonizing Muzzle: a spiked iron cage over a red jaw.
+    muzzle: icon('glow-red',
+      '<path d="M8 30a16 16 0 0 1 32 0Z" fill="#6e1a1c"/>' +
+      '<path d="M8 30a16 16 0 0 1 32 0M14 30a10 15 0 0 1 20 0M19.5 30a4.5 15.5 0 0 1 9 0M8.6 24h30.8M11 18.5h26" fill="none" stroke="#5d5f69" stroke-width="2.2"/>' +
+      '<path d="M7 31l-4-2.5M8.5 21L4 18.5M14 12.5l-3-4M24 9V4M34 12.5l3-4M39.5 21l4.5-2.5M41 31l4-2.5" stroke="#aeb1bb" stroke-width="2" stroke-linecap="round"/>' +
+      '<path d="M10 30h28l-3 8-2.5-5-2.5 6-2.5-6L25 39l-2.5-6-2.5 6-2.5-6-2.5 5Z" fill="#b8202a"/>' +
+      '<path d="M12 33l1.5 3M35 33l-1.5 3" stroke="#e8d9c0" stroke-width="1.2"/>'),
+    // Rusty Saw: a long bloodied blade with a red grip.
+    saw: icon('glow-red',
+      '<path d="M7 9l6-5 23 27-6 5Z" fill="#c3c6cd"/>' +
+      '<path d="M7 9l2.5 3.2 1-1.6 1.8 3.4 1-1.7 1.8 3.4 1-1.7 1.8 3.4 1-1.7 1.8 3.4 1-1.7 1.8 3.4 1-1.7 1.8 3.4 1-1.7 1.8 3.4 1-1.7L30 36" fill="none" stroke="#7d8089" stroke-width="1.1"/>' +
+      '<path d="M10 7l3-2 3 4-2 3ZM15 14.5l2-1.5 1.5 2.5-1.6 1.3ZM20 18l1.5-1 1 2-1.3.8Z" fill="#9b1d22"/>' +
+      '<path d="M30 36l6-5 7 8.5-6 5Z" fill="#8c2a22" stroke="#5e1813" stroke-width="1"/><path d="M34 37.5l3.5 4.2" stroke="#c9905f" stroke-width="1.2"/>'),
+    // Lost Ring of Keys: old iron keys hanging from a ring.
+    keys: icon('glow-blue',
+      '<circle cx="24" cy="10" r="6.5" fill="none" stroke="#8d92a8" stroke-width="2.2"/>' +
+      key(14, 12) + key(19, 6) + key(24, 0) + key(29, -6) + key(34, -12)),
+    // Hangman's Noose: a coiled hangman's knot above the loop.
+    rope: icon('glow-teal',
+      '<path d="M24 2v11" stroke="#7d4b33" stroke-width="3.4" stroke-linecap="round"/>' +
+      '<path d="M19.5 14h9M19.5 17h9M19.5 20h9M19.5 23h9M19.5 26h9" stroke="#a46b4b" stroke-width="2.8" stroke-linecap="round"/>' +
+      '<path d="M19.5 15.5h9M19.5 18.5h9M19.5 21.5h9M19.5 24.5h9" stroke="#5e3624" stroke-width="0.7"/>' +
+      '<ellipse cx="24" cy="36.5" rx="8.5" ry="9.5" fill="none" stroke="#93593d" stroke-width="3.4"/>' +
+      '<ellipse cx="24" cy="36.5" rx="8.5" ry="9.5" fill="none" stroke="#c99068" stroke-width="1" stroke-dasharray="1.6 2.4"/>'),
+    // Searing Branding Iron: a long iron rod with a red-hot skull brand.
+    fire: icon('glow-orange',
+      '<path d="M41 4l3 3-22 22-3-3Z" fill="#6d4a33"/><path d="M38.5 6.5l3 3M35 10l3 3" stroke="#3a2618" stroke-width="1.4"/>' +
+      '<path d="M17 21c-2-6 3-12 6-15-1 4 1 6 3 7 0-3 1-5 3-7 0 5 3 7 2 12Z" fill="#e8622a" opacity="0.85"/>' +
+      '<circle cx="15" cy="32" r="11" fill="#e8622a"/>' +
+      '<path d="M7 31c0-6 3.5-10 8-10s8 4 8 10c0 3-1.5 5-3.5 6v4h-9v-4c-2-1-3.5-3-3.5-6Z" fill="#ffb347"/>' +
+      '<ellipse cx="11.8" cy="31" rx="2.4" ry="2.8" fill="#7a1a10"/><ellipse cx="18.2" cy="31" rx="2.4" ry="2.8" fill="#7a1a10"/>' +
+      '<path d="M15 34l-1.4 2.6h2.8Z" fill="#7a1a10"/><path d="M12 39.5v2M15 39.5v2M18 39.5v2" stroke="#7a1a10" stroke-width="1.2"/>'),
+    // Squirming Iron Box: an iron chest, lid ajar, with rats pouring out.
+    ironbox: icon('glow-orange',
+      '<path d="M10 22l26-7 3 6-26 7Z" fill="#45474f" stroke="#6b6d78" stroke-width="1"/>' +
+      '<path d="M12 25h26v16H12Z" fill="#33353c" stroke="#5f616c" stroke-width="1.2"/><path d="M12 31h26M12 36h26M20 25v16M30 25v16" stroke="#4f515b" stroke-width="1.2"/>' +
+      '<path d="M15 25c2-2 4-1 6-2s4-2 6-1 5 0 8-1" stroke="#7a5a3a" stroke-width="2.4" fill="none" stroke-linecap="round"/>' +
+      '<ellipse cx="9" cy="40" rx="5" ry="3" fill="#7a5638"/><ellipse cx="14" cy="44" rx="5.5" ry="2.8" fill="#8b6442"/><ellipse cx="6" cy="45" rx="4" ry="2.4" fill="#6a4a30"/>' +
+      '<path d="M4 41c-2 0-3 1-3 3M19 45c2 0 3 .5 4 2" stroke="#b08a66" stroke-width="0.9" fill="none"/>' +
+      '<circle cx="11.5" cy="39" r="0.7" fill="#1d1b20"/><circle cx="16.8" cy="43.4" r="0.7" fill="#1d1b20"/>'),
+    // Skewered Rat Heads: three rat heads run through on an iron spit.
+    skewer: icon('glow-orange',
+      '<path d="M7 45L43 3" stroke="#77777f" stroke-width="2" stroke-linecap="round"/><path d="M43 3l-1 4.5 3-3Z" fill="#c9cbd2"/>' +
+      ratHead(15, 35.5, 40) + ratHead(24, 25, 40) + ratHead(33, 14.5, 40)),
+    // Sorting Hook: a bloodied sickle hook on a wrapped grip and a chain.
+    hook: icon('glow-blue',
+      '<path d="M26 26c-6-1-9-6-8-12s7-10 13-9c5 1 9 5 9 10" fill="none" stroke="#b9bcc6" stroke-width="3.6" stroke-linecap="round"/>' +
+      '<path d="M40 15c0 3-1 5-3 6l2-6Z" fill="#b9bcc6"/><path d="M33 6.5c3 1 5.5 3 6.5 6" stroke="#9b1d22" stroke-width="2.2" fill="none" stroke-linecap="round"/>' +
+      '<path d="M26 26l-3 10" stroke="#5a2e22" stroke-width="4.6" stroke-linecap="round"/><path d="M24.4 29l3 1M23.6 32l3 1" stroke="#a87a55" stroke-width="1"/>' +
+      '<circle cx="22" cy="40.5" r="3.2" fill="none" stroke="#8d92a8" stroke-width="1.8"/>' +
+      '<path d="M26 39c3 0 4 2 6 2s3-2 5-2" fill="none" stroke="#8d92a8" stroke-width="1.6" stroke-dasharray="2 1.2"/>'),
+    // Iron Pestle: a nail-studded club with a ring and chain at the grip.
+    pestle: icon('glow-teal',
+      '<path d="M38 4c4 2 5 5 3 8L18 37l-5-4L34 6c1-1.5 2.5-2.4 4-2Z" fill="#5e3a2c" stroke="#3a231a" stroke-width="1"/>' +
+      '<path d="M36 9l4-2M31 14l4-2M26 19l3.5-2M21 24l3-2M33 6.6l-1.6-3.4M28 11.6l-1.8-3.2M23 16.8l-1.8-3" stroke="#c9cbd2" stroke-width="1.3" stroke-linecap="round"/>' +
+      '<path d="M31 8l-3 3M38 11l-4 3" stroke="#9b1d22" stroke-width="1.6"/>' +
+      '<path d="M18 37l-3 3" stroke="#3a231a" stroke-width="5" stroke-linecap="round"/>' +
+      '<circle cx="12" cy="42" r="3.4" fill="none" stroke="#8d92a8" stroke-width="1.8"/>' +
+      '<path d="M15 44c2 1 3 3 5 3s3-1 5-1" fill="none" stroke="#8d92a8" stroke-width="1.6" stroke-dasharray="2 1.2"/>'),
+    // Warden's Scales: a balance with a pan of meat on each side.
+    scales: icon('glow-teal',
+      '<path d="M24 6v32" stroke="#4a4c56" stroke-width="2.6"/><circle cx="24" cy="5.5" r="2" fill="#7a7d8a"/>' +
+      '<path d="M8 13.5l32-2.5" stroke="#5d606c" stroke-width="2.2" stroke-linecap="round"/>' +
+      '<path d="M9 14l-5 13M9 14l5 13M39 11.5l-5 12M39 11.5l5 12" stroke="#7a7d8a" stroke-width="0.9"/>' +
+      '<path d="M2.5 27h13c0 4-3 6-6.5 6s-6.5-2-6.5-6Z" fill="#3c3e46"/><path d="M33 23.5h12c0 4-3 6-6 6s-6-2-6-6Z" fill="#3c3e46"/>' +
+      '<path d="M5 27c0-3 2-4 4-4s4 1 4.5 4Z" fill="#8c2622"/><path d="M35 23.5c0-2.6 2-3.6 4-3.6s3.6 1 4 3.6Z" fill="#7a5a3a"/>' +
+      '<path d="M16 44h16l-3-6H19Z" fill="#3c3e46"/>'),
+    // Iron Tongs of Lust: iron pincers gripping a bloody tusk.
+    tongs: icon('glow-orange',
+      '<path d="M30 3l-4 16M38 5l-8 15" stroke="#7d8089" stroke-width="2.4" stroke-linecap="round"/>' +
+      '<path d="M26 19l4 1-6 9-4-2Z" fill="#5d606c"/>' +
+      '<path d="M8 22c6-4 12-4 16 0 4 5 6 12 3 19-1 2-3 3-5 2 1-6 0-11-3-14-4-3-8-4-11-3-2-1-2-3 0-4Z" fill="#e6d8bf" stroke="#9a8a6c" stroke-width="1"/>' +
+      '<path d="M14 24c3 2 5 6 5 10M19 26c2 3 3 6 3 10" stroke="#a51e24" stroke-width="2" fill="none" stroke-linecap="round"/>' +
+      '<path d="M9 22c2 0 3 2 2 3" stroke="#a51e24" stroke-width="1.8" fill="none"/>'),
+    // Fanged Guillotine: a toothed, bloodied blade on an anvil.
+    guillotine: icon('glow-red',
+      '<path d="M8 32h30c0 2-2 4-6 4H24l2 5h8v4H12v-4h8l2-5h-6c-5 0-8-2-8-4Z" fill="#33353c" stroke="#5f616c" stroke-width="1"/>' +
+      '<path d="M6 30c6-12 18-18 32-20l4 4c-10 2-18 7-24 16Z" fill="#b9bcc6" stroke="#7d8089" stroke-width="1"/>' +
+      '<path d="M10 30l2-3 1 3 2-3.5 1 3.5 2-4 1 4" fill="none" stroke="#e6e7ea" stroke-width="1"/>' +
+      '<path d="M18 26c3-3 6-5 9-6M24 20l-2 4M30 17l-2 3" stroke="#9b1d22" stroke-width="2" fill="none" stroke-linecap="round"/>' +
+      '<path d="M42 14l3-9" stroke="#5a2e22" stroke-width="3" stroke-linecap="round"/>'),
+  };
+
+  // What else marks a cell: a locked door and what's behind it, a nest, an
+  // empty cell, a scratched door (tinted by the rarity it shows) and Tusk.
+  const mark = (inner) => `<svg class="mark" viewBox="0 0 48 48" aria-hidden="true">${inner}</svg>`;
+  const MARKS = {
+    sealed: mark('<path d="M16 21v-5a8 8 0 0 1 16 0v5" fill="none" stroke="#c9a35a" stroke-width="3.4"/><rect x="11" y="21" width="26" height="20" rx="3" fill="#c9a35a"/><circle cx="24" cy="29.5" r="2.8" fill="#3b2f19"/><path d="M23 31.5h2l1 5h-4Z" fill="#3b2f19"/>'),
+    event: mark('<path d="M24 4l20 20-20 20L4 24Z" fill="#3b2410" stroke="#f28c36" stroke-width="2.4"/><path d="M21.6 12h4.8l-1 15h-2.8Z" fill="#f28c36"/><circle cx="24" cy="33" r="2.7" fill="#f28c36"/>'),
+    chain: mark('<rect x="6" y="15" width="22" height="13" rx="6.5" fill="none" stroke="#f28c36" stroke-width="3.6" transform="rotate(-30 17 21.5)"/><rect x="20" y="20" width="22" height="13" rx="6.5" fill="none" stroke="#f5b26b" stroke-width="3.6" transform="rotate(-30 31 26.5)"/>'),
+    execution: mark('<path d="M30 6l4 4L12 44l-4-3Z" fill="#7a5130"/><path d="M27 4c7 1 13 6 15 14l-11 3c-1-5-3-8-8-10Z" fill="#c3c6cd" stroke="#7d8089" stroke-width="1"/><path d="M38 9c2.2 2.4 3.4 5.4 4 9" stroke="#e0675f" stroke-width="2" fill="none"/>'),
+    nest: mark('<path d="M6 34c6 7 30 7 36 0M8 30c6 8 26 8 32 0M10 38c8 5 20 5 28 0" fill="none" stroke="#8a6a3c" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="13" r="5" fill="#d9a634"/><circle cx="32" cy="13" r="5" fill="#d9a634"/><path d="M24 11c7 0 10 6 7 12-2 4-5 7-7 9-2-2-5-5-7-9-3-6 0-12 7-12Z" fill="#f1c84a"/><circle cx="20.5" cy="19" r="1.5" fill="#3b2f19"/><circle cx="27.5" cy="19" r="1.5" fill="#3b2f19"/>'),
+    empty: mark('<rect x="8" y="8" width="32" height="32" rx="3" fill="none" stroke="#7a8190" stroke-width="2" stroke-dasharray="4 3.4"/>'),
+    scratch: mark('<path d="M12 44V18a12 12 0 0 1 24 0v26Z" fill="#2a2f37" stroke="var(--tc)" stroke-width="2.4"/><path d="M17 20l6 18M22 17l6 18M27 18l5 15" stroke="var(--tc)" stroke-width="2.2" stroke-linecap="round"/>'),
+    scouted: mark('<path d="M4 24c5-8 12-12 20-12s15 4 20 12c-5 8-12 12-20 12S9 32 4 24Z" fill="#20252c" stroke="#5fc4b8" stroke-width="2.4"/><circle cx="24" cy="24" r="7" fill="#5fc4b8"/><circle cx="24" cy="24" r="3" fill="#0f1216"/>'),
+    ivory: mark('<path d="M10 40c14 2 26-6 30-26 1-4 0-7-2-8-2 8-8 20-26 26-4 1-5 7-2 8Z" fill="#efe6cf" stroke="#b9ad8f" stroke-width="1.2"/>'),
+  };
+
   // The parts inside each cell button.
   const CELL_HTML = '<span class="cell-body"></span><span class="door" aria-hidden="true"></span><span class="cell-no"></span><span class="cell-hint"></span><span class="cell-badges"></span><span class="cell-tag"></span><span class="cell-warden"></span><span class="cell-fx"></span>';
 
@@ -109,8 +227,8 @@
       body = `<span class="token">${PORTRAITS[inmate.beast]}<span class="token-beast">${T.beastName(inmate.beast)}</span><span class="token-tier">${T.tierName(inmate.tier)}</span></span>`;
       label += T.describe(inmate);
       if (cell.ivory) {
-        badges.push('<span class="badge badge-ivory">Ivory</span>');
-        label += ', Ivory cell';
+        badges.push('<span class="badge badge-ivory">Tusk</span>');
+        label += ', Tusk cell';
       }
       const link = T.linkOf(st, inmate.id);
       if (link) {
@@ -133,5 +251,5 @@
     return { cls, body, hint, badges: badges.join(''), label, warden };
   }
 
-  root.TartarusBoard = { RING, PORTRAITS, LANTERN, FANGS, OFFICE_ART, CELL_HTML, cellParts };
+  root.TartarusBoard = { RING, PORTRAITS, LANTERN, FANGS, OFFICE_ART, INSTRUMENTS, MARKS, CELL_HTML, cellParts };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -95,8 +95,8 @@
     { key: 'eventTwoDoors', group: 'Special events', label: 'A morning whose doors include an event offers only 2 doors', type: 'bool' },
     { key: 'executionSameTier', group: 'Special events', label: 'Execution takes same-rarity prey (off: lower rarity only)', type: 'bool' },
     { key: 'executionRerolls', group: 'Special events', label: "Execution re-rolls the executioner's beast", type: 'bool' },
-    { key: 'ivoryCount', group: 'Markers', label: 'Inmates raised when an Ivory cell is swapped', type: 'int', min: 1, max: 15 },
-    { key: 'ivoryIncludesSwapped', group: 'Markers', label: 'Ivory can raise the swapped-in inmate', type: 'bool' },
+    { key: 'ivoryCount', group: 'Markers', label: 'Inmates raised when a Tusk cell is swapped', type: 'int', min: 1, max: 15 },
+    { key: 'ivoryIncludesSwapped', group: 'Markers', label: 'Tusk can raise the swapped-in inmate', type: 'bool' },
     { key: 'preyRounds', group: 'Markers', label: 'Mornings a prey mark lasts', type: 'int', min: 1, max: 10 },
     { key: 'scratchStacksBase', group: 'Markers', label: 'Scratch bonus (+2) adds to the base +1', type: 'bool' },
     { key: 'nestDays', group: 'Markers', label: 'Days before a rat nest hatches', type: 'int', min: 1, max: 10 },
@@ -106,36 +106,42 @@
   ];
 
   const TOOLS = {
-    revenge: { name: "Avenger's Box", text: 'After a devour, 30% chance to open a sealed cell holding a meal for the eater at its new rarity. That door triggers nothing else.' },
-    muzzle: { name: 'Agony Muzzle', text: 'When 3 or fewer inmates are on the block before the meal, a devour gains +2 extra tiers.' },
+    revenge: { name: "Avenger's Casket", text: 'After a devour, 30% chance to open a sealed cell holding a meal for the eater at its new rarity. That door triggers nothing else.' },
+    muzzle: { name: "Raging Beast's Agonizing Muzzle", text: 'When 3 or fewer inmates are on the block before the meal, a devour gains +2 extra tiers.' },
     saw: { name: 'Rusty Saw', text: 'After a devour, 25% chance of +1 extra tier.' },
-    keys: { name: 'Lost Key Ring', text: 'When a patrol opens a door, 80% chance to also open the cells on both sides. Those doors trigger nothing else.' },
-    rope: { name: "Hangman's Rope", text: 'Swapped-in inmates are never Normal or Magic.' },
-    fire: { name: 'Burning Stake', text: 'One fewer patrol destination each day. Swapping out an inmate below Legendary has a 40% chance to bring in a Legendary.' },
-    ironbox: { name: 'Writhing Iron Box', text: 'Each morning a sealed cell becomes a rat nest. It hatches a Rare Rat two days later.' },
-    skewer: { name: 'Rat-Head Skewer', text: "Rats can devour Rats of the same rarity, and a Rat's devour gains +1 extra tier." },
+    keys: { name: 'Lost Ring of Keys', text: 'When a patrol opens a door, 80% chance to also open the cells on both sides. Those doors trigger nothing else.' },
+    rope: { name: "Hangman's Noose", text: 'Swapped-in inmates are never Normal or Magic.' },
+    // Once translated as the Burning Stake, with other rules; the live card reads as below.
+    fire: { name: 'Searing Branding Iron', text: 'When a patrol opens a door, 35% chance to copy the inmate behind it into 1 random unopened cell, which opens holding the copy. That door triggers nothing else.' },
+    ironbox: { name: 'Squirming Iron Box', text: 'Each morning a sealed cell becomes a rat nest. It hatches a Rare Rat two days later.' },
+    skewer: { name: 'Skewered Rat Heads', text: "Rats can devour Rats of the same rarity, and a Rat's devour gains +1 extra tier." },
+    hook: { name: 'Sorting Hook', text: 'Cells that open never hold a Normal inmate.' },
+    pestle: { name: 'Iron Pestle', text: 'A swapped-in inmate keeps the beast of the one it replaced; only its rarity is re-rolled.' },
+    scales: { name: "Warden's Scales", text: 'After a swap, 80% chance to scout the highest-rarity inmate behind the locked doors: its door shows its beast and rarity.' },
+    tongs: { name: 'Iron Tongs of Lust', text: 'Each morning a random Mammoth on the block gets a Tusk mark.' },
+    guillotine: { name: 'Fanged Guillotine', text: 'Wolves can also devour the beasts they eat at a lower rarity than their own.' },
   };
   const TOOL_IDS = Object.keys(TOOLS);
 
   const GIFTS = {
-    ring: { name: 'Three-Headed Ring', text: 'Open up to 3 random sealed cells. They trigger nothing else.' },
-    horn: { name: 'Bronze War Horn', text: 'Every inmate with a target devours one at random, in turn.' },
-    wine: { name: 'Crimson Wine', text: 'Every inmate below Legendary rises one tier.' },
-    brand: { name: 'Brand of Sin', text: 'Up to 4 inmates with no meal change beast so they have a same-rarity target.' },
+    ring: { name: 'Three-Headed Thumb Ring', text: 'Open up to 3 random sealed cells. They trigger nothing else.' },
+    horn: { name: 'Brass Horn of Strife', text: 'Every inmate with a target devours one at random, in turn.' },
+    wine: { name: 'Crimson Vintage', text: 'Every inmate below Legendary rises one tier.' },
+    brand: { name: 'Brand of Original Sin', text: 'Up to 4 inmates with no meal change beast so they have a same-rarity target.' },
   };
   const GIFT_IDS = Object.keys(GIFTS);
 
   const START_CELLS = [1, 2, 5, 6, 10, 11];
   const LOADOUTS = {
-    supply: { name: 'Supply start', level: 'Standard', text: 'Six inmates and the Lost Key Ring. Build numbers for the mixed convoys.', inmates: [['mammoth', 0], ['lion', 0], ['wolf', 1], ['rat', 1], ['rat', 2], ['mammoth', 2]], tools: ['keys'] },
-    lean: { name: 'Lean start', level: 'Advanced', text: 'Three inmates and the Agony Muzzle. Keep the block small for big tier jumps.', inmates: [['mammoth', 0], ['lion', 0], ['wolf', 3]], tools: ['muzzle'] },
-    rats: { name: 'Rat-breeding start', level: 'Easier', text: 'Three inmates, the Writhing Iron Box and the Rat-Head Skewer. Breed Rats and pair them.', inmates: [['rat', 2], ['rat', 2], ['mammoth', 3]], tools: ['ironbox', 'skewer'] },
+    supply: { name: 'Supply start', level: 'Standard', text: 'Six inmates and the Lost Ring of Keys. Build numbers for the mixed convoys.', inmates: [['mammoth', 0], ['lion', 0], ['wolf', 1], ['rat', 1], ['rat', 2], ['mammoth', 2]], tools: ['keys'] },
+    lean: { name: 'Lean start', level: 'Advanced', text: 'Three inmates and the Agonizing Muzzle. Keep the block small for big tier jumps.', inmates: [['mammoth', 0], ['lion', 0], ['wolf', 3]], tools: ['muzzle'] },
+    rats: { name: 'Rat-breeding start', level: 'Easier', text: 'Three inmates, the Squirming Iron Box and the Skewered Rat Heads. Breed Rats and pair them.', inmates: [['rat', 2], ['rat', 2], ['mammoth', 3]], tools: ['ironbox', 'skewer'] },
   };
 
   const SCENARIOS = {
     empty: { name: 'Empty prison', text: 'Day 1 with all 15 prison cells sealed. Recommended for a first run.' },
     events: { name: 'Special events drill', text: 'Two doors on today’s route hide a Chain reaction and an Execution.' },
-    ivory: { name: 'Ivory drill', text: 'Swap the inmate in an Ivory cell and four inmates rise a tier.' },
+    ivory: { name: 'Tusk drill', text: 'Swap the inmate in a Tusk cell and four inmates rise a tier.' },
     prey: { name: 'Prey drill', text: 'A Lion and its marked prey both rise each morning for three days.' },
     scratch: { name: 'Scratch drill', text: 'Wolves devour through scratched doors for +3.' },
     nest: { name: 'Rat nest drill', text: 'Leave a nest sealed for two days to hatch a Rare Rat.' },
@@ -293,6 +299,13 @@
     return { id: state.nextId++, beast, tier: clamp(tier, 0, RAINBOW) };
   }
 
+  // Rarity odds for whoever is behind a door. The Sorting Hook keeps out Normals.
+  function doorWeights(state) {
+    const w = state.params.tierWeights.slice();
+    if (has(state, 'hook') && w.slice(1).some((x) => x > 0)) w[0] = 0;
+    return w;
+  }
+
   function rollInmate(state, weights) {
     const tier = pickIndex(state, weights || state.params.tierWeights);
     const beast = BEASTS[pickIndex(state, state.params.beastWeights)];
@@ -312,12 +325,21 @@
 
   // The occupant behind a sealed door is rolled the first time anyone looks.
   function hiddenOf(state, cell) {
-    if (!cell.hidden) cell.hidden = rollInmate(state);
+    if (!cell.hidden) cell.hidden = rollInmate(state, doorWeights(state));
     return cell.hidden;
   }
 
+  // Who comes out of a door: the inmate already behind it, unless the Sorting
+  // Hook rules out a Normal the player hasn't seen.
+  function doorInmate(state, cell) {
+    const h = cell.hidden;
+    if (h && (h.tier > 0 || cell.known || !has(state, 'hook'))) return h;
+    return rollInmate(state, doorWeights(state));
+  }
+
   function canEat(state, eater, meal) {
-    if (!eater || !meal || eater.id === meal.id || eater.tier !== meal.tier || eater.tier >= RAINBOW) return false;
+    if (!eater || !meal || eater.id === meal.id || eater.tier >= RAINBOW) return false;
+    if (eater.tier !== meal.tier) return eater.tier > meal.tier && eater.beast === 'wolf' && has(state, 'guillotine') && eatsOf(state, 'wolf').includes(meal.beast);
     return eatsOf(state, eater.beast).includes(meal.beast) || (eater.beast === 'rat' && meal.beast === 'rat' && has(state, 'skewer'));
   }
 
@@ -403,7 +425,7 @@
   function openCell(state, cell, how, events, forced) {
     if (!cell.sealed) return null;
     const event = cell.event;
-    const inmate = forced ? makeInmate(state, forced.beast, forced.tier) : cell.hidden || rollInmate(state);
+    const inmate = forced ? makeInmate(state, forced.beast, forced.tier) : doorInmate(state, cell);
     const lostNest = !!cell.nest && !forced;
     cell.sealed = false;
     cell.inmate = inmate;
@@ -418,8 +440,18 @@
     log(state, 'patrol', `Opened cell ${cellLabel(cell.n)}${extra}: ${describe(inmate)}.${lostNest ? ' The rat nest inside was destroyed.' : ''}`, { type: 'open', cell: cell.n, side: how !== 'patrol', who: snap(inmate) });
     if (event && how !== 'patrol') log(state, 'event', `The special event behind cell ${cellLabel(cell.n)} was used up without triggering.`);
     afterGrowth(state, inmate, events);
+    // Searing Branding Iron: the inmate behind a patrolled door is copied
+    // into another unopened cell, which opens with no other effect.
+    if (how === 'patrol' && has(state, 'fire') && rand(state) < 0.35 && cell.inmate === inmate) {
+      const sealed = state.cells.filter((c) => c.sealed);
+      if (sealed.length) {
+        const target = pickOne(state, sealed);
+        log(state, 'tool', `Searing Branding Iron: the ${describe(inmate)} is copied into cell ${cellLabel(target.n)}.`);
+        openCell(state, target, 'side', events, { beast: inmate.beast, tier: inmate.tier });
+      }
+    }
     if (how === 'patrol' && has(state, 'keys') && rand(state) < 0.8) {
-      log(state, 'tool', 'Lost Key Ring: the cells on both sides swing open too.');
+      log(state, 'tool', 'Lost Ring of Keys: the cells on both sides swing open too.');
       // Next to the office there is only one door to open.
       for (const step of [-1, 1]) openCell(state, state.cells[(cell.n + step + CELL_COUNT) % CELL_COUNT], 'side', events);
     }
@@ -526,7 +558,7 @@
       place(state, 7, 'wolf', 2);
       place(state, 12, 'mammoth', 3);
       place(state, 15, 'rat', 1);
-      note = `Ivory drill: cell 02, the warden's cell, carries Ivory. Swap its inmate and ${plural(state.params.ivoryCount, 'inmate')} on the block each gain a tier.`;
+      note = `Tusk drill: cell 02, the warden's cell, carries a Tusk mark. Swap its inmate and ${plural(state.params.ivoryCount, 'inmate')} on the block each gain a tier.`;
     } else if (s === 'prey') {
       const lion = place(state, 1, 'lion', 2);
       const wolf = place(state, 2, 'wolf', 2);
@@ -593,9 +625,9 @@
 
   // ---------- Day flow ----------
 
-  // Today's door count: the base drawn each morning, less one for the Burning Stake.
+  // Today's door count, drawn each morning.
   function destinationLimit(state) {
-    return Math.max(1, (state.destBase || state.params.destinations) - (has(state, 'fire') ? 1 : 0));
+    return Math.max(1, state.destBase || state.params.destinations);
   }
 
   // Destinations come from the cells just ahead of the warden, clockwise:
@@ -619,7 +651,7 @@
     state.destinations = picks.map((c) => c.n).sort((a, b) => stepsBetween(state.position, a) - stepsBetween(state.position, b));
   }
 
-  // Trims today's options after a tool such as the Burning Stake changes the count.
+  // Trims today's options to today's door count.
   function fitDestinations(state) {
     if (state.phase !== 'patrol') return;
     state.destinations = state.destinations.slice(0, destinationLimit(state));
@@ -647,12 +679,20 @@
       openCell(state, cell, 'side', events, { beast: 'rat', tier: state.params.nestTier });
       events.push({ type: 'hatch', cell: cell.n });
     }
+    if (has(state, 'tongs')) {
+      const mammoths = boardCells(state).filter((c) => c.inmate.beast === 'mammoth' && !c.ivory);
+      if (mammoths.length) {
+        const cell = pickOne(state, mammoths);
+        cell.ivory = true;
+        log(state, 'tool', `Iron Tongs of Lust: the Mammoth in cell ${cellLabel(cell.n)} gets a Tusk mark.`);
+      }
+    }
     if (has(state, 'ironbox')) {
       const free = state.cells.filter((c) => c.sealed && !c.nest);
       if (free.length) {
         const cell = pickOne(state, free);
         cell.nest = { due: state.day + state.params.nestDays };
-        log(state, 'nest', `Writhing Iron Box: cell ${cellLabel(cell.n)} is now a rat nest. It hatches on day ${cell.nest.due}.`);
+        log(state, 'nest', `Squirming Iron Box: cell ${cellLabel(cell.n)} is now a rat nest. It hatches on day ${cell.nest.due}.`);
         events.push({ type: 'nest', cell: cell.n });
       }
     }
@@ -688,7 +728,7 @@
     return out;
   }
 
-  // The sure part of a devour's gain; Rusty Saw and Avenger's Box roll later.
+  // The sure part of a devour's gain; Rusty Saw and Avenger's Casket roll later.
   function gainFor(state, from, option) {
     const eater = state.cells[from].inmate;
     let gain = option.scratch ? 2 + (state.params.scratchStacksBase ? 1 : 0) : 1;
@@ -696,11 +736,11 @@
     if (option.scratch) notes.push(`scratch +${gain - 1}`);
     if (has(state, 'muzzle') && boardCells(state).length <= 3) {
       gain += 2;
-      notes.push('Agony Muzzle +2');
+      notes.push('Agonizing Muzzle +2');
     }
     if (has(state, 'skewer') && eater && eater.beast === 'rat') {
       gain += 1;
-      notes.push('Rat-Head Skewer +1');
+      notes.push('Skewered Rat Heads +1');
     }
     return { gain, notes, saw: has(state, 'saw'), revenge: has(state, 'revenge') };
   }
@@ -815,11 +855,11 @@
     if (option.scratch) notes.push(`scratch +${gain - 1}`);
     if (has(state, 'muzzle') && crowd <= 3) {
       gain += 2;
-      notes.push('Agony Muzzle +2');
+      notes.push('Agonizing Muzzle +2');
     }
     if (has(state, 'skewer') && wasRat) {
       gain += 1;
-      notes.push('Rat-Head Skewer +1');
+      notes.push('Skewered Rat Heads +1');
     }
     if (has(state, 'saw') && rand(state) < 0.25) {
       gain += 1;
@@ -836,7 +876,7 @@
       if (sealed.length) {
         const target = pickOne(state, sealed);
         const food = pickOne(state, eatsOf(state, eater.beast));
-        log(state, 'tool', `Avenger's Box: cell ${cellLabel(target.n)} opens with a meal for the ${describe(eater)}.`);
+        log(state, 'tool', `Avenger's Casket: cell ${cellLabel(target.n)} opens with a meal for the ${describe(eater)}.`);
         openCell(state, target, 'side', events, { beast: food, tier: eater.tier });
       }
     }
@@ -902,25 +942,34 @@
     cell.inmate = null;
     checkPrey(state);
     const fresh = rollInmate(state, weights);
-    let fired = false;
-    if (has(state, 'fire') && old.tier < 3 && rand(state) < 0.4) {
-      fresh.tier = 3;
-      fired = true;
-    }
+    if (has(state, 'pestle')) fresh.beast = old.beast;
     cell.inmate = fresh;
     state.used.swap += 1;
     state.stats.swaps += 1;
-    logAt(state, at, 'swap', `Swapped out the ${describe(old)} in cell ${cellLabel(n)}. In came a ${describe(fresh)}${fired ? ' (Burning Stake)' : ''}.`, { type: 'swap', cell: n, old: snap(old), fresh: snap(fresh) });
+    logAt(state, at, 'swap', `Swapped out the ${describe(old)} in cell ${cellLabel(n)}. In came a ${describe(fresh)}.`, { type: 'swap', cell: n, old: snap(old), fresh: snap(fresh) });
     afterGrowth(state, fresh, events);
+    if (has(state, 'scales') && rand(state) < 0.8) scout(state);
     if (cell.ivory && boardCellOf(state, fresh.id)) {
       const pool = boardInmates(state).filter((i) => state.params.ivoryIncludesSwapped || i.id !== fresh.id);
       const picks = shuffle(state, pool).slice(0, state.params.ivoryCount);
       if (picks.length) {
-        log(state, 'ivory', `Ivory: ${plural(picks.length, 'inmate')} each gain a tier (cells ${picks.map((i) => cellLabel(cellOf(state, i.id).n)).join(', ')}).`, { type: 'ivory', count: picks.length });
+        log(state, 'ivory', `Tusk: ${plural(picks.length, 'inmate')} each gain a tier (cells ${picks.map((i) => cellLabel(cellOf(state, i.id).n)).join(', ')}).`, { type: 'ivory', count: picks.length });
         for (const i of picks) if (boardCellOf(state, i.id)) promote(state, i, 1, false, events);
       }
     }
     return ok(events);
+  }
+
+  // Warden's Scales: the highest-rarity inmate behind the locked doors is
+  // shown, beast and rarity, while its door stays locked.
+  function scout(state) {
+    const doors = state.cells.filter((c) => c.sealed && !c.nest);
+    if (!doors.length) return;
+    for (const c of doors) hiddenOf(state, c);
+    const top = Math.max(...doors.map((c) => c.hidden.tier));
+    const cell = pickOne(state, doors.filter((c) => c.hidden.tier === top));
+    cell.known = 2;
+    log(state, 'tool', `Warden's Scales: cell ${cellLabel(cell.n)} holds a ${describe(cell.hidden)}, the best behind the locked doors.`);
   }
 
   function endDay(state) {
@@ -1188,7 +1237,7 @@
         const possible = BEASTS.filter((b) => boardInmates(state).some((o) => canEat(state, { id: i.id, beast: b, tier: i.tier }, o)));
         if (possible.length) {
           i.beast = pickOne(state, possible);
-          log(state, 'tool', `Brand of Sin: cell ${cellLabel(cell.n)} is now a ${describe(i)}.`);
+          log(state, 'tool', `Brand of Original Sin: cell ${cellLabel(cell.n)} is now a ${describe(i)}.`);
         }
       }
       checkPrey(state);
@@ -1220,7 +1269,7 @@
       cell.inmate = makeInmate(state, beast, tier);
       cell.ivory = !!spec.ivory;
       state.stats.best = Math.max(state.stats.best, tier);
-      what = `an open cell with a ${describe(cell.inmate)}${cell.ivory ? ' and Ivory' : ''}`;
+      what = `an open cell with a ${describe(cell.inmate)}${cell.ivory ? ' and Tusk' : ''}`;
     } else if (spec.kind === 'empty') {
       cell.sealed = false;
       what = 'an empty open cell';
@@ -1300,7 +1349,12 @@
       case 'revenge': return 14;
       case 'saw': return 12;
       case 'rope': return 10;
-      case 'fire': return 6;
+      case 'fire': return board.length < 6 ? 14 : 8;
+      case 'hook': return 12;
+      case 'pestle': return 4;
+      case 'scales': return 6;
+      case 'tongs': return board.some((i) => i.beast === 'mammoth') ? 8 : 3;
+      case 'guillotine': return board.filter((i) => i.beast === 'wolf').length * 6;
       case 'wine': return board.filter((i) => i.tier < 3).length * 4;
       case 'horn': return board.filter((i) => devourOptions(state, cellOf(state, i.id).n).length).length * 6;
       case 'brand': return board.filter((i) => !devourOptions(state, cellOf(state, i.id).n).length).length * 5;
@@ -1407,7 +1461,7 @@
         return [{ kind: 'event', accept: victims.length > 0, text: victims.length ? `Accept: the executioner removes ${plural(victims.length, 'inmate')} and rises ${victims.length} ${victims.length === 1 ? 'tier' : 'tiers'}.` : 'Skip: there is nobody for this inmate to execute.' }];
       }
       const keepSmall = has(state, 'muzzle') && board.length <= 3;
-      return [{ kind: 'event', accept: !keepSmall, text: keepSmall ? 'Skip: a chain would flood the block and switch off the Agony Muzzle.' : 'Accept: your next patrol opens every sealed cell on the way to its destination.' }];
+      return [{ kind: 'event', accept: !keepSmall, text: keepSmall ? 'Skip: a chain would flood the block and switch off the Agonizing Muzzle.' : 'Accept: your next patrol opens every sealed cell on the way to its destination.' }];
     }
     if (state.phase === 'patrol') {
       for (const n of patrolOptions(state)) {
@@ -1452,7 +1506,7 @@
     // Only the warden's cell can be swapped.
     const here = state.cells[state.position];
     if (state.used.swap < state.params.swapsPerDay && here.ivory && !here.sealed && here.inmate) {
-      tips.push({ kind: 'swap', cell: here.n, score: 20 + Math.min(board.length, state.params.ivoryCount) * 6, text: `Swap the inmate in Ivory cell ${cellLabel(here.n)}: up to ${plural(state.params.ivoryCount, 'inmate')} gain a tier.` });
+      tips.push({ kind: 'swap', cell: here.n, score: 20 + Math.min(board.length, state.params.ivoryCount) * 6, text: `Swap the inmate in Tusk cell ${cellLabel(here.n)}: up to ${plural(state.params.ivoryCount, 'inmate')} gain a tier.` });
     }
     tips.sort((a, b) => b.score - a.score);
     const out = tips.filter((t) => t.score > 0).slice(0, 4);

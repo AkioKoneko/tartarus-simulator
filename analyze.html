@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261013d">
+<link rel="stylesheet" href="css/style.css?v=20261013e">
 </head>
 <body>
 <main class="analyzer" id="analyzer">
@@ -61,12 +61,89 @@
     </div>
   </section>
 
+  <section class="az-screen" aria-label="Your prison">
+    <div class="az-game" id="az-game">
+      <div class="az-game-top">
+        <span class="az-game-title">Tartarus Prison</span>
+        <label class="az-riot"><input type="number" id="az-riot" min="0" max="59" step="1" aria-describedby="az-dayof"><span>day(s) until Riot</span></label>
+        <span class="az-dayof" id="az-dayof"></span>
+      </div>
+      <div class="az-game-mid">
+        <div class="az-game-left">
+          <section class="az-objective" aria-labelledby="az-objective-title">
+            <h3 class="az-game-h" id="az-objective-title">Objective: King of the Caged</h3>
+            <p>At least 1 inmate's rarity reaches Supreme</p>
+            <label class="az-done"><input type="checkbox" id="az-milestone"> <span>Completed</span></label>
+          </section>
+          <section class="az-instruments-panel" aria-labelledby="az-instruments-title">
+            <h3 class="az-game-h" id="az-instruments-title">Torture Instrument</h3>
+            <div class="az-instruments" id="az-tools"></div>
+          </section>
+        </div>
+        <div class="board az-board" id="az-board">
+          <div class="board-center az-court" id="az-court" aria-live="polite"></div>
+        </div>
+        <section class="az-game-right" aria-labelledby="az-chromatic-title">
+          <h3 class="az-game-h" id="az-chromatic-title">Chromatic Prisoner</h3>
+          <div class="az-chromatic" id="az-vault"></div>
+          <div class="az-chromatic-add" id="az-vault-add"></div>
+        </section>
+      </div>
+      <div class="az-game-bottom">
+        <div class="az-decide">
+          <div class="az-prompts" id="az-step" role="group" aria-label="What your game is asking">
+            <button type="button" data-v="patrol">Select a Destination</button>
+            <button type="button" data-v="manage">Make Your Decision</button>
+            <button type="button" data-v="event">Special event</button>
+            <button type="button" data-v="choice">Instrument or gift</button>
+            <button type="button" data-v="window" id="az-step-window">Delivery</button>
+          </div>
+          <div class="az-stepbox" data-step="patrol">
+            <div class="az-doorcards" id="az-doors"></div>
+            <p class="field-note">Light up the doors your game offers today. They come from the next five cells clockwise from the warden.</p>
+          </div>
+          <div class="az-stepbox az-used" data-step="manage choice">
+            <label class="toggle"><input type="checkbox" id="az-swapped"><span><strong>Replace used today</strong><small>Only the warden's inmate can be swapped, once a day.</small></span></label>
+            <label class="toggle"><input type="checkbox" id="az-devoured"><span><strong>Devour used today</strong><small>Only the warden's inmate can devour, once a day.</small></span></label>
+          </div>
+          <div class="az-stepbox" data-step="event">
+            <span class="field-label">The event in the warden's cell</span>
+            <div class="az-seg" id="az-event-kind">
+              <button type="button" data-v="chain">Chain reaction</button>
+              <button type="button" data-v="execution">Execution</button>
+            </div>
+            <p class="field-note">The door the warden just opened held it. The inmate that came out must be in the warden's cell.</p>
+          </div>
+          <div class="az-stepbox" data-step="choice">
+            <span class="field-label">What's on offer</span>
+            <div class="az-seg" id="az-choice-kind">
+              <button type="button" data-v="tool">First Supreme's instrument</button>
+              <button type="button" data-v="refit">Refit instrument</button>
+              <button type="button" data-v="gift">Warden's Cache gift</button>
+            </div>
+            <div class="az-offer" id="az-offer"></div>
+          </div>
+          <div class="az-stepbox" data-step="window">
+            <span class="field-label">Which window</span>
+            <div class="az-seg" id="az-window-kind">
+              <button type="button" data-v="due">Due today</button>
+              <button type="button" data-v="early">Early heavy delivery</button>
+            </div>
+            <p class="field-note" id="az-window-note"></p>
+          </div>
+        </div>
+        <div class="az-ask">
+          <button type="button" class="btn btn-primary az-go" id="az-go">What should I do?</button>
+          <ul class="az-problems" id="az-problems" hidden></ul>
+          <p class="field-note az-share" id="az-share" aria-live="polite"></p>
+        </div>
+      </div>
+    </div>
+    <p class="az-keys">Click a cell to pick what's in it; the panel below has the details. Keys: <kbd>M</kbd> <kbd>L</kbd> <kbd>W</kbd> <kbd>R</kbd> beast · <kbd>1</kbd>–<kbd>5</kbd> rarity · <kbd>S</kbd> sealed · <kbd>X</kbd> scratched · <kbd>N</kbd> nest · <kbd>E</kbd> empty · <kbd>I</kbd> Tusk · <kbd>D</kbd> today's door · <kbd>H</kbd> warden here · arrows move around the ring.</p>
+  </section>
+
   <div class="az-layout">
     <section class="az-main" aria-label="Your board">
-      <div class="board az-board" id="az-board">
-        <div class="board-center az-court" id="az-court" aria-live="polite"></div>
-      </div>
-      <p class="az-keys">Click a cell to pick what's in it from a list; the panel below has the details. Keys: <kbd>M</kbd> <kbd>L</kbd> <kbd>W</kbd> <kbd>R</kbd> beast · <kbd>1</kbd>–<kbd>5</kbd> rarity · <kbd>S</kbd> sealed · <kbd>X</kbd> scratched · <kbd>N</kbd> nest · <kbd>E</kbd> empty · <kbd>I</kbd> Ivory · <kbd>D</kbd> today's door · <kbd>H</kbd> warden here · arrows move around the ring.</p>
 
       <section class="az-panel az-results" id="az-results" aria-live="polite" hidden>
         <p class="trainer-eyebrow">Recommended</p>
@@ -101,6 +178,7 @@
               <button type="button" data-v="inmate">Inmate</button>
               <button type="button" data-v="empty">Empty</button>
               <button type="button" data-v="scratch">Scratched door</button>
+              <button type="button" data-v="scouted">Scouted door</button>
               <button type="button" data-v="nest">Rat nest</button>
             </div>
           </fieldset>
@@ -113,7 +191,7 @@
             <div class="az-tiers" id="az-tiers"></div>
           </fieldset>
           <div class="az-inmate-extra" id="az-inmate-extra">
-            <label class="toggle"><input type="checkbox" id="az-ivory"><span><strong>Ivory cell</strong><small>Swapping this inmate raises others on the block a tier.</small></span></label>
+            <label class="toggle"><input type="checkbox" id="az-ivory"><span><strong>Tusk mark</strong><small>Swapping this inmate raises others on the block a tier.</small></span></label>
             <div class="az-prey" id="az-prey-field">
               <label class="field"><span class="field-label">Prey mark</span><select id="az-prey"></select></label>
               <label class="field"><span class="field-label">Mornings left</span><input type="number" id="az-prey-rounds" min="1" max="9" step="1"></label>
@@ -152,70 +230,16 @@
           </div>
         </fieldset>
         <div class="az-row">
-          <label class="field"><span class="field-label">Day</span><input type="number" id="az-day" min="1" max="60" step="1"></label>
           <label class="field" id="az-days-wrap"><span class="field-label">Run length (days)</span><input type="number" id="az-days" min="5" max="60" step="1"></label>
           <p class="field" id="az-days-fixed" hidden><span class="field-label">Run length</span><span class="az-fixed">12 days</span></p>
-        </div>
-        <fieldset class="field">
-          <legend>What are you deciding?</legend>
-          <div class="az-seg az-steps" id="az-step">
-            <button type="button" data-v="patrol">Which door to patrol</button>
-            <button type="button" data-v="manage">After the patrol</button>
-            <button type="button" data-v="event">A special event</button>
-            <button type="button" data-v="choice">A tool or gift</button>
-            <button type="button" data-v="window" id="az-step-window">A delivery</button>
-          </div>
-        </fieldset>
-        <div class="az-stepbox" data-step="patrol">
-          <span class="field-label">Today's doors</span>
-          <div class="az-doors" id="az-doors"></div>
-          <p class="field-note">Tick the cells your game offers today. They come from the next five cells clockwise from the warden.</p>
-        </div>
-        <div class="az-stepbox toggles" data-step="manage choice">
-          <label class="toggle"><input type="checkbox" id="az-devoured"><span><strong>Today's devour is used</strong><small>Only the warden's inmate can devour, once a day.</small></span></label>
-          <label class="toggle"><input type="checkbox" id="az-swapped"><span><strong>Today's swap is used</strong><small>Only the warden's inmate can be swapped, once a day.</small></span></label>
-        </div>
-        <div class="az-stepbox" data-step="event">
-          <span class="field-label">The event in the warden's cell</span>
-          <div class="az-seg" id="az-event-kind">
-            <button type="button" data-v="chain">Chain reaction</button>
-            <button type="button" data-v="execution">Execution</button>
-          </div>
-          <p class="field-note">The door the warden just opened held it. The inmate that came out must be in the warden's cell.</p>
-        </div>
-        <div class="az-stepbox" data-step="choice">
-          <span class="field-label">What's on offer</span>
-          <div class="az-seg" id="az-choice-kind">
-            <button type="button" data-v="tool">First Supreme's tool</button>
-            <button type="button" data-v="refit">Refit tool</button>
-            <button type="button" data-v="gift">Warden's Cache gift</button>
-          </div>
-          <div class="az-offer" id="az-offer"></div>
-        </div>
-        <div class="az-stepbox" data-step="window">
-          <span class="field-label">Which window</span>
-          <div class="az-seg" id="az-window-kind">
-            <button type="button" data-v="due">Due today</button>
-            <button type="button" data-v="early">Early heavy delivery</button>
-          </div>
-          <p class="field-note" id="az-window-note"></p>
         </div>
         <label class="toggle az-armed"><input type="checkbox" id="az-armed"><span><strong>Chain reaction armed</strong><small>Your next patrol opens every sealed door on the walk.</small></span></label>
       </section>
 
       <section class="az-panel">
-        <h2 class="az-h2">Tools and vault</h2>
-        <span class="field-label">Tools you hold</span>
-        <div class="az-tools" id="az-tools"></div>
+        <h2 class="az-h2">Rewards</h2>
         <div class="toggles az-reward-toggles">
-          <label class="toggle" id="az-rewards-wrap"><input type="checkbox" id="az-rewards"><span><strong>Rewards on</strong><small>Your first Supreme earns a tool, and each Rainbow opens the Warden's Cache.</small></span></label>
-          <label class="toggle"><input type="checkbox" id="az-milestone"><span><strong>First Supreme's tool already earned</strong><small>Tick this once you've had a Supreme, so no more milestone tool is coming.</small></span></label>
-        </div>
-        <span class="field-label">Rainbows in the vault</span>
-        <div class="az-vault" id="az-vault"></div>
-        <div class="az-vault-add">
-          <select id="az-vault-beast" aria-label="Beast of the Rainbow to add"></select>
-          <button type="button" class="btn" id="az-vault-add">Add a Rainbow</button>
+          <label class="toggle" id="az-rewards-wrap"><input type="checkbox" id="az-rewards"><span><strong>Rewards on</strong><small>Your first Supreme earns an instrument, and each Chromatic prisoner opens the Warden's Cache.</small></span></label>
         </div>
       </section>
 
@@ -225,13 +249,14 @@
         <div class="az-contracts" id="az-contracts"></div>
       </section>
 
-      <div class="az-ask">
-        <button type="button" class="btn btn-primary az-go" id="az-go">What should I do?</button>
-        <ul class="az-problems" id="az-problems" hidden></ul>
-        <p class="field-note az-share" id="az-share" aria-live="polite"></p>
-      </div>
 
     </aside>
+  </div>
+
+  <div class="az-toast" id="az-toast" role="status" aria-live="polite" hidden>
+    <span class="az-toast-spin" aria-hidden="true"></span>
+    <p class="az-toast-text" id="az-toast-text"></p>
+    <div class="az-toast-actions" id="az-toast-actions"></div>
   </div>
 
   <footer class="az-foot">
@@ -241,10 +266,10 @@
   </footer>
 </main>
 
-<script src="js/engine.js?v=20261013d"></script>
-<script src="js/board.js?v=20261013d"></script>
-<script src="js/solver.js?v=20261013d"></script>
-<script src="js/live.js?v=20261013d"></script>
-<script src="js/analyze.js?v=20261013d"></script>
+<script src="js/engine.js?v=20261013e"></script>
+<script src="js/board.js?v=20261013e"></script>
+<script src="js/solver.js?v=20261013e"></script>
+<script src="js/live.js?v=20261013e"></script>
+<script src="js/analyze.js?v=20261013e"></script>
 </body>
 </html>

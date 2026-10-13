@@ -94,7 +94,7 @@ The tuning ran `ctune` at 100,000 runs per test for 2 rounds: 16.3 million runs 
 - **Starts.** Supply 96.5% (52.5 points), Lean 90.1% (50.0) and Rat-breeding 96.8% (54.2).
 - **Contracts most often missed.** Elite muster (delivered 61.9%), Work gang (80.6%) and Kin escort (85.2%). The heavy contract ships in 95.8% of runs, for 37.5 points on average.
 - **Runs that still fail.** 4.2% never reach a Supreme or Rainbow by day 12, and 1.3% ship the heavy contract but miss both early ones.
-- **Refit tools.** Putting Hangman's Rope first was clearly best: 94.4% against 93.5% with the drill's order, 300,000 runs each. The final order is Rope, Skewer, Burning Stake, Avenger's Box, Key Ring, Iron Box, Muzzle, Saw.
+- **Refit tools.** Putting Hangman's Noose first was clearly best: 94.4% against 93.5% with the drill's order, 300,000 runs each. The final order is Rope, Skewer, Burning Stake, Avenger's Casket, Ring of Keys, Iron Box, Muzzle, Saw.
 - **Cargo.** Sending what qualifies plus spare Normals (`keep` 1) matched the tuner's strict minimum (1.5) on pass rate and added 1.1 points, on 1,000,000 fresh runs.
 
 The two-meal chain's challenge profile had a one-round tune (5.2 million runs, 7.5 minutes). It passes 97.2% with 59.3 points on fresh prisons. On that chain, richer cargo on contract 2 pays (`keep2` 0.25).
@@ -127,16 +127,16 @@ From the full study on 2026-10-12, run on the two-meal food chain (the default a
 
 | Tool | Rainbows/run | Change |
 | --- | --- | --- |
-| Hangman's Rope | 1.749 | +1.087 |
-| Avenger's Box | 1.655 | +0.994 |
-| Rat-Head Skewer | 1.408 | +0.746 |
+| Hangman's Noose | 1.749 | +1.087 |
+| Avenger's Casket | 1.655 | +0.994 |
+| Skewered Rat Heads | 1.408 | +0.746 |
 | Burning Stake | 1.402 | +0.741 |
 | Rusty Saw | 1.258 | +0.596 |
-| Lost Key Ring | 1.033 | +0.372 |
-| Agony Muzzle | 0.902 | +0.240 |
-| Writhing Iron Box | 0.490 | **−0.172** |
+| Lost Ring of Keys | 1.033 | +0.372 |
+| Agonizing Muzzle | 0.902 | +0.240 |
+| Squirming Iron Box | 0.490 | **−0.172** |
 
-**Warden's Cache.** Scoring the gifts on the spot (1.336) beats always taking the same one. In order: Crimson Wine 1.302, Three-Headed Ring 1.260, Brand of Sin 1.181, Bronze War Horn 1.176.
+**Warden's Cache.** Scoring the gifts on the spot (1.336) beats always taking the same one. In order: Crimson Vintage 1.302, Three-Headed Thumb Ring 1.260, Brand of Original Sin 1.181, Brass Horn of Strife 1.176.
 
 **Hard mode loop chain:** 0.269 with no tools, 0.706 with rewards. Each beast has only one meal, so chains break far more often.
 
@@ -232,7 +232,7 @@ node tools/live-data.js rates --all   # also count guesses nobody confirmed
 It measures:
 - door rarities and beasts (`tierWeights`, `beastWeights`),
 - swaps,
-- Key Ring side doors,
+- Ring of Keys side doors,
 - scratched doors,
 - the day-1 event rate (`eventChance`) and the Chain/Execution split,
 - doors per morning (`fewerDoorsChance`) and how far ahead they are, which settles whether the office counts as a patrol step,
@@ -246,7 +246,7 @@ Each rate has a 95% range. A rate is judged once it has 30 observations, and rar
 - door and swap rarities 52/27/15/6,
 - beasts at 25% each,
 - 18.1% of day-1 doors with an event,
-- 80.4% Key Ring openings,
+- 80.4% Ring of Keys openings,
 - no doors more than 5 steps ahead.
 
 The one gap was Chain reactions at 53% instead of 50%. In the simulator, the strategy can see an event's kind and favors Chain reactions; live players can't see it.

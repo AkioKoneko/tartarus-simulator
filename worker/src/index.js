@@ -11,7 +11,7 @@ const DAILY_QUOTA = 1500; // snapshots per address per day
 const EXPORT_PAGE = 2000;
 
 const STEPS = ['patrol', 'manage', 'event', 'choice', 'window'];
-const KINDS = ['sealed', 'inmate', 'empty', 'scratch', 'nest'];
+const KINDS = ['sealed', 'inmate', 'empty', 'scratch', 'scouted', 'nest'];
 const BEASTS = ['mammoth', 'lion', 'wolf', 'rat'];
 const EVENTS = ['unknown', 'chain', 'execution'];
 const ACTIONS = ['patrol', 'devour', 'swap', 'end', 'event', 'choose', 'deliver', 'skip', 'close', 'early'];
@@ -166,6 +166,8 @@ function cleanCell(c, n) {
       };
     case 'scratch':
       return { kind, tier: int(c.tier, 0, 5, 'tier'), event };
+    case 'scouted':
+      return { kind, beast: oneOf(c.beast, BEASTS, 'beast'), tier: int(c.tier, 0, 5, 'tier'), event };
     case 'nest':
       return { kind, due: int(c.due, 1, 99, 'due') };
     default:

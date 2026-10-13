@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261013d">
+<link rel="stylesheet" href="css/style.css?v=20261013e">
 </head>
 <body>
 <div class="app" id="app">
@@ -44,7 +44,7 @@
         </button>
         <button type="button" class="route" data-route="markers">
           <span class="route-name">Focused drills</span>
-          <span class="route-text">Fixed scenes for special events, Ivory, Prey, Scratch and Rat nest, so you can test each one on its own.</span>
+          <span class="route-text">Fixed scenes for special events, Tusk, Prey, Scratch and Rat nest, so you can test each one on its own.</span>
           <span class="route-meta">5 scenes</span>
         </button>
         <a class="route" href="analyze.html">
@@ -293,7 +293,7 @@
 
       <h3>A day on the block</h3>
       <ol class="steps">
-        <li><strong>Patrol.</strong> Each morning offers three destination cells from the next five clockwise from the warden, or two while you hold the Burning Stake. The office counts as one of those five steps but is never offered. They glow on the ring and appear as cards under it. A destination can be a locked cell, which opens when the warden arrives, or a cell whose inmate you already know. You can't see inside a locked cell until it opens. You must patrol before anything else.</li>
+        <li><strong>Patrol.</strong> Each morning offers three destination cells from the next five clockwise from the warden. The office counts as one of those five steps but is never offered. They glow on the ring and appear as cards under it. A destination can be a locked cell, which opens when the warden arrives, or a cell whose inmate you already know. You can't see inside a locked cell until it opens. You must patrol before anything else.</li>
         <li><strong>Devour.</strong> Once a day, after the patrol, and only the inmate in the warden's cell can start it. Double-click a highlighted target to devour it, or click it once to preview the bite and again to confirm. If the eater then has another valid target, it chains on by itself: it devours a random valid target, and keeps going while targets remain. A chain can't be stopped. The log and the recap under the ring show every bite as icons.</li>
         <li><strong>Swap.</strong> Once a day, replace the inmate in the warden's cell with a brand-new random one. It can come out stronger or weaker. No other cell can be swapped.</li>
         <li><strong>End the day.</strong> The next morning, prey marks grow, ripe nests hatch, and new destinations are drawn. A recap of the day you just finished appears under the destination cards.</li>
@@ -301,7 +301,7 @@
       <p>When an inmate is devoured or sent off, its cell seals again. The next time that door opens, someone new is inside.</p>
 
       <h3>The food chain</h3>
-      <p>Each beast has one meal, and both sides must share a rarity: Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, and Rat eats Mammoth. No beast eats its own kind unless you hold the Rat-Head Skewer, which lets Rats eat Rats. This single-meal chain is the default because it's what the live game appears to use.</p>
+      <p>Each beast has one meal, and both sides must share a rarity: Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, and Rat eats Mammoth. No beast eats its own kind unless you hold the Skewered Rat Heads, which lets Rats eat Rats. This single-meal chain is the default because it's what the live game appears to use.</p>
       <p>The New Run screen and the Lab can switch to the Chinese sim's two-meal chain instead. There, Mammoth also eats Wolf and Lion also eats Rat, for six relations in all.</p>
 
       <h3>Rarity</h3>
@@ -318,7 +318,7 @@
 
       <h3>Markers</h3>
       <dl class="defs">
-        <dt class="m-ivory">Ivory</dt>
+        <dt class="m-ivory">Tusk</dt>
         <dd>Belongs to a cell. Swap that cell's inmate while the warden stands there, and four random inmates on the block each gain a tier. The mark stays until the cell empties.</dd>
         <dt class="m-prey">Prey</dt>
         <dd>A Lion marks a same-rarity inmate it can eat. On each of the next three mornings both gain a tier. The mark ends if either leaves the block or changes beast.</dd>
@@ -344,7 +344,7 @@
         <li><strong>Grades.</strong> Each move you make is graded against the live check of the position before it: the best move, close to the best (within the margin of error), or what it cost. The panel keeps a tally for the run.</li>
       </ul>
       <p>For the big picture before you play, read the <a href="strategy.html">strategy guide</a>. To get advice on your own board in the live game, open the <a href="analyze.html">board analyzer</a>: set every cell, your tools and contracts, and it recommends the move the same way the trainer does.</p>
-      <p>There's no AI involved: the strategy is a set of scoring rules whose weights were tuned over millions of simulated runs. Its main lessons on the single-meal chain: devour whenever you can, swap low-tier inmates in the warden's cell (Normal and Magic; Rare too when you have tools), accept Chain reactions, accept an Execution when it gains more than it removes, and keep opening doors. Each beast waiting at a tier covers one of the four beasts a chain's eater can re-roll into, so a tier with all four keeps any chain going. Held from day 1, the best tools were the Rat-Head Skewer, Avenger's Box and Hangman's Rope. The Writhing Iron Box was the only one that hurt.</p>
+      <p>There's no AI involved: the strategy is a set of scoring rules whose weights were tuned over millions of simulated runs. Its main lessons on the single-meal chain: devour whenever you can, swap low-tier inmates in the warden's cell (Normal and Magic; Rare too when you have tools), accept Chain reactions, accept an Execution when it gains more than it removes, and keep opening doors. Each beast waiting at a tier covers one of the four beasts a chain's eater can re-roll into, so a tier with all four keeps any chain going. Held from day 1, the best tools were the Skewered Rat Heads, Avenger's Casket and Hangman's Noose. The Squirming Iron Box was the only one that hurt.</p>
       <p>In the contract challenge, the strategy sends inmates it can spare by light escort on the first two contracts, keeps 3 vouchers for the heavy contract, and gets the block ready for each contract in the last days before its deadline. Sending the most points every time passes far less often.</p>
 
       <h3>Practice values</h3>
@@ -482,7 +482,7 @@
               </div>
             </div>
             <div class="checks">
-              <label id="lab-ivory-wrap"><input type="checkbox" id="lab-ivory"> Ivory</label>
+              <label id="lab-ivory-wrap"><input type="checkbox" id="lab-ivory"> Tusk</label>
               <label id="lab-scratch-wrap"><input type="checkbox" id="lab-scratch"> Scratched door</label>
             </div>
             <div id="lab-event-wrap">
@@ -628,11 +628,11 @@
   </div>
 </dialog>
 
-<script src="js/engine.js?v=20261013b"></script>
-<script src="js/board.js?v=20261013b"></script>
-<script src="js/sound.js?v=20261013b"></script>
-<script src="js/guide-data.js?v=20261013b"></script>
-<script src="js/solver.js?v=20261013b"></script>
-<script src="js/ui.js?v=20261013b"></script>
+<script src="js/engine.js?v=20261013e"></script>
+<script src="js/board.js?v=20261013e"></script>
+<script src="js/sound.js?v=20261013e"></script>
+<script src="js/guide-data.js?v=20261013e"></script>
+<script src="js/solver.js?v=20261013e"></script>
+<script src="js/ui.js?v=20261013e"></script>
 </body>
 </html>
