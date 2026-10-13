@@ -382,12 +382,19 @@
         const need = needValue(ctx, board.comp, [], ctx.openDist);
         score += freshNow() + need;
         why = need > 0 ? `a new inmate, who may help meet "${ctx.need.contract.name}"` : 'a new inmate, who may devour today';
-        if (c.event === 'execution') {
+        const execution = () => {
           let exec = 0;
           for (let t = 0; t < ctx.openDist.length; t++) {
             for (let b = 0; b < 4; b++) exec += (ctx.openDist[t] / 4) * Math.max(0, executionValue(ctx, t, b, board.comp) - P.execMargin);
           }
-          score += exec;
+          return exec;
+        };
+        // A door whose event kind the player can't see is either, evenly.
+        if (c.event && c.eventKnown === false) {
+          score += 0.5 * execution() + 0.5 * P.wChain;
+          why = 'a special event waits behind the door';
+        } else if (c.event === 'execution') {
+          score += execution();
           why = 'an Execution waits behind the door';
         } else if (c.event === 'chain') {
           score += P.wChain;
@@ -826,6 +833,8 @@
     const random = rng32(seed);
     st.rng = (random() * 4294967296) >>> 0;
     for (const c of st.cells) {
+      // An event whose kind the player can't see is either, evenly.
+      if (c.sealed && c.event && c.eventKnown === false) c.event = random() < 0.5 ? 'chain' : 'execution';
       if (!c.sealed || !c.hidden || c.known >= 2) continue;
       if (c.known === 1) c.hidden.beast = BEASTS[Math.floor(random() * 4)];
       else c.hidden = null;

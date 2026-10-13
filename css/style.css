@@ -1070,6 +1070,11 @@ a.menu-item {
     display: none;
   }
 
+  /* Narrow cells keep just the hatch day under the countdown. */
+  .nest-word {
+    display: none;
+  }
+
   .cell-badges {
     bottom: 2px;
   }
@@ -3013,5 +3018,680 @@ textarea {
   *::after {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+/* ---------- Board analyzer (analyze.html) ----------
+   The player's own board: the same ring as the game, a cell editor under
+   it, and the run's settings, the question and the advice beside it. */
+
+.analyzer {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 20px 16px 56px;
+}
+
+.az-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-bottom: 18px;
+}
+
+.az-nav a {
+  color: var(--ash);
+  font: 500 12px/1.2 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.az-nav a:hover {
+  color: var(--bone);
+}
+
+.az-title {
+  margin: 6px 0 8px;
+  font: 800 clamp(36px, 7vw, 64px) / 0.95 var(--font-display);
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  text-wrap: balance;
+  color: var(--bone);
+}
+
+.az-lede {
+  max-width: 70ch;
+  margin: 0 0 14px;
+  font-size: 16.5px;
+  line-height: 1.5;
+}
+
+.az-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.az-notice {
+  min-height: 1.4em;
+  margin: 10px 0 0;
+  font-size: 14px;
+  color: var(--teal);
+}
+
+.az-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 400px);
+  gap: 20px;
+  align-items: start;
+  margin-top: 14px;
+}
+
+.az-main,
+.az-side {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.az-court-rec .decision {
+  border-color: var(--teal);
+}
+
+.az-court-rec .decision-title {
+  color: var(--teal);
+}
+
+.az-court-eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  font: 500 10.5px/1.3 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ash);
+}
+
+.az-keys {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--ash);
+}
+
+.az-keys kbd {
+  padding: 0 4px;
+  border: 1px solid var(--iron-hi);
+  border-radius: 3px;
+  font: 500 11px/1.4 var(--font-mono);
+  color: var(--chalk);
+}
+
+.az-panel {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--iron);
+  border-radius: var(--radius);
+  background: var(--slab);
+}
+
+.az-h2 {
+  margin: 0 0 12px;
+  font: 800 21px/1.1 var(--font-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--chalk);
+}
+
+.az-editor-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.az-editor-head .az-h2 {
+  margin: 0;
+}
+
+.az-editor-flags,
+.az-seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.az-flag,
+.az-seg button,
+.az-door,
+.az-tool {
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--iron);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--chalk);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.az-seg button {
+  flex: 1 1 auto;
+}
+
+.az-flag:hover,
+.az-seg button:hover:not(:disabled),
+.az-door:hover,
+.az-tool:hover {
+  border-color: var(--iron-hi);
+}
+
+.az-flag[aria-pressed="true"],
+.az-seg button[aria-pressed="true"],
+.az-door[aria-pressed="true"],
+.az-tool[aria-pressed="true"] {
+  border-color: var(--bone);
+  background: color-mix(in srgb, var(--bone) 9%, transparent);
+  color: var(--bone);
+}
+
+.az-seg button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.az-beasts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.az-beast {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 8px 4px 7px;
+  border: 1px solid var(--iron);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--chalk);
+  font: 600 13px/1 var(--font-body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.az-beast .portrait {
+  width: 46px;
+  filter: none;
+}
+
+.az-beast:hover {
+  border-color: var(--iron-hi);
+}
+
+.az-beast[aria-pressed="true"] {
+  border-color: var(--tc);
+  background: color-mix(in srgb, var(--tc) 12%, transparent);
+  color: var(--tc);
+}
+
+.az-tiers {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.az-tier {
+  min-height: 36px;
+  padding: 6px 2px;
+  border: 1px solid color-mix(in srgb, var(--tc) 40%, var(--iron));
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--tc);
+  font: 600 11.5px/1 var(--font-mono);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.az-tier[aria-pressed="true"] {
+  border-color: var(--tc);
+  background: color-mix(in srgb, var(--tc) 18%, transparent);
+  box-shadow: 0 0 0 1px var(--tc);
+}
+
+.az-inmate-extra {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.az-prey {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(96px, 1fr);
+  gap: 10px;
+}
+
+.az-prey .field,
+.az-inmate-extra .field-note {
+  margin: 0;
+}
+
+.az-nest {
+  display: block;
+  max-width: 200px;
+}
+
+.az-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.az-row .field {
+  display: block;
+}
+
+.az-fixed {
+  display: block;
+  padding: 8px 0;
+  font-weight: 600;
+}
+
+.az-steps button {
+  flex: 1 1 140px;
+}
+
+.az-stepbox {
+  margin: -4px 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--iron);
+  border-radius: var(--radius);
+  background: var(--stone);
+}
+
+.az-stepbox .field-label {
+  margin-bottom: 6px;
+}
+
+.az-stepbox .field-note {
+  margin-top: 8px;
+}
+
+.az-doors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.az-door {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  min-width: 66px;
+  font: 800 18px/1 var(--font-display);
+}
+
+.az-door small {
+  font: 500 10px/1.1 var(--font-mono);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ash);
+}
+
+.az-offer {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.az-offer .field {
+  display: block;
+  margin: 0;
+}
+
+.az-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0 0 14px;
+}
+
+.az-tool {
+  text-align: left;
+  font-size: 14px;
+}
+
+.az-reward-toggles {
+  margin-bottom: 16px;
+}
+
+.az-vault {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 10px;
+}
+
+.az-vault-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px 3px 6px;
+  border: 1px solid var(--iron-hi);
+  border-radius: 999px;
+  font-size: 13.5px;
+}
+
+.az-vault-item .portrait {
+  width: 22px;
+  filter: none;
+}
+
+.az-vault-item button {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--slab-top);
+  color: var(--chalk);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.az-empty {
+  font-size: 13.5px;
+  color: var(--ash);
+}
+
+.az-vault-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.az-vouchers {
+  display: block;
+  max-width: 160px;
+}
+
+.az-contract {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0 4px;
+  border-top: 1px solid var(--iron);
+}
+
+.az-contract .field {
+  display: block;
+  margin: 0;
+}
+
+.az-needs {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ash);
+}
+
+.az-points {
+  max-width: 180px;
+}
+
+.az-ask {
+  display: grid;
+  gap: 4px;
+}
+
+.az-go {
+  width: 100%;
+  min-height: 54px;
+  font-size: 19px;
+  letter-spacing: 0.03em;
+}
+
+.az-problems {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  font-size: 14px;
+  color: var(--blood);
+}
+
+.az-results {
+  border-color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 6%, var(--slab));
+}
+
+.az-results.is-stale {
+  border-color: var(--iron);
+  background: var(--slab);
+}
+
+.az-results.is-stale .az-res-move,
+.az-results.is-stale .solver-list {
+  opacity: 0.5;
+}
+
+.az-res-move {
+  margin: 2px 0 10px;
+  font: 800 24px/1.12 var(--font-display);
+  letter-spacing: 0.03em;
+  text-wrap: balance;
+  color: var(--chalk);
+}
+
+.az-res-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.az-results .trainer-body {
+  margin-bottom: 12px;
+}
+
+.az-applied {
+  border-color: var(--t2);
+}
+
+.az-applied p {
+  margin: 0 0 6px;
+}
+
+.az-applied-move {
+  font: 800 20px/1.15 var(--font-display);
+  letter-spacing: 0.03em;
+  color: var(--chalk);
+}
+
+/* Cells the simulator's dice decided, for the player to check against their game. */
+.cell.is-check {
+  outline: 2px dashed var(--t2);
+  outline-offset: -4px;
+}
+
+.az-board .cell.is-check .cell-tag,
+.az-board .cell.is-hint .cell-tag {
+  display: block;
+}
+
+.az-board .cell.is-check:not(.is-hint) .cell-tag {
+  background: var(--t2);
+  color: var(--bone-ink);
+}
+
+.az-foot {
+  max-width: 80ch;
+  margin-top: 36px;
+  padding-top: 18px;
+  border-top: 1px solid var(--iron);
+  font-size: 13.5px;
+  color: var(--ash);
+}
+
+.az-foot p {
+  margin: 0 0 8px;
+}
+
+.az-foot strong {
+  color: var(--chalk);
+}
+
+@media (max-width: 1060px) {
+  .az-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .az-beast .portrait {
+    width: 34px;
+  }
+
+  .az-tier {
+    font-size: 9.5px;
+    letter-spacing: 0;
+  }
+
+  .az-prey {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The screenshot reader: paste, drop or choose a screenshot; the reading is
+   drawn over it for the player to check before it fills the board. */
+.az-scan {
+  margin-top: 16px;
+  border-style: dashed;
+  border-color: var(--iron-hi);
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.az-scan.is-drop {
+  border-color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 8%, var(--slab));
+}
+
+.az-scan-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 20px;
+}
+
+.az-scan-head .az-h2 {
+  margin-bottom: 6px;
+}
+
+.az-scan-lede {
+  max-width: 78ch;
+  margin: 0;
+  font-size: 14px;
+  color: var(--ash);
+}
+
+.az-scan-lede kbd {
+  padding: 0 4px;
+  border: 1px solid var(--iron-hi);
+  border-radius: 3px;
+  font: 500 11px/1.4 var(--font-mono);
+  color: var(--chalk);
+}
+
+.az-scan-buttons .btn {
+  cursor: pointer;
+}
+
+.az-scan-status {
+  min-height: 1.4em;
+  margin: 10px 0 0;
+  font-size: 14px;
+  color: var(--teal);
+}
+
+.az-scan-status.is-bad {
+  color: var(--blood);
+}
+
+.az-scan-status:empty {
+  display: none;
+}
+
+.az-scan-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 340px);
+  gap: 16px;
+  align-items: start;
+  margin-top: 12px;
+}
+
+.az-scan-preview {
+  min-width: 0;
+}
+
+.az-scan-preview canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--iron);
+  border-radius: var(--radius);
+}
+
+.az-scan-side {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.az-scan-summary {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.az-scan-summary li {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.az-scan-summary b {
+  font: 500 11px/1.9 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ash);
+}
+
+.az-scan-summary li.is-check {
+  color: var(--t2);
+}
+
+.az-scan-summary li.is-note {
+  display: block;
+  font-size: 13px;
+  color: var(--ash);
+}
+
+.az-scan-objective canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-top: 4px;
+  border: 1px solid var(--iron);
+  border-radius: var(--radius);
+}
+
+@media (max-width: 760px) {
+  .az-scan-result {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

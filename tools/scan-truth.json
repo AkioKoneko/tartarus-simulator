@@ -1,0 +1,70 @@
+{
+  "_about": "Hand labels for the board screenshots in trainingdata/ (not in the repo). Cells are 1-16; inmates are beast/tier with tier 0 Normal, 1 Magic, 2 Rare, 3 Legendary, 4 Ultimate. Doors are listed in card order, left to right.",
+  "chrome_avP3jtNJHL.png": {
+    "inmates": { "2": "lion/1", "3": "mammoth/2", "4": "rat/0", "6": "rat/2" },
+    "locked": [5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+    "nests": [7, 9],
+    "events": [],
+    "jaws": [6],
+    "warden": 4,
+    "phase": "manage",
+    "doors": [],
+    "days": 14,
+    "tools": ["ironbox"],
+    "chromatic": 0
+  },
+  "chrome_c9NImlPyEO.png": {
+    "inmates": {},
+    "locked": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+    "covered": [15, 16],
+    "nests": [],
+    "events": [],
+    "jaws": [],
+    "warden": 1,
+    "phase": "patrol",
+    "doors": [2, 3, 4],
+    "days": 16,
+    "tools": ["ironbox"],
+    "chromatic": 0
+  },
+  "chrome_CPktPtno1c.png": {
+    "inmates": { "8": "wolf/3", "10": "lion/0", "11": "lion/0", "12": "ghost/1", "13": "wolf/1" },
+    "locked": [2, 3, 4, 5, 6, 7, 9, 14, 15, 16],
+    "nests": [],
+    "events": [],
+    "jaws": [13],
+    "warden": 11,
+    "phase": "patrol",
+    "doors": [9, 11, 12],
+    "days": 14,
+    "tools": ["muzzle", "keys"],
+    "chromatic": 0,
+    "objective": true
+  },
+  "chrome_DxvpNd4WEO.png": {
+    "inmates": { "8": "mammoth/0", "9": "lion/0", "10": "mammoth/3" },
+    "locked": [2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16],
+    "nests": [],
+    "events": [7],
+    "jaws": [8],
+    "warden": 10,
+    "phase": "patrol",
+    "doors": [11, 12, 15],
+    "days": 18,
+    "tools": [],
+    "chromatic": 0
+  },
+  "chrome_zFKsHJopb9.png": {
+    "inmates": { "8": "mammoth/0", "9": "lion/0", "10": "mammoth/3", "11": "lion/1", "12": "lion/1", "13": "rat/2", "14": "lion/1", "15": "lion/1" },
+    "locked": [2, 3, 4, 5, 6, 7, 16],
+    "nests": [],
+    "events": [7],
+    "jaws": [8],
+    "warden": 15,
+    "phase": "patrol",
+    "doors": [11, 12, 15],
+    "days": 18,
+    "tools": [],
+    "chromatic": 0
+  }
+}

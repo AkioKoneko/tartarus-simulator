@@ -1,0 +1,6 @@
+# Raw game screenshots used to build js/scan-data.js (tools/scan-build.js).
+trainingdata/
+
+# Wrangler's local state and local-only secrets for `wrangler dev`.
+worker/.wrangler/
+worker/.dev.vars

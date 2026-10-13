@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tartarus Board Analyzer</title>
+<meta name="description" content="Enter your Tartarus prison board exactly as it is in your game, and the simulator's trained strategy tells you the best move.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 18'%3E%3Crect width='16' height='18' rx='3' fill='%230f1216'/%3E%3Cpath d='M6 1h4v2H6z' fill='%23eadfc5'/%3E%3Cpath d='M4 4h8l-1 10H5z' fill='%23eadfc5'/%3E%3Cpath d='M5 15h6v2H5z' fill='%23eadfc5'/%3E%3Cpath d='M8 6.5c1.4 1.6 1.6 3 0 4.6-1.6-1.6-1.4-3 0-4.6Z' fill='%23f28c36'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/style.css?v=20261013b">
+</head>
+<body>
+<main class="analyzer" id="analyzer">
+  <header class="az-head">
+    <nav class="az-nav" aria-label="Tartarus Simulator">
+      <a href="./">← Back to the simulator</a>
+      <a href="strategy.html">Strategy guide</a>
+    </nav>
+    <p class="eyebrow">Tartarus Simulator · Board analyzer</p>
+    <h1 class="az-title">What should I do?</h1>
+    <p class="az-lede">Set up your board exactly as it is in your game: what's in each cell, where the warden stands, today's doors and your tools. Then ask, and the trained strategy picks your move and checks it with hundreds of playouts.</p>
+    <div class="az-head-actions">
+      <button type="button" class="btn" id="az-load-run">Load my simulator run</button>
+      <button type="button" class="btn" id="az-example">Load an example</button>
+      <button type="button" class="btn btn-danger" id="az-clear">Clear the board</button>
+    </div>
+    <p class="az-notice" id="az-notice" aria-live="polite"></p>
+  </header>
+
+  <section class="az-panel az-scan" id="az-scan" aria-labelledby="az-scan-title">
+    <div class="az-scan-head">
+      <div>
+        <h2 class="az-h2" id="az-scan-title">Read a screenshot</h2>
+        <p class="az-scan-lede">Paste a screenshot of your prison screen (<kbd>Ctrl</kbd>+<kbd>V</kbd>), drop it here, or choose a file. The reader fills in your board, instruments, Chromatic prisoners, today's doors and the days until the riot. Check what it read, then use it. It's still learning: anything it's unsure of is marked Check.</p>
+      </div>
+      <div class="az-scan-buttons">
+        <label class="btn" for="az-scan-file">Choose a screenshot</label>
+        <input type="file" id="az-scan-file" accept="image/*" hidden>
+      </div>
+    </div>
+    <p class="az-scan-status" id="az-scan-status" aria-live="polite"></p>
+    <div class="az-scan-result" id="az-scan-result" hidden>
+      <div class="az-scan-preview"><canvas id="az-scan-canvas" aria-label="Your screenshot, with what the reader found drawn on it"></canvas></div>
+      <div class="az-scan-side">
+        <ul class="az-scan-summary" id="az-scan-summary"></ul>
+        <div class="az-scan-objective" id="az-scan-objective" hidden>
+          <span class="field-label">Objective in your screenshot</span>
+          <canvas id="az-scan-objective-canvas" aria-label="The objective text from your screenshot"></canvas>
+        </div>
+        <div class="az-res-actions">
+          <button type="button" class="btn btn-primary" id="az-scan-use">Use this board</button>
+          <button type="button" class="btn" id="az-scan-discard">Discard</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="az-layout">
+    <section class="az-main" aria-label="Your board">
+      <div class="board az-board" id="az-board">
+        <div class="board-center az-court" id="az-court" aria-live="polite"></div>
+      </div>
+      <p class="az-keys">Click a cell to edit it. Keys: <kbd>M</kbd> <kbd>L</kbd> <kbd>W</kbd> <kbd>R</kbd> beast · <kbd>1</kbd>–<kbd>5</kbd> rarity · <kbd>S</kbd> sealed · <kbd>X</kbd> scratched · <kbd>N</kbd> nest · <kbd>E</kbd> empty · <kbd>I</kbd> Ivory · <kbd>D</kbd> today's door · <kbd>H</kbd> warden here · arrows move around the ring.</p>
+
+      <section class="az-panel az-results" id="az-results" aria-live="polite" hidden>
+        <p class="trainer-eyebrow">Recommended</p>
+        <p class="az-res-move" id="az-res-move"></p>
+        <div class="az-res-actions">
+          <button type="button" class="btn btn-primary" id="az-do">Do it here</button>
+          <button type="button" class="btn" id="az-undo" hidden>Undo</button>
+        </div>
+        <div class="trainer-body" id="az-res-body"></div>
+        <p class="solver-status" id="az-res-status"></p>
+        <ol class="solver-list" id="az-res-list"></ol>
+        <p class="panel-note" id="az-res-note"></p>
+      </section>
+
+      <section class="az-panel az-applied" id="az-applied" aria-live="polite" hidden></section>
+
+      <section class="az-panel az-editor" id="az-editor" aria-labelledby="az-cell-title">
+        <div class="az-editor-head">
+          <h2 class="az-h2" id="az-cell-title">Cell 02</h2>
+          <div class="az-editor-flags">
+            <button type="button" class="az-flag" id="az-warden" aria-pressed="false">Warden here</button>
+            <button type="button" class="az-flag" id="az-door" aria-pressed="false">Today's door</button>
+          </div>
+        </div>
+        <p class="field-note" id="az-office-note" hidden>Cell 01 is the warden's office. Nothing is ever held here and it's never a patrol door, but the warden can stand here.</p>
+        <div id="az-cell-fields">
+          <fieldset class="field">
+            <legend>What's in it</legend>
+            <div class="az-seg" id="az-kind">
+              <button type="button" data-v="sealed">Sealed door</button>
+              <button type="button" data-v="inmate">Inmate</button>
+              <button type="button" data-v="empty">Empty</button>
+              <button type="button" data-v="scratch">Scratched door</button>
+              <button type="button" data-v="nest">Rat nest</button>
+            </div>
+          </fieldset>
+          <fieldset class="field" id="az-beast-field">
+            <legend>Beast</legend>
+            <div class="az-beasts" id="az-beasts"></div>
+          </fieldset>
+          <fieldset class="field" id="az-tier-field">
+            <legend id="az-tier-legend">Rarity</legend>
+            <div class="az-tiers" id="az-tiers"></div>
+          </fieldset>
+          <div class="az-inmate-extra" id="az-inmate-extra">
+            <label class="toggle"><input type="checkbox" id="az-ivory"><span><strong>Ivory cell</strong><small>Swapping this inmate raises others on the block a tier.</small></span></label>
+            <div class="az-prey" id="az-prey-field">
+              <label class="field"><span class="field-label">Prey mark</span><select id="az-prey"></select></label>
+              <label class="field"><span class="field-label">Mornings left</span><input type="number" id="az-prey-rounds" min="1" max="9" step="1"></label>
+            </div>
+            <p class="field-note" id="az-prey-of" hidden></p>
+          </div>
+          <fieldset class="field" id="az-event-field">
+            <legend>Event behind the door</legend>
+            <div class="az-seg" id="az-event">
+              <button type="button" data-v="none">None</button>
+              <button type="button" data-v="unknown">Event, kind unknown</button>
+              <button type="button" data-v="chain">Chain reaction</button>
+              <button type="button" data-v="execution">Execution</button>
+            </div>
+          </fieldset>
+          <label class="field az-nest" id="az-nest-field"><span class="field-label">Hatches on day</span><input type="number" id="az-nest-due" min="1" max="60" step="1"></label>
+        </div>
+      </section>
+    </section>
+
+    <aside class="az-side" aria-label="The run">
+      <section class="az-panel">
+        <h2 class="az-h2">The run</h2>
+        <fieldset class="field">
+          <legend>Goal</legend>
+          <div class="az-seg" id="az-mode">
+            <button type="button" data-v="drill">Vault Rainbows</button>
+            <button type="button" data-v="challenge">Contract challenge</button>
+          </div>
+        </fieldset>
+        <fieldset class="field">
+          <legend>Food chain</legend>
+          <div class="az-seg" id="az-chain">
+            <button type="button" data-v="single">Single meal</button>
+            <button type="button" data-v="two">Two meals</button>
+          </div>
+        </fieldset>
+        <div class="az-row">
+          <label class="field"><span class="field-label">Day</span><input type="number" id="az-day" min="1" max="60" step="1"></label>
+          <label class="field" id="az-days-wrap"><span class="field-label">Run length (days)</span><input type="number" id="az-days" min="5" max="60" step="1"></label>
+          <p class="field" id="az-days-fixed" hidden><span class="field-label">Run length</span><span class="az-fixed">12 days</span></p>
+        </div>
+        <fieldset class="field">
+          <legend>What are you deciding?</legend>
+          <div class="az-seg az-steps" id="az-step">
+            <button type="button" data-v="patrol">Which door to patrol</button>
+            <button type="button" data-v="manage">After the patrol</button>
+            <button type="button" data-v="event">A special event</button>
+            <button type="button" data-v="choice">A tool or gift</button>
+            <button type="button" data-v="window" id="az-step-window">A delivery</button>
+          </div>
+        </fieldset>
+        <div class="az-stepbox" data-step="patrol">
+          <span class="field-label">Today's doors</span>
+          <div class="az-doors" id="az-doors"></div>
+          <p class="field-note">Tick the cells your game offers today. They come from the next five cells clockwise from the warden.</p>
+        </div>
+        <div class="az-stepbox toggles" data-step="manage choice">
+          <label class="toggle"><input type="checkbox" id="az-devoured"><span><strong>Today's devour is used</strong><small>Only the warden's inmate can devour, once a day.</small></span></label>
+          <label class="toggle"><input type="checkbox" id="az-swapped"><span><strong>Today's swap is used</strong><small>Only the warden's inmate can be swapped, once a day.</small></span></label>
+        </div>
+        <div class="az-stepbox" data-step="event">
+          <span class="field-label">The event in the warden's cell</span>
+          <div class="az-seg" id="az-event-kind">
+            <button type="button" data-v="chain">Chain reaction</button>
+            <button type="button" data-v="execution">Execution</button>
+          </div>
+          <p class="field-note">The door the warden just opened held it. The inmate that came out must be in the warden's cell.</p>
+        </div>
+        <div class="az-stepbox" data-step="choice">
+          <span class="field-label">What's on offer</span>
+          <div class="az-seg" id="az-choice-kind">
+            <button type="button" data-v="tool">First Supreme's tool</button>
+            <button type="button" data-v="refit">Refit tool</button>
+            <button type="button" data-v="gift">Warden's Cache gift</button>
+          </div>
+          <div class="az-offer" id="az-offer"></div>
+        </div>
+        <div class="az-stepbox" data-step="window">
+          <span class="field-label">Which window</span>
+          <div class="az-seg" id="az-window-kind">
+            <button type="button" data-v="due">Due today</button>
+            <button type="button" data-v="early">Early heavy delivery</button>
+          </div>
+          <p class="field-note" id="az-window-note"></p>
+        </div>
+        <label class="toggle az-armed"><input type="checkbox" id="az-armed"><span><strong>Chain reaction armed</strong><small>Your next patrol opens every sealed door on the walk.</small></span></label>
+      </section>
+
+      <section class="az-panel">
+        <h2 class="az-h2">Tools and vault</h2>
+        <span class="field-label">Tools you hold</span>
+        <div class="az-tools" id="az-tools"></div>
+        <div class="toggles az-reward-toggles">
+          <label class="toggle" id="az-rewards-wrap"><input type="checkbox" id="az-rewards"><span><strong>Rewards on</strong><small>Your first Supreme earns a tool, and each Rainbow opens the Warden's Cache.</small></span></label>
+          <label class="toggle"><input type="checkbox" id="az-milestone"><span><strong>First Supreme's tool already earned</strong><small>Tick this once you've had a Supreme, so no more milestone tool is coming.</small></span></label>
+        </div>
+        <span class="field-label">Rainbows in the vault</span>
+        <div class="az-vault" id="az-vault"></div>
+        <div class="az-vault-add">
+          <select id="az-vault-beast" aria-label="Beast of the Rainbow to add"></select>
+          <button type="button" class="btn" id="az-vault-add">Add a Rainbow</button>
+        </div>
+      </section>
+
+      <section class="az-panel" id="az-challenge" hidden>
+        <h2 class="az-h2">Contracts</h2>
+        <label class="field az-vouchers"><span class="field-label">Vouchers left</span><input type="number" id="az-vouchers" min="0" max="6" step="1"></label>
+        <div class="az-contracts" id="az-contracts"></div>
+      </section>
+
+      <div class="az-ask">
+        <button type="button" class="btn btn-primary az-go" id="az-go">What should I do?</button>
+        <ul class="az-problems" id="az-problems" hidden></ul>
+      </div>
+
+    </aside>
+  </div>
+
+  <footer class="az-foot">
+    <p>Made by <strong>CoffeeBns</strong>: <a href="https://twitch.tv/coffeebns" target="_blank" rel="noopener">twitch.tv/coffeebns</a> and <a href="https://youtube.com/@CoffeeBns" target="_blank" rel="noopener">youtube.com/@CoffeeBns</a>.</p>
+    <p>The advice comes from the simulator's rules-based strategy, tuned over millions of simulated runs, with no AI involved. Each option is played out from your position many times, with everything you can't see re-rolled. The rules follow the season's video reveal, and odds are practice values, so live results may differ. Your board is saved in this browser only.</p>
+    <p class="az-foot-links"><button type="button" class="link" id="az-open-sim">Play this position in the simulator</button></p>
+  </footer>
+</main>
+
+<script src="js/engine.js?v=20261013b"></script>
+<script src="js/board.js?v=20261013b"></script>
+<script src="js/solver.js?v=20261013b"></script>
+<script src="js/analyze.js?v=20261013b"></script>
+</body>
+</html>

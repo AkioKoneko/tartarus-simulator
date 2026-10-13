@@ -31,6 +31,8 @@ The board layout follows the original Chinese tool. The rules follow the video r
   - **Grades:** each move you make is graded against that check (best, close, or what it cost), with a tally for the run.
   - **Where it runs:** in a Web Worker, or on the page itself when opened from disk.
 - **Strategy guide.** [strategy.html](https://blahdot3h.github.io/tartarus-simulator/strategy.html) is a rough strategy to learn before playing, built from the lab's data: how to vault Rainbows in drills, and how to pass the contract challenge and score its convoys. It's linked from the title screen and the menu.
+- **Board analyzer.** [analyze.html](https://blahdot3h.github.io/tartarus-simulator/analyze.html) takes the board from your live game and tells you what to do next. Enter each cell (sealed, an inmate's beast and rarity, a rat nest, an event), the warden, today's doors, your tools and Rainbows, and in the contract challenge your vouchers and contracts. Every option is ranked by the same live check as the Trainer. **Do it here** plays the move with the simulator's dice and marks the cells to check against your game. It's linked from the title screen and the menu.
+- **Screenshot reader.** On the analyzer, paste, drop or choose a screenshot of the prison screen to fill the board in. It reads which cells are locked, each inmate's beast and rarity, rat nests, events, the jaws markers, the warden, today's door cards, the days until the riot, the torture instruments held and the Chromatic prisoners captured, at any UI scale. Anything it's unsure of is marked Check. Objectives aren't read yet, so the objective panel is shown beside the reading. The reader runs in the browser, and the screenshot never leaves it. See [tools/README.md](tools/README.md#screenshot-reader) for how it works and how accurate it is.
 - **Strategy lab.** `tools/strategy-sim.js` plays millions of simulated runs on every CPU core to tune that strategy and rank tools, gifts and chain setups. No AI: every choice comes from scoring rules. See [tools/README.md](tools/README.md).
 - **Everything else.** Seeds, undo, autosave, export/import, a Lab (scene editor and adjustable practice values) and a handbook.
 
@@ -45,7 +47,13 @@ The board layout follows the original Chinese tool. The rules follow the video r
 | `js/solver.js` | The strategy, the chain math and the Monte Carlo solver. No DOM, so it also runs under Node |
 | `js/solver-worker.js` | Runs the solver off the page's main thread |
 | `tools/strategy-sim.js` | The strategy lab: millions of simulated runs, tuning and reports |
-| `js/ui.js` | Rendering, input, saves, preferences and the beast portraits |
+| `js/ui.js` | Rendering, input, saves and preferences |
+| `js/board.js` | The board's artwork (beast portraits, lantern, office), shared by every page |
+| `analyze.html`, `js/analyze.js` | The board analyzer, and the screenshot reader's page |
+| `js/scan.js` | The screenshot reader. Pure functions on pixels, so it also runs under Node |
+| `js/scan-data.js` | The reader's reference data, made by `tools/scan-build.js` |
+| `js/scan-worker.js` | Runs the reader off the page's main thread |
+| `tools/scan-build.js`, `tools/scan-test.js` | Build the reader's reference data from labeled screenshots, and score the reader |
 
 ## Credits
 

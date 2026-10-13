@@ -181,3 +181,40 @@ The chance a chain reaches Rainbow is the product over the tiers it still has to
 Chains produced 68% of all Rainbows. With rewards on, 64% of devours were a single bite, 26% two bites, 8% three, 1.8% four and 0.4% five.
 
 The full numbers are in `results/report.json`. The tuned weights are in `results/tuned-notools.json` and `results/tuned-rewards.json`, and `js/solver.js` uses them.
+
+# Screenshot reader
+
+`js/scan.js` reads a screenshot of the live game's prison screen for the board analyzer. There's no AI and no OCR service. It compares the screenshot with reference data taken from labeled screenshots, all inside the player's browser, in about a second.
+
+- **The board** is part of the game's scene, so it keeps its shape at any UI scale. The reader finds it by matching about 1,000 points on its fixed frame, at any size and position, which places every cell.
+- **Cells.** A padlock means a locked cell; an orange rat head on it marks a rat nest, and a "!" an event. An inmate's beast comes from its face, matched against labeled portraits, and its rarity from its frame's color. The red jaws marker shows on every inmate with something to eat. The analyzer checks the reading against the markers, and a washed-out portrait takes whichever beast makes them fit.
+- **The warden** is the gold arrow.
+- **Panels** are UI, which players can scale apart from the scene, so each panel is found by its own text and measured from it: the door cards ("Go to Cell N"), the "N days until Riot" counter, the Torture Instruments panel and the Chromatic Prisoners panel. Digits are matched against digit shapes from the screenshots.
+- **Instruments** are matched against the panel icons and the art on the instrument reward cards.
+
+## Rebuilding it
+
+The labeled screenshots go in `trainingdata/`, which isn't in the repo (see `.gitignore`), and their labels in `tools/scan-truth.json`. Then:
+
+```
+node tools/scan-build.js           # makes js/scan-data.js
+node tools/scan-test.js            # scores the reader against the labels
+node tools/scan-test.js --quick    # the screenshots as captured only
+```
+
+## Accuracy (2026-10-13)
+
+Five labeled board screenshots, also resized to stand in for other resolutions and UI scales, and cropped to the board:
+
+| Screenshots | Cells | Beasts | Rarity | Warden | Doors | Days | Instruments | Events, nests, jaws |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| As captured | 100% | 100% | 100% | 100% | 100% | 100% | 80% | 100% |
+| Scaled 1.45× and 2× | 100% | 100% | 100% | 100% | 100% | 100% | 80% | 100% |
+| Cropped to the board | 100% | 100% | 100% | 100% | 100% | 100% | (cropped out) | 100% |
+| Scaled 0.8× | 100% | 100% | 100% | 100% | 80% | 80% | 80% | 100% |
+| Scaled 0.6× | 97% | 100% | 100% | 100% | 20% | 40% | 80% | 98% |
+
+- **Instruments.** The 80% is one screenshot where a tooltip covers the panel. Only three instruments have panel icons so far (Squirming Iron Box, Raging Beast's Agonizing Muzzle and Lost Ring of Keys). The others are matched against their reward-card art, which hasn't been tested on the panel yet.
+- **Small screenshots.** At 0.6× the door and day digits are only a few pixels tall, so they're often misread there.
+- **Chromatic prisoners.** No labeled screenshot has one yet, so the slot count is untested beyond reading 0.
+- **Objectives** aren't read yet.
