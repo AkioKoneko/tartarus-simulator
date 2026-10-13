@@ -1050,8 +1050,14 @@
       case 'swap':
         if (here.ivory) return 'A Tusk cell: swapping it raises other inmates a tier.';
         return `A ${T.tierName(here.inmate.tier)} inmate is worth less than a fresh roll on average.`;
-      case 'end':
-        return T.canDevourNow(st) && T.startOptions(st).length ? 'No devour here gains anything today.' : 'Nothing left today is worth doing.';
+      case 'end': {
+        if (!T.canDevourNow(st) || !T.startOptions(st).length) return 'Nothing left today is worth doing.';
+        // A devour is skipped only when it costs more than it gains: nearly
+        // always because it would end a prey mark.
+        const marked = here && here.inmate && T.linkOf(st, here.inmate.id) ? here.inmate : T.startOptions(st).map((o) => st.cells[o.cell].inmate).find((m) => m && T.linkOf(st, m.id));
+        if (marked) return 'Skip today’s devour: it would end a prey mark, and the free tier each morning is worth more than one bite.';
+        return 'Every devour here would cost more than it gains today.';
+      }
       case 'event': {
         if (st.event.kind === 'chain') return action.accept ? 'Your next walk opens every sealed door on the way.' : 'More inmates would hurt this block today.';
         const exec = st.cells[st.event.cell].inmate;

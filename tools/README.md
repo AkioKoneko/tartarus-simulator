@@ -185,7 +185,7 @@ The gains are small. The strategy was already close to the best these scoring ru
 
 ### What wins
 
-- **Devour every day you can.** Waiting for a bigger staircase never paid off. A devour threshold of +2 dropped results from 0.66 to 0.57, and +5 dropped them to 0.38.
+- **Devour every day you can, unless it breaks a prey mark.** The strategy devours whenever the best devour scores at least zero (`minDevour` 0). Two inmates of one rarity becoming one a tier higher is always a gain at the tuned tier values, so a devour scores below zero only when it ends a prey mark (the mark's free tiers each morning are lost), when it removes a beast the spread needs, or, in the challenge, when it eats what the next contract needs. Waiting for a bigger staircase never paid off. A devour threshold of +2 dropped results from 0.66 to 0.57, and +5 dropped them to 0.38.
 - **Swap the warden's low-tier inmates.** With no tools, swapping Normal and Magic is best. Never swapping halves the result (0.36), and swapping only Normals gives 0.61. With rewards on, swapping Rares too is best (1.38 vs 1.36).
 - **Accept Chain reactions** (0.66 vs 0.53 when skipped).
 - **Accept an Execution only when it gains more than it removes.** Always accepting gives 0.64, and never accepting 0.61.

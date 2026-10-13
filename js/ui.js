@@ -1005,7 +1005,7 @@
   // its numbers; otherwise they give the advice without numbers.
   const LESSONS = {
     patrol: 'Training: opening doors and walking further vaulted more Rainbows than walking to an inmate with nothing to eat.',
-    devour: 'Training: devour every day you can. Waiting for a bigger chain cost Rainbows.',
+    devour: 'Training: devour every day you can, unless it breaks a prey mark. Waiting for a bigger chain cost Rainbows.',
     swap: 'Training: swap low-tier inmates in the warden’s cell. Never swapping cost far more Rainbows than any other habit.',
     end: 'Training: end the day once nothing here gains.',
     early: 'Contracts: the heavy contract is needed to pass, and delivering it early ends the run.',
@@ -1042,7 +1042,7 @@
     }
     if (st.phase === 'patrol') return action && action.type === 'early' ? LESSONS.early : LESSONS.patrol;
     if (!action) return '';
-    if (action.type === 'devour') return (vs('wait2', 'Training: devour every day you can. Waiting for a bigger chain cost Rainbows') || LESSONS.devour) + (g ? '.' : '');
+    if (action.type === 'devour') return (vs('wait2', 'Training: devour every day you can, unless it breaks a prey mark. Waiting for a bigger chain cost Rainbows') || LESSONS.devour) + (g ? '.' : '');
     if (action.type === 'swap') return (vs('neverSwap', 'Training: swap low-tier inmates in the warden’s cell. Never swapping cost the most') || LESSONS.swap) + (g ? '.' : '');
     return LESSONS[action.type] || '';
   }
