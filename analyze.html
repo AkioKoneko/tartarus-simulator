@@ -9,10 +9,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261013c">
+<link rel="stylesheet" href="css/style.css?v=20261013d">
 </head>
 <body>
 <main class="analyzer" id="analyzer">
+  <aside class="az-beta" role="note">
+    <span class="az-beta-tag">Beta</span>
+    <p>This page is in beta. Its game rules follow the season's reveal for now. I'll be updating the exact rules within a few hours of league launch, as we get to experience the mechanic live, so the advice may change.</p>
+  </aside>
   <header class="az-head">
     <nav class="az-nav" aria-label="Tartarus Simulator">
       <a href="./">← Back to the simulator</a>
@@ -62,7 +66,7 @@
       <div class="board az-board" id="az-board">
         <div class="board-center az-court" id="az-court" aria-live="polite"></div>
       </div>
-      <p class="az-keys">Click a cell to edit it. Keys: <kbd>M</kbd> <kbd>L</kbd> <kbd>W</kbd> <kbd>R</kbd> beast · <kbd>1</kbd>–<kbd>5</kbd> rarity · <kbd>S</kbd> sealed · <kbd>X</kbd> scratched · <kbd>N</kbd> nest · <kbd>E</kbd> empty · <kbd>I</kbd> Ivory · <kbd>D</kbd> today's door · <kbd>H</kbd> warden here · arrows move around the ring.</p>
+      <p class="az-keys">Click a cell to pick what's in it from a list; the panel below has the details. Keys: <kbd>M</kbd> <kbd>L</kbd> <kbd>W</kbd> <kbd>R</kbd> beast · <kbd>1</kbd>–<kbd>5</kbd> rarity · <kbd>S</kbd> sealed · <kbd>X</kbd> scratched · <kbd>N</kbd> nest · <kbd>E</kbd> empty · <kbd>I</kbd> Ivory · <kbd>D</kbd> today's door · <kbd>H</kbd> warden here · arrows move around the ring.</p>
 
       <section class="az-panel az-results" id="az-results" aria-live="polite" hidden>
         <p class="trainer-eyebrow">Recommended</p>
@@ -237,10 +241,10 @@
   </footer>
 </main>
 
-<script src="js/engine.js?v=20261013c"></script>
-<script src="js/board.js?v=20261013c"></script>
-<script src="js/solver.js?v=20261013c"></script>
-<script src="js/live.js?v=20261013c"></script>
-<script src="js/analyze.js?v=20261013c"></script>
+<script src="js/engine.js?v=20261013d"></script>
+<script src="js/board.js?v=20261013d"></script>
+<script src="js/solver.js?v=20261013d"></script>
+<script src="js/live.js?v=20261013d"></script>
+<script src="js/analyze.js?v=20261013d"></script>
 </body>
 </html>

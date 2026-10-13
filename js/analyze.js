@@ -522,10 +522,48 @@
       b.style.gridColumn = B.RING[n][1];
       b.innerHTML = B.CELL_HTML;
       b.children[2].textContent = L(n);
-      b.addEventListener('click', () => select(n));
+      b.addEventListener('click', () => {
+        select(n);
+        openPick(n);
+      });
       board.appendChild(b);
       cellEls[n] = { btn: b, body: b.children[0], hint: b.children[3], badges: b.children[4], tag: b.children[5], warden: b.children[6] };
     }
+    // What's in a cell, picked from one list that opens right on the cell.
+    const pick = document.createElement('select');
+    pick.id = 'az-pick';
+    pick.className = 'az-pick';
+    pick.hidden = true;
+    pick.setAttribute('aria-label', "What's in this cell");
+    pick.innerHTML = pickOptions();
+    board.appendChild(pick);
+  }
+
+  function pickOptions() {
+    const opt = (value, label) => `<option value="${value}">${esc(label)}</option>`;
+    const tiers = T.TIERS.slice(0, TOP_TIER + 1);
+    let html = `<optgroup label="Doors">${[
+      opt('sealed', 'Sealed door'),
+      opt('sealed:unknown', 'Sealed door, event (kind unknown)'),
+      opt('sealed:chain', 'Sealed door, Chain reaction'),
+      opt('sealed:execution', 'Sealed door, Execution'),
+      opt('nest', 'Rat nest'),
+      opt('empty', 'Empty'),
+    ].join('')}</optgroup>`;
+    html += `<optgroup label="Scratched door (shows its rarity)">${tiers.map((name, t) => opt(`scratch:${t}`, `Scratched door, ${name}`)).join('')}</optgroup>`;
+    tiers.forEach((name, t) => {
+      html += `<optgroup label="${esc(name)}">${T.BEASTS.map((b) => opt(`inmate:${b}:${t}`, `${name} ${T.beastName(b)}`)).join('')}</optgroup>`;
+    });
+    return html;
+  }
+
+  // The dropdown's value for a cell.
+  function pickValue(c) {
+    const tier = clamp(toInt(c.tier, 0), 0, TOP_TIER);
+    if (c.kind === 'inmate') return `inmate:${c.beast}:${tier}`;
+    if (c.kind === 'scratch') return `scratch:${tier}`;
+    if (c.kind === 'sealed') return c.event ? `sealed:${c.event}` : 'sealed';
+    return c.kind;
   }
 
   function setHTML(el, html) {
@@ -910,6 +948,47 @@
     save();
     renderBoard();
     renderEditor();
+  }
+
+  // Opens the dropdown over cell n, already expanded where the browser allows.
+  function openPick(n) {
+    const pick = $('az-pick');
+    if (n === T.OFFICE) {
+      pick.hidden = true;
+      return;
+    }
+    const cell = cellEls[n].btn;
+    const board = $('az-board');
+    pick.value = pickValue(model.cells[n]);
+    pick.dataset.cell = String(n);
+    pick.hidden = false;
+    // Centered on the cell, at least wide enough to read, and inside the board.
+    const width = Math.min(board.clientWidth, Math.max(cell.offsetWidth, 150));
+    pick.style.width = `${width}px`;
+    pick.style.left = `${clamp(cell.offsetLeft + (cell.offsetWidth - width) / 2, 0, board.clientWidth - width)}px`;
+    pick.style.top = `${cell.offsetTop + Math.max(0, (cell.offsetHeight - pick.offsetHeight) / 2)}px`;
+    pick.focus();
+    try {
+      pick.showPicker();
+    } catch (e) {
+      // Older browsers: the dropdown sits on the cell, ready to open.
+    }
+  }
+
+  function closePick(refocus) {
+    const pick = $('az-pick');
+    if (pick.hidden) return;
+    pick.hidden = true;
+    const n = Number(pick.dataset.cell);
+    if (refocus && cellEls[n]) cellEls[n].btn.focus();
+  }
+
+  function pickCell(n, value) {
+    const [kind, a, b] = value.split(':');
+    if (kind === 'inmate') setCell(n, { kind, beast: a, tier: Number(b) });
+    else if (kind === 'scratch') setCell(n, { kind, tier: Number(a) });
+    else if (kind === 'sealed') setCell(n, { kind, event: a || null });
+    else setCell(n, { kind });
   }
 
   // Ends prey marks that no longer point at a meal the Lion can eat.
@@ -1535,6 +1614,15 @@
       if (e.target.closest('[data-match]')) confirmAll();
     });
     $('az-match').addEventListener('click', () => confirmCell(selected));
+    $('az-pick').addEventListener('change', (e) => {
+      const n = Number(e.target.dataset.cell);
+      closePick(true);
+      pickCell(n, e.target.value);
+    });
+    $('az-pick').addEventListener('blur', () => closePick(false));
+    $('az-pick').addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' || e.key === 'Tab') closePick(e.key === 'Escape');
+    });
     $('az-share').addEventListener('click', (e) => {
       const b = e.target.closest('[data-share]');
       if (!b) return;
@@ -1625,7 +1713,7 @@
 
     // Keyboard entry on the board.
     $('az-board').addEventListener('keydown', (e) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.target.id === 'az-pick') return;
       const key = e.key.toLowerCase();
       const move = { arrowright: 1, arrowdown: 1, arrowleft: -1, arrowup: -1 }[key];
       if (move) {

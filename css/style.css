@@ -3525,6 +3525,46 @@ textarea {
   color: var(--bone-ink);
 }
 
+/* The beta notice at the top of the analyzer. */
+.az-beta {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--t2);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--t2) 8%, var(--slab));
+}
+
+.az-beta p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.az-beta-tag {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: var(--radius);
+  background: var(--t2);
+  color: var(--bone-ink);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* The dropdown that opens right on a clicked cell. */
+.az-pick {
+  position: absolute;
+  z-index: 6;
+  padding: 6px 8px;
+  border-color: var(--bone);
+  background: var(--slab-top);
+  box-shadow: 0 6px 18px var(--shade);
+}
+
 /* Confirms a cell marked Check without changing it. */
 .az-flag.az-match {
   border-style: dashed;
