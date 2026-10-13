@@ -1092,11 +1092,13 @@
   // pick), then a live check that plays every option out many times from the
   // current position with js/solver.js, and a grade for each move you make.
   // The playouts run in a Web Worker when the page allows one, and on this
-  // thread otherwise. Drills are scored by Rainbows, the challenge by passing.
+  // thread otherwise. Drills are scored by Rainbows; the challenge by passing
+  // first, then points. In a delivery window the trainer also checks the
+  // convoy you're loading.
   const SOLVER_ROLLOUTS = 800;
   const SOLVER_ROLLOUTS_HERE = 300;
   const LIVE_MIN = 150; // playouts per option before the live check leads
-  const solver = { worker: null, failed: false, id: 0, key: '', result: null, instantKey: '', instant: null };
+  const solver = { worker: null, failed: false, id: 0, key: '', stateKey: '', result: null, instantKey: '', instant: null, rec: null, cargoTimer: 0 };
 
   const solverKey = (st) => {
     const last = st.log[st.log.length - 1];
@@ -1105,7 +1107,18 @@
 
   const solverFits = (st) => st && st.phase !== 'ended';
 
-  // What the training found for each kind of decision.
+  // A stable name for an action, for lists that update in place.
+  const actionKey = (a) => [a.type, a.cell, a.to, a.id, a.accept, (a.cells || []).slice().sort((x, y) => x - y).join('.'), (a.vaultIds || []).slice().sort((x, y) => x - y).join('.'), a.escort].join('|');
+
+  // The convoy being loaded in the open delivery window, when it meets the
+  // contract. The live check plays it out next to the trainer's own options.
+  function cargoAction(st) {
+    if (!windowOpen(st) || !$('dlg-deliver').open) return null;
+    const action = { type: 'deliver', cells: [...cargo.cells].sort((a, b) => a - b), vaultIds: [...cargo.vault].sort((a, b) => a - b), escort: cargo.escort };
+    const check = T.deliveryCheck(st, action.cells, action.vaultIds, action.escort);
+    return check.ok ? { action, label: window.TartarusSolver.cargoLabel(st, action, check.points), kind: 'yours' } : null;
+  }
+
   // What the training found for each kind of decision. When the run uses the
   // same food chain as the guide's data (js/guide-data.js), lessons quote
   // its numbers; otherwise they give the advice without numbers.
@@ -1118,7 +1131,8 @@
     chain: 'Training: accepting Chain reactions vaulted more Rainbows than skipping them.',
     execution: 'Training: accept an Execution only when it gains more than it removes.',
     gift: 'Training: picking the gift that fits the board beat always taking the same one.',
-    window: 'Contracts: deliver when the cargo meets the contract. You need two, including the heavy one.',
+    window: 'Contracts: on the first two, send inmates you can spare by light escort, and keep 3 vouchers for the heavy contract. Sending the most points every time passed far less often.',
+    heavy: 'Contracts: the heavy contract ends the run, so it takes the most points your vouchers can escort.',
   };
 
   function guideFor(st) {
@@ -1139,7 +1153,8 @@
       const names = window.TartarusSolver.paramsFor(st).toolRank.map((id) => T.toolName(id));
       return `Training ranking for this food chain: ${names.join(', ')}.`;
     }
-    if (st.challenge && st.challenge.window) return LESSONS.window;
+    if (st.challenge && st.challenge.window) return challengeLesson(st) || (st.challenge.deliveries.length >= 2 ? LESSONS.heavy : LESSONS.window);
+    if (st.challenge && st.phase !== 'event') return nextContractLesson(st);
     if (st.phase === 'event' && st.event) {
       if (st.event.kind === 'chain') return (vs('skipChain', 'Training: skipping Chain reactions cost Rainbows') || LESSONS.chain) + (g ? '.' : '');
       return LESSONS.execution;
@@ -1151,15 +1166,44 @@
     return LESSONS[action.type] || '';
   }
 
+  // During challenge play: the next contract, and when the trainer starts
+  // playing to meet it (the last days before its deadline).
+  function nextContractLesson(st) {
+    const contract = T.currentContract(st);
+    if (!contract) return '';
+    const days = window.TartarusSolver.paramsFor(st).needDays || 2;
+    const due = contract.deadline === st.day ? 'due at the end of today' : `due at the end of day ${contract.deadline}`;
+    if (contract.heavy) return `Next: "${contract.name}", ${due}. It needs a Supreme or a vaulted Rainbow, so the trainer builds tiers and keeps 3 vouchers for a heavy escort.`;
+    const from = contract.deadline - days + 1;
+    const when = st.day >= from ? 'The trainer is now playing to meet it.' : `From day ${from}, the trainer plays to meet it.`;
+    return `Next: "${contract.name}", ${due}: ${contract.needs.join(', ').toLowerCase()}. ${when}`;
+  }
+
+  // The challenge study's numbers for convoys, when the guide has them.
+  function challengeLesson(st) {
+    const g = guideFor(st);
+    const c = g && g.challenge;
+    if (!c || st.challenge.deliveries.length >= 2) return '';
+    const most = c.habits.find((h) => h.id === 'mostPointsAll');
+    if (!most) return '';
+    return `Contracts: on the first two, send inmates you can spare by light escort, and keep 3 vouchers for the heavy contract. Training passed ${Math.round(100 * c.headline.passRate)}% of runs this way, against ${Math.round(100 * most.passRate)}% when every convoy sent the most points.`;
+  }
+
   function startSolver() {
     const st = ui.state;
-    const key = solverKey(st);
+    const stateKey = solverKey(st);
+    // The convoy being loaded joins the check unless it's already an option.
+    let mine = cargoAction(st);
+    if (mine && window.TartarusSolver.candidates(st).some((c) => window.TartarusSolver.sameAction(c.action, mine.action))) mine = null;
+    const key = mine ? `${stateKey}|${actionKey(mine.action)}` : stateKey;
     if (key === solver.key) return;
     solver.key = key;
+    solver.stateKey = stateKey;
     solver.id += 1;
     solver.result = null;
     const id = solver.id;
     const state = Object.assign({}, st, { log: [] });
+    const extra = mine ? [mine] : null;
     if (!solver.worker && !solver.failed) {
       try {
         solver.worker = new Worker(`js/solver-worker.js${SCRIPT_QUERY}`);
@@ -1168,6 +1212,7 @@
           solver.result = e.data.result;
           renderSolver();
           renderHints();
+          renderDeliverTrainer();
         };
         solver.worker.onerror = () => {
           // Fall back to this thread, and redo the current position.
@@ -1181,21 +1226,25 @@
         solver.worker = null;
       }
     }
-    if (solver.worker) solver.worker.postMessage({ id, state: JSON.parse(JSON.stringify(state)), rollouts: SOLVER_ROLLOUTS });
-    else solveHere(id, state);
+    if (solver.worker) solver.worker.postMessage({ id, state: JSON.parse(JSON.stringify(state)), rollouts: SOLVER_ROLLOUTS, extra });
+    else solveHere(id, state, extra);
   }
 
-  function solveHere(id, state) {
-    const job = window.TartarusSolver.solve(JSON.parse(JSON.stringify(state)), { rollouts: SOLVER_ROLLOUTS_HERE, seed: (id * 7919 + 1) >>> 0 });
+  function solveHere(id, state, extra) {
+    const job = window.TartarusSolver.solve(JSON.parse(JSON.stringify(state)), { rollouts: SOLVER_ROLLOUTS_HERE, seed: (id * 7919 + 1) >>> 0, extra });
     const tick = () => {
       if (id !== solver.id) return;
       solver.result = job.step(12);
       renderSolver();
       renderHints();
+      renderDeliverTrainer();
       if (!solver.result.done) setTimeout(tick, 16);
     };
     setTimeout(tick, 0);
   }
+
+  // The live check's result for this position, if it has one.
+  const liveResult = (st) => (solver.stateKey === solverKey(st) ? solver.result : null);
 
   // The trained strategy's pick for this position, worked out once.
   function instantPick(st) {
@@ -1212,35 +1261,40 @@
   }
 
   // The move to recommend: the strategy's instant pick, unless the live check
-  // finds a clearly better move (by more than its margin of error), so the
-  // recommendation doesn't flicker between near-equal options.
+  // finds a clearly better move (by more than its paired margin of error), so
+  // the recommendation doesn't flicker between near-equal options. A convoy
+  // the player put together is never recommended in place of the trainer's.
   function recommendation(st) {
     if (!ui.prefs.advisor || !solverFits(st)) return null;
     const S = window.TartarusSolver;
     const pick = instantPick(st);
-    const r = solver.key === solverKey(st) ? solver.result : null;
-    const live = r && r.options.length > 1 && (r.done || r.rounds >= LIVE_MIN) ? r.options[0] : null;
+    const r = liveResult(st);
+    const ranked = r ? r.options.filter((o) => !o.extra) : [];
+    const live = r && ranked.length > 1 && (r.done || r.rounds >= LIVE_MIN) ? ranked[0] : null;
     if (!live) return pick ? Object.assign({ live: false }, pick) : null;
-    const mine = pick && r.options.find((o) => S.sameAction(o.action, pick.action));
-    if (mine && (mine === live || live.mean - mine.mean <= 1.96 * Math.hypot(live.se, mine.se))) {
+    const mine = pick && ranked.find((o) => S.sameAction(o.action, pick.action));
+    if (mine && (mine === live || live.mean - mine.mean <= 1.96 * mine.gapSe)) {
       const why = mine === live ? pick.why : `${pick.why} The live check rates it about equal to the best.`;
-      return Object.assign({ live: true, rounds: r.rounds }, pick, { label: mine.label, why });
+      return Object.assign({ live: true, rounds: r.rounds }, pick, { label: mine.label, why, option: mine });
     }
-    return { action: live.action, label: live.label, why: `The playouts found a better move than the strategy’s pick${pick ? ` (${pick.label})` : ''}.`, live: true, rounds: r.rounds };
+    return { action: live.action, label: live.label, why: `The playouts found a better move than the strategy’s pick${pick ? ` (${pick.label})` : ''}.`, live: true, rounds: r.rounds, option: live };
   }
 
   function playSolverMove(action) {
     const st = ui.state;
+    if (!action || !st) return;
     if (action.type === 'patrol') run((s) => window.TartarusSolver.apply(s, action), { select: action.cell });
     else if (action.type === 'devour' || action.type === 'swap') run((s) => window.TartarusSolver.apply(s, action), { select: st.position });
     else if (action.type === 'end') run((s) => T.endDay(s), { select: null });
+    // A convoy opens the delivery window with it loaded, to check before sending.
+    else if (action.type === 'deliver') openDeliver({ cells: action.cells, vaultIds: action.vaultIds, escort: action.escort });
     else run((s) => window.TartarusSolver.apply(s, action));
   }
 
   // ---------- Grading your moves ----------
 
   function trainerFor(st) {
-    if (!ui.trainer || ui.trainer.seed !== st.seed) ui.trainer = { seed: st.seed, moves: 0, good: 0, lost: 0, last: null };
+    if (!ui.trainer || ui.trainer.seed !== st.seed) ui.trainer = { seed: st.seed, moves: 0, good: 0, lost: 0, lostPass: 0, lostPoints: 0, last: null };
     return ui.trainer;
   }
 
@@ -1253,28 +1307,45 @@
     const move = window.TartarusSolver.moveBetween(before, ui.state);
     if (!move) return;
     const t = trainerFor(ui.state);
-    const r = solver.key === solverKey(before) ? solver.result : null;
+    const r = solver.stateKey === solverKey(before) ? solver.result : null;
     if (!r || r.options.length < 2 || r.rounds < 60) {
       t.last = r && r.options.length < 2 ? null : { verdict: 'pending' };
       return;
     }
-    const best = r.options[0];
+    const best = r.options.find((o) => !o.extra) || r.options[0];
     const chosen = r.options.find((o) => window.TartarusSolver.sameAction(o.action, move));
     if (!chosen) {
       t.last = null;
       return;
     }
     const loss = Math.max(0, best.mean - chosen.mean);
-    const margin = 1.96 * Math.hypot(best.se, chosen.se);
-    const verdict = chosen === best ? 'best' : loss <= margin ? 'close' : 'costly';
+    const verdict = window.TartarusSolver.sameAction(chosen.action, best.action) ? 'best' : loss <= 1.96 * chosen.gapSe ? 'close' : 'costly';
     t.moves += 1;
-    if (verdict === 'costly') t.lost += loss;
-    else t.good += 1;
-    t.last = { verdict, loss, goal: r.goal, chosen: chosen.label, best: best.label, chosenMean: chosen.mean, bestMean: best.mean };
+    if (verdict === 'costly') {
+      t.lost += loss;
+      t.lostPass += Math.max(0, best.pass - chosen.pass);
+      t.lostPoints += Math.max(0, best.points - chosen.points);
+    } else t.good += 1;
+    t.last = { verdict, loss, goal: r.goal, chosen: chosen.label, best: best.label, chosenOpt: chosen, bestOpt: best };
   }
 
-  const fmtGoal = (goal, v) => (goal === 'pass' ? `${Math.round(100 * v)}%` : v.toFixed(2));
-  const goalUnit = (goal) => (goal === 'pass' ? 'pass chance' : 'Rainbows');
+  // An option's expected result: Rainbows in a drill, or pass chance and
+  // points in the challenge.
+  function fmtOption(goal, o) {
+    if (goal === 'contract') return `${Math.round(100 * o.pass)}% pass · ${o.points.toFixed(0)} pts`;
+    return `${o.mean.toFixed(2)}${o.n > 1 ? ` ±${(1.96 * o.se).toFixed(2)}` : ''}`;
+  }
+
+  // What a costly move gave up, in words.
+  function lossText(goal, best, chosen, loss) {
+    if (goal !== 'contract') return `Cost about ${loss.toFixed(2)} Rainbows`;
+    const pass = Math.round(100 * (best.pass - chosen.pass));
+    const points = Math.round(best.points - chosen.points);
+    if (pass >= 1 && points >= 1) return `Cost about ${pass}% pass chance and ${T.plural(points, 'point')}`;
+    if (pass >= 1) return `Cost about ${pass}% pass chance`;
+    if (points >= 1) return `Cost about ${T.plural(points, 'point')}`;
+    return 'Cost a little: under 1% pass chance';
+  }
 
   function renderGrade(st) {
     const box = $('trainer-grade');
@@ -1286,33 +1357,67 @@
     if (last && last.verdict === 'pending') {
       html += '<p class="trainer-eyebrow">Your last move</p><p class="trainer-verdict">Not graded: the trainer was still checking that position.</p>';
     } else if (last) {
-      const title = last.verdict === 'best' ? 'The best move ✓' : last.verdict === 'close' ? 'Close to the best ✓' : `Cost about ${fmtGoal(last.goal, last.loss)} ${goalUnit(last.goal)}`;
+      const title = last.verdict === 'best' ? 'The best move ✓' : last.verdict === 'close' ? 'Close to the best ✓' : lossText(last.goal, last.bestOpt, last.chosenOpt, last.loss);
       const detail = last.verdict === 'best'
-        ? `${esc(last.chosen)}: ${fmtGoal(last.goal, last.chosenMean)} expected.`
-        : `You chose ${esc(last.chosen)} (${fmtGoal(last.goal, last.chosenMean)}). The trainer preferred ${esc(last.best)} (${fmtGoal(last.goal, last.bestMean)}).${last.verdict === 'close' ? ' That’s within the margin of error.' : ''}`;
-      html += `<p class="trainer-eyebrow">Your last move</p><p class="trainer-verdict is-${last.verdict}">${title}</p><p class="trainer-detail">${detail}</p>`;
+        ? `${esc(last.chosen)}: ${esc(fmtOption(last.goal, last.chosenOpt))} expected.`
+        : `You chose ${esc(last.chosen)} (${esc(fmtOption(last.goal, last.chosenOpt))}). The trainer preferred ${esc(last.best)} (${esc(fmtOption(last.goal, last.bestOpt))}).${last.verdict === 'close' ? ' That’s within the margin of error.' : ''}`;
+      html += `<p class="trainer-eyebrow">Your last move</p><p class="trainer-verdict is-${last.verdict}">${esc(title)}</p><p class="trainer-detail">${detail}</p>`;
     }
-    if (t.moves) html += `<p class="trainer-session">This run: ${t.good} of ${T.plural(t.moves, 'graded move')} best or close${t.lost > 0.005 ? `, about ${t.lost.toFixed(2)} expected ${goalUnit(st.mode === 'challenge' ? 'pass' : 'rainbows')} given up` : ''}.</p>`;
+    if (t.moves) {
+      let given = '';
+      if (st.mode === 'challenge') {
+        const parts = [];
+        if (t.lostPass >= 0.005) parts.push(`${Math.round(100 * t.lostPass)}% pass chance`);
+        if (t.lostPoints >= 0.5) parts.push(T.plural(Math.round(t.lostPoints), 'point'));
+        if (parts.length) given = `, about ${parts.join(' and ')} given up`;
+      } else if (t.lost > 0.005) given = `, about ${t.lost.toFixed(2)} expected Rainbows given up`;
+      html += `<p class="trainer-session">This run: ${t.good} of ${T.plural(t.moves, 'graded move')} best or close${given}.</p>`;
+    }
     setHTML(box, html);
+  }
+
+  // Updates a list in place: rows are kept by key, so a button under the
+  // pointer survives the many refreshes of a live check.
+  function syncRows(list, items, keyOf, make, fill) {
+    const old = new Map();
+    for (const li of list.children) old.set(li.dataset.key, li);
+    const keep = new Set();
+    items.forEach((item, i) => {
+      const key = keyOf(item);
+      let li = old.get(key);
+      if (!li) {
+        li = make(item);
+        li.dataset.key = key;
+      }
+      fill(li, item);
+      keep.add(key);
+      if (list.children[i] !== li) list.insertBefore(li, list.children[i] || null);
+    });
+    for (const [key, li] of old) if (!keep.has(key)) li.remove();
   }
 
   function renderSolver() {
     const st = ui.state;
     if (!ui.prefs.advisor || !solverFits(st)) return;
     const S = window.TartarusSolver;
-    const r = solver.key === solverKey(st) ? solver.result : null;
+    const r = liveResult(st);
     const options = r ? r.options : [];
-    const goal = r ? r.goal : st.mode === 'challenge' ? 'pass' : 'rainbows';
+    const goal = r ? r.goal : st.mode === 'challenge' ? 'contract' : 'rainbows';
 
     // The recommendation, then the lesson from training for this decision.
+    // The box and its button stay put; only their contents change.
     const rec = recommendation(st);
+    solver.rec = rec;
     const pickBox = $('trainer-pick');
     if (rec) {
       pickBox.hidden = false;
       const source = rec.live ? `Checked by ${rec.rounds.toLocaleString()} playouts per option` : 'Instant pick from training · checking…';
-      setHTML(pickBox, `<p class="trainer-eyebrow">Recommended · ${esc(source)}</p><p class="trainer-move">${esc(rec.label)}</p>${rec.why ? `<p class="trainer-why">${esc(rec.why)}</p>` : ''}<p class="trainer-lesson">${esc(lessonFor(st, rec.action))}</p><div class="trainer-play"></div>`);
-      const slot = pickBox.querySelector('.trainer-play');
-      slot.appendChild(makeButton('Play it', () => playSolverMove(rec.action), 'primary'));
+      const result = rec.option && goal === 'contract' ? `<p class="trainer-why">Expected: ${esc(fmtOption(goal, rec.option))}.</p>` : '';
+      // The move and its button come first, so the button holds still while
+      // the live check's numbers below it change.
+      setHTML($('trainer-pick-head'), `<p class="trainer-eyebrow">Recommended</p><p class="trainer-move">${esc(rec.label)}</p>`);
+      setHTML($('trainer-pick-body'), `<p class="trainer-source">${esc(source)}</p>${rec.why ? `<p class="trainer-why">${esc(rec.why)}</p>` : ''}${result}<p class="trainer-lesson">${esc(lessonFor(st, rec.action))}</p>`);
+      $('btn-trainer-play').textContent = rec.action.type === 'deliver' ? 'Load it' : 'Play it';
     } else {
       pickBox.hidden = true;
     }
@@ -1323,54 +1428,162 @@
     if (!r) status.textContent = 'Live check: starting…';
     else if (options.length <= 1) status.textContent = options.length ? 'Only one move here.' : 'Nothing to decide right now.';
     else status.textContent = r.done ? `Live check: ${r.rounds.toLocaleString()} playouts per option` : `Live check: ${r.rounds.toLocaleString()} playouts per option so far…`;
-    const top = options[0];
+    const top = options.find((o) => !o.extra) || options[0];
+    const second = options.find((o) => o !== top && !o.extra);
     const max = Math.max(0.01, ...options.map((o) => o.mean));
-    const close = top && options[1] && top.mean - options[1].mean < 1.96 * Math.hypot(top.se, options[1].se);
-    $('solver-list').replaceChildren(
-      ...(options.length > 1 ? options : []).map((o, i) => {
+    const close = top && second && top.mean - second.mean < 1.96 * second.gapSe;
+    const shown = options.length > 1 ? options : [];
+    syncRows(
+      $('solver-list'),
+      shown,
+      (o) => actionKey(o.action),
+      () => {
         const li = document.createElement('li');
-        const chosen = rec ? S.sameAction(o.action, rec.action) : i === 0;
-        li.className = 'solver-row' + (chosen ? ' is-best' : '');
-        const label = document.createElement('span');
-        label.className = 'solver-label';
-        label.textContent = o.label;
-        if (o.policy) {
-          const tag = document.createElement('span');
-          tag.className = 'solver-tag';
-          tag.textContent = 'strategy';
-          tag.title = 'The trained strategy picks this move without simulating.';
-          label.appendChild(tag);
-        }
-        const value = document.createElement('span');
-        value.className = 'solver-value';
-        value.textContent = `${fmtGoal(goal, o.mean)}${o.n > 1 ? ` ±${fmtGoal(goal, 1.96 * o.se)}` : ''}`;
-        value.title = goal === 'pass' ? 'Chance to pass the challenge, with a 95% margin' : 'Expected Rainbows vaulted by the end of the run, with a 95% margin';
-        const meter = document.createElement('span');
-        meter.className = 'solver-meter';
-        meter.innerHTML = `<span style="width:${Math.max(2, (100 * o.mean) / max).toFixed(1)}%"></span>`;
-        li.append(label, value, meter);
-        const subs = [];
-        if (goal === 'pass') subs.push(`about ${Math.round(o.best)} points on average`);
+        li.className = 'solver-row';
+        li.innerHTML = '<span class="solver-label"><span class="solver-text"></span><span class="solver-tag" hidden></span></span><span class="solver-value"></span><span class="solver-meter"><span></span></span><span class="solver-sub" hidden></span>';
+        li.btn = makeButton('Play this', () => playSolverMove(li.option && li.option.action));
+        li.appendChild(li.btn);
+        return li;
+      },
+      (li, o) => {
+        li.option = o;
+        const chosen = rec ? S.sameAction(o.action, rec.action) : o === top;
+        li.classList.toggle('is-best', chosen);
+        li.querySelector('.solver-text').textContent = o.label;
+        const tag = li.querySelector('.solver-tag');
+        tag.hidden = !o.policy && !o.extra;
+        tag.textContent = o.extra ? 'yours' : 'strategy';
+        tag.title = o.extra ? 'The convoy you are loading.' : 'The trained strategy picks this move without simulating.';
+        const value = li.querySelector('.solver-value');
+        value.textContent = fmtOption(goal, o);
+        value.title = goal === 'contract' ? 'Chance to pass the challenge, and contract points on average' : 'Expected Rainbows vaulted by the end of the run, with a 95% margin';
+        const width = goal === 'contract' ? 100 * o.pass : (100 * o.mean) / max;
+        li.querySelector('.solver-meter span').style.width = `${Math.max(2, width).toFixed(1)}%`;
         // A devour also shows its exact chain odds.
+        const sub = li.querySelector('.solver-sub');
+        let subText = '';
         if (o.action.type === 'devour') {
           const odds = S.chainOdds(st, st.position, o.action.to);
-          subs.push(`chain: ${odds.bites.toFixed(1)} bites on average, ${(100 * odds.rainbow).toFixed(0)}% to Rainbow`);
+          subText = `chain: ${odds.bites.toFixed(1)} bites on average, ${(100 * odds.rainbow).toFixed(0)}% to Rainbow`;
         }
-        if (subs.length) {
-          const sub = document.createElement('span');
-          sub.className = 'solver-sub';
-          sub.textContent = subs.join(' · ');
-          li.appendChild(sub);
-        }
-        if (!chosen && options.length <= 5) li.appendChild(makeButton('Play this', () => playSolverMove(o.action)));
-        return li;
-      }),
+        sub.hidden = !subText;
+        sub.textContent = subText;
+        li.btn.hidden = chosen || shown.length > 6;
+        li.btn.textContent = o.action.type === 'deliver' ? 'Load this' : 'Play this';
+      },
     );
-    $('solver-note').textContent = options.length < 2
+    $('solver-note').textContent = shown.length < 2
       ? ''
       : close
         ? 'The top moves are within the margin of error: either is fine.'
-        : `Each option is played out from here with everything you can’t see re-rolled, and the trained strategy making every later choice. Scores are ${goal === 'pass' ? 'the chance to pass the challenge' : 'Rainbows vaulted by the end of the run'}.`;
+        : goal === 'contract'
+          ? 'Each option is played out from here with everything you can’t see re-rolled, and the trained strategy making every later choice. Ranked by the chance to pass the challenge, then by contract points.'
+          : 'Each option is played out from here with everything you can’t see re-rolled, and the trained strategy making every later choice. Scores are Rainbows vaulted by the end of the run.';
+  }
+
+  // Short names for the convoys the trainer compares in a delivery window.
+  const CONVOY_NAMES = { pick: 'Trained pick', most: 'Most points', light: 'Most points by light escort', least: 'Cheapest cargo', yours: 'Your cargo', skip: 'Skip this contract', close: 'Close the window' };
+
+  // The trainer inside the delivery window: its convoy, why, how every
+  // option plays out, and how the convoy you're loading compares.
+  function renderDeliverTrainer() {
+    const box = $('deliver-trainer');
+    const off = $('deliver-trainer-off');
+    const st = ui.state;
+    if (!st || !windowOpen(st) || !$('dlg-deliver').open) return;
+    off.hidden = !!ui.prefs.advisor;
+    box.hidden = !ui.prefs.advisor;
+    renderPickHints();
+    if (!ui.prefs.advisor) return;
+    const S = window.TartarusSolver;
+    const rec = recommendation(st);
+    const r = liveResult(st);
+    const goal = 'contract';
+    const options = r ? r.options : [];
+    const mine = cargoAction(st);
+    const mineOpt = mine ? options.find((o) => S.sameAction(o.action, mine.action)) : null;
+    let html = '';
+    setHTML($('deliver-trainer-head'), rec ? `<p class="trainer-eyebrow">Trainer’s pick</p><p class="trainer-move">${esc(rec.label)}</p>` : '<p class="trainer-eyebrow">Trainer</p><p class="trainer-why">Working out a convoy…</p>');
+    if (rec) {
+      const source = rec.live ? `Checked by ${rec.rounds.toLocaleString()} playouts per option` : 'Instant pick from training · checking…';
+      html += `<p class="trainer-source">${esc(source)}</p>`;
+      if (rec.why) html += `<p class="trainer-why">${esc(rec.why)}</p>`;
+      if (rec.option) html += `<p class="trainer-why">Expected: ${esc(fmtOption(goal, rec.option))}.</p>`;
+    }
+    // How the convoy being loaded compares.
+    if (mine && rec) {
+      if (S.sameAction(mine.action, rec.action)) html += '<p class="trainer-verdict is-best">Your cargo matches the trainer’s pick ✓</p>';
+      else if (mineOpt && rec.option && mineOpt.n >= 60) {
+        const loss = rec.option.mean - mineOpt.mean;
+        const verdict = loss <= 0 ? 'best' : loss <= 1.96 * (mineOpt.gapSe || 0) ? 'close' : 'costly';
+        const title = verdict === 'best' ? 'Your cargo checks out as well as the trainer’s pick ✓' : verdict === 'close' ? 'Your cargo is about as good ✓' : `Your cargo ${lossText(goal, rec.option, mineOpt, loss).replace(/^Cost/, 'costs')}`;
+        html += `<p class="trainer-verdict is-${verdict}">${esc(title)}</p><p class="trainer-detail">Your cargo: ${esc(fmtOption(goal, mineOpt))}. The trainer’s pick: ${esc(fmtOption(goal, rec.option))}.</p>`;
+      } else html += '<p class="trainer-detail">Checking your cargo…</p>';
+    }
+    setHTML($('deliver-trainer-body'), html);
+    const recBtn = $('btn-deliver-trainer');
+    recBtn.hidden = !rec;
+    if (rec) recBtn.textContent = rec.action.type === 'deliver' ? 'Load the trainer’s pick' : rec.action.type === 'skip' ? 'Skip, as the trainer suggests' : 'Close, as the trainer suggests';
+    // Every option the live check compared, best first.
+    syncRows(
+      $('deliver-options'),
+      options.length > 1 ? options : [],
+      (o) => actionKey(o.action),
+      () => {
+        const li = document.createElement('li');
+        li.className = 'dopt';
+        li.innerHTML = '<span class="dopt-name"></span><span class="dopt-value"></span><span class="dopt-sub"></span>';
+        li.btn = makeButton('Load', () => {
+          const a = li.option && li.option.action;
+          if (a && a.type === 'deliver') loadCargo(a);
+        });
+        li.appendChild(li.btn);
+        return li;
+      },
+      (li, o) => {
+        li.option = o;
+        const yours = mine && S.sameAction(o.action, mine.action);
+        const picked = rec && S.sameAction(o.action, rec.action);
+        li.classList.toggle('is-best', !!picked);
+        const kind = o.extra ? 'yours' : o.action.type === 'skip' || o.action.type === 'close' ? o.action.type : o.kind;
+        const name = CONVOY_NAMES[kind] || 'Convoy';
+        li.querySelector('.dopt-name').textContent = `${picked ? '★ ' : ''}${name}${yours && kind !== 'yours' ? ' · your cargo' : ''}`;
+        li.querySelector('.dopt-value').textContent = fmtOption(goal, o);
+        li.querySelector('.dopt-sub').textContent = o.action.type === 'deliver' ? o.label.replace(/^Send /, '') : '';
+        li.btn.hidden = o.action.type !== 'deliver' || !!yours;
+      },
+    );
+    $('deliver-options-note').hidden = options.length < 2;
+  }
+
+  // Loads a convoy into the delivery window.
+  function loadCargo(action) {
+    cargo.cells = new Set(action.cells);
+    cargo.vault = new Set(action.vaultIds);
+    cargo.escort = action.escort;
+    renderDeliver();
+  }
+
+  // Marks the trainer's convoy in the window's list of inmates.
+  function renderPickHints() {
+    const rec = ui.prefs.advisor && ui.state ? solver.rec || recommendation(ui.state) : null;
+    const a = rec && rec.action.type === 'deliver' ? rec.action : null;
+    for (const input of document.querySelectorAll('#deliver-inmates input')) {
+      const key = Number(input.value);
+      const on = !!a && (input.dataset.kind === 'vault' ? a.vaultIds.includes(key) : a.cells.includes(key));
+      input.closest('.pick').classList.toggle('is-hint', on);
+    }
+  }
+
+  // Re-checks the convoy being loaded shortly after it changes.
+  function scheduleCargoCheck() {
+    clearTimeout(solver.cargoTimer);
+    if (!ui.prefs.advisor) return;
+    solver.cargoTimer = setTimeout(() => {
+      if (!ui.state || !solverFits(ui.state)) return;
+      startSolver();
+      renderDeliverTrainer();
+    }, 250);
   }
 
   // Marks the recommended move on the board and the action bar.
@@ -1378,6 +1591,7 @@
     const st = ui.state;
     if (!st) return;
     const rec = recommendation(st);
+    solver.rec = rec;
     const a = rec ? rec.action : null;
     const cell = a && a.type === 'patrol' ? a.cell : a && a.type === 'devour' ? a.to : null;
     cellEls.forEach((el, n) => el.btn.classList.toggle('is-hint', n === cell));
@@ -1392,6 +1606,7 @@
     $('btn-advisor').setAttribute('aria-pressed', String(ui.prefs.advisor));
     if (!ui.prefs.advisor) {
       renderHints();
+      renderDeliverTrainer();
       return;
     }
     const st = ui.state;
@@ -1402,6 +1617,7 @@
       startSolver();
       renderSolver();
       renderHints();
+      renderDeliverTrainer();
       return;
     }
     renderHints();
@@ -1687,6 +1903,8 @@
     cargo.escort = preset ? preset.escort : 'light';
     renderDeliver();
     openDialog('dlg-deliver');
+    renderDeliverTrainer();
+    scheduleCargoCheck();
   }
 
   function renderDeliver() {
@@ -1739,6 +1957,8 @@
       status.className = 'deliver-status' + (picked ? ' is-bad' : '');
     }
     $('btn-deliver-confirm').disabled = !check.ok;
+    renderDeliverTrainer();
+    scheduleCargoCheck();
   }
 
   function confirmDeliver() {
@@ -2220,6 +2440,18 @@
       renderDeliver();
     });
     $('btn-deliver-confirm').addEventListener('click', confirmDeliver);
+    $('btn-deliver-trainer').addEventListener('click', () => {
+      const rec = ui.state && recommendation(ui.state);
+      if (!rec) return;
+      if (rec.action.type === 'deliver') loadCargo(rec.action);
+      else if (rec.action.type === 'skip' && run((s) => T.skipDelivery(s), { select: null })) closeDialog('dlg-deliver');
+      else if (rec.action.type === 'close' && run((s) => T.cancelEarlyDelivery(s))) closeDialog('dlg-deliver');
+    });
+    $('btn-deliver-trainer-on').addEventListener('click', () => setPref('advisor', true));
+    $('btn-trainer-play').addEventListener('click', () => {
+      const rec = ui.state && recommendation(ui.state);
+      if (rec) playSolverMove(rec.action);
+    });
     $('btn-deliver-skip').addEventListener('click', () => {
       if (run((s) => T.skipDelivery(s), { select: null })) closeDialog('dlg-deliver');
     });

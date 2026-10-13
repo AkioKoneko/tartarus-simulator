@@ -1065,7 +1065,7 @@
     ch.vouchers -= check.cost;
     ch.score += check.points;
     ch.deliveries.push({ slot: contract.slot, day: state.day, success: true, points: check.points, cost: check.cost, pressure: check.pressure, escort: escortKey, names, early: !!ch.window.early });
-    log(state, 'contract', `Delivered "${contract.name}" by ${ESCORTS[escortKey].name.toLowerCase()} (${plural(check.cost, 'voucher')}, pressure ${check.pressure}, ${check.points} points): ${names.join(', ')}.`, { type: 'deliver', name: contract.name, points: check.points });
+    log(state, 'contract', `Delivered "${contract.name}" by ${ESCORTS[escortKey].name.toLowerCase()} (${plural(check.cost, 'voucher')}, pressure ${check.pressure}, ${check.points} points): ${names.join(', ')}.`, { type: 'deliver', name: contract.name, points: check.points, cells: [...new Set(cellNumbers || [])], vault: [...new Set(vaultIds || [])], escort: escortKey });
     afterDelivery(state, events);
     if (state.phase !== 'ended' && ch.deliveries.length <= 2) queueRefit(state, contract.slot);
     return ok(events);
@@ -1308,7 +1308,9 @@
     }
   }
 
-  // Finds the best cargo for the open window: most points, then cheapest escort.
+  // Finds the cargo with the most points for the open window, then the
+  // cheapest escort. Before the heavy contract it always keeps one voucher,
+  // since the run can't pass without the heavy contract.
   function bestCargo(state) {
     const ch = state.challenge;
     const contract = currentContract(state);
@@ -1328,6 +1330,7 @@
         for (const key of ['light', 'heavy']) {
           const e = ESCORTS[key];
           if (pressure > e.cap || ch.vouchers < e.cost) continue;
+          if (!contract.heavy && ch.vouchers - e.cost < 1) continue;
           const points = cargoPoints(cargo) + cargoBonus(contract, cargo);
           if (!best || points > best.points || (points === best.points && e.cost < best.cost)) {
             best = { points, cost: e.cost, escort: key, pressure, cells: pick.filter((x) => x.kind === 'cell').map((x) => x.key), vaultIds: pick.filter((x) => x.kind === 'vault').map((x) => x.key) };

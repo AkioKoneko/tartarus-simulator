@@ -26,10 +26,11 @@ The board layout follows the original Chinese tool. The rules follow the video r
 - **Contract challenge.** 12 days and 6 dispatch vouchers. Contracts fall due at the end of days 4, 8 and 12, each with a delivery window. Vouchers pay for escorts and refit refreshes. Light/heavy escorts carry pressure limits, the heavy contract can be delivered early from day 9, and you earn refit tools, a Supreme milestone tool and Warden's Cache gifts.
 - **Trainer.** An optional sidebar, toggled from the top bar, that works in every situation:
   - **Recommended move:** the trained strategy's pick appears at once, with its reason and the matching lesson from training. The recommended cell, card or button is marked on the board.
-  - **Live check:** every option is played out hundreds of times from the current position, with everything you can't see re-rolled each time. Options are ranked by Rainbows vaulted, or by the chance to pass in the contract challenge.
+  - **Live check:** every option is played out hundreds of times from the current position, with everything you can't see re-rolled each time. Options are ranked by Rainbows vaulted, or in the contract challenge by the chance to pass first and then contract points.
+  - **Convoys:** when a delivery window opens, the trainer recommends a convoy inside the window, stars the inmates to send, and compares it with the most points, the most points by light escort, the cheapest cargo and skipping. It also checks the convoy you're loading before you send it.
   - **Grades:** each move you make is graded against that check (best, close, or what it cost), with a tally for the run.
   - **Where it runs:** in a Web Worker, or on the page itself when opened from disk.
-- **Strategy guide.** [strategy.html](https://blahdot3h.github.io/tartarus-simulator/strategy.html) is a rough strategy to learn before playing, built from the lab's data. It's linked from the title screen and the menu.
+- **Strategy guide.** [strategy.html](https://blahdot3h.github.io/tartarus-simulator/strategy.html) is a rough strategy to learn before playing, built from the lab's data: how to vault Rainbows in drills, and how to pass the contract challenge and score its convoys. It's linked from the title screen and the menu.
 - **Strategy lab.** `tools/strategy-sim.js` plays millions of simulated runs on every CPU core to tune that strategy and rank tools, gifts and chain setups. No AI: every choice comes from scoring rules. See [tools/README.md](tools/README.md).
 - **Everything else.** Seeds, undo, autosave, export/import, a Lab (scene editor and adjustable practice values) and a handbook.
 

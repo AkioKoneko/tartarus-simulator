@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261012m">
+<link rel="stylesheet" href="css/style.css?v=20261012n">
 <style>
   /* The strategy guide: a long read in the simulator's own look. */
   .guide {
@@ -358,6 +358,17 @@
     max-width: 78ch;
   }
 
+  /* A pointer to the contract challenge, under the headline numbers. */
+  .jump {
+    max-width: 78ch;
+    margin: 0 0 30px;
+    padding: 10px 14px;
+    border-left: 3px solid var(--teal);
+    background: var(--slab);
+    font-size: 15px;
+    color: var(--chalk);
+  }
+
   .method {
     padding-top: 30px;
     border-top: 1px solid var(--iron);
@@ -398,6 +409,7 @@
     <div class="stat"><b>Day <span data-g="firstDay"></span></b><span>when the first Rainbow usually lands</span></div>
   </div>
   <p class="note basis">Data basis: the single-meal food chain (Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth), in the default drill with tools at the first Supreme and a Warden's Cache gift per Rainbow. The headline numbers come from <span data-g="headlineRuns"></span> runs, with margins under ±<span data-g="ci"></span>. Generated <span data-g="generated"></span>.</p>
+  <p class="jump" id="jump-challenge" hidden>Playing the contract challenge? <a href="#challenge">Jump to the convoy rules</a>: what to send, and how to pass.</p>
 
   <section class="guide-section">
     <h2>The short version</h2>
@@ -492,6 +504,59 @@
     </div>
   </section>
 
+  <section class="guide-section" id="challenge">
+    <h2>The contract challenge</h2>
+    <p>Twelve days, three contracts and 6 vouchers. You pass by delivering two contracts, one of them the heavy contract, which needs a Supreme or a vaulted Rainbow. Every inmate you send scores 2 to the power of its tier and adds about twice that in convoy pressure. So a light escort (1 voucher, pressure up to 36) carries at most 18 points, and a heavy escort (3 vouchers, up to 72) at most 36. A run tops out near 72 points, plus any bounty.</p>
+    <div class="stats">
+      <div class="stat"><b data-c="pass"></b><span>of runs pass with the trained strategy</span></div>
+      <div class="stat"><b data-c="points"></b><span>contract points per run on average</span></div>
+      <div class="stat"><b data-c="full"></b><span>of runs deliver all three contracts</span></div>
+      <div class="stat"><b data-c="naivePass"></b><span>pass when every convoy just sends the most points</span></div>
+    </div>
+    <p class="note basis">Data basis: <span data-c="runs"></span> simulated challenge runs on the single-meal food chain, split evenly across the three starts, played by a strategy tuned for the challenge. It plays for passing first, then points: 1% of pass chance counts as 10 points. Each variant below ran <span data-c="habitRuns"></span> runs. Generated <span data-c="generated"></span>.</p>
+
+    <h3>Convoy rules</h3>
+    <ol class="rules">
+      <li><strong>Never spend the heavy contract’s last voucher.</strong><span>The heavy contract needs at least one voucher, and the run can’t pass without it. Sending the most points on every contract can spend all six before day 12. That habit passed only <span data-c="mostPointsAll"></span> of runs.</span></li>
+      <li><strong>Send the first two contracts by light escort.</strong><span>That keeps 3 vouchers for the heavy contract, enough for a heavy escort: the only way to ship a Rainbow (pressure 65), and the way to 36 points. Allowing heavy escorts on the first two passed <span data-c="reserve1"></span>, against <span data-c="pass"></span>.</span></li>
+      <li><strong>Send only what the contract needs.</strong><span>On the first two contracts, load the cheapest inmates that meet it, plus any spare Normals, and keep everything else for later. <span data-c="spareText"></span></span></li>
+      <li><strong>Get ready over the last <span data-c="needDays"></span> before each delivery window.</strong><span>Check what the next contract needs and play for it: open doors when a Work gang or Mixed convoy needs more inmates, and hold on to Rares and Legendaries for the day-8 contract. Ignoring the next contract passed <span data-c="noNeed"></span>, against <span data-c="pass"></span>.</span></li>
+      <li><strong>Fill the heavy convoy.</strong><span>The heavy contract ends the run, so send the most points a heavy escort can carry: two Supremes and a Rare, or a Rainbow with a Magic and a Normal. <span data-c="earlyText"></span></span></li>
+    </ol>
+
+    <h3>What each habit is worth</h3>
+    <p>Pass rate with one habit changed and everything else kept the same, with points per run on the right. Pass rates within about 0.2% of each other are within the margin of error.</p>
+    <div class="bars" id="c-habits"></div>
+
+    <h3>Points against passing</h3>
+    <p>Richer cargo on the first two contracts scores more there but leaves less to build the heavy convoy with. Each row is a different cargo habit for those two contracts, with every other choice the same:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Cargo on the first two contracts</th><th class="num">Contract 1</th><th class="num">Contract 2</th><th class="num">Points per run</th><th class="num">Pass</th></tr></thead>
+        <tbody id="c-frontier"></tbody>
+      </table>
+    </div>
+
+    <h3>The contracts</h3>
+    <p>Each slot draws one contract from the seed. How often the trained strategy delivered each, and its average points:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Contract</th><th>Due</th><th>Needs</th><th class="num">Delivered</th><th class="num">Points</th></tr></thead>
+        <tbody id="c-contracts"></tbody>
+      </table>
+    </div>
+
+    <h3>By start</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Start</th><th class="num">Pass</th><th class="num">All three</th><th class="num">Points</th></tr></thead>
+        <tbody id="c-starts"></tbody>
+      </table>
+    </div>
+    <p><span data-c="failText"></span></p>
+    <p>In a run, the Trainer does this for you. When a delivery window opens, it shows its convoy and stars the inmates to send. Then it plays out every convoy it would consider, plus the one you’re loading, so you can see what a different cargo would cost before you send it.</p>
+  </section>
+
   <section class="guide-section">
     <h2>If live uses the two-meal chain</h2>
     <p>The Chinese sim uses a two-meal chain, where Mammoth also eats Wolf and Lion also eats Rat. Chains break much less often there: the same kind of strategy makes <span data-g="otherNotools"></span> Rainbows per run with no tools and <span data-g="otherRewards"></span> with tools, against <span data-g="fullCompare"></span> and <span data-g="rainbows"></span> here. The habits above still hold. For a guaranteed next bite on that chain, a tier needs a Rat, a Mammoth, and a Lion or Wolf. The New Run screen can switch to it if you want to practice both.</p>
@@ -511,7 +576,7 @@
   </footer>
 </main>
 
-<script src="js/guide-data.js?v=20261012m"></script>
+<script src="js/guide-data.js?v=20261012n"></script>
 <script>
   // Fills the guide from js/guide-data.js, generated by
   // node tools/strategy-sim.js guide.
@@ -635,6 +700,84 @@
       ['Simple: devour when possible, swap Normals, open doors', C.notools.simple, C.rewards.simple],
       ["This guide's strategy", C.notools.tuned, C.rewards.tuned, true],
     ].map(([label, a, b, key]) => `<tr${key ? ' class="is-key"' : ''}><td>${label}</td><td class="num">${two(a.rainbowsPerRun)}</td><td class="num">${two(b.rainbowsPerRun)}</td></tr>`).join('');
+
+    // The contract challenge, from node tools/strategy-sim.js cguide.
+    const CH = G.challenge;
+    const chSection = document.getElementById('challenge');
+    if (!CH) {
+      chSection.hidden = true;
+      return;
+    }
+    document.getElementById('jump-challenge').hidden = false;
+    const ch = (id) => CH.habits.find((h) => h.id === id);
+    const P = CH.headline;
+    const trained = ch('full');
+    const rate = (v) => `${(100 * v).toFixed(1)}%`;
+    const pts = (v) => v.toFixed(1);
+    const light = ch('lightMost');
+    const anyEarly = ch('earlyAny');
+    const never = ch('neverEarly');
+    const whenFull = ch('earlyFull');
+    const same = (a, b) => Math.abs(a.passRate - b.passRate) <= Math.hypot(a.passCi95, b.passCi95) && Math.abs(a.points - b.points) < 0.3;
+    let earlyText;
+    if (never) {
+      earlyText = `From day 9, once the heavy convoy is full, ship it early: waiting can’t add points. ${same(never, trained) ? 'Waiting until day 12 did no better' : `Never shipping early passed ${rate(never.passRate)} with ${pts(never.points)} points`}, and shipping as soon as it qualifies cost points (${pts(anyEarly.points)} per run, against ${pts(trained.points)}).`;
+    } else {
+      earlyText = `You can wait for day 12: ${same(whenFull, trained) ? 'shipping early once the escort was full did no better' : `shipping early once the escort was full passed ${rate(whenFull.passRate)} with ${pts(whenFull.points)} points`}, and shipping as soon as it qualifies cost points (${pts(anyEarly.points)} per run, against ${pts(trained.points)}).`;
+    }
+    const fails = [];
+    if (P.fail.noSupreme >= 0.001) fails.push(`${rate(P.fail.noSupreme)} of runs never reach a Supreme or Rainbow by day 12`);
+    if (P.fail.twoMissed >= 0.001) fails.push(`${rate(P.fail.twoMissed)} ship the heavy contract but miss both early ones`);
+    if (P.fail.rainbowStuck >= 0.001) fails.push(`${rate(P.fail.rainbowStuck)} hold only a vaulted Rainbow without the vouchers to ship it`);
+    if (P.fail.noVouchers >= 0.001) fails.push(`${rate(P.fail.noVouchers)} run out of vouchers`);
+    const CV = {
+      pass: rate(P.passRate),
+      points: pts(P.points),
+      full: rate(P.fullRate),
+      naivePass: rate(ch('mostPointsAll').passRate),
+      runs: CH.headlineRuns.toLocaleString(),
+      habitRuns: CH.habitRuns.toLocaleString(),
+      generated: CH.generated,
+      mostPointsAll: rate(ch('mostPointsAll').passRate),
+      reserve1: rate(ch('reserve1').passRate),
+      noNeed: rate(ch('noNeed').passRate),
+      needDays: `${CH.params.needDays} ${CH.params.needDays === 1 ? 'day' : 'days'}`,
+      spareText: `Sending the most a light escort can carry scored ${pts(light.points)} points per run but passed ${rate(light.passRate)}, against ${pts(trained.points)} points and ${rate(trained.passRate)} when sending only what’s needed.`,
+      earlyText,
+      failText: fails.length ? `Why runs still fail: ${fails.join('; ')}.` : '',
+    };
+    for (const el of chSection.querySelectorAll('[data-c]')) el.textContent = CV[el.dataset.c] !== undefined ? CV[el.dataset.c] : '?';
+    document.querySelector('#jump-challenge').insertAdjacentText('beforeend', ` The trained strategy passes ${CV.pass} of runs.`);
+
+    // The trained strategy first, then the variants by pass rate.
+    const cHabits = [trained, ...CH.habits.filter((h) => h !== trained).sort((a, b) => b.passRate - a.passRate)];
+    bars('c-habits', cHabits.map((h) => ({ label: h.label, value: h.passRate, sub: `${pts(h.points)} pts`, key: h.id === 'full', bad: h.passRate < trained.passRate - 0.1 })), 1, rate);
+
+    const keepNames = { 0: 'The most points', 0.25: 'Fill the escort, mostly for points', 0.5: 'Fill the escort, lowest tiers first', 0.75: 'Fill it with Normals, Magics and Rares', 1: 'What qualifies, plus spare Normals', 1.5: 'Only what qualifies' };
+    document.getElementById('c-frontier').innerHTML = CH.frontier
+      .map((r) => {
+        const mine = r.keep === CH.params.keep1 && r.keep === CH.params.keep2;
+        return `<tr${mine ? ' class="is-key"' : ''}><td>${esc(keepNames[r.keep] || `Keep ${r.keep}`)}${mine ? ' (trained)' : ''}</td><td class="num">${pts(r.slot1)}</td><td class="num">${pts(r.slot2)}</td><td class="num">${pts(r.points)}</td><td class="num">${rate(r.passRate)}</td></tr>`;
+      })
+      .join('');
+
+    const CONTRACTS = [
+      ['mixed', 'Mixed convoy', 4, 'At least 3 inmates of 2 or more beasts'],
+      ['cohort', 'Work gang', 4, 'At least 4 inmates'],
+      ['veteran', 'Veteran-led crew', 4, 'A Rare or Legendary, plus 2 Normal or Magic'],
+      ['elite', 'Elite convoy', 8, '2 Rare or Legendary, 2 or more beasts'],
+      ['kin', 'Kin escort', 8, 'A Legendary, plus 1 of its beast below Legendary'],
+      ['muster', 'Elite muster', 8, '3 Rare or Legendary'],
+      ['heavy', 'Heavy convoy', 12, 'A Supreme or Rainbow; vault Rainbows count'],
+      ['bounty', 'Heavy bounty', 12, 'A Supreme or Rainbow; +8 points for each of the bounty beast'],
+    ];
+    document.getElementById('c-contracts').innerHTML = CONTRACTS.filter(([id]) => P.variants[id])
+      .map(([id, name, day, needs]) => `<tr><td>${name}</td><td>Day ${day}</td><td>${needs}</td><td class="num">${rate(P.variants[id].delivered)}</td><td class="num">${pts(P.variants[id].points)}</td></tr>`)
+      .join('');
+    const START_NAMES = { supply: 'Supply start', lean: 'Lean start', rats: 'Rat-breeding start' };
+    document.getElementById('c-starts').innerHTML = Object.entries(P.loadouts)
+      .map(([id, s]) => `<tr><td>${START_NAMES[id] || id}</td><td class="num">${rate(s.passRate)}</td><td class="num">${rate(s.fullRate)}</td><td class="num">${pts(s.points)}</td></tr>`)
+      .join('');
   })();
 </script>
 </body>

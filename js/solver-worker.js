@@ -9,9 +9,9 @@ importScripts(`engine.js${self.location.search}`, `solver.js${self.location.sear
 let current = 0;
 
 self.onmessage = (e) => {
-  const { id, state, rollouts, params } = e.data;
+  const { id, state, rollouts, params, extra } = e.data;
   current = id;
-  const job = self.TartarusSolver.solve(state, { rollouts, params, seed: (id * 7919 + 1) >>> 0 });
+  const job = self.TartarusSolver.solve(state, { rollouts, params, extra, seed: (id * 7919 + 1) >>> 0 });
   const tick = () => {
     if (id !== current) return;
     const result = job.step(60);

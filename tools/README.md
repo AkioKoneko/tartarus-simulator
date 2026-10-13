@@ -55,6 +55,50 @@ The latest run took 28,200,000 runs in 24.3 minutes. Its full numbers are in `re
 
 To switch the page's data to it, run `guide --chain two --no-tune --publish`. Then update the few sentences in `strategy.html` that name the food chain.
 
+## The contract challenge
+
+Three modes play full 12-day contract challenges, split evenly across the three starts:
+
+```
+node tools/strategy-sim.js challenge --games 300000 --variants ";reserve=1;keep1=0,keep2=0"   # compare habits against the challenge profile
+node tools/strategy-sim.js ctune     --games 100000 --rounds 2    # tune the challenge profile (--chain two for the two-meal chain)
+node tools/strategy-sim.js cguide    --games 2000000              # the strategy guide's challenge data
+```
+
+The challenge is scored on **passing first, then contract points**. A pass counts as 1,000 points, so 1% of pass chance is worth 10 points. `--variants` takes `;`-separated lists of `key=value` changes, plus `toolFirst=id` and `toolRank=a|b|c`.
+
+How the strategy plays the challenge (`js/solver.js`, profiles `loop-challenge` and `challenge`):
+- **Convoys.** It searches every way to load the open contract. Inmates are grouped by tier and beast, so the search is exact and takes about 0.02 ms. On the first two contracts, a convoy's points are weighed against what its inmates are worth kept on the block (`keep1`, `keep2`). A heavy escort is only allowed if 3 vouchers would remain (`reserve`), and it never spends the heavy contract's last voucher. When contract 1 was missed, contract 2 becomes a must and any escort that leaves a voucher will do. The heavy contract ends the run, so it takes the most points.
+- **Getting ready.** In the last `needDays` days before a delivery window, moves are also scored by how close they bring the block to meeting that contract (`wNeed`). The weight is higher when the contract is a must (`needCrit`).
+- **Everything else** uses the same scoring as drills, with weights tuned for the challenge.
+
+The in-game Trainer compares the strategy's convoy with the most points, the most points by light escort, the cheapest qualifying cargo, skipping, and whatever convoy the player is loading.
+
+### Challenge results (2026-10-12, single-meal chain)
+
+The tuning ran `ctune` at 100,000 runs per test for 2 rounds: 16.3 million runs in 21.7 minutes. A refit tool order and the cargo setting were then checked on fresh seeds. The guide data comes from `cguide`: 6.5 million runs in 9.7 minutes on the seed `CGUIDE`, with 2,000,000 runs for the trained strategy and 300,000 for each variant (margins about ±0.1% of pass rate).
+
+| Habit | Pass | Points per run |
+| --- | --- | --- |
+| **The trained strategy** | **94.45%** | **52.3** |
+| Sending the most points every time, even the heavy contract's last voucher | 19.8% | 60.5 |
+| Sending the most points, keeping 1 voucher | 69.8% | 60.4 |
+| The most points, by light escort only | 88.2% | 63.7 |
+| Sending some Rares on the first two | 90.8% | 64.2 |
+| Cheap cargo, but heavy escorts allowed on the first two | 92.6% | 52.8 |
+| Ignoring the next contract while playing | 92.1% | 51.0 |
+| Playing with the drill weights (convoys unchanged) | 92.7% | 50.6 |
+| Shipping the heavy contract as soon as it qualifies | 94.5% | 51.2 |
+| Shipping the heavy contract early once its escort is full | 94.5% | 52.3 |
+
+- **Starts.** Supply 96.5% (52.5 points), Lean 90.1% (50.0) and Rat-breeding 96.8% (54.2).
+- **Contracts most often missed.** Elite muster (delivered 61.9%), Work gang (80.6%) and Kin escort (85.2%). The heavy contract ships in 95.8% of runs, for 37.5 points on average.
+- **Runs that still fail.** 4.2% never reach a Supreme or Rainbow by day 12, and 1.3% ship the heavy contract but miss both early ones.
+- **Refit tools.** Putting Hangman's Rope first was clearly best: 94.4% against 93.5% with the drill's order, 300,000 runs each. The final order is Rope, Skewer, Burning Stake, Avenger's Box, Key Ring, Iron Box, Muzzle, Saw.
+- **Cargo.** Sending what qualifies plus spare Normals (`keep` 1) matched the tuner's strict minimum (1.5) on pass rate and added 1.1 points, on 1,000,000 fresh runs.
+
+The two-meal chain's challenge profile had a one-round tune (5.2 million runs, 7.5 minutes). It passes 97.2% with 59.3 points on fresh prisons. On that chain, richer cargo on contract 2 pays (`keep2` 0.25).
+
 ## Results
 
 From the full study on 2026-10-12, run on the two-meal food chain (the default at the time): 1,000,000 runs per test, default drill values. "Hard mode loop chain" below is the single-meal chain that is now the default. The ± figures are 95% margins.

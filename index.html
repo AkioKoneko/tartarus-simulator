@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261012m">
+<link rel="stylesheet" href="css/style.css?v=20261012n">
 </head>
 <body>
 <div class="app" id="app">
@@ -137,7 +137,11 @@
       <section class="panel" id="panel-advisor" hidden>
         <h2 class="panel-title">Trainer</h2>
         <div id="solver-box">
-          <div class="trainer-pick" id="trainer-pick" hidden></div>
+          <div class="trainer-pick" id="trainer-pick" hidden>
+            <div class="trainer-body" id="trainer-pick-head"></div>
+            <div class="trainer-play"><button type="button" class="btn btn-primary" id="btn-trainer-play">Play it</button></div>
+            <div class="trainer-body" id="trainer-pick-body"></div>
+          </div>
           <div class="trainer-grade" id="trainer-grade" aria-live="polite" hidden></div>
           <p class="solver-status" id="solver-status" aria-live="polite"></p>
           <ol class="solver-list" id="solver-list"></ol>
@@ -329,11 +333,13 @@
       <p>Press <strong>Trainer</strong> at the top to show it beside the block while you play. It works in every situation: patrols, events, devours, swaps, tools, gifts, and the contract challenge's deliveries.</p>
       <ul>
         <li><strong>Recommended.</strong> The trained strategy's pick appears at once, with its reason and the lesson training found for that kind of decision. The recommended cell or button is marked on the board.</li>
-        <li><strong>Live check.</strong> Every option you have right now is played out hundreds of times from the current position. Everything you can't see is re-rolled each time, so it never peeks behind a door, and the trained strategy makes every later choice. Options are ranked by Rainbows vaulted by the end of the run (in the challenge, by the chance to pass), with a 95% margin. Once the check has enough playouts, its best option becomes the recommendation. Devour options also show their exact chain odds.</li>
+        <li><strong>Live check.</strong> Every option you have right now is played out hundreds of times from the current position. Everything you can't see is re-rolled each time, so it never peeks behind a door, and the trained strategy makes every later choice. Options are ranked by Rainbows vaulted by the end of the run. In the challenge they're ranked by the chance to pass first, then by contract points. Each option is compared with the best on the same dice, and once the check finds a clearly better move, that becomes the recommendation. Devour options also show their exact chain odds.</li>
+        <li><strong>Convoys.</strong> When a delivery window opens, the trainer shows its convoy inside the window and stars the inmates to send. It compares every convoy it would consider: its own pick, the most points, the most points by light escort, the cheapest cargo, and skipping. It checks the convoy you're loading too, so you can see what a different cargo would cost before you send it.</li>
         <li><strong>Grades.</strong> Each move you make is graded against the live check of the position before it: the best move, close to the best (within the margin of error), or what it cost. The panel keeps a tally for the run.</li>
       </ul>
       <p>For the big picture before you play, read the <a href="strategy.html">strategy guide</a>.</p>
-      <p>There's no AI involved: the strategy is a set of scoring rules whose weights were tuned over millions of simulated runs. Its main lessons: devour whenever you can, swap low-tier inmates in the warden's cell (Normal and Magic; Rare too when you have tools), accept Chain reactions, accept an Execution when it gains more than it removes, and walk further rather than shorter. A chain keeps going at a tier when a Rat, a Mammoth and a Lion or Wolf wait there. Any beast the eater re-rolls into then finds food. Held from day 1, the best tools were the Hangman's Rope, Avenger's Box, Rat-Head Skewer and Burning Stake. The Writhing Iron Box was the only one that hurt.</p>
+      <p>There's no AI involved: the strategy is a set of scoring rules whose weights were tuned over millions of simulated runs. Its main lessons on the single-meal chain: devour whenever you can, swap low-tier inmates in the warden's cell (Normal and Magic; Rare too when you have tools), accept Chain reactions, accept an Execution when it gains more than it removes, and keep opening doors. Each beast waiting at a tier covers one of the four beasts a chain's eater can re-roll into, so a tier with all four keeps any chain going. Held from day 1, the best tools were the Rat-Head Skewer, Avenger's Box and Hangman's Rope. The Writhing Iron Box was the only one that hurt.</p>
+      <p>In the contract challenge, the strategy sends inmates it can spare by light escort on the first two contracts, keeps 3 vouchers for the heavy contract, and gets the block ready for each contract in the last days before its deadline. Sending the most points every time passes far less often.</p>
 
       <h3>Practice values</h3>
       <p>The live game's exact odds, daily limits and some timing details are not public. This simulator uses stated practice values for them. You can change the drill values in the Lab; the contract challenge always uses fixed values. Riots, followers, loot and combat are not simulated.</p>
@@ -543,6 +549,14 @@
     </header>
     <div class="sheet-body">
       <div class="contract contract-active" id="deliver-contract"></div>
+      <section class="trainer-pick deliver-trainer" id="deliver-trainer" aria-live="polite" hidden>
+        <div class="trainer-body" id="deliver-trainer-head"></div>
+        <div class="trainer-play"><button type="button" class="btn btn-primary" id="btn-deliver-trainer">Load the trainer’s pick</button></div>
+        <div class="trainer-body" id="deliver-trainer-body"></div>
+        <ol class="dopts" id="deliver-options"></ol>
+        <p class="trainer-lesson" id="deliver-options-note" hidden>Each convoy is played out to the end of the run many times, with the trained strategy making every later choice. Ranked by the chance to pass, then by contract points. ★ marks the trainer’s pick, here and in the list below.</p>
+      </section>
+      <p class="deliver-trainer-off" id="deliver-trainer-off" hidden>Not sure what to send? <button type="button" class="link-btn" id="btn-deliver-trainer-on">Turn on the Trainer</button> to see which convoy passes most often.</p>
       <fieldset class="field">
         <legend>Inmates to send</legend>
         <div class="pick-list" id="deliver-inmates"></div>
@@ -557,7 +571,7 @@
       <p class="deliver-status" id="deliver-status"></p>
     </div>
     <footer class="sheet-foot">
-      <button type="button" class="btn" id="btn-deliver-best">Load best cargo</button>
+      <button type="button" class="btn" id="btn-deliver-best">Load most points</button>
       <button type="button" class="btn btn-danger" id="btn-deliver-skip">Skip this contract</button>
       <button type="button" class="btn" id="btn-deliver-close">Close early window</button>
       <button type="button" class="btn btn-primary" id="btn-deliver-confirm">Deliver</button>
@@ -608,10 +622,10 @@
   </div>
 </dialog>
 
-<script src="js/engine.js?v=20261012m"></script>
-<script src="js/sound.js?v=20261012m"></script>
-<script src="js/guide-data.js?v=20261012m"></script>
-<script src="js/solver.js?v=20261012m"></script>
-<script src="js/ui.js?v=20261012m"></script>
+<script src="js/engine.js?v=20261012n"></script>
+<script src="js/sound.js?v=20261012n"></script>
+<script src="js/guide-data.js?v=20261012n"></script>
+<script src="js/solver.js?v=20261012n"></script>
+<script src="js/ui.js?v=20261012n"></script>
 </body>
 </html>
