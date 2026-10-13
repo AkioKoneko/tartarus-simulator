@@ -218,3 +218,37 @@ Five labeled board screenshots, also resized to stand in for other resolutions a
 - **Small screenshots.** At 0.6× the door and day digits are only a few pixels tall, so they're often misread there.
 - **Chromatic prisoners.** No labeled screenshot has one yet, so the slot count is untested beyond reading 0.
 - **Objectives** aren't read yet.
+
+# Live data
+
+The board analyzer shares the boards players ask about (see `worker/README.md`). Two boards in a row from the same game are a confirmed step of a live game, such as a patrol and what the door held, a swap and who came in, or a night and the next morning's doors. `live-data.js` pulls those boards into `data/live/` and measures what the steps show, next to the simulator's values in `js/engine.js` (`DEFAULT_PARAMS`):
+
+```
+node tools/live-data.js pull     # new boards from the collector (the workflow does this every 6 hours)
+node tools/live-data.js rates    # the report, also saved as data/live/rates.json
+node tools/live-data.js rates --all   # also count guesses nobody confirmed
+```
+
+It measures:
+- door rarities and beasts (`tierWeights`, `beastWeights`),
+- swaps,
+- Key Ring side doors,
+- scratched doors,
+- the day-1 event rate (`eventChance`) and the Chain/Execution split,
+- doors per morning (`fewerDoorsChance`) and how far ahead they are, which settles whether the office counts as a patrol step,
+- devours and tool offers.
+
+Each rate has a 95% range. A rate is judged once it has 30 observations, and rarities and beasts also get a chi-square test against the simulator's odds.
+
+**What counts.** After "Do it here", the simulator's dice fill in what happened, and the screenshot reader fills in what it couldn't read for sure. Those parts count only once the player changes them or confirms them with "Matches my game", so the simulator's own odds don't leak into the measurements. A board the player entered by hand counts as is.
+
+**Checked on simulated games.** Turning 3,000 simulated runs into analyzer boards (181,566 boards) gave back the simulator's own odds:
+- door and swap rarities 52/27/15/6,
+- beasts at 25% each,
+- 18.1% of day-1 doors with an event,
+- 80.4% Key Ring openings,
+- no doors more than 5 steps ahead.
+
+The one gap was Chain reactions at 53% instead of 50%. In the simulator, the strategy can see an event's kind and favors Chain reactions; live players can't see it.
+
+**Caveat on events.** A door with no event marker might just be a marker nobody entered. Boards from the screenshot reader read event markers reliably.

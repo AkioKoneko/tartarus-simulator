@@ -3525,6 +3525,28 @@ textarea {
   color: var(--bone-ink);
 }
 
+/* Confirms a cell marked Check without changing it. */
+.az-flag.az-match {
+  border-style: dashed;
+  border-color: var(--t2);
+  color: var(--t2);
+}
+
+.az-flag.az-match:hover {
+  background: color-mix(in srgb, var(--t2) 10%, transparent);
+}
+
+/* Whether boards are shared, under the ask button. */
+.az-share {
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.az-share .link {
+  padding: 0;
+  font: inherit;
+}
+
 .az-foot {
   max-width: 80ch;
   margin-top: 36px;

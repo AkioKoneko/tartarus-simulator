@@ -2,5 +2,5 @@
 trainingdata/
 
 # Wrangler's local state and local-only secrets for `wrangler dev`.
-worker/.wrangler/
+.wrangler/
 worker/.dev.vars

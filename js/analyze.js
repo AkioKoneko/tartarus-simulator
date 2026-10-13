@@ -4,13 +4,15 @@
  * and asks js/solver.js for the best move: the trained strategy's pick right
  * away, then a live check that plays every option out many times. "Do it here"
  * plays the move with the simulator's dice, so the player only has to fix what
- * came out differently in their game. */
+ * came out differently in their game. Each board the player asks about is
+ * handed to js/live.js, which shares runs of them to measure live's odds. */
 (function () {
   'use strict';
 
   const T = window.Tartarus;
   const S = window.TartarusSolver;
   const B = window.TartarusBoard;
+  const SHARE = window.TartarusLive || null;
   const $ = (id) => document.getElementById(id);
   const L = (n) => T.cellLabel(n);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -60,6 +62,18 @@
 
   const officeCell = () => ({ kind: 'office' });
   const sealedCell = () => ({ kind: 'sealed', event: null });
+
+  // What a cell holds, ignoring leftover fields and their order, so cells
+  // from the reader or older edits compare equal when they hold the same.
+  function cellSig(c) {
+    switch (c.kind) {
+      case 'inmate': return ['inmate', c.beast, toInt(c.tier, 0), !!c.ivory, c.prey ? [c.prey.cell, c.prey.rounds] : null].join('|');
+      case 'scratch': return ['scratch', toInt(c.tier, 0), c.event || ''].join('|');
+      case 'sealed': return ['sealed', c.event || ''].join('|');
+      case 'nest': return ['nest', toInt(c.due, 0)].join('|');
+      default: return c.kind;
+    }
+  }
 
   function blankModel() {
     return {
@@ -308,11 +322,19 @@
   let selected = saved && Number.isInteger(saved.selected) ? clamp(saved.selected, 0, T.CELL_COUNT - 1) : 1;
   let flags = new Set(); // cells the simulator's dice decided, for the player to check
   let applied = null; // what "Do it here" just played
+  // How the board got here since the last one asked about: a move played
+  // here, or a screenshot. `filled` lists what the dice or the reader decided
+  // (cells as c<n>, plus dest, event and choice), `touched` what the player
+  // has since set or confirmed against their game. It's saved with the board,
+  // so a reload can't pass the dice's guesses off as the player's.
+  let via = saved && saved.via && Array.isArray(saved.via.filled) ? Object.assign({}, saved.via, { touched: new Set(saved.via.touched || []) }) : null;
+  // Cells still to check survive a reload too.
+  if (via) flags = new Set(via.filled.filter((k) => /^c\d+$/.test(k) && !via.touched.has(k)).map((k) => Number(k.slice(1))));
   const undo = [];
   const modelKey = () => JSON.stringify(model);
 
   function save() {
-    store.set(KEY, { model, selected });
+    store.set(KEY, { model, selected, via: via && Object.assign({}, via, { touched: [...via.touched] }) });
   }
 
   function changed() {
@@ -332,6 +354,8 @@
     const { st, problems } = buildState(model);
     showProblems(problems);
     if (problems.length) return;
+    if (SHARE) SHARE.record(model, via && Object.assign({}, via, { touched: [...via.touched] }));
+    via = null;
     flags = new Set();
     applied = null;
     solver.id += 1;
@@ -445,8 +469,13 @@
     undo.push({ model: before, selected });
     if (undo.length > 30) undo.shift();
     model = modelFrom(st, before);
-    flags = new Set(model.cells.map((c, n) => (JSON.stringify(c) !== JSON.stringify(before.cells[n]) ? n : -1)).filter((n) => n >= 0));
+    flags = new Set(model.cells.map((c, n) => (cellSig(c) !== cellSig(before.cells[n]) ? n : -1)).filter((n) => n >= 0));
     applied = { label, changed: [...flags], newDay: model.day !== before.day, doors: model.step === 'patrol' ? model.dest.slice() : [], ended: !!model.ended, step: model.step };
+    const filled = [...flags].map((n) => `c${n}`);
+    if (applied.newDay && model.step === 'patrol') filled.push('dest');
+    if (model.step === 'event') filled.push('event');
+    if (model.step === 'choice' && model.choice.kind !== 'gift') filled.push('choice');
+    via = { action, label, filled, touched: new Set() };
     solver.st = null;
     solver.id += 1;
     showProblems([]);
@@ -469,7 +498,14 @@
     selected = last.selected;
     flags = new Set();
     applied = null;
+    via = null;
     changed();
+  }
+
+  // The player set or confirmed part of the board the dice or the reader
+  // filled in, so it's known to match their game.
+  function touch(key) {
+    if (via) via.touched.add(key);
   }
 
   // ---------- Rendering ----------
@@ -561,6 +597,7 @@
     $('az-warden').setAttribute('aria-pressed', String(model.warden === n));
     $('az-door').hidden = office || model.step !== 'patrol';
     $('az-door').setAttribute('aria-pressed', String(model.dest.includes(n)));
+    $('az-match').hidden = office || !flags.has(n);
     $('az-office-note').hidden = !office;
     $('az-cell-fields').hidden = office;
     if (office) return;
@@ -831,8 +868,23 @@
       if (applied.step === 'event') html += "<p class=\"trainer-why\">The door held a special event: check its kind in your game.</p>";
       html += '<p class="trainer-lesson">Then press “What should I do?” for the next move.</p>';
     }
-    html += '<div class="az-res-actions"><button type="button" class="btn" data-undo>Undo</button></div>';
+    const unchecked = via && !applied.ended ? via.filled.filter((k) => !via.touched.has(k)).length : 0;
+    if (via && via.filled.length && !unchecked && !applied.ended) html += '<p class="trainer-why">Checked against your game.</p>';
+    html += `<div class="az-res-actions">${unchecked ? '<button type="button" class="btn" data-match>Everything here matches my game</button>' : ''}<button type="button" class="btn" data-undo>Undo</button></div>`;
     setHTML(box, html);
+  }
+
+  // The line under the ask button: whether boards are shared, and the switch.
+  function renderShare() {
+    const box = $('az-share');
+    if (!SHARE) {
+      box.hidden = true;
+      return;
+    }
+    const seen = SHARE.shared ? ' · <button type="button" class="link" data-share="see">See what’s been shared</button>' : '';
+    setHTML(box, SHARE.sharing
+      ? `Boards you ask about in a row are shared anonymously, to measure the live game's odds. <button type="button" class="link" data-share="off">Turn off</button>${seen}`
+      : `Sharing is off, so nothing leaves this browser. <button type="button" class="link" data-share="on">Share boards to help measure live's odds</button>${seen}`);
   }
 
   function showProblems(problems) {
@@ -848,6 +900,7 @@
     renderSettings();
     renderResults();
     renderApplied();
+    renderShare();
   }
 
   // ---------- Editing ----------
@@ -893,7 +946,28 @@
     model.cells[n] = c;
     cleanPrey();
     flags.delete(n);
+    touch(`c${n}`);
     changed();
+  }
+
+  // The selected cell, marked Check, is already right.
+  function confirmCell(n) {
+    flags.delete(n);
+    touch(`c${n}`);
+    save();
+    renderBoard();
+    renderEditor();
+    renderApplied();
+  }
+
+  // Everything the dice filled in after "Do it here" is right.
+  function confirmAll() {
+    if (via) for (const key of via.filled) via.touched.add(key);
+    flags = new Set();
+    save();
+    renderBoard();
+    renderEditor();
+    renderApplied();
   }
 
   function setKind(kind) {
@@ -907,6 +981,7 @@
     const has = model.dest.includes(n);
     model.dest = has ? model.dest.filter((x) => x !== n) : [...model.dest, n];
     if (!has && model.step !== 'patrol') model.step = 'patrol';
+    touch('dest');
     changed();
   }
 
@@ -953,6 +1028,9 @@
       model = modelFrom(st, null);
       flags = new Set();
       applied = null;
+      via = null;
+      // A simulator run isn't live, so its boards are never shared.
+      if (SHARE) SHARE.reset('sim');
       undo.length = 0;
       solver.st = null;
       changed();
@@ -1287,6 +1365,8 @@
     model = normalize(rd.model);
     flags = new Set(rd.checks);
     applied = null;
+    via = { scan: true, filled: [...rd.checks].map((n) => `c${n}`), touched: new Set() };
+    if (SHARE) SHARE.markManual();
     solver.st = null;
     selected = rd.checks.size ? Math.min(...rd.checks) : model.warden;
     reader.result = null;
@@ -1371,10 +1451,12 @@
     });
     segment('az-event-kind', (v) => {
       model.eventKind = v;
+      touch('event');
       changed();
     });
     segment('az-choice-kind', (v) => {
       model.choice = { kind: v, options: model.choice.options };
+      touch('choice');
       changed();
     });
     $('az-offer').addEventListener('change', (e) => {
@@ -1382,6 +1464,7 @@
       if (!sel) return;
       const options = [0, 1, 2].map((i) => model.choice.options[i] || '');
       options[Number(sel.dataset.offer)] = sel.value;
+      touch('choice');
       model.choice = { kind: model.choice.kind, options: options.filter(Boolean) };
       changed();
     });
@@ -1449,13 +1532,24 @@
     $('az-undo').addEventListener('click', undoMove);
     $('az-applied').addEventListener('click', (e) => {
       if (e.target.closest('[data-undo]')) undoMove();
+      if (e.target.closest('[data-match]')) confirmAll();
     });
+    $('az-match').addEventListener('click', () => confirmCell(selected));
+    $('az-share').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-share]');
+      if (!b) return;
+      if (b.dataset.share === 'see') SHARE.download();
+      else SHARE.setSharing(b.dataset.share === 'on');
+    });
+    if (SHARE) SHARE.onChange(renderShare);
     $('az-load-run').addEventListener('click', loadRun);
     $('az-example').addEventListener('click', () => {
       model = exampleModel();
       selected = 4;
       flags = new Set();
       applied = null;
+      via = null;
+      if (SHARE) SHARE.reset('example');
       solver.st = null;
       changed();
       notice('Loaded an example: day 6, the warden at cell 05, with three doors to choose from.');
@@ -1476,6 +1570,8 @@
       selected = 1;
       flags = new Set();
       applied = null;
+      via = null;
+      if (SHARE) SHARE.reset('manual');
       solver.st = null;
       changed();
       notice('Cleared: day 1, every cell sealed, the warden in the office.');

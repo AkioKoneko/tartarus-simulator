@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261013b">
+<link rel="stylesheet" href="css/style.css?v=20261013c">
 </head>
 <body>
 <main class="analyzer" id="analyzer">
@@ -85,6 +85,7 @@
           <div class="az-editor-flags">
             <button type="button" class="az-flag" id="az-warden" aria-pressed="false">Warden here</button>
             <button type="button" class="az-flag" id="az-door" aria-pressed="false">Today's door</button>
+            <button type="button" class="az-flag az-match" id="az-match" hidden>Matches my game</button>
           </div>
         </div>
         <p class="field-note" id="az-office-note" hidden>Cell 01 is the warden's office. Nothing is ever held here and it's never a patrol door, but the warden can stand here.</p>
@@ -223,6 +224,7 @@
       <div class="az-ask">
         <button type="button" class="btn btn-primary az-go" id="az-go">What should I do?</button>
         <ul class="az-problems" id="az-problems" hidden></ul>
+        <p class="field-note az-share" id="az-share" aria-live="polite"></p>
       </div>
 
     </aside>
@@ -230,14 +232,15 @@
 
   <footer class="az-foot">
     <p>Made by <strong>CoffeeBns</strong>: <a href="https://twitch.tv/coffeebns" target="_blank" rel="noopener">twitch.tv/coffeebns</a> and <a href="https://youtube.com/@CoffeeBns" target="_blank" rel="noopener">youtube.com/@CoffeeBns</a>.</p>
-    <p>The advice comes from the simulator's rules-based strategy, tuned over millions of simulated runs, with no AI involved. Each option is played out from your position many times, with everything you can't see re-rolled. The rules follow the season's video reveal, and odds are practice values, so live results may differ. Your board is saved in this browser only.</p>
+    <p>The advice comes from the simulator's rules-based strategy, tuned over millions of simulated runs, with no AI involved. Each option is played out from your position many times, with everything you can't see re-rolled. The rules follow the season's video reveal, and odds are practice values, so live results may differ. Your board is saved in this browser. Boards you ask about in a row are also shared, with no account or address attached, so the simulator's odds can be measured against live. You can turn that off under the ask button.</p>
     <p class="az-foot-links"><button type="button" class="link" id="az-open-sim">Play this position in the simulator</button></p>
   </footer>
 </main>
 
-<script src="js/engine.js?v=20261013b"></script>
-<script src="js/board.js?v=20261013b"></script>
-<script src="js/solver.js?v=20261013b"></script>
-<script src="js/analyze.js?v=20261013b"></script>
+<script src="js/engine.js?v=20261013c"></script>
+<script src="js/board.js?v=20261013c"></script>
+<script src="js/solver.js?v=20261013c"></script>
+<script src="js/live.js?v=20261013c"></script>
+<script src="js/analyze.js?v=20261013c"></script>
 </body>
 </html>
