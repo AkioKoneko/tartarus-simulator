@@ -258,6 +258,15 @@ a {
   text-wrap: pretty;
 }
 
+/* The maker credit sits just above the translation note. */
+.source-note.made-by {
+  margin-bottom: 10px;
+}
+
+.source-note strong {
+  color: var(--chalk);
+}
+
 .source-note a {
   color: var(--bone);
   font-weight: 600;

@@ -2,6 +2,8 @@
 
 A free, fan-made English practice simulator for the Tartarus prison season (SS14) of *Torchlight: Infinite*. It began as a translation of the Chinese fan simulator [塔羅斯监狱 (Talos Prison)](https://torchlightskill.com/talos/), but its rules have since been updated to match the video reveal, so it now differs heavily from the Chinese sim. You walk the ring of fifteen cells around the warden's office: patrol a door each morning, let beasts devour same-rarity rivals, and raise inmates from Normal to Rainbow before the handoff.
 
+Made by **CoffeeBns**: [twitch.tv/coffeebns](https://twitch.tv/coffeebns) and [youtube.com/@CoffeeBns](https://youtube.com/@CoffeeBns).
+
 ## Play it
 
 **Online:** https://blahdot3h.github.io/tartarus-simulator/
@@ -45,6 +47,8 @@ The board layout follows the original Chinese tool. The rules follow the video r
 | `js/ui.js` | Rendering, input, saves, preferences and the beast portraits |
 
 ## Credits
+
+This English version is made by **CoffeeBns** ([Twitch](https://twitch.tv/coffeebns), [YouTube](https://youtube.com/@CoffeeBns)).
 
 This began as an English translation of the Chinese fan simulator [塔羅斯监狱 (Talos Prison)](https://torchlightskill.com/talos/) by 爱玩游戏的吉吉罗 ([Douyin](https://v.douyin.com/okD24Xnc6wo/), also 二零后游戏荒 on [Bilibili](https://space.bilibili.com/39881994)). The board layout follows the original, but the rules have since been updated to match the video reveal, so this version now differs heavily from the Chinese sim. The original author is not involved in this version. This English version is an independent re-implementation with its own code and artwork: the beast portraits and the courtyard backdrop were drawn for this project. No code, images or audio were copied from that tool.
 
