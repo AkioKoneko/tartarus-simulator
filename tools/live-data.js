@@ -2,11 +2,11 @@
 /* Tartarus Simulator: live data.
  * The board analyzer shares the boards players ask about, in runs of two or
  * more in a row (js/live.js), with the collector in worker/. This tool pulls
- * them into data/live/ and measures the odds they show, next to the values
+ * them into beta/data/ and measures the odds they show, next to the values
  * the simulator uses, so the simulator can be tuned to match live.
  *
  *   node tools/live-data.js pull     new boards from the collector, then rates
- *   node tools/live-data.js rates    recompute data/live/rates.json
+ *   node tools/live-data.js rates    recompute beta/data/rates.json
  *
  * pull needs the collector's address and export token, from LIVE_DATA_URL and
  * LIVE_DATA_TOKEN (or --url and --token). The repo's scheduled workflow,
@@ -29,7 +29,7 @@ const flag = (name) => {
 const ALL = args.includes('--all');
 
 const ROOT = path.join(__dirname, '..');
-const DIR = flag('dir') ? path.resolve(flag('dir')) : path.join(ROOT, 'data', 'live');
+const DIR = flag('dir') ? path.resolve(flag('dir')) : path.join(ROOT, 'beta', 'data');
 const RAW = path.join(DIR, 'raw');
 const STATE = path.join(DIR, 'state.json');
 const RATES = path.join(DIR, 'rates.json');

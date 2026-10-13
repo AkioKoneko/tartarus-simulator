@@ -1,5 +1,5 @@
 # Pulls the boards the analyzer shared from the live collector (worker/) into
-# data/live/, measures the live odds (data/live/rates.json) and commits them.
+# beta/data/, measures the live odds (beta/data/rates.json) and commits them.
 # Runs every 6 hours, or on demand: gh workflow run live-data.yml
 # Needs the repo secret LIVE_DATA_TOKEN, the collector's EXPORT_TOKEN.
 name: Live data
@@ -34,13 +34,13 @@ jobs:
 
       - name: Commit
         run: |
-          git add data/live
+          git add beta/data
           if git diff --cached --quiet; then
             echo "No new boards."
             exit 0
           fi
-          boards=$(node -p "require('./data/live/rates.json').boards")
-          steps=$(node -p "require('./data/live/rates.json').steps")
+          boards=$(node -p "require('./beta/data/rates.json').boards")
+          steps=$(node -p "require('./beta/data/rates.json').steps")
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Live data: ${boards} boards, ${steps} confirmed steps"

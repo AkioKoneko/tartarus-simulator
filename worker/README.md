@@ -13,8 +13,8 @@ The Workers free plan covers this: 100,000 uploads and 100,000 row writes a day,
 ## Where the data goes
 
 `.github/workflows/live-data.yml` runs every 6 hours. It calls `node tools/live-data.js pull`, which:
-- appends new rows to `data/live/raw/<date>.jsonl`,
-- writes `data/live/rates.json`, which shows live rarities, beasts, events, doors on offer and more next to the values the simulator uses.
+- appends new rows to `beta/data/raw/<date>.jsonl`,
+- writes `beta/data/rates.json`, which shows live rarities, beasts, events, doors on offer and more next to the values the simulator uses.
 
 To run it now:
 
@@ -22,7 +22,7 @@ To run it now:
 gh workflow run live-data.yml
 ```
 
-Then `git pull` and read `data/live/rates.json`, or run `node tools/live-data.js rates` for the same report as a table.
+Then `git pull` and read `beta/data/rates.json`, or run `node tools/live-data.js rates` for the same report as a table.
 
 ## Setup (already done once)
 

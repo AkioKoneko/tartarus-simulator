@@ -56,7 +56,7 @@ The board layout follows the original Chinese tool. The rules follow the video r
 | `tools/scan-build.js`, `tools/scan-test.js` | Build the reader's reference data from labeled screenshots, and score the reader |
 | `js/live.js` | Shares the boards players ask about in the analyzer, in runs of two or more in a row, to measure live's odds |
 | `worker/` | The collector those boards go to: a Cloudflare Worker with a D1 database (see `worker/README.md`) |
-| `tools/live-data.js`, `data/live/` | Pulls the shared boards into the repo and measures the live odds against the simulator's (`data/live/rates.json`) |
+| `tools/live-data.js`, `beta/data/` | Pulls the shared boards into the repo and measures the live odds against the simulator's (`beta/data/rates.json`) |
 | `.github/workflows/live-data.yml` | Runs `tools/live-data.js pull` every 6 hours and commits what's new |
 
 ## Credits

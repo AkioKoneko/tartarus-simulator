@@ -221,11 +221,11 @@ Five labeled board screenshots, also resized to stand in for other resolutions a
 
 # Live data
 
-The board analyzer shares the boards players ask about (see `worker/README.md`). Two boards in a row from the same game are a confirmed step of a live game, such as a patrol and what the door held, a swap and who came in, or a night and the next morning's doors. `live-data.js` pulls those boards into `data/live/` and measures what the steps show, next to the simulator's values in `js/engine.js` (`DEFAULT_PARAMS`):
+The board analyzer shares the boards players ask about (see `worker/README.md`). Two boards in a row from the same game are a confirmed step of a live game, such as a patrol and what the door held, a swap and who came in, or a night and the next morning's doors. `live-data.js` pulls those boards into `beta/data/` and measures what the steps show, next to the simulator's values in `js/engine.js` (`DEFAULT_PARAMS`):
 
 ```
 node tools/live-data.js pull     # new boards from the collector (the workflow does this every 6 hours)
-node tools/live-data.js rates    # the report, also saved as data/live/rates.json
+node tools/live-data.js rates    # the report, also saved as beta/data/rates.json
 node tools/live-data.js rates --all   # also count guesses nobody confirmed
 ```
 
