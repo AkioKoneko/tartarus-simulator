@@ -34,7 +34,7 @@
     swapMaxTier: 0, // swap the warden's inmate only at or below this tier
     execMargin: 0, // accept an Execution worth more than this
     acceptChain: true, // accept Chain reactions
-    toolRank: ['rope', 'revenge', 'skewer', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'], // measured: each tool held from day 1
+    toolRank: ['skewer', 'revenge', 'rope', 'saw', 'guillotine', 'hook', 'tongs', 'keys', 'muzzle', 'fire', 'scales', 'pestle', 'ironbox'], // measured: each tool held from day 1
     giftRank: null, // null scores the gifts on the spot; or a fixed order
     // Contract challenge: convoys for the first two contracts weigh their
     // points against what the inmates sent would be worth kept on the block.
@@ -54,13 +54,13 @@
   // run's settings. From tools/results/ (train-report.json for the two-meal
   // chain, guide-data-single.json for the single-meal one).
   const PROFILES = {
-    rewards: { tierBase: 3, rainbowMult: 1, wOpen: 2.5, wNow: 1.5, wWalk: 1, wStep: 1, wChain: 8, wStair: 0.5, swapMaxTier: 2, minDevour: 0, execMargin: 10, acceptChain: true, toolRank: ['rope', 'revenge', 'skewer', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'] },
-    notools: { tierBase: 2.5, rainbowMult: 2, wOpen: 1.875, wNow: 1, wWalk: 1, wStep: 1, wChain: 16, wStair: 0.25, swapMaxTier: 1, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['rope', 'revenge', 'skewer', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'] },
-    'loop-rewards': { tierBase: 2.75, rainbowMult: 1, wOpen: 2, wNow: 1.125, wWalk: 1, wStep: 1, wChain: 4, wStair: 0.5, swapMaxTier: 2, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['skewer', 'revenge', 'rope', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'] },
-    'loop-notools': { tierBase: 2.5, rainbowMult: 8, wOpen: 3, wNow: 0.5, wWalk: 1.5, wStep: 1, wChain: 16, wStair: 0.25, swapMaxTier: 1, minDevour: 0, execMargin: 5, acceptChain: true, toolRank: ['skewer', 'revenge', 'rope', 'fire', 'saw', 'keys', 'muzzle', 'ironbox'] },
+    rewards: { tierBase: 3, rainbowMult: 1, wOpen: 2.5, wNow: 1.5, wWalk: 1, wStep: 1, wChain: 8, wStair: 0.5, swapMaxTier: 2, minDevour: 0, execMargin: 10, acceptChain: true, toolRank: ['rope', 'revenge', 'skewer', 'saw', 'hook', 'keys', 'tongs', 'guillotine', 'muzzle', 'fire', 'scales', 'pestle', 'ironbox'] },
+    notools: { tierBase: 2.5, rainbowMult: 2, wOpen: 1.875, wNow: 1, wWalk: 1, wStep: 1, wChain: 16, wStair: 0.25, swapMaxTier: 1, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['rope', 'revenge', 'skewer', 'saw', 'hook', 'keys', 'tongs', 'guillotine', 'muzzle', 'fire', 'scales', 'pestle', 'ironbox'] },
+    'loop-rewards': { tierBase: 2.75, rainbowMult: 1, wOpen: 2, wNow: 1.125, wWalk: 1, wStep: 1, wChain: 4, wStair: 0.5, swapMaxTier: 2, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['skewer', 'revenge', 'rope', 'saw', 'guillotine', 'hook', 'tongs', 'keys', 'muzzle', 'fire', 'scales', 'pestle', 'ironbox'] },
+    'loop-notools': { tierBase: 2.5, rainbowMult: 8, wOpen: 3, wNow: 0.5, wWalk: 1.5, wStep: 1, wChain: 16, wStair: 0.25, swapMaxTier: 1, minDevour: 0, execMargin: 5, acceptChain: true, toolRank: ['skewer', 'revenge', 'rope', 'saw', 'guillotine', 'hook', 'tongs', 'keys', 'muzzle', 'fire', 'scales', 'pestle', 'ironbox'] },
     // The contract challenge, tuned on passing first and then points.
-    challenge: { tierBase: 2.25, rainbowMult: 0.5, wOpen: 1.5, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 16, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 20, acceptChain: true, toolRank: ['rope', 'skewer', 'fire', 'revenge', 'keys', 'ironbox', 'muzzle', 'saw'], keep1: 1, keep2: 0.25, reserve: 3, earlyPoints: -1, wNeed: 160, needDays: 2, needCrit: 4 },
-    'loop-challenge': { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'skewer', 'fire', 'revenge', 'keys', 'ironbox', 'muzzle', 'saw'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
+    challenge: { tierBase: 2.25, rainbowMult: 0.5, wOpen: 1.5, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 16, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 20, acceptChain: true, toolRank: ['rope', 'skewer', 'revenge', 'keys', 'ironbox', 'muzzle', 'saw', 'hook', 'tongs', 'guillotine', 'fire', 'scales', 'pestle'], keep1: 1, keep2: 0.25, reserve: 3, earlyPoints: -1, wNeed: 160, needDays: 2, needCrit: 4 },
+    'loop-challenge': { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'skewer', 'revenge', 'keys', 'ironbox', 'muzzle', 'saw', 'guillotine', 'hook', 'tongs', 'fire', 'scales', 'pestle'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
   };
   const paramsFor = (st) => {
     const base = st.mode === 'challenge' ? 'challenge' : st.params.rewards ? 'rewards' : 'notools';

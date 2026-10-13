@@ -16,11 +16,25 @@
     "skewer",
     "revenge",
     "rope",
-    "fire",
     "saw",
+    "guillotine",
+    "hook",
+    "tongs",
     "keys",
     "muzzle",
+    "fire",
+    "scales",
+    "pestle",
     "ironbox"
   ],
-  "giftRank": null
+  "giftRank": null,
+  "keep1": 0,
+  "keep2": 0,
+  "reserve": 1,
+  "earlyPoints": 1000000000,
+  "stuckRainbow": 1,
+  "minLeft": 1,
+  "wNeed": 0,
+  "needDays": 3,
+  "needCrit": 2
 }

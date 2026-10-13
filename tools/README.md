@@ -41,13 +41,13 @@ The strategy has four tuned profiles, chosen by the run's settings: drills with 
 
 ## The strategy guide's data
 
-`strategy.html` reads `js/guide-data.js`, which the `guide` mode generates. The data is based on the **single-meal food chain** (Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth), since that's what the live game appears to use, and it's the simulator's default. `guide` tunes the strategy for the chain, ranks tools and gifts, measures each habit, and plays the 2,000,000-run headline:
+`strategy.html` reads `js/guide-data.js`, which the `guide` mode generates. The data is based on the **single-meal food chain** (Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth), since that's what the live game appears to use, and it's the simulator's default. `guide` tunes the strategy for the chain (unless `--no-tune`), ranks tools and gifts, measures each habit, and plays the headline. 100,000 runs per measurement keep every margin under ±0.01 Rainbows, which is the target:
 
 ```
-node tools/strategy-sim.js guide --games 2000000 --chain single
+node tools/strategy-sim.js guide --chain single --no-tune --games 100000 --side 100000 --habit-games 100000 --compare 100000
 ```
 
-The latest run took 28,200,000 runs in 24.3 minutes. Its full numbers are in `results/guide-data-single.json`.
+The latest run (2026-10-13) took 3,800,000 runs in 3.7 minutes. Its full numbers are in `results/guide-data-single.json`.
 
 **Two-meal chain data, kept separately.** If live turns out to use the Chinese sim's two-meal chain, its data is ready:
 - `results/guide-data-two.json`: the same measurements, from `guide --chain two`.
@@ -94,12 +94,42 @@ The tuning ran `ctune` at 100,000 runs per test for 2 rounds: 16.3 million runs 
 - **Starts.** Supply 96.5% (52.5 points), Lean 90.1% (50.0) and Rat-breeding 96.8% (54.2).
 - **Contracts most often missed.** Elite muster (delivered 61.9%), Work gang (80.6%) and Kin escort (85.2%). The heavy contract ships in 95.8% of runs, for 37.5 points on average.
 - **Runs that still fail.** 4.2% never reach a Supreme or Rainbow by day 12, and 1.3% ship the heavy contract but miss both early ones.
-- **Refit tools.** Putting Hangman's Noose first was clearly best: 94.4% against 93.5% with the drill's order, 300,000 runs each. The final order is Rope, Skewer, Burning Stake, Avenger's Casket, Ring of Keys, Iron Box, Muzzle, Saw.
+- **Refit tools.** Putting Hangman's Noose first was clearly best: 94.4% against 93.5% with the drill's order, 300,000 runs each. The final order was Rope, Skewer, Burning Stake, Avenger's Casket, Ring of Keys, Iron Box, Muzzle, Saw (measured before the Stake became the Searing Branding Iron).
 - **Cargo.** Sending what qualifies plus spare Normals (`keep` 1) matched the tuner's strict minimum (1.5) on pass rate and added 1.1 points, on 1,000,000 fresh runs.
 
 The two-meal chain's challenge profile had a one-round tune (5.2 million runs, 7.5 minutes). It passes 97.2% with 59.3 points on fresh prisons. On that chain, richer cargo on contract 2 pays (`keep2` 0.25).
 
 ## Results
+
+### Instruments, re-measured (2026-10-13)
+
+After the instruments took their live names, the Burning Stake became the Searing Branding Iron with the card's rule, and five live instruments were added (Sorting Hook, Iron Pestle, Warden's Scales, Iron Tongs of Lust, Fanged Guillotine). `guide --no-tune` re-measured both chains at **100,000 runs per measurement**, which keeps every margin under ±0.01 Rainbows (here ±0.002 to ±0.006): 3,800,000 runs in about 4 minutes per chain.
+
+**Each instrument held from day 1** (no other rewards), sorted by the single-meal chain. Baselines with no instrument: 0.269 single-meal, 0.664 two-meal.
+
+| Instrument | Single-meal | Change | Two-meal | Change |
+| --- | --- | --- | --- | --- |
+| Skewered Rat Heads | 1.106 | +0.837 | 1.413 | +0.749 |
+| Avenger's Casket | 1.082 | +0.813 | 1.659 | +0.996 |
+| Hangman's Noose | 1.056 | +0.787 | 1.751 | +1.087 |
+| Rusty Saw | 0.707 | +0.438 | 1.262 | +0.598 |
+| Fanged Guillotine | 0.578 | +0.309 | 0.939 | +0.275 |
+| Sorting Hook | 0.559 | +0.290 | 1.101 | +0.437 |
+| Iron Tongs of Lust | 0.557 | +0.288 | 0.944 | +0.280 |
+| Lost Ring of Keys | 0.435 | +0.166 | 1.037 | +0.373 |
+| Raging Beast's Agonizing Muzzle | 0.366 | +0.097 | 0.904 | +0.240 |
+| Searing Branding Iron | 0.319 | +0.050 | 0.788 | +0.124 |
+| Warden's Scales | 0.271 | +0.002 | 0.663 | **−0.001** |
+| Iron Pestle | 0.259 | **−0.010** | 0.654 | **−0.010** |
+| Squirming Iron Box | 0.122 | **−0.148** | 0.493 | **−0.171** |
+
+**Rewards on** (an instrument at the first Supreme, a gift per Rainbow): 0.648 single-meal (was 0.744 with the 8 old tools), 1.261 two-meal. The drop comes from the first Supreme's offer: 3 of 13 instruments instead of 3 of 8, so a top-three one is on offer 58% of the time instead of 82%, and the strong Burning Stake is gone.
+
+**Warden's Cache**, always the same gift: single-meal Crimson Vintage 0.635, Three-Headed Thumb Ring 0.610, Brand of Original Sin 0.609, Brass Horn of Strife 0.580; two-meal Crimson Vintage 1.232, Three-Headed Thumb Ring 1.180, Brand of Original Sin 1.106, Brass Horn of Strife 1.104. Judging each gift on the spot beats all of them on both chains.
+
+The solver's instrument rankings (`toolRank` in PROFILES) now follow these orders. The challenge profiles keep their measured order for the seven unchanged instruments, with the rest appended, until `ctune` re-measures them.
+
+### The first full study (2026-10-12)
 
 From the full study on 2026-10-12, run on the two-meal food chain (the default at the time): 1,000,000 runs per test, default drill values. "Hard mode loop chain" below is the single-meal chain that is now the default. The ± figures are 95% margins.
 
