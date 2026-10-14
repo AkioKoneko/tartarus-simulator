@@ -14,7 +14,7 @@
 (function (root) {
   'use strict';
 
-  const VERSION = 1;
+  const VERSION = 2;
   const SIZE = 6;
   const CELLS = SIZE * SIZE;
   const MAX_LEVEL = 7;
@@ -97,7 +97,8 @@
     refreshes: 2, // brushstroke refreshes per canvas: 0 to 2, by the level of your pet (pactspirit)
     forcedMax: 3, // Forced Color Mixing uses per canvas
     forcedCost: [5, 10, 15], // Colored Snow for each use
-    redrawCost: 5, // Colored Snow to start over
+    redrawCost: 5, // Colored Snow to start over: the same canvas and paints, with the Coloring Paints and brushstrokes to come re-rolled
+    snowValue: 1, // what 1 Colored Snow is worth, in the score's points: a Lv7 chest (100) costs about 90 Snow with forcing and starting over (lab)
     chestValue: [0, 1, 1, 2, 4, 8, 20, 100], // what a chest is worth by final level 0-7
     rainbowValue: 4, // each other Lv7 (rainbow) paint: the goal when there's no chest
   };
@@ -235,6 +236,8 @@
       refreshes: 0,
       phase: 'paint', // paint, offer, done
       log: [],
+      resets: 0,
+      start: null, // the canvas as it began, for starting over
       stats: { objectives: 0, forced: 0, placed: 0 },
     };
     const P = state.params;
@@ -259,6 +262,7 @@
     const at = pickOne(state, blanks);
     putColoring(state, at, first, false);
     log(state, `A new canvas: ${blanks.length} blank cells, ${ice} ice, ${voids} void.${hasChest ? ' A Treasure Chest is among the paints.' : ' No Treasure Chest among the paints.'}`);
+    markStart(state);
     return state;
   }
 
@@ -296,10 +300,11 @@
   // Rainbow (Lv7) paints other than chests: the goal on a canvas without one.
   const rainbows = (state) => state.cells.filter((c) => c.paint && c.paint.level >= MAX_LEVEL && !isChest(c.paint)).length;
 
-  // What the canvas is worth: its chests by level, then its other rainbows.
+  // What the canvas is worth: its chests by level, then its other rainbows,
+  // less the Colored Snow spent on it.
   function score(state) {
     const P = state.params;
-    return chests(state).reduce((s, n) => s + P.chestValue[state.cells[n].paint.level], 0) + (P.rainbowValue || 0) * rainbows(state);
+    return chests(state).reduce((s, n) => s + P.chestValue[state.cells[n].paint.level], 0) + (P.rainbowValue || 0) * rainbows(state) - (P.snowValue || 0) * state.snow;
   }
 
   const bestChest = (state) => Math.max(0, ...chests(state).map((n) => state.cells[n].paint.level));
@@ -343,6 +348,31 @@
 
   function checkDone(state) {
     if (state.phase === 'paint' && (!blankCells(state).length || !state.inventory.length)) finish(state);
+  }
+
+  // Remembers the canvas as it is now as the one to start over from.
+  function markStart(state) {
+    state.start = JSON.parse(JSON.stringify({ cells: state.cells, inventory: state.inventory, active: state.active }));
+  }
+
+  // Starting over: pay Colored Snow and get the same canvas and paints back,
+  // with Forced Color Mixing and refreshes restored. What comes next (the
+  // Coloring Paints, brushstrokes and breaks) is rolled again.
+  function reset(state) {
+    if (!state.start) return fail('There is no start to go back to.');
+    const P = state.params;
+    const s = JSON.parse(JSON.stringify(state.start));
+    state.cells = s.cells;
+    state.inventory = s.inventory;
+    state.active = s.active;
+    state.offer = null;
+    state.phase = 'paint';
+    state.forced = 0;
+    state.refreshes = P.refreshes;
+    state.snow += P.redrawCost;
+    state.resets += 1;
+    log(state, `Started over, for ${P.redrawCost} Colored Snow (${state.resets} so far).`);
+    return ok();
   }
 
   function finish(state) {
@@ -596,7 +626,7 @@
 
   const api = {
     VERSION, SIZE, CELLS, MAX_LEVEL, MONSTERS, GAMEPLAY, GAMEPLAY_HIGH, CHEST, RANGES, RANGE_IDS, TARGETS, DIRECTIONS, EFFECTS, EFFECT_IDS, DEFAULT_PARAMS,
-    newCanvas, normalizeParams, place, force, chooseDirection, chooseEffect, refresh, placeColoring, placeTargets,
+    newCanvas, normalizeParams, place, force, reset, markStart, chooseDirection, chooseEffect, refresh, placeColoring, placeTargets,
     rangeCells, progress, openInRange, failed, blankCells, fillable, filled, chests, bestChest, rainbows, score, isChest, matches, paintName,
     rowOf, colOf, cellLabel, objectiveText, effectText, clone, rand, makePaint, randomPaint, randomColoring, sortInventory, finish,
   };

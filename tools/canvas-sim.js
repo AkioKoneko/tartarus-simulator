@@ -62,8 +62,57 @@ function evaluate() {
   console.log(`  Rainbows per canvas: ${Object.keys(none.hist).map(Number).sort((a, b) => a - b).map((k) => `${k}: ${((100 * none.hist[k]) / none.n).toFixed(1)}%`).join('  ')}`);
 }
 
+// Starting over until the chest is Lv7, the way players do it: what a Lv7
+// chest costs in Colored Snow, with the strategy playing every attempt.
+// --games counts canvases with a chest here; --cap stops a canvas that
+// never gets there.
+function resets() {
+  const t0 = Date.now();
+  const cap = Number(opt('cap', 100));
+  const R = C.DEFAULT_PARAMS.redrawCost;
+  let canvases = 0;
+  let attempts = 0;
+  let wins = 0;
+  let snow = 0;
+  let sq = 0;
+  let forcedSnow = 0;
+  const costs = [];
+  for (let g = 0; canvases < games; g++) {
+    const st = C.newCanvas({ seed: `${seed}-${g}` });
+    if (!st.inventory.some(C.isChest)) continue;
+    canvases += 1;
+    let won = false;
+    let n = 0;
+    while (n < cap) {
+      n += 1;
+      S.playout(st);
+      if (C.bestChest(st) >= C.MAX_LEVEL) {
+        won = true;
+        break;
+      }
+      if (n < cap) C.reset(st);
+    }
+    attempts += n;
+    snow += st.snow;
+    sq += st.snow * st.snow;
+    forcedSnow += st.snow - R * st.resets;
+    if (won) wins += 1;
+    costs.push(won ? st.snow : Infinity);
+  }
+  costs.sort((a, b) => a - b);
+  const at = (q) => costs[Math.min(costs.length - 1, Math.floor(q * costs.length))];
+  const mean = snow / canvases;
+  const sd = Math.sqrt(sq / canvases - mean * mean);
+  const show = (x) => (x === Infinity ? 'never' : String(x));
+  console.log(`${canvases.toLocaleString()} canvases with a chest, started over until Lv7 (at most ${cap} attempts), in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+  console.log(`Lv7 per attempt ${((100 * wins) / attempts).toFixed(1)}%, ${(attempts / Math.max(1, wins)).toFixed(2)} attempts per Lv7 chest`);
+  console.log(`Colored Snow per Lv7 chest: ${(snow / Math.max(1, wins)).toFixed(1)} (${R} per start over; ${((100 * forcedSnow) / Math.max(1, snow)).toFixed(0)}% of it on forcing). Per canvas ${mean.toFixed(1)} ± ${((1.96 * sd) / Math.sqrt(canvases)).toFixed(1)}`);
+  console.log(`  Per canvas: median ${show(at(0.5))}, 75th ${show(at(0.75))}, 90th ${show(at(0.9))} Snow; ${(((canvases - wins) * 100) / canvases).toFixed(1)}% never got there in ${cap} attempts`);
+}
+
 if (mode === 'eval') evaluate();
+else if (mode === 'resets') resets();
 else {
-  console.error('Usage: node tools/canvas-sim.js eval [--games 100000] [--seed WORD] [--solver path]');
+  console.error('Usage: node tools/canvas-sim.js eval|resets [--games 100000] [--seed WORD] [--solver path] [--cap 100]');
   process.exit(2);
 }

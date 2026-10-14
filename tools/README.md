@@ -343,6 +343,19 @@ Live rules the user confirmed:
 - An objective completes the moment it is met, even right as its Coloring Paint is placed. The next Coloring Paint comes with a random range and 2 of the 3 brushstroke directions.
 - The void count (11–15) comes from a live screenshot.
 
+**Starting over.** For Colored Snow (practice value 5) a canvas starts over with the same canvas and paints, and the Coloring Paints and brushstrokes to come are rolled again. Players with a chest start over when the luck goes bad, and rarely force. `resets` measures that: it plays each chest canvas again and again until the chest is Lv7, and counts the Snow.
+
+```
+node tools/canvas-sim.js resets --games 20000 [--cap 100]
+```
+
+| 20,000 chest canvases | Lv7 per attempt | Colored Snow per Lv7 chest | Never got there in 100 attempts |
+| --- | --- | --- | --- |
+| Forcing as below | 23.5% | 85.5 (81% of it on forcing) | 0.2% |
+| Never forcing | 0.6% | 809 | 60.6% |
+
+This disagrees with live play. Players reach Lv7 by starting over, without much forcing, so the strategy without forcing is missing how they do it. Fixing that is the next job.
+
 **The strategy:**
 - **Placing the chest:** it goes first, on the cell whose row, column, diagonals and neighbors have the most open cells.
 - **Objectives that reach the chest:** fill their ranges with matching paint.

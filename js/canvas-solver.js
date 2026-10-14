@@ -302,6 +302,7 @@
     switch (a.type) {
       case 'place': return C.place(st, a.inv, a.cell);
       case 'force': return C.force(st);
+      case 'reset': return C.reset(st);
       case 'refresh': return C.refresh(st);
       case 'direction': return C.chooseDirection(st, a.dir);
       case 'effect': return C.chooseEffect(st, a.id);
@@ -359,6 +360,7 @@
     const kinds = ['gameplay', 'monster'].map((cls) => ({ cls, inv: spare(st, cls) })).filter((k) => k.inv >= 0);
     for (const k of kinds) for (const n of blanks) out.push({ action: { type: 'place', inv: k.inv, cell: n }, label: `${k.cls === 'gameplay' ? 'Gameplay' : 'Monster'} paint on ${label(n)}` });
     if (st.active && st.forced < st.params.forcedMax) out.push({ action: { type: 'force' }, label: `Force the objective (${st.params.forcedCost[Math.min(st.forced, st.params.forcedCost.length - 1)]} Colored Snow)` });
+    if (st.start && (C.chests(st).length || hand >= 0)) out.push({ action: { type: 'reset' }, label: `Start over (${st.params.redrawCost} Colored Snow)` });
     return out;
   }
 
@@ -419,6 +421,7 @@
   // Why the strategy picks a move, in a sentence.
   function reason(st, a) {
     if (!a) return '';
+    if (a.type === 'reset') return 'This attempt is unlikely to reach a Lv7 chest. Starting over gets the same canvas and paints back, with new Coloring Paints and brushstrokes to come.';
     const c = chestCell(st);
     const chestLive = c >= 0 && st.cells[c].paint.level < MAX_LEVEL;
     if (!chestLive && chestInHand(st) < 0) {

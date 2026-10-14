@@ -46,7 +46,7 @@
     mine: valid(saved.mine) ? saved.mine : emptyCanvas(),
   };
   if (!current) games.mine.params = C.normalizeParams(params);
-  const stats = Object.assign({ canvases: 0, chests: 0, lv7: 0, levels: 0, rainbows: 0, plain: 0 }, saved.stats || {});
+  const stats = Object.assign({ canvases: 0, chests: 0, lv7: 0, levels: 0, rainbows: 0, plain: 0, snow: 0, resets: 0 }, saved.stats || {});
   const undo = { practice: [], mine: [] };
   let setup = saved.setup !== false; // My canvas: setting up (true) or playing (false)
   let editWhat = 'board';
@@ -98,6 +98,7 @@
     undo[mode].push(before);
     if (undo[mode].length > 60) undo[mode].shift();
     if (st.phase === 'done' && before.phase !== 'done' && mode === 'practice') record(st);
+    if (action.type === 'reset' && mode === 'practice') stats.resets += 1;
     picked = -1;
     notice('');
     changed();
@@ -106,6 +107,7 @@
 
   function record(st) {
     stats.canvases += 1;
+    stats.snow += st.snow;
     stats.rainbows += C.rainbows(st);
     if (!C.chests(st).length) stats.plain += 1;
     const lv = C.bestChest(st);
@@ -252,6 +254,9 @@
     $('cv-force').disabled = !(st.phase === 'paint' && st.active && left > 0) || editing;
     $('cv-undo').disabled = !undo[mode].length;
     $('cv-new').textContent = mode === 'practice' ? 'New canvas' : setup ? 'Play this canvas' : 'Back to setting up';
+    $('cv-reset').textContent = `Start over · ${P.redrawCost} Snow`;
+    $('cv-reset').title = 'The same canvas and paints, from the start. The Coloring Paints and brushstrokes to come are rolled again.';
+    $('cv-reset').disabled = !st.start || editing;
   }
 
   function offerHTML(st) {
@@ -422,7 +427,7 @@
     box.hidden = mode !== 'practice';
     if (mode !== 'practice') return;
     const rate = stats.chests ? Math.round((100 * stats.lv7) / stats.chests) : 0;
-    box.innerHTML = `<h2 class="az-h2">Your practice</h2><p>${stats.canvases} canvas${stats.canvases === 1 ? '' : 'es'} finished, ${stats.chests} with a chest, <b>${stats.lv7} Lv7 chest${stats.lv7 === 1 ? '' : 's'}</b>${stats.chests ? ` (${rate}% of chest canvases; the trainer’s strategy makes about 71%)` : ''}, and <b>${stats.rainbows} rainbow paint${stats.rainbows === 1 ? '' : 's'}</b> (the trainer averages about 0.3 on a canvas without a chest).</p>`;
+    box.innerHTML = `<h2 class="az-h2">Your practice</h2><p>${stats.canvases} canvas${stats.canvases === 1 ? '' : 'es'} finished, ${stats.chests} with a chest, <b>${stats.lv7} Lv7 chest${stats.lv7 === 1 ? '' : 's'}</b>${stats.chests ? ` (${rate}% of chest canvases)` : ''}, and <b>${stats.rainbows} rainbow paint${stats.rainbows === 1 ? '' : 's'}</b>. ${stats.resets} start${stats.resets === 1 ? '' : 's'} over; ${stats.snow} Colored Snow spent on finished canvases.</p>`;
   }
 
   // ---------- Practice values ----------
@@ -441,6 +446,9 @@
     ['gainTwoChance', 'Chance of +2 instead of +1 (%), by level 1–5'],
     ['refreshes', 'Brushstroke refreshes a canvas'],
     ['forcedMax', 'Forced Color Mixing uses a canvas'],
+    ['forcedCost', 'Forced Color Mixing costs (Colored Snow)'],
+    ['redrawCost', 'Starting over costs (Colored Snow)'],
+    ['snowValue', 'What 1 Colored Snow is worth (a Lv7 chest is 100)'],
     ['chestValue', 'Chest worth by final level 0–7'],
   ];
 
@@ -523,6 +531,9 @@
     });
 
     $('cv-force').addEventListener('click', () => act({ type: 'force' }));
+    $('cv-reset').addEventListener('click', () => {
+      if (act({ type: 'reset' })) notice(`Started over: ${game().snow} Colored Snow spent on this canvas so far.`);
+    });
     $('cv-undo').addEventListener('click', () => {
       const last = undo[mode].pop();
       if (!last) return;
@@ -540,6 +551,7 @@
       } else {
         setup = !setup;
         selected = -1;
+        if (!setup) C.markStart(games.mine); // starting over comes back to this
       }
       changed();
     });
