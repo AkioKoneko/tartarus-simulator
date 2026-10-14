@@ -334,7 +334,9 @@ Live rules the user confirmed:
 - A Coloring Paint placed on a painted cell overwrites the paint there.
 - Layer's random +1 can hit any paint in range, whatever the objective's type.
 - A chest is never on the grid at the start. About 1 canvas in 4 or 5 has one among the paints, usually at Lv2 (practice values 22% and mostly Lv2).
-- The canvas ends when every cell is filled. Once an objective fails, no new Coloring Paints come.
+- The canvas ends when every cell is filled, and there are always enough paints to fill it.
+- An objective fails only when its range has no blank cell left and it is still short. A paint that doesn't match can go in range without failing it, but it doesn't rise. After a fail no new Coloring Paints come, but the failed objective can still be forced.
+- A repair fixes 1 broken cell.
 - Brushstroke refreshes are 0 to 2 a canvas, by the level of the pet.
 - Every Coloring Paint seen live came at Lv3 and needs 3.
 - The void count (11–15) comes from a live screenshot.

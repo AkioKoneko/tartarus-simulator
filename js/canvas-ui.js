@@ -215,6 +215,16 @@
     return picked >= 0 ? `Click a blank cell for the ${C.paintName(st.inventory[picked]).toLowerCase()}.` : 'Pick a paint on the right, then a blank cell. Yellow cells are in the objective’s range.';
   }
 
+  // Blank cells left in range, and whether the objective can still be met.
+  function roomLine(st, o) {
+    const room = C.openInRange(st, o);
+    const short = o.need - C.progress(st, o);
+    if (C.failed(st)) return '<p class="cv-obj-room is-failed">Failed: its range is full. No new Coloring Paints come unless you force it.</p>';
+    const text = `${room} blank cell${room === 1 ? '' : 's'} left in range.`;
+    if (room < short) return `<p class="cv-obj-room is-failed">${text} It can’t be met now: it fails when its range fills, but forcing still works.</p>`;
+    return `<p class="cv-obj-room">${text}</p>`;
+  }
+
   function renderPanel(st) {
     // The objective, or the brushstroke on offer.
     const o = st.active;
@@ -223,7 +233,7 @@
     $('cv-offer').hidden = !offer;
     if (!offer) {
       $('cv-objective').innerHTML = o
-        ? `<p class="cv-obj-line"><span class="cv-obj-bang">!</span>${esc(C.objectiveText(o, C.progress(st, o)))}</p><p class="cv-obj-effect">${esc(C.effectText(o))}</p>${o.extras.length ? `<p class="cv-obj-stroke">Brushstroke: ${o.extras.map((id) => esc(C.EFFECTS[id].text)).join('; ')}</p>` : ''}<p class="cv-obj-room">${C.openInRange(st, o)} blank cell${C.openInRange(st, o) === 1 ? '' : 's'} left in range.</p>`
+        ? `<p class="cv-obj-line"><span class="cv-obj-bang">!</span>${esc(C.objectiveText(o, C.progress(st, o)))}</p><p class="cv-obj-effect">${esc(C.effectText(o))}</p>${o.extras.length ? `<p class="cv-obj-stroke">Brushstroke: ${o.extras.map((id) => esc(C.EFFECTS[id].text)).join('; ')}</p>` : ''}${roomLine(st, o)}`
         : `<p class="cv-obj-line">${st.phase === 'done' ? 'The canvas is finished.' : 'No objective right now.'}</p>`;
     } else {
       $('cv-offer').innerHTML = offerHTML(st);

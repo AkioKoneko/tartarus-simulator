@@ -319,6 +319,10 @@
   font-size: 13.5px;
 }
 
+.cv-obj-room.is-failed {
+  color: var(--blood);
+}
+
 .cv-obj-stroke {
   color: #f1cd48;
 }

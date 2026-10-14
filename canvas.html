@@ -9,8 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261013p">
-<link rel="stylesheet" href="css/canvas.css?v=20261013p">
+<link rel="stylesheet" href="css/style.css?v=20261013q">
+<link rel="stylesheet" href="css/canvas.css?v=20261013q">
 </head>
 <body>
 <main class="cv" id="cv">
@@ -105,7 +105,7 @@
       <li><b>Meeting it.</b> Once enough are in range, every matching paint in range rises 1 level (more with Layer), to Lv7 at most. The Treasure Chest is a gameplay paint, so gameplay and "any" objectives that reach it raise it.</li>
       <li><b>The next Coloring Paint.</b> A new one is offered. Pick a brushstroke direction: Reimagine (change its target or range), Spread (turn an ice cell blank, repair a broken cell, or place it on an ice, void, broken or painted cell, where it replaces the paint), or Layer (an extra effect when it's met). Then pick 1 of 2 effects, and place it. On a void cell its objective works from there, but it isn't a paint and doesn't take a blank cell.</li>
       <li><b>When stuck.</b> Forced Color Mixing meets the objective right away, for Colored Snow (5, then 10, then 15; 3 a canvas). The price: 1 random paint on the canvas breaks. The paint is gone, and nothing can go on that cell until a Spread effect repairs it. It can be the chest.</li>
-      <li><b>The end.</b> The canvas is done when its cells are full. Once an objective fails, no new Coloring Paints come, so nothing levels up after that. Then the painting becomes a map, and a Lv7 chest is where the money is. Without a chest, aim for as many rainbow (Lv7) paints as you can: their eggs can drop skills too.</li>
+      <li><b>The end.</b> The canvas is done when its cells are full. An objective fails when its range has no blank cell left and it’s still short; paints that don’t match can go in its range without failing it, but they don’t rise. After a fail no new Coloring Paints come, so nothing levels up, unless you force the failed objective. Then the painting becomes a map, and a Lv7 chest is where the money is. Without a chest, aim for as many rainbow (Lv7) paints as you can: their eggs can drop skills too.</li>
     </ol>
     <p class="field-note">Sources: the game's own texts and tooltips, the SS7 and SS13 painting guides on bilibili, and the Torchlight: Infinite wiki (tlidb). The canvas has been in the game since SS6 and is still there in SS14.</p>
   </section>
@@ -116,8 +116,8 @@
   </footer>
 </main>
 
-<script src="js/canvas-engine.js?v=20261013p"></script>
-<script src="js/canvas-solver.js?v=20261013p"></script>
-<script src="js/canvas-ui.js?v=20261013p"></script>
+<script src="js/canvas-engine.js?v=20261013q"></script>
+<script src="js/canvas-solver.js?v=20261013q"></script>
+<script src="js/canvas-ui.js?v=20261013q"></script>
 </body>
 </html>

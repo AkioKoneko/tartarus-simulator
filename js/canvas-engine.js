@@ -328,13 +328,21 @@
   }
 
   // After any placement: meet the objective if it's met, or finish the canvas.
+  // An objective fails once its range has no blank cell left and it's short:
+  // no new Coloring Paints come after that, but it can still be forced.
   function afterChange(state) {
     if (state.active && progress(state) >= state.active.need) {
       complete(state, false);
       return;
     }
+    if (failed(state) && !state.active.failed) {
+      state.active.failed = true;
+      log(state, 'Objective failed: its range is full. No new Coloring Paints come unless you force it.');
+    }
     checkDone(state);
   }
+
+  const failed = (state) => !!state.active && progress(state) < state.active.need && openInRange(state, state.active) === 0;
 
   function checkDone(state) {
     if (state.phase === 'paint' && (!blankCells(state).length || !state.inventory.length)) finish(state);
@@ -592,7 +600,7 @@
   const api = {
     VERSION, SIZE, CELLS, MAX_LEVEL, MONSTERS, GAMEPLAY, GAMEPLAY_HIGH, CHEST, RANGES, RANGE_IDS, TARGETS, DIRECTIONS, EFFECTS, EFFECT_IDS, DEFAULT_PARAMS,
     newCanvas, normalizeParams, place, force, chooseDirection, chooseEffect, refresh, placeColoring, placeTargets,
-    rangeCells, progress, openInRange, blankCells, fillable, filled, chests, bestChest, rainbows, score, isChest, matches, paintName,
+    rangeCells, progress, openInRange, failed, blankCells, fillable, filled, chests, bestChest, rainbows, score, isChest, matches, paintName,
     rowOf, colOf, cellLabel, objectiveText, effectText, clone, rand, makePaint, randomPaint, randomColoring, sortInventory, finish,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
