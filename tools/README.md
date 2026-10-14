@@ -282,3 +282,38 @@ Each rate has a 95% range. A rate is judged once it has 30 observations, and rar
 The one gap was Chain reactions at 53% instead of 50%. In the simulator, the strategy can see an event's kind and favors Chain reactions; live players can't see it.
 
 **Caveat on events.** A door with no event marker might just be a marker nobody entered. Boards from the screenshot reader read event markers reliably.
+
+# The Frozen Canvas lab
+
+`canvas-sim.js` plays Frozen Canvases with the trainer's strategy (`js/canvas-solver.js`) and measures how often the Treasure Chest ends at Lv7, the only result that pays:
+
+```
+node tools/canvas-sim.js eval --games 400000
+```
+
+**Rules.** The rules come from the research in October 2026:
+- Sources: the game's texts and tooltips seen in SS7 and SS13 gameplay videos, the SS6 and SS7 patch notes and hotfixes, and the tlidb wiki.
+- The canvas has been a core Netherrealm mechanic since SS7 and is still in SS14.
+- Confirmed:
+  - a 6×6 canvas of blank, ice and void cells,
+  - monster (round) and gameplay (diamond) paints, Lv1–7,
+  - objectives with a range (row, column, diagonals, the 4 neighbors, the whole canvas) and a target type, where paints already in range count,
+  - meeting an objective raises every matching paint in range,
+  - the three brushstroke directions (Turn, Spread, Stack): 2 are offered, then 2 effects from the chosen one,
+  - Forced Color Mixing at 5 and then 10 Colored Snow, 3 a canvas.
+- **Practice values**, in `DEFAULT_PARAMS` and editable on the page, cover everything the game hides:
+  - how often a canvas has a chest,
+  - the inventory's levels,
+  - Coloring Paint levels, ranges and targets,
+  - the brushstroke pools,
+  - ice and void counts.
+
+**Result with the practice values** (400,000 canvases, 80,081 with a chest, 20 seconds): a Lv7 chest on **74.8% ± 0.3** of chest canvases, an average final chest level of 6.28, and 1.44 Forced Color Mixings (11.6 Colored Snow) per chest canvas. One player's log from the research (42 chest canvases, 40 at Lv7) suggests live is at least as kind.
+
+**The strategy:**
+- **Placing the chest:** it goes first, on the cell whose row, column, diagonals and neighbors have the most open cells.
+- **Objectives that reach the chest:** fill their ranges with matching paint.
+- **Objectives that don't:** finish them quickly, off the chest's lines.
+- **Brushstrokes:** Stack when the next objective can reach the chest, Turn to flip a monster target, Spread to open room.
+- **Never** take the re-roll effect with the chest in range.
+- **Forcing:** force an objective that feeds the chest when it gets stuck.
