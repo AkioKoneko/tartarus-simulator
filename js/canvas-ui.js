@@ -16,7 +16,7 @@
   const ROLLOUTS = 300;
   // Bumped when the practice values' defaults change: saved ones from before
   // are dropped, so everyone plays the current rules.
-  const PARAMS_REV = 3;
+  const PARAMS_REV = 4;
 
   const store = {
     get() {

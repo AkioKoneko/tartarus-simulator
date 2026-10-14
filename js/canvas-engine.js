@@ -89,10 +89,10 @@
     chestChance: 22, // % of canvases with a Treasure Chest in the inventory (the player: 1 in 4 or 5; never on the grid at the start)
     chestLevels: [10, 80, 10, 0, 0], // weights for the chest's starting level, Lv1-5 (the player: usually Lv2)
     chestShare: 8, // % of random gameplay paints (from "random paint" effects) that are chests
-    coloringLevels: [0, 0, 100, 0, 0], // weights for a Coloring Paint's level, Lv1-5 (live: every one seen came at Lv3)
+    coloringLevels: [5, 10, 70, 15, 0], // weights for a Coloring Paint's level, Lv1-5 (the player: up to Lv4; every one seen so far came at Lv3)
     rangeWeights: { row: 25, col: 25, diag: 25, adj: 25, all: 0 }, // the player knows Horizontal, Vertical, Diagonal and Adjacent; Global is unseen
     targetWeights: { monster: 40, gameplay: 40, all: 20 },
-    needByLevel: [3, 3, 3, 4, 4], // paints an objective needs, by its Coloring Paint's level 1-5
+    needByLevel: [3, 3, 3, 3, 3], // paints an objective needs, by its Coloring Paint's level 1-5 (live: always 3)
     gainTwoChance: [0, 0, 0, 0, 0], // % chance the effect is +2 instead of +1, by level 1-5 (live: always +1; more only from Layer)
     refreshes: 2, // brushstroke refreshes per canvas: 0 to 2, by the level of your pet (pactspirit)
     forcedMax: 3, // Forced Color Mixing uses per canvas
@@ -253,12 +253,9 @@
       state.inventory[i] = makePaint(state, 'gameplay', CHEST, Number(pickWeighted(state, P.chestLevels)) + 1);
     }
     sortInventory(state);
-    // The first Coloring Paint is already on the canvas, Lv3.
+    // The first Coloring Paint is already on the canvas.
     const blanks = blankCells(state);
     const first = randomColoring(state);
-    first.paint.level = 3;
-    first.need = P.needByLevel[2];
-    first.gain = 1;
     const at = pickOne(state, blanks);
     putColoring(state, at, first, false);
     log(state, `A new canvas: ${blanks.length} blank cells, ${ice} ice, ${voids} void.${hasChest ? ' A Treasure Chest is among the paints.' : ' No Treasure Chest among the paints.'}`);
