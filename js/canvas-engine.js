@@ -61,8 +61,9 @@
     renew: { dir: 'turn', text: 'Get a new random Coloring Paint instead', zh: '重新获得1个随机调色颜料' },
     // Spread: special cells. An ice cell that turns blank takes paints like any
     // blank cell (confirmed by the player).
-    iceRow: { dir: 'spread', text: 'The nearest ice cell in its row turns blank', zh: '将横向范围中最近1个阻挡地块转变为空白地块' },
-    iceCol: { dir: 'spread', text: 'The nearest ice cell in its column turns blank', zh: '将纵向范围中最近1个阻挡地块转变为空白地块' },
+    iceRow: { dir: 'spread', text: 'Converts the nearest 1 Blocked Cell in a horizontal area to a Blank Cell', zh: '将横向范围中最近1个阻挡地块转变为空白地块' },
+    iceCol: { dir: 'spread', text: 'Converts the nearest 1 Blocked Cell in a vertical area to a Blank Cell', zh: '将纵向范围中最近1个阻挡地块转变为空白地块' }, // live wording
+    iceAdj: { dir: 'spread', text: 'Converts 1 random adjacent Blocked Cell to a Blank Cell' }, // live wording
     voidNear: { dir: 'spread', text: 'The nearest void cell in its row or column turns blank', zh: '使虚空地块转变为空白地块' },
     onVoid: { dir: 'spread', text: 'It can be placed on a void cell, where its objective works but it isn\'t a paint', zh: '使自身可以放置在虚空地块上' }, // confirmed by the player: the cell stays void    onBlocked: { dir: 'spread', text: 'This can be placed on a Blocked Cell', zh: '可放置于阻挡地块' }, // confirmed live
     onPainted: { dir: 'spread', text: 'It can be placed on a painted cell, replacing that paint', zh: '可放置于已放置颜料的空白地块中，但会失去自身内容' }, // the player: it overwrites the old paint
@@ -74,7 +75,9 @@
     // Layer: an extra effect when this objective is met.
     plusOne: { dir: 'stack', text: 'Its mixing effect raises 1 more level', zh: '调色效果额外提升1级' },
     randomOne: { dir: 'stack', text: '1 random paint in range rises 1 more level', zh: '对作用范围内的随机1个颜料额外提升1级' },
-    sameContent: { dir: 'stack', text: 'Every paint on the canvas with its content rises 1 more level', zh: '对全图中与自身内容相同的颜料额外提升1级' },
+    // Same icon: when its objective is met, every paint with its icon rises 1
+    // more; after that, every paint placed with its icon rises 1 (the player).
+    sameContent: { dir: 'stack', text: 'Paints with its icon rise 1 more level, now and whenever one is placed later', zh: '对全图中与自身内容相同的颜料额外提升1级' },
     reroll: { dir: 'stack', text: 'Paints in range turn into random paints of the same level', zh: '将作用范围内的颜料转变为同等级的随机颜料' },
   };
   const EFFECT_IDS = Object.keys(EFFECTS);
@@ -87,7 +90,7 @@
     inventoryLevels: [40, 34, 18, 6, 2], // weights for Lv1-5 in the inventory
     gameplayShare: 50, // % of paints that are gameplay paints
     chestChance: 22, // % of canvases with a Treasure Chest in the inventory (the player: 1 in 4 or 5; never on the grid at the start)
-    chestLevels: [10, 80, 10, 0, 0], // weights for the chest's starting level, Lv1-5 (the player: usually Lv2)
+    chestLevels: [20, 75, 5, 0, 0], // weights for the chest's starting level, Lv1-5 (the player: usually Lv2; one seen at Lv1)
     chestShare: 8, // % of random gameplay paints (from "random paint" effects) that are chests
     coloringLevels: [5, 10, 70, 15, 0], // weights for a Coloring Paint's level, Lv1-5 (the player: up to Lv4; every one seen so far came at Lv3)
     rangeWeights: { row: 25, col: 25, diag: 25, adj: 25, all: 0 }, // the player knows Horizontal, Vertical, Diagonal and Adjacent; Global is unseen
@@ -236,6 +239,7 @@
       refreshes: 0,
       phase: 'paint', // paint, offer, done
       log: [],
+      icons: [], // icons of old Coloring Paints with the same-icon effect: paints placed with them rise 1
       resets: 0,
       start: null, // the canvas as it began, for starting over
       stats: { objectives: 0, forced: 0, placed: 0 },
@@ -325,6 +329,7 @@
     c.paint = paint;
     state.stats.placed += 1;
     log(state, `Placed ${paint.type} Lv${paint.level} on ${cellLabel(cell)}.`);
+    iconBonus(state, cell);
     afterChange(state);
     return ok();
   }
@@ -344,6 +349,16 @@
     checkDone(state);
   }
 
+  // An old Coloring Paint with the same-icon effect raises each paint placed
+  // later with its icon by 1.
+  function iconBonus(state, cell) {
+    const p = state.cells[cell].paint;
+    const n = (state.icons || []).filter((i) => i.cls === p.cls && i.type === p.type).length;
+    if (!n) return;
+    raise(state, cell, n);
+    log(state, `Its icon matches an old Coloring Paint: ${p.type} rose to Lv${p.level}.`);
+  }
+
   const failed = (state) => !!state.active && progress(state) < state.active.need && openInRange(state, state.active) === 0;
 
   function checkDone(state) {
@@ -352,7 +367,7 @@
 
   // Remembers the canvas as it is now as the one to start over from.
   function markStart(state) {
-    state.start = JSON.parse(JSON.stringify({ cells: state.cells, inventory: state.inventory, active: state.active }));
+    state.start = JSON.parse(JSON.stringify({ cells: state.cells, inventory: state.inventory, active: state.active, icons: state.icons || [] }));
   }
 
   // Starting over: pay Colored Snow and get the same canvas and paints back,
@@ -365,6 +380,7 @@
     state.cells = s.cells;
     state.inventory = s.inventory;
     state.active = s.active;
+    state.icons = s.icons || [];
     state.offer = null;
     state.phase = 'paint';
     state.forced = 0;
@@ -401,6 +417,7 @@
         const p = state.cells[n].paint;
         if (p && n !== o.cell && p.cls === o.paint.cls && p.type === o.paint.type) raise(state, n, 1);
       }
+      state.icons = (state.icons || []).concat([{ cls: o.paint.cls, type: o.paint.type }]);
     }
     if (o.extras.includes('reroll')) {
       for (const n of inRange) {
@@ -473,7 +490,7 @@
   function usable(state, id, o) {
     if (id === 'flip') return o.target !== 'all';
     if (id === 'needDown') return o.need > 1;
-    if (id === 'iceRow' || id === 'iceCol') return state.cells.some((c) => c.kind === 'blocked');
+    if (id === 'iceRow' || id === 'iceCol' || id === 'iceAdj') return state.cells.some((c) => c.kind === 'blocked');
     if (id === 'voidNear' || id === 'onVoid') return state.cells.some((c) => c.kind === 'void');
     if (id === 'onBlocked') return state.cells.some((c) => c.kind === 'blocked');
     if (id === 'repair' || id === 'onBroken') return state.cells.some((c) => c.kind === 'broken');
@@ -575,7 +592,16 @@
     if (c.paint) log(state, `The ${c.paint.type} Lv${c.paint.level} on ${cellLabel(cell)} was painted over.`);
     if (c.kind === 'blocked' || c.kind === 'broken') c.kind = 'blank';
     putColoring(state, cell, f.coloring, lost);
+    if (!lost) iconBonus(state, cell);
     // Spread effects that act from where it lands.
+    if (f.effect === 'iceAdj') {
+      const near = rangeCells(cell, 'adj').filter((n) => state.cells[n].kind === 'blocked');
+      if (near.length) {
+        const n = pickOne(state, near);
+        state.cells[n].kind = 'blank';
+        log(state, `Ice cell ${cellLabel(n)} turned blank.`);
+      }
+    }
     if (f.effect === 'iceRow' || f.effect === 'iceCol' || f.effect === 'voidNear' || f.effect === 'repair') {
       const kind = f.effect === 'voidNear' ? 'void' : f.effect === 'repair' ? 'broken' : 'blocked';
       const line = f.effect === 'iceRow' ? rangeCells(cell, 'row') : f.effect === 'iceCol' ? rangeCells(cell, 'col') : f.effect === 'repair' ? rangeCells(cell, 'all') : rangeCells(cell, 'row').concat(rangeCells(cell, 'col'));

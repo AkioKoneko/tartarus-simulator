@@ -16,7 +16,7 @@
   const ROLLOUTS = 300;
   // Bumped when the practice values' defaults change: saved ones from before
   // are dropped, so everyone plays the current rules.
-  const PARAMS_REV = 4;
+  const PARAMS_REV = 5;
 
   const store = {
     get() {
@@ -217,6 +217,12 @@
     return picked >= 0 ? `Click a blank cell for the ${C.paintName(st.inventory[picked]).toLowerCase()}.` : 'Pick a paint on the right, then a blank cell. Yellow cells are in the objective’s range.';
   }
 
+  // Icons that old Coloring Paints raise when a paint with them is placed.
+  function iconLine(st) {
+    const icons = st.icons || [];
+    return icons.length ? `<p class="cv-obj-room">Placing ${icons.map((i) => esc(i.type)).join(' or ')} paints raises them 1 level (an old Coloring Paint’s effect).</p>` : '';
+  }
+
   // Blank cells left in range, and whether the objective can still be met.
   function roomLine(st, o) {
     const room = C.openInRange(st, o);
@@ -235,7 +241,7 @@
     $('cv-offer').hidden = !offer;
     if (!offer) {
       $('cv-objective').innerHTML = o
-        ? `<p class="cv-obj-line"><span class="cv-obj-bang">!</span>${esc(C.objectiveText(o, C.progress(st, o)))}</p><p class="cv-obj-effect">${esc(C.effectText(o))}</p>${o.extras.length ? `<p class="cv-obj-stroke">Brushstroke: ${o.extras.map((id) => esc(C.EFFECTS[id].text)).join('; ')}</p>` : ''}${roomLine(st, o)}`
+        ? `<p class="cv-obj-line"><span class="cv-obj-bang">!</span>${esc(C.objectiveText(o, C.progress(st, o)))}</p><p class="cv-obj-effect">${esc(C.effectText(o))}</p>${o.extras.length ? `<p class="cv-obj-stroke">Brushstroke: ${o.extras.map((id) => esc(C.EFFECTS[id].text)).join('; ')}</p>` : ''}${roomLine(st, o)}${iconLine(st)}`
         : `<p class="cv-obj-line">${st.phase === 'done' ? 'The canvas is finished.' : 'No objective right now.'}</p>`;
     } else {
       $('cv-offer').innerHTML = offerHTML(st);

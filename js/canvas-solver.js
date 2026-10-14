@@ -231,7 +231,7 @@
       switch (id) {
         case 'plusOne': return 6;
         case 'randomOne': return 3.5;
-        case 'sameContent': return 2.5;
+        case 'sameContent': return 3.5;
         case 'reroll': return c >= 0 ? 0 : 1.5; // never near a finished chest; otherwise levels stay and a chest might turn up
         case 'flip': return bestRainbowGain(st, Object.assign({}, o, { target: o.target === 'monster' ? 'gameplay' : 'monster' })) > bestRainbowGain(st, o) ? 5 : 1;
         case 'needDown': return 3.5;
@@ -256,6 +256,7 @@
       case 'onPainted': return 4;
       case 'iceRow':
       case 'iceCol':
+      case 'iceAdj':
       case 'voidNear': return 3;
       case 'onVoid': return 2.5;
       case 'onBlocked': return 2.5;
