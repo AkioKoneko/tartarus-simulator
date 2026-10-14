@@ -19,6 +19,7 @@
   const SEND_WIDTH = 1280;
   const KEEP = 12; // captures listed
   const RANK = { board: 1, brushstroke: 2, open: 3, startover: 4, chest: 5, finish: 6, manual: 7 };
+  // #region default-triggers
   // The prison's log lines aren't known until the season starts. Until
   // then the defaults are the Frozen Canvas's, which test the whole path.
   const DEFAULT_RULES = [
@@ -31,6 +32,7 @@
     'finish | S8_HZXY_DrawPaper_Draw_Finish | 1500',
   ].join('\n');
   const DEFAULT_WATCH = '^(?!.*Appear_Gen)(?=.*(S\\d+_|Anim_\\w+ Start|AudioEnum|requested row))';
+  // #endregion
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -44,7 +46,7 @@
       return {};
     }
   }
-  const prefs = Object.assign({ enabled: false, rules: DEFAULT_RULES, watch: DEFAULT_WATCH, read: true, ask: true, send: false, client: '' }, load());
+  const prefs = Object.assign({ enabled: false, consent: 0, rules: DEFAULT_RULES, watch: DEFAULT_WATCH, read: true, ask: true, send: false, client: '' }, load());
   const save = () => {
     try {
       localStorage.setItem(KEY, JSON.stringify(prefs));
@@ -59,6 +61,12 @@
   save();
   panel.hidden = !prefs.enabled;
   if (!prefs.enabled) return;
+  // Nothing runs until the player has read follow.html and agreed to this
+  // version of it.
+  const agreed = prefs.consent === C.CONSENT_VERSION;
+  $('az-auto-gate').hidden = agreed;
+  $('az-auto-body').hidden = !agreed;
+  if (!agreed) return;
 
   function randomId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -146,6 +154,7 @@
     r.readAsDataURL(blob);
   });
 
+  // #region send
   async function send(c) {
     c.sent = 'sending…';
     renderCaptures();
@@ -170,6 +179,9 @@
     renderCaptures();
   }
 
+  // #endregion
+
+  // #region each-picture
   async function onFrame(f) {
     const c = { id: nextId++, time: f.time, kind: f.kind, hits: f.hits || [], frame: f.frame, read: null, sent: '', thumb: '', full: '' };
     captures.unshift(c);
@@ -202,6 +214,8 @@
     }
     if (prefs.send) send(c);
   }
+
+  // #endregion
 
   // ---------- Wiring ----------
 

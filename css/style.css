@@ -4536,3 +4536,20 @@ textarea {
   flex: none;
   color: var(--teal);
 }
+
+.az-auto-gate {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--teal) 50%, var(--iron));
+  border-radius: var(--radius);
+}
+
+.az-auto-gate p {
+  flex: 1 1 320px;
+  margin: 0;
+}

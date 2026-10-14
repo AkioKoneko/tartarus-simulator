@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261014d">
+<link rel="stylesheet" href="css/style.css?v=20261014e">
 </head>
 <body>
 <main class="analyzer" id="analyzer">
@@ -66,9 +66,14 @@
     <div class="az-scan-head">
       <div>
         <h2 class="az-h2" id="az-auto-title">Follow my game <span class="az-auto-beta">Beta</span></h2>
-        <p class="az-scan-lede">Connect your game log and share the game window, and the analyzer follows along. Each time the log shows a move, it takes a picture of the game, reads the board and refreshes the advice. Chrome or Edge on a PC, with the game borderless or windowed. Pictures stay in this browser unless you turn on sending.</p>
+        <p class="az-scan-lede">Connect your game log and share the game window, and the analyzer follows along. Each time the log shows a move, it takes a picture of the game, reads the board and refreshes the advice. Chrome or Edge on a PC, with the game borderless or windowed. Pictures stay in this browser unless you turn on sending. <a href="follow.html">How it works, with its code</a>.</p>
       </div>
     </div>
+    <div class="az-auto-gate" id="az-auto-gate" hidden>
+      <p>Follow my game reads your game log and takes pictures of your game window. Before you turn it on, read exactly what it does, with the code that does it.</p>
+      <a class="btn btn-report" href="follow.html">Read how it works</a>
+    </div>
+    <div id="az-auto-body">
     <div class="az-auto-steps">
       <div class="az-auto-step">
         <span class="az-auto-n">1</span>
@@ -110,6 +115,7 @@
       <div class="az-res-actions"><button type="button" class="btn" id="az-auto-seen-save">Download these lines</button><button type="button" class="btn" id="az-auto-seen-clear">Clear</button></div>
       <ol class="az-auto-seen" id="az-auto-seen"></ol>
     </details>
+    </div>
   </section>
 
   <section class="az-screen" aria-label="Your prison">
@@ -321,13 +327,13 @@
   </footer>
 </main>
 
-<script src="js/engine.js?v=20261014d"></script>
-<script src="js/board.js?v=20261014d"></script>
-<script src="js/solver.js?v=20261014d"></script>
-<script src="js/live.js?v=20261014d"></script>
-<script src="js/report.js?v=20261014d"></script>
-<script src="js/capture.js?v=20261014d"></script>
-<script src="js/analyze.js?v=20261014d"></script>
-<script src="js/auto.js?v=20261014d"></script>
+<script src="js/engine.js?v=20261014e"></script>
+<script src="js/board.js?v=20261014e"></script>
+<script src="js/solver.js?v=20261014e"></script>
+<script src="js/live.js?v=20261014e"></script>
+<script src="js/report.js?v=20261014e"></script>
+<script src="js/capture.js?v=20261014e"></script>
+<script src="js/analyze.js?v=20261014e"></script>
+<script src="js/auto.js?v=20261014e"></script>
 </body>
 </html>

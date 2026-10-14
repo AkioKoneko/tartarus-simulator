@@ -29,8 +29,10 @@ const TYPES = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon',
   '.md': 'text/plain; charset=utf-8', '.txt': 'text/plain; charset=utf-8', '.log': 'text/plain; charset=utf-8', '.woff2': 'font/woff2',
 };
-// Folders the site doesn't serve, so a local copy doesn't either.
-const PRIVATE = ['.git', '.vscode', 'node_modules', 'trainingdata', 'local', 'worker', '.wrangler'];
+// Folders the site doesn't serve, so a local copy doesn't either. The
+// Worker's code is public (follow.html shows it); its secrets never are.
+const PRIVATE = ['.git', '.vscode', 'node_modules', 'trainingdata', 'local', '.wrangler'];
+const SECRET = /(^|[\\/])(\.dev\.vars|\.wrangler|\.env[^\\/]*)([\\/]|$)/;
 
 // --live: pages listen here, and reload when a served file changes.
 const listeners = new Set();
@@ -54,7 +56,7 @@ function serve(req, res) {
   if (rel.endsWith('/')) rel += 'index.html';
   const file = path.join(ROOT, path.normalize(rel));
   const top = path.relative(ROOT, file).split(path.sep)[0];
-  if (!file.startsWith(ROOT + path.sep) || PRIVATE.includes(top)) {
+  if (!file.startsWith(ROOT + path.sep) || PRIVATE.includes(top) || SECRET.test(path.relative(ROOT, file))) {
     res.writeHead(404, { 'Content-Type': 'text/plain' }).end('Not found');
     return;
   }

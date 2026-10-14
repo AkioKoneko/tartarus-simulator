@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Follow My Game</title>
+<meta name="description" content="What the board analyzer's Follow my game feature reads, sees and sends, with the code that does each part, and where to turn it on.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230f1216'/%3E%3Ccircle cx='8' cy='8' r='4.5' fill='none' stroke='%235fc4b8' stroke-width='1.6'/%3E%3Ccircle cx='8' cy='8' r='1.6' fill='%235fc4b8'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/style.css?v=20261014e">
+<style>
+  /* A long read in the simulator's look, like the strategy guide. */
+  .guide {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 28px 16px 64px;
+  }
+
+  .guide-back {
+    display: inline-block;
+    margin-bottom: 22px;
+    color: var(--ash);
+    font: 500 12px/1.2 var(--font-mono);
+    letter-spacing: 0.06em;
+    text-decoration: none;
+    text-transform: uppercase;
+  }
+
+  .guide-back:hover {
+    color: var(--bone);
+  }
+
+  .guide h1 {
+    margin: 6px 0 10px;
+    font: 800 clamp(40px, 9vw, 72px) / 0.95 var(--font-display);
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+    text-wrap: balance;
+    color: var(--bone);
+  }
+
+  .guide h2 {
+    margin: 0 0 12px;
+    font: 800 clamp(24px, 4vw, 32px) / 1.05 var(--font-display);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    text-wrap: balance;
+    color: var(--chalk);
+  }
+
+  .guide h3 {
+    margin: 26px 0 8px;
+    font: 700 18px/1.2 var(--font-body);
+    color: var(--bone);
+  }
+
+  .guide p,
+  .guide li {
+    max-width: 70ch;
+  }
+
+  .guide p {
+    margin: 0 0 12px;
+  }
+
+  .guide a:not(.btn) {
+    color: var(--bone);
+  }
+
+  .lede {
+    font-size: 18px;
+    line-height: 1.5;
+    color: var(--chalk);
+  }
+
+  .guide-section {
+    padding: 34px 0;
+    border-top: 1px solid var(--iron);
+  }
+
+  .note {
+    font-size: 13.5px;
+    color: var(--ash);
+  }
+
+  .facts {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .facts li {
+    padding: 12px 14px;
+    border: 1px solid var(--iron);
+    border-left: 3px solid var(--teal);
+    border-radius: var(--radius);
+    background: var(--slab);
+  }
+
+  .facts b {
+    color: var(--bone);
+  }
+
+  /* Code, loaded from the files the site runs. */
+  .code {
+    margin: 12px 0 20px;
+    border: 1px solid var(--iron);
+    border-radius: var(--radius);
+    background: var(--p-dark);
+    overflow: hidden;
+  }
+
+  .code-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 4px 12px;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--iron);
+    color: var(--ash);
+    font: 500 12px/1.3 var(--font-mono);
+  }
+
+  .code-head a {
+    color: var(--teal) !important;
+  }
+
+  .code pre {
+    margin: 0;
+    padding: 10px 12px 10px 0;
+    max-height: 560px;
+    overflow: auto;
+    color: var(--chalk);
+    font: 12.5px/1.55 var(--font-mono);
+    tab-size: 2;
+  }
+
+  .code .ln {
+    display: inline-block;
+    width: 5ch;
+    padding-right: 1.5ch;
+    color: var(--iron-hi);
+    text-align: right;
+    user-select: none;
+  }
+
+  .code .cm {
+    color: var(--ash);
+  }
+
+  .code-error {
+    margin: 0;
+    padding: 12px;
+    color: var(--blood);
+  }
+
+  .files {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+
+  .files th,
+  .files td {
+    padding: 8px 10px 8px 0;
+    border-bottom: 1px solid var(--iron);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .files code {
+    overflow-wrap: anywhere;
+  }
+
+  .hash {
+    color: var(--ash);
+    font: 12px/1.4 var(--font-mono);
+    overflow-wrap: anywhere;
+  }
+
+  .agree {
+    padding: 18px;
+    border: 1px solid color-mix(in srgb, var(--teal) 55%, var(--iron));
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--teal) 7%, var(--slab));
+  }
+
+  .agree .toggle {
+    margin-bottom: 14px;
+  }
+
+  .agree-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .agree-status {
+    margin: 12px 0 0;
+    color: var(--moss);
+  }
+
+  @media (max-width: 600px) {
+    .files thead {
+      display: none;
+    }
+
+    .files tr {
+      display: grid;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--iron);
+    }
+
+    .files td {
+      padding: 2px 0;
+      border: 0;
+    }
+  }
+</style>
+</head>
+<body>
+<main class="guide">
+  <a class="guide-back" href="analyze.html">← Back to the board analyzer</a>
+  <p class="eyebrow">Tartarus Simulator · Board analyzer · Beta</p>
+  <h1>What Follow my game does</h1>
+  <p class="lede">Follow my game lets the board analyzer keep up with your game by itself. It notices in the game's log when you make a move, takes a picture of the game window, reads the board from it, and updates the advice. This page says exactly what it reads, what it sees and what it sends, with the code that does each part. The code is loaded from the same files your browser runs, so it can't differ from what's described here.</p>
+
+  <section class="guide-section">
+    <h2>In short</h2>
+    <ul class="facts">
+      <li><b>One file, read only.</b> It reads the game log you pick (<code>UE_game.log</code>), and only the lines the game writes after you connect it. It can't open any other file, and it never changes the log.</li>
+      <li><b>One window, only at moves.</b> It sees only the window you choose to share. It takes a single picture when the log shows a move, or when you press Take a picture now. Nothing is recorded in between.</li>
+      <li><b>Pictures stay on your PC.</b> The screenshot reader reads each picture inside your browser. Unless you turn on Send the pictures, no picture leaves your PC.</li>
+      <li><b>Sending is off until you turn it on.</b> With it on, each picture is shrunk to at most 1,280 pixels wide and 220 KB. It's sent with the few log lines that set it off and what the reader made of it. No account, no name, and no address goes with it.</li>
+      <li><b>Off whenever you like.</b> Stop following and Stop sharing end it at once, as does your browser's own stop-sharing button. The bottom of this page turns it off for good.</li>
+    </ul>
+  </section>
+
+  <section class="guide-section">
+    <h2>What your browser asks you</h2>
+    <p>Chrome or Edge asks you twice, and nothing happens until you say yes both times:</p>
+    <ol>
+      <li><b>To open a file.</b> You pick <code>UE_game.log</code>, in your Steam library under <code>Torchlight Infinite\UE_game\TorchLight\Saved\Logs</code>. The site gets read-only access to that one file. On your next visit, the browser asks again before the site can read it.</li>
+      <li><b>To share a window.</b> You pick the Torchlight: Infinite window. While it's shared, the browser shows that it is, with a button to stop.</li>
+    </ol>
+    <p class="note">Other browsers can't follow a file on your PC, so Follow my game needs Chrome or Edge on a PC. Run the game borderless or windowed: in exclusive fullscreen, a shared window looks black.</p>
+  </section>
+
+  <section class="guide-section">
+    <h2>How it works, with its code</h2>
+    <p>Each step shows the code that does it, word for word, with its line numbers in the file. It's read from the site just now.</p>
+
+    <h3>1. You pick the log</h3>
+    <p><code>connectLog</code> opens the browser's file picker, and the site gets only the file you choose. <code>resumeLog</code> is for later visits: the browser remembers your choice, but asks you again before the site may read it.</p>
+    <div class="code" data-file="js/capture.js" data-region="pick-log"></div>
+
+    <h3>2. It reads only the new lines</h3>
+    <p>Once a second, the follower checks whether the log has grown, and reads only the part added since its last look. It starts at the end of the log, so nothing written before you connected is ever read. Each new line is checked against the triggers below. A line that matches nothing is dropped; a line that matches the watch pattern is shown to you on the page. It runs in a background worker, so it keeps up when the tab is hidden.</p>
+    <div class="code" data-file="js/capture.js" data-region="read-log"></div>
+
+    <h3>3. It watches for moves</h3>
+    <p>The triggers are patterns for the lines the game writes when something happens. Each has a kind, the pattern, and a settle time. The prison's lines are added once the new season is live; until then the defaults are the Frozen Canvas's, which test the whole path. You can see and change the triggers on the analyzer, under Triggers and log lines.</p>
+    <div class="code" data-file="js/auto.js" data-region="default-triggers"></div>
+    <p>When matching lines come in a burst, it waits until the log has been quiet for the settle time, so the animations finish. Then it takes one picture for the whole burst.</p>
+    <div class="code" data-file="js/capture.js" data-region="triggers"></div>
+
+    <h3>4. It takes one picture of the window you shared</h3>
+    <p><code>connectWindow</code> asks the browser to share a window, which you pick. <code>grab</code> takes a single frame from it, and runs only when a trigger fires or you press Take a picture now.</p>
+    <div class="code" data-file="js/capture.js" data-region="share-window"></div>
+
+    <h3>5. The picture is read into your board</h3>
+    <p>The screenshot reader, running in your browser, turns the picture into a board. The page loads that board and asks for advice. It keeps the pictures only in its list of the last 12, in memory, and they're gone when you close the tab. If Send the pictures is on, the picture is sent after it's read.</p>
+    <div class="code" data-file="js/auto.js" data-region="each-picture"></div>
+
+    <h3>6. Sending, only if you turn it on</h3>
+    <p>With Send the pictures on, this shrinks the picture and sends it, with the log lines that set it off and what the reader made of it. <code>client</code> is a random id made in this browser, so pictures from one browser can be told apart.</p>
+    <div class="code" data-file="js/auto.js" data-region="send"></div>
+    <p>This is the server's side. It checks every field, keeps only real images within the size limit, drops a picture it already has, and stores the rest. It counts pictures against a scrambled code for your connection that changes every day; your address itself is never stored.</p>
+    <div class="code" data-file="worker/src/index.js" data-region="captures"></div>
+  </section>
+
+  <section class="guide-section">
+    <h2>Where sent pictures go</h2>
+    <p>Sent pictures go to the simulator's private database at Cloudflare. They aren't public, they aren't in the site's GitHub repository, and only the simulator's maintainer can download them. They're used to teach the screenshot reader and to check the simulator's rules against the live game.</p>
+    <p>The store takes at most 300 pictures a day from one connection and 1,500 a day in all, and it holds at most 3,000 at a time.</p>
+    <p>This browser's id is <code id="client-id">…</code>. To have the pictures sent from this browser deleted, send that id to <a href="https://twitch.tv/coffeebns" target="_blank" rel="noopener">CoffeeBns</a>.</p>
+  </section>
+
+  <section class="guide-section">
+    <h2>Check the files</h2>
+    <p>These are the files shown above, as this site serves them now, with each file's SHA-256 fingerprint. A copy from GitHub with the same fingerprint is the same file, byte for byte.</p>
+    <table class="files">
+      <thead><tr><th>File</th><th>What it does</th><th>SHA-256</th></tr></thead>
+      <tbody id="file-rows"></tbody>
+    </table>
+  </section>
+
+  <section class="guide-section" id="agree">
+    <h2>Turn it on</h2>
+    <div class="agree">
+      <label class="toggle"><input type="checkbox" id="agree-box"><span><strong>I've read this page.</strong><small>I agree to let Follow my game read the game log I pick and take pictures of the window I share, as described above. Sending stays off until I turn it on.</small></span></label>
+      <div class="agree-actions">
+        <button type="button" class="btn btn-primary" id="agree-on" disabled>Turn on Follow my game</button>
+        <button type="button" class="btn" id="agree-off" hidden>Turn it off and forget my log</button>
+      </div>
+      <p class="agree-status" id="agree-status" aria-live="polite"></p>
+    </div>
+    <p class="note">This is agreement version <span id="consent-version">1</span>. If what Follow my game does changes, the analyzer asks you to read this page again.</p>
+  </section>
+</main>
+
+<script src="js/capture.js?v=20261014e"></script>
+<script>
+(function () {
+  'use strict';
+
+  const KEY = 'tartarus-sim:auto:v1';
+  const REPO = 'https://github.com/blahdot3h/tartarus-simulator/blob/main/';
+  const VERSION = (window.TartarusCapture && window.TartarusCapture.CONSENT_VERSION) || 1;
+  const FILES = [
+    ['js/capture.js', 'Follows the log and takes pictures of the shared window.'],
+    ['js/auto.js', 'The analyzer’s panel: what happens to each picture, and sending.'],
+    ['worker/src/index.js', 'The server that receives sent pictures (and the analyzer’s other uploads).'],
+  ];
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // ---------- Settings, shared with the analyzer (js/auto.js) ----------
+
+  function load() {
+    try {
+      return JSON.parse(localStorage.getItem(KEY) || 'null') || {};
+    } catch (e) {
+      return {};
+    }
+  }
+  function save(p) {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(p));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  function randomId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const bytes = new Uint8Array(20);
+    crypto.getRandomValues(bytes);
+    return [...bytes].map((b) => chars[b % chars.length]).join('');
+  }
+
+  const prefs = load();
+  if (!prefs.client) {
+    prefs.client = randomId();
+    save(prefs);
+  }
+  $('client-id').textContent = prefs.client;
+  $('consent-version').textContent = VERSION;
+
+  function renderAgreement() {
+    const on = prefs.enabled && prefs.consent === VERSION;
+    $('agree-off').hidden = !on;
+    $('agree-status').textContent = on ? `Follow my game is on in this browser${prefs.consentAt ? `, since you agreed on ${new Date(prefs.consentAt).toLocaleDateString()}` : ''}.` : '';
+  }
+  $('agree-box').addEventListener('change', (e) => ($('agree-on').disabled = !e.target.checked));
+  $('agree-on').addEventListener('click', () => {
+    Object.assign(prefs, { enabled: true, consent: VERSION, consentAt: new Date().toISOString() });
+    if (!save(prefs)) {
+      $('agree-status').textContent = 'This browser won’t save settings (a private window?), so it can’t be turned on here.';
+      return;
+    }
+    location.href = 'analyze.html?auto=1#az-auto';
+  });
+  $('agree-off').addEventListener('click', () => {
+    Object.assign(prefs, { enabled: false, consent: 0, consentAt: null, send: false });
+    save(prefs);
+    try {
+      indexedDB.deleteDatabase('tartarus-sim-capture'); // the remembered log
+    } catch (e) {
+      // Nothing to forget.
+    }
+    renderAgreement();
+    $('agree-status').textContent = 'Turned off, and the log you picked is forgotten.';
+  });
+  renderAgreement();
+
+  // ---------- The code, from the files the site runs ----------
+
+  const fetched = {};
+  const get = (path) => (fetched[path] = fetched[path] || fetch(path, { cache: 'no-store' }).then((r) => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.arrayBuffer();
+  }));
+
+  // The lines between "// #region name" and the next "// #endregion".
+  function region(text, name) {
+    const lines = text.split(/\r?\n/);
+    const start = lines.findIndex((l) => l.trim() === `// #region ${name}`);
+    if (start < 0) return null;
+    let end = lines.findIndex((l, i) => i > start && l.trim() === '// #endregion');
+    if (end < 0) end = lines.length;
+    const body = lines.slice(start + 1, end);
+    const indent = Math.min(...body.filter((l) => l.trim()).map((l) => l.match(/^ */)[0].length));
+    return { from: start + 2, to: end, lines: body.map((l) => l.slice(indent)) };
+  }
+
+  function codeHTML(r) {
+    let inBlock = false;
+    return r.lines.map((line, i) => {
+      const t = line.trim();
+      if (t.startsWith('/*')) inBlock = true;
+      const comment = inBlock || t.startsWith('//');
+      if (t.endsWith('*/')) inBlock = false;
+      return `<span class="ln">${r.from + i}</span>${comment ? `<span class="cm">${esc(line)}</span>` : esc(line)}`;
+    }).join('\n');
+  }
+
+  for (const box of document.querySelectorAll('.code')) {
+    const path = box.dataset.file;
+    get(path)
+      .then((buf) => {
+        const r = region(new TextDecoder().decode(buf), box.dataset.region);
+        if (!r) throw new Error('that part of the file wasn’t found');
+        box.innerHTML = `<div class="code-head"><span>${esc(path)}, lines ${r.from}–${r.to}</span><span><a href="${esc(path)}" target="_blank" rel="noopener">whole file</a> · <a href="${REPO}${esc(path)}#L${r.from}-L${r.to}" target="_blank" rel="noopener">on GitHub</a></span></div><pre><code>${codeHTML(r)}</code></pre>`;
+      })
+      .catch((e) => {
+        box.innerHTML = `<p class="code-error">${esc(path)} couldn’t be loaded (${esc(e.message)}). <a href="${REPO}${esc(path)}" target="_blank" rel="noopener">Read it on GitHub</a>.</p>`;
+      });
+  }
+
+  // Fingerprints of the files as served.
+  $('file-rows').innerHTML = FILES.map(([path, what]) => `<tr><td><code>${esc(path)}</code><br><a href="${esc(path)}" target="_blank" rel="noopener">as served</a> · <a href="${REPO}${esc(path)}" target="_blank" rel="noopener">on GitHub</a></td><td>${esc(what)}</td><td class="hash" data-hash="${esc(path)}">working it out…</td></tr>`).join('');
+  for (const [path] of FILES) {
+    const cell = document.querySelector(`[data-hash="${path}"]`);
+    get(path)
+      .then((buf) => crypto.subtle.digest('SHA-256', buf))
+      .then((d) => (cell.textContent = [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('')))
+      .catch((e) => (cell.textContent = `couldn’t be read (${e.message})`));
+  }
+})();
+</script>
+</body>
+</html>

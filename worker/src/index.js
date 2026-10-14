@@ -203,6 +203,7 @@ function cleanImage(img, max = MAX_IMAGE) {
   return { type, bytes, hash: '' };
 }
 
+// #region captures
 // ---------- Captures ----------
 // A picture of the game window, taken when the player's log showed a move,
 // with the log lines behind it and what the reader made of it. Counters
@@ -259,6 +260,8 @@ function cleanCapture(c) {
     image: cleanImage(c.image, MAX_CAPTURE),
   };
 }
+
+// #endregion
 
 // ---------- Cleaning ----------
 // Each snapshot is rebuilt from the fields the analyzer sends. Anything out

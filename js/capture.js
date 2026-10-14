@@ -43,6 +43,7 @@
 
   // ---------- Following the log ----------
 
+  // #region read-log
   // The log follower, shared by the worker and the page. It reads only what
   // was added since the last look, decodes it as UTF-8, and reports the lines
   // that match a trigger or the watch pattern.
@@ -109,6 +110,8 @@
       },
     };
   }
+
+  // #endregion
 
   // The follower in a worker: a hidden tab throttles the page's timers, but
   // not a worker's. File handles can be sent to a worker; test objects can't,
@@ -177,6 +180,7 @@
     return m ? m[1] : '';
   };
 
+  // #region triggers
   function onLine(h) {
     const at = stampOf(h.line);
     if (h.rule < 0) {
@@ -211,6 +215,8 @@
     if (frame) setState({ frames: state.frames + 1 });
     emit('frame', { kind: b.kind, hits: b.hits, frame, time: new Date() });
   }
+
+  // #endregion
 
   // ---------- Remembering the log between visits ----------
 
@@ -247,6 +253,7 @@
 
   // ---------- The log: picking it ----------
 
+  // #region pick-log
   async function connectLog() {
     if (typeof window.showOpenFilePicker !== 'function') throw new Error('This browser can’t follow a file on your PC. Use Chrome or Edge.');
     const [handle] = await window.showOpenFilePicker({ id: 'torchlight-log', multiple: false, types: [{ description: 'Torchlight: Infinite log', accept: { 'text/plain': ['.log'] } }] });
@@ -269,6 +276,8 @@
     return 'on';
   }
 
+  // #endregion
+
   function useHandle(handle) {
     setState({ log: 'starting', file: handle.name || '', error: '' });
     startFollower(handle);
@@ -282,6 +291,7 @@
 
   // ---------- The window ----------
 
+  // #region share-window
   async function connectWindow() {
     if (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== 'function') throw new Error('This browser can’t share a window.');
     const stream = await navigator.mediaDevices.getDisplayMedia({
@@ -337,6 +347,8 @@
     return null;
   }
 
+  // #endregion
+
   async function captureNow(kind) {
     const frame = await grab();
     if (frame) setState({ frames: state.frames + 1 });
@@ -371,6 +383,9 @@
   }
 
   window.TartarusCapture = {
+    // follow.html explains this code. When what it does changes, this goes
+    // up, and players are asked to read and agree again.
+    CONSENT_VERSION: 1,
     supported: {
       log: typeof window.showOpenFilePicker === 'function',
       window: !!(navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function'),
