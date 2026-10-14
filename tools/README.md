@@ -308,17 +308,29 @@ node tools/canvas-sim.js eval --games 400000
   - the brushstroke pools,
   - ice and void counts.
 
-**Result with the practice values** (400,000 canvases, 80,081 with a chest, about 20 seconds): a Lv7 chest on **65.9% ± 0.3** of chest canvases, with an average final chest level of 6.12.
-- Live rules the user confirmed: an objective raises each matching paint in range by +1, and only Layer effects add more.
-- Every Coloring Paint seen live came at Lv3 and needs 3 paints.
-- The void count (11–15) comes from a live screenshot: 15 void and 4 ice cells, leaving 17 cells to fill.
-- With the first guess of 9–12 void cells, the rate was 74.8%, so tight canvases cost a lot.
-- One player's log from the research (42 chest canvases, 40 at Lv7) suggests live play does better, maybe through refreshes and choices the practice values miss.
+**Two goals.** On a canvas with a Treasure Chest, the goal is a Lv7 chest. Without one, it's as many rainbow (Lv7) paints as possible. Their eggs can drop skills too. The score is the chest's worth by level (Lv7 = 100), plus 4 for each other rainbow paint.
+
+**Result with the practice values** (200,000 canvases, about 25 seconds):
+
+| | Old strategy | New strategy |
+| --- | --- | --- |
+| Lv7 chest, on chest canvases | 65.7% | **71.3% ± 0.4** (average chest level 6.46, plus 0.68 other rainbows) |
+| Rainbow paints, on canvases without a chest | 0.08 | **0.31 ± 0.005** |
+
+On chest-less canvases, 14% now end with at least one rainbow, up from 5%.
+
+The chest gain fixes a bug in the old strategy. Once its chest reached Lv7, it went fishing for another chest with Layer's re-roll effect, and sometimes re-rolled its own finished chest. A Lv7 chest only changes through an effect like that, so the strategy never takes re-roll while a chest is on the canvas.
+
+Live rules the user confirmed:
+- An objective raises each matching paint in range by +1, and only Layer effects add more.
+- Every Coloring Paint seen live came at Lv3 and needs 3.
+- The void count (11–15) comes from a live screenshot.
 
 **The strategy:**
 - **Placing the chest:** it goes first, on the cell whose row, column, diagonals and neighbors have the most open cells.
 - **Objectives that reach the chest:** fill their ranges with matching paint.
 - **Objectives that don't:** finish them quickly, off the chest's lines.
 - **Brushstrokes:** Layer when the next objective can reach the chest, Reimagine to flip a monster target, Spread to open room.
-- **Never** take the re-roll effect with the chest in range.
+- **Never** take the re-roll effect while a chest is on the canvas.
+- **Without a chest:** aim each objective at the highest paints (Global ranges and Layer's +1 are best), and force a stuck one that would push paints toward Lv7.
 - **Forcing:** force an objective that feeds the chest when it gets stuck.

@@ -41,7 +41,7 @@
     practice: valid(saved.practice) ? saved.practice : C.newCanvas({ params }),
     mine: valid(saved.mine) ? saved.mine : emptyCanvas(),
   };
-  const stats = Object.assign({ canvases: 0, chests: 0, lv7: 0, levels: 0 }, saved.stats || {});
+  const stats = Object.assign({ canvases: 0, chests: 0, lv7: 0, levels: 0, rainbows: 0, plain: 0 }, saved.stats || {});
   const undo = { practice: [], mine: [] };
   let setup = saved.setup !== false; // My canvas: setting up (true) or playing (false)
   let editWhat = 'board';
@@ -101,6 +101,8 @@
 
   function record(st) {
     stats.canvases += 1;
+    stats.rainbows += C.rainbows(st);
+    if (!C.chests(st).length) stats.plain += 1;
     const lv = C.bestChest(st);
     if (lv) {
       stats.chests += 1;
@@ -194,7 +196,9 @@
     if (mode === 'mine' && setup) return 'Setting up: click a cell to set what’s on it. Switch to Play when the canvas matches your game.';
     if (st.phase === 'done') {
       const lv = C.bestChest(st);
-      return lv ? `Canvas finished: the Treasure Chest ended at Lv${lv}${lv >= 7 ? '. A Lv7 chest!' : '.'}` : 'Canvas finished, with no Treasure Chest.';
+      const r = C.rainbows(st);
+      const rb = `${r} rainbow paint${r === 1 ? '' : 's'}`;
+      return lv ? `Canvas finished: the Treasure Chest ended at Lv${lv}${lv >= 7 ? ' (a Lv7 chest!)' : ''}, plus ${rb}.` : `Canvas finished with no Treasure Chest: ${rb}.`;
     }
     if (st.phase === 'offer') {
       const f = st.offer;
@@ -382,10 +386,13 @@
     }
     const st = game();
     const pct = (x) => `${Math.round(100 * x)}%`;
-    const rows = r.options.slice(0, 8).map((o, i) => `<li class="${i === 0 ? 'is-best' : ''}"><span class="cv-adv-label">${esc(o.label)}${o.policy ? ' <span class="solver-tag">strategy</span>' : ''}</span><span class="cv-adv-num">${pct(o.lv7)} Lv7 · avg Lv${o.level.toFixed(1)}</span>${stale ? '' : `<button type="button" class="btn" data-play="${i}">Play</button>`}</li>`).join('');
+    // With a chest, the Lv7 chest chance leads; without one, rainbows.
+    const chestGame = C.chests(st).length > 0 || st.inventory.some(C.isChest);
+    const nums = (o) => (chestGame ? `${pct(o.lv7)} Lv7 chest · ${o.rainbows.toFixed(1)} rainbows` : `${o.rainbows.toFixed(2)} rainbows${o.lv7 ? ` · ${pct(o.lv7)} Lv7 chest` : ''}`);
+    const rows = r.options.slice(0, 8).map((o, i) => `<li class="${i === 0 ? 'is-best' : ''}"><span class="cv-adv-label">${esc(o.label)}${o.policy ? ' <span class="solver-tag">strategy</span>' : ''}</span><span class="cv-adv-num">${nums(o)}</span>${stale ? '' : `<button type="button" class="btn" data-play="${i}">Play</button>`}</li>`).join('');
     const why = !stale && st.phase !== 'done' ? S.reason(st, top.action) : '';
     box.innerHTML = `${stale ? '<p class="trainer-verdict">The canvas changed since this check. Ask again.</p>' : ''}
-      <p class="cv-adv-top"><b>${esc(top.label)}</b> · ${pct(top.lv7)} chance of a Lv7 chest</p>
+      <p class="cv-adv-top"><b>${esc(top.label)}</b> · ${chestGame ? `${pct(top.lv7)} chance of a Lv7 chest` : `no chest, so rainbows: ${top.rainbows.toFixed(2)} on average`}</p>
       ${why ? `<p class="trainer-why">${esc(why)}</p>` : ''}
       <p class="solver-status">${r.done ? `Played out ${r.rounds.toLocaleString()} times per move` : `Playing out… ${r.rounds.toLocaleString()} of ${ROLLOUTS} per move`}. Every playout re-rolls what you can’t see: the next Coloring Paints, brushstrokes and re-rolled paints.</p>
       <ol class="cv-adv-list">${rows}</ol>`;
@@ -396,7 +403,7 @@
     box.hidden = mode !== 'practice';
     if (mode !== 'practice') return;
     const rate = stats.chests ? Math.round((100 * stats.lv7) / stats.chests) : 0;
-    box.innerHTML = `<h2 class="az-h2">Your practice</h2><p>${stats.canvases} canvas${stats.canvases === 1 ? '' : 'es'} finished, ${stats.chests} with a chest, <b>${stats.lv7} Lv7 chest${stats.lv7 === 1 ? '' : 's'}</b>${stats.chests ? ` (${rate}% of chest canvases; the trainer’s strategy makes about 66% with these practice values)` : ''}.</p>`;
+    box.innerHTML = `<h2 class="az-h2">Your practice</h2><p>${stats.canvases} canvas${stats.canvases === 1 ? '' : 'es'} finished, ${stats.chests} with a chest, <b>${stats.lv7} Lv7 chest${stats.lv7 === 1 ? '' : 's'}</b>${stats.chests ? ` (${rate}% of chest canvases; the trainer’s strategy makes about 71%)` : ''}, and <b>${stats.rainbows} rainbow paint${stats.rainbows === 1 ? '' : 's'}</b> (the trainer averages about 0.3 on a canvas without a chest).</p>`;
   }
 
   // ---------- Practice values ----------
@@ -444,7 +451,7 @@
       mode = b.dataset.mode;
       picked = -1;
       advice = null;
-      $('cv-advice').innerHTML = '<p class="field-note">Ask, and every move is played out hundreds of times from this canvas. Moves are ranked by how often the chest ends at Lv7.</p>';
+      $('cv-advice').innerHTML = '<p class="field-note">Ask, and every move is played out hundreds of times from this canvas. Moves are ranked by how often the chest ends at Lv7; without a chest, by rainbow (Lv7) paints.</p>';
       changed();
     });
 

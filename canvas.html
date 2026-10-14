@@ -9,8 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261013m">
-<link rel="stylesheet" href="css/canvas.css?v=20261013m">
+<link rel="stylesheet" href="css/style.css?v=20261013n">
+<link rel="stylesheet" href="css/canvas.css?v=20261013n">
 </head>
 <body>
 <main class="cv" id="cv">
@@ -27,7 +27,7 @@
     </nav>
     <p class="eyebrow">Frozen Canvas · 画中雪原</p>
     <h1 class="az-title">Paint a Lv7 chest</h1>
-    <p class="az-lede">The only goal on a canvas is the Treasure Chest: get it to Lv7 before the canvas fills. Practice on random canvases with the trainer beside you, or set up the canvas from your game and ask what to play.</p>
+    <p class="az-lede">The goal on a canvas is the Treasure Chest: get it to Lv7 before the canvas fills. With no chest, go for as many rainbow (Lv7) paints as you can. Practice on random canvases with the trainer beside you, or set up the canvas from your game and ask what to play.</p>
     <div class="cv-modes" role="tablist" aria-label="Mode">
       <button type="button" role="tab" data-mode="practice" aria-selected="true">Practice</button>
       <button type="button" role="tab" data-mode="mine" aria-selected="false">My canvas</button>
@@ -85,7 +85,7 @@
       <h2 class="az-h2">Trainer</h2>
       <button type="button" class="btn btn-primary" id="cv-ask">What should I do?</button>
     </div>
-    <div id="cv-advice"><p class="field-note">Ask, and every move is played out hundreds of times from this canvas. Moves are ranked by how often the chest ends at Lv7.</p></div>
+    <div id="cv-advice"><p class="field-note">Ask, and every move is played out hundreds of times from this canvas. Moves are ranked by how often the chest ends at Lv7; without a chest, by rainbow (Lv7) paints.</p></div>
   </section>
 
   <section class="az-panel cv-stats" id="cv-stats" aria-live="polite"></section>
@@ -105,7 +105,7 @@
       <li><b>Meeting it.</b> Once enough are in range, every matching paint in range rises 1 or 2 levels, to Lv7 at most. The Treasure Chest is a gameplay paint, so gameplay and "any" objectives that reach it raise it.</li>
       <li><b>The next Coloring Paint.</b> A new one is offered. Pick a brushstroke direction: Reimagine (change its target or range), Spread (open ice or void cells, or place it on a painted cell), or Layer (an extra effect when it's met). Then pick 1 of 2 effects, and place it.</li>
       <li><b>When stuck.</b> Forced Color Mixing meets the objective right away, for Colored Snow (5, then 10, then 15; 3 a canvas).</li>
-      <li><b>The end.</b> The canvas is done when its cells are full. Then the painting becomes a map, and a Lv7 chest is where the money is.</li>
+      <li><b>The end.</b> The canvas is done when its cells are full. Then the painting becomes a map, and a Lv7 chest is where the money is. Without a chest, aim for as many rainbow (Lv7) paints as you can: their eggs can drop skills too.</li>
     </ol>
     <p class="field-note">Sources: the game's own texts and tooltips, the SS7 and SS13 painting guides on bilibili, and the Torchlight: Infinite wiki (tlidb). The canvas has been in the game since SS6 and is still there in SS14.</p>
   </section>
@@ -116,8 +116,8 @@
   </footer>
 </main>
 
-<script src="js/canvas-engine.js?v=20261013m"></script>
-<script src="js/canvas-solver.js?v=20261013m"></script>
-<script src="js/canvas-ui.js?v=20261013m"></script>
+<script src="js/canvas-engine.js?v=20261013n"></script>
+<script src="js/canvas-solver.js?v=20261013n"></script>
+<script src="js/canvas-ui.js?v=20261013n"></script>
 </body>
 </html>

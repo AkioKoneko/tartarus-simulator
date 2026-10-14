@@ -1,6 +1,7 @@
 /* Tartarus Simulator: the Frozen Canvas solver.
- * Rules-based play with no AI, for the only goal that pays: a Lv7 Treasure
- * Chest. Two parts:
+ * Rules-based play with no AI. The goal is a Lv7 Treasure Chest; on a canvas
+ * without a chest (or once it's Lv7), as many rainbow (Lv7) paints as
+ * possible. Two parts:
  *  - A strategy that makes every choice from what the player can see: where
  *    the chest goes (the cell with the most room on its lines), which paint
  *    goes where, which brushstroke to take, where each Coloring Paint lands,
@@ -72,6 +73,20 @@
     return best;
   }
 
+  // How close a paint is to a rainbow: raising it is worth the change in this.
+  const POT = [0, 0, 0.01, 0.03, 0.08, 0.2, 0.45, 1];
+
+  // What meeting an objective with this shape at `at` adds toward rainbows.
+  function rangeGain(st, at, o) {
+    const gain = o.gain + (o.extras.includes('plusOne') ? 1 : 0);
+    let sum = 0;
+    for (const n of rangeCells(at, o.range)) {
+      const p = st.cells[n].paint;
+      if (p && matches(p, o.target)) sum += POT[Math.min(MAX_LEVEL, p.level + gain)] - POT[p.level];
+    }
+    return sum;
+  }
+
   // ---------- The strategy ----------
 
   function decide(st) {
@@ -103,6 +118,7 @@
     }
     const lines = chestLines(st, c);
     const chestLive = c >= 0 && st.cells[c].paint.level < MAX_LEVEL;
+    if (!chestLive) return rainbowPaint(st, blanks, o);
     if (o) {
       const inRange = rangeCells(o.cell, o.range).filter((n) => blank(st, n));
       const left = o.need - C.progress(st);
@@ -127,6 +143,33 @@
     const cells = blanks.slice().sort((a, b) => (lines.has(a) - lines.has(b)) || (active.has(a) - active.has(b)));
     const inv = spare(st, o ? (o.target === 'monster' ? 'gameplay' : o.target === 'gameplay' ? 'monster' : null) : null);
     return { type: 'place', inv: inv >= 0 ? inv : spare(st, null) >= 0 ? spare(st, null) : 0, cell: cells[0] };
+  }
+
+  // No chest to raise: meet objectives that lift high paints, and force one
+  // that's stuck when it would push paints toward Lv7.
+  function rainbowPaint(st, blanks, o) {
+    if (o) {
+      const inRange = rangeCells(o.cell, o.range).filter((n) => blank(st, n));
+      const left = o.need - C.progress(st);
+      if (left > 0 && inRange.length >= left) {
+        const inv = spare(st, o.target);
+        if (inv >= 0) return { type: 'place', inv, cell: inRange[0] };
+      } else if (left > 0 && st.forced < st.params.forcedMax && rangeGain(st, o.cell, o) >= 0.4) {
+        return { type: 'force' };
+      }
+    }
+    const active = o ? new Set(rangeCells(o.cell, o.range)) : new Set();
+    const cells = blanks.slice().sort((a, b) => active.has(a) - active.has(b));
+    const inv = spare(st, null);
+    return { type: 'place', inv: inv >= 0 ? inv : 0, cell: cells[0] };
+  }
+
+  // The most this Coloring Paint could add toward rainbows from any cell it
+  // can finish from.
+  function bestRainbowGain(st, o) {
+    let best = 0;
+    for (const at of C.placeTargets(st)) if (feasible(st, o, at, at).slack >= 0) best = Math.max(best, rangeGain(st, at, o));
+    return best;
   }
 
   // Brushstrokes and where the new Coloring Paint goes.
@@ -157,7 +200,14 @@
   }
 
   function directionValue(st, dir, o, c, chestLive) {
-    if (!chestLive) return dir === 'stack' ? 3 : 1; // fishing for a chest with re-rolled paints
+    if (!chestLive) {
+      // Rainbows: Layer when this objective already lifts high paints,
+      // Reimagine to point a weak one somewhere better.
+      const g = bestRainbowGain(st, o);
+      if (dir === 'stack') return g >= 0.3 ? 5 : 2.5;
+      if (dir === 'turn') return g >= 0.3 ? 2.5 : 4;
+      return 2;
+    }
     const feeds = o.target !== 'monster' && canFeedChest(st, o, c);
     if (dir === 'stack') return feeds ? 5 : 1;
     if (dir === 'turn') return o.target === 'monster' ? 4 : feeds ? 2 : 3;
@@ -165,7 +215,20 @@
   }
 
   function effectValue(st, id, o, c, chestLive) {
-    if (!chestLive) return id === 'reroll' ? 5 : id === 'onPainted' ? 2 : 1;
+    if (!chestLive) {
+      switch (id) {
+        case 'plusOne': return 6;
+        case 'randomOne': return 3.5;
+        case 'sameContent': return 2.5;
+        case 'reroll': return c >= 0 ? 0 : 1.5; // never near a finished chest; otherwise levels stay and a chest might turn up
+        case 'flip': return bestRainbowGain(st, Object.assign({}, o, { target: o.target === 'monster' ? 'gameplay' : 'monster' })) > bestRainbowGain(st, o) ? 5 : 1;
+        case 'needDown': return 3.5;
+        case 'reRange': return 3;
+        case 'renew': return 2;
+        case 'onPainted': return 3;
+        default: return 2;
+      }
+    }
     const feeds = o.target !== 'monster' && canFeedChest(st, o, c);
     switch (id) {
       case 'plusOne': return feeds ? 6 : 1;
@@ -197,9 +260,10 @@
       let s = Math.min(fz.slack, 3) * 2 + (fz.slack >= 0 ? 10 : -10);
       const hitsChest = c >= 0 && rangeCells(at, o.range).includes(c);
       if (chestLive && reaches(st, at, o, c)) s += 100;
+      if (!chestLive) s += 40 * rangeGain(st, at, o);
       if (o.extras.includes('reroll')) {
         if (hitsChest) s -= 1000;
-        if (!chestLive) s += rangeCells(at, o.range).filter((n) => st.cells[n].paint && !st.cells[n].anchor).length * 3;
+        if (!chestLive && c < 0) s += rangeCells(at, o.range).filter((n) => st.cells[n].paint && !st.cells[n].anchor).length;
       }
       if (lines.has(at) && !st.cells[at].paint) s -= 3; // it takes a cell the chest could use
       if (s > bestScore) {
@@ -295,7 +359,7 @@
     const random = rng32(o.seed || 1);
     const base = C.clone(st);
     const pick = decide(base);
-    const options = candidates(base).map((c) => ({ ...c, policy: sameAction(c.action, pick), n: 0, sum: 0, sum2: 0, lv7: 0, levels: 0 }));
+    const options = candidates(base).map((c) => ({ ...c, policy: sameAction(c.action, pick), n: 0, sum: 0, sum2: 0, lv7: 0, levels: 0, rainbows: 0 }));
     let rounds = 0;
     return {
       step(batch) {
@@ -313,6 +377,7 @@
             opt.sum += v;
             opt.sum2 += v * v;
             opt.levels += lv;
+            opt.rainbows += C.rainbows(s);
             if (lv >= MAX_LEVEL) opt.lv7 += 1;
           }
         }
@@ -323,7 +388,7 @@
       const ranked = options.filter((x) => x.n).map((x) => {
         const mean = x.sum / x.n;
         const sd = Math.sqrt(Math.max(0, x.sum2 / x.n - mean * mean));
-        return { action: x.action, label: x.label, policy: x.policy, n: x.n, mean, se: sd / Math.sqrt(x.n), lv7: x.lv7 / x.n, level: x.levels / x.n };
+        return { action: x.action, label: x.label, policy: x.policy, n: x.n, mean, se: sd / Math.sqrt(x.n), lv7: x.lv7 / x.n, level: x.levels / x.n, rainbows: x.rainbows / x.n };
       }).sort((a, b) => b.mean - a.mean || b.lv7 - a.lv7);
       return { options: ranked, rounds, done: rounds >= rollouts, pick };
     }
@@ -333,6 +398,18 @@
   function reason(st, a) {
     if (!a) return '';
     const c = chestCell(st);
+    const chestLive = c >= 0 && st.cells[c].paint.level < MAX_LEVEL;
+    if (!chestLive && chestInHand(st) < 0) {
+      // No chest to raise: rainbows.
+      switch (a.type) {
+        case 'place': return st.active && rangeCells(st.active.cell, st.active.range).includes(a.cell) ? 'No chest here, so rainbows are the goal: finish this objective to lift the paints in its range.' : 'Filler, off the objective’s range so it keeps its cells.';
+        case 'force': return 'The objective is stuck, and meeting it pushes high paints toward Lv7: worth the Colored Snow.';
+        case 'direction': return a.dir === 'stack' ? 'Layer adds to this objective’s lift: best when its range holds high paints.' : a.dir === 'turn' ? 'Reimagine can point this objective at better paints: switch its type or its direction.' : 'Spread opens room for objectives to finish.';
+        case 'effect': return `${C.EFFECTS[a.id].text}.`;
+        case 'coloring': return 'From here its objective lifts the most high paints toward Lv7, with room to finish.';
+        default: return '';
+      }
+    }
     switch (a.type) {
       case 'place': {
         const p = st.inventory[a.inv];

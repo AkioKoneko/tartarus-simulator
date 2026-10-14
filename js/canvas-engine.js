@@ -5,8 +5,9 @@
  * active Coloring Paint's objective counts matching paints in its range, and
  * once it has enough, every matching paint in range rises a few levels (to 7
  * at most). Then a new Coloring Paint comes, shaped by a brushstroke the
- * player picks, and goes on the canvas. The only goal is the chest: the
- * Treasure Chest paint's level when the canvas is full, with Lv7 the prize.
+ * player picks, and goes on the canvas. The goal is the chest: the Treasure
+ * Chest paint's level when the canvas is full, with Lv7 the prize. Without a
+ * chest, the goal is as many rainbow (Lv7) paints as possible.
  * Rules come from the game's texts and gameplay footage; the odds the game
  * hides are practice values, adjustable in DEFAULT_PARAMS. No DOM, so it also
  * runs under Node. */
@@ -92,6 +93,7 @@
     forcedCost: [5, 10, 15], // Colored Snow for each use
     redrawCost: 5, // Colored Snow to start over
     chestValue: [0, 1, 1, 2, 4, 8, 20, 100], // what a chest is worth by final level 0-7
+    rainbowValue: 4, // each other Lv7 (rainbow) paint: the goal when there's no chest
   };
 
   // ---------- Randomness ----------
@@ -288,9 +290,13 @@
   }
 
   // What the canvas is worth now: its chests by level.
+  // Rainbow (Lv7) paints other than chests: the goal on a canvas without one.
+  const rainbows = (state) => state.cells.filter((c) => c.paint && c.paint.level >= MAX_LEVEL && !isChest(c.paint)).length;
+
+  // What the canvas is worth: its chests by level, then its other rainbows.
   function score(state) {
     const P = state.params;
-    return chests(state).reduce((s, n) => s + P.chestValue[state.cells[n].paint.level], 0);
+    return chests(state).reduce((s, n) => s + P.chestValue[state.cells[n].paint.level], 0) + (P.rainbowValue || 0) * rainbows(state);
   }
 
   const bestChest = (state) => Math.max(0, ...chests(state).map((n) => state.cells[n].paint.level));
@@ -332,7 +338,8 @@
     state.phase = 'done';
     state.offer = null;
     const lv = bestChest(state);
-    log(state, lv ? `Canvas finished: the Treasure Chest reached Lv${lv}${lv >= MAX_LEVEL ? '!' : '.'}` : 'Canvas finished, with no Treasure Chest.');
+    const r = rainbows(state);
+    log(state, `${lv ? `Canvas finished: the Treasure Chest reached Lv${lv}${lv >= MAX_LEVEL ? '!' : '.'}` : 'Canvas finished, with no Treasure Chest.'} ${r} other rainbow paint${r === 1 ? '' : 's'}.`);
   }
 
   // Meets the active objective (or forces it): matching paints in range rise.
@@ -556,7 +563,7 @@
   const api = {
     VERSION, SIZE, CELLS, MAX_LEVEL, MONSTERS, GAMEPLAY, GAMEPLAY_HIGH, CHEST, RANGES, RANGE_IDS, TARGETS, DIRECTIONS, EFFECTS, EFFECT_IDS, DEFAULT_PARAMS,
     newCanvas, normalizeParams, place, force, chooseDirection, chooseEffect, refresh, placeColoring, placeTargets,
-    rangeCells, progress, openInRange, blankCells, fillable, filled, chests, bestChest, score, isChest, matches, paintName,
+    rangeCells, progress, openInRange, blankCells, fillable, filled, chests, bestChest, rainbows, score, isChest, matches, paintName,
     rowOf, colOf, cellLabel, objectiveText, effectText, clone, rand, makePaint, randomPaint, randomColoring, sortInventory, finish,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;

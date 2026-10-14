@@ -1,16 +1,17 @@
 #!/usr/bin/env node
 /* Tartarus Simulator: the Frozen Canvas lab.
  * Plays canvases with the trainer's strategy (js/canvas-solver.js) and
- * measures how often the Treasure Chest reaches Lv7.
+ * measures the two goals: a Lv7 Treasure Chest on canvases that have one,
+ * and rainbow (Lv7) paints on canvases that don't.
  *
- *   node tools/canvas-sim.js eval [--games 100000] [--seed WORD]
+ *   node tools/canvas-sim.js eval [--games 100000] [--seed WORD] [--solver path]
  *
- * 100,000 canvases keep the Lv7 rate's margin near ±0.5 points (the lab's
- * ±0.01 target). Only canvases with a chest count toward the rate. */
+ * 100,000 canvases keep the margins near the lab's ±0.01 target. --solver
+ * plays another version of the strategy, to compare. */
 'use strict';
 
+const path = require('path');
 const C = require('../js/canvas-engine.js');
-const S = require('../js/canvas-solver.js');
 
 const args = process.argv.slice(2);
 const opt = (name, fallback) => {
@@ -20,40 +21,49 @@ const opt = (name, fallback) => {
 const mode = args[0] && !args[0].startsWith('--') ? args[0] : 'eval';
 const games = Number(opt('games', 100000));
 const seed = opt('seed', 'LAB');
+global.TartarusCanvas = C;
+const S = require(opt('solver', null) ? path.resolve(opt('solver')) : '../js/canvas-solver.js');
+
+const margin = (p, n) => 1.96 * Math.sqrt((p * (1 - p)) / n);
 
 function evaluate() {
   const t0 = Date.now();
-  let withChest = 0;
-  let lv7 = 0;
-  let levels = 0;
-  let forced = 0;
-  let snow = 0;
-  let objectives = 0;
-  const hist = [0, 0, 0, 0, 0, 0, 0, 0];
+  const chest = { n: 0, lv7: 0, levels: 0, rainbows: 0, forced: 0, hist: [0, 0, 0, 0, 0, 0, 0, 0] };
+  const none = { n: 0, rainbows: 0, sq: 0, forced: 0, chestFound: 0, hist: {} };
   for (let g = 0; g < games; g++) {
     const st = C.newCanvas({ seed: `${seed}-${g}` });
-    if (!st.inventory.some(C.isChest)) continue;
+    const had = st.inventory.some(C.isChest);
     S.playout(st);
-    withChest += 1;
-    const lv = C.bestChest(st);
-    hist[lv] += 1;
-    levels += lv;
-    if (lv >= C.MAX_LEVEL) lv7 += 1;
-    forced += st.stats.forced;
-    snow += st.snow;
-    objectives += st.stats.objectives;
+    const r = C.rainbows(st);
+    if (had) {
+      const lv = C.bestChest(st);
+      chest.n += 1;
+      chest.hist[lv] += 1;
+      chest.levels += lv;
+      chest.rainbows += r;
+      chest.forced += st.stats.forced;
+      if (lv >= C.MAX_LEVEL) chest.lv7 += 1;
+    } else {
+      none.n += 1;
+      none.rainbows += r;
+      none.sq += r * r;
+      none.forced += st.stats.forced;
+      none.hist[r] = (none.hist[r] || 0) + 1;
+      if (C.chests(st).length) none.chestFound += 1;
+    }
   }
-  const p = lv7 / withChest;
-  const margin = 1.96 * Math.sqrt((p * (1 - p)) / withChest);
-  console.log(`${games.toLocaleString()} canvases, ${withChest.toLocaleString()} with a Treasure Chest (${((100 * withChest) / games).toFixed(1)}%), in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
-  console.log(`Lv7 chest: ${(100 * p).toFixed(1)}% ± ${(100 * margin).toFixed(1)} of chest canvases`);
-  console.log(`Average final chest level: ${(levels / withChest).toFixed(2)}`);
-  console.log(`Final levels 1-7: ${hist.slice(1).map((n) => `${((100 * n) / withChest).toFixed(1)}%`).join('  ')}`);
-  console.log(`Per chest canvas: ${(objectives / withChest).toFixed(1)} objectives met, ${(forced / withChest).toFixed(2)} forced (${(snow / withChest).toFixed(1)} Colored Snow)`);
+  const p = chest.lv7 / chest.n;
+  const mean = none.rainbows / none.n;
+  const sd = Math.sqrt(none.sq / none.n - mean * mean);
+  console.log(`${games.toLocaleString()} canvases in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+  console.log(`With a chest (${chest.n.toLocaleString()}): Lv7 chest ${(100 * p).toFixed(1)}% ± ${(100 * margin(p, chest.n)).toFixed(1)}, average chest Lv${(chest.levels / chest.n).toFixed(2)}, ${(chest.rainbows / chest.n).toFixed(2)} other rainbows, ${(chest.forced / chest.n).toFixed(2)} forced`);
+  console.log(`  Final chest levels 1-7: ${chest.hist.slice(1).map((n) => `${((100 * n) / chest.n).toFixed(1)}%`).join('  ')}`);
+  console.log(`Without a chest (${none.n.toLocaleString()}): ${mean.toFixed(3)} ± ${(1.96 * sd / Math.sqrt(none.n)).toFixed(3)} rainbow paints, ${(none.forced / none.n).toFixed(2)} forced, a chest re-rolled in on ${((100 * none.chestFound) / none.n).toFixed(1)}%`);
+  console.log(`  Rainbows per canvas: ${Object.keys(none.hist).map(Number).sort((a, b) => a - b).map((k) => `${k}: ${((100 * none.hist[k]) / none.n).toFixed(1)}%`).join('  ')}`);
 }
 
 if (mode === 'eval') evaluate();
 else {
-  console.error('Usage: node tools/canvas-sim.js eval [--games 100000] [--seed WORD]');
+  console.error('Usage: node tools/canvas-sim.js eval [--games 100000] [--seed WORD] [--solver path]');
   process.exit(2);
 }
