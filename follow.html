@@ -238,6 +238,7 @@
       <li><b>One window, only at moves.</b> It sees only the window you choose to share. It takes a single picture when the log shows a move, or when you press Take a picture now. Nothing is recorded in between.</li>
       <li><b>Pictures stay on your PC.</b> The screenshot reader reads each picture inside your browser. Unless you turn on Send the pictures, no picture leaves your PC.</li>
       <li><b>Sending is off until you turn it on.</b> With it on, each picture is shrunk to at most 1,280 pixels wide and 220 KB. It's sent with the few log lines that set it off and what the reader made of it. No account, no name, and no address goes with it.</li>
+      <li><b>Boards, only if you share boards.</b> The board it reads from each picture is treated like any board you ask about. If board sharing is on (the switch under the ask button), the board is shared for the odds study: its cells, day and tools, with no picture and nothing about you. Turn that switch off and nothing is shared.</li>
       <li><b>Off whenever you like.</b> Stop following and Stop sharing end it at once, as does your browser's own stop-sharing button. The bottom of this page turns it off for good.</li>
     </ul>
   </section>
@@ -275,7 +276,7 @@
     <div class="code" data-file="js/capture.js" data-region="share-window"></div>
 
     <h3>5. The picture is read into your board</h3>
-    <p>The screenshot reader, running in your browser, turns the picture into a board. The page loads that board and asks for advice. It keeps the pictures only in its list of the last 12, in memory, and they're gone when you close the tab. If Send the pictures is on, the picture is sent after it's read.</p>
+    <p>The screenshot reader, running in your browser, turns the picture into a board. The page loads that board and asks for advice. It keeps the pictures only in its list of the last 12, in memory, and they're gone when you close the tab. If board sharing is on, the board (never the picture) is shared like any board you ask about. If Send the pictures is on, the picture is sent after it's read.</p>
     <div class="code" data-file="js/auto.js" data-region="each-picture"></div>
 
     <h3>6. Sending, only if you turn it on</h3>
