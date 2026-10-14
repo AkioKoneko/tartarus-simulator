@@ -4,3 +4,6 @@ trainingdata/
 # Wrangler's local state and local-only secrets for `wrangler dev`.
 .wrangler/
 worker/.dev.vars
+
+# Tools that only run on this machine (the canvas screenshot watcher).
+local/
