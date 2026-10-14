@@ -257,6 +257,7 @@ The board analyzer shares the boards players ask about (see `worker/README.md`).
 node tools/live-data.js pull     # new boards from the collector (the workflow does this every 6 hours)
 node tools/live-data.js rates    # the report, also saved as beta/data/rates.json
 node tools/live-data.js rates --all   # also count guesses nobody confirmed
+node tools/live-data.js reports  # new reports of unknown events, instruments and gifts, into trainingdata/reports/
 ```
 
 It measures:

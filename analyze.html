@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261013h">
+<link rel="stylesheet" href="css/style.css?v=20261014a">
 </head>
 <body>
 <main class="analyzer" id="analyzer">
@@ -38,6 +38,7 @@
       <div>
         <h2 class="az-h2" id="az-scan-title">Read a screenshot</h2>
         <p class="az-scan-lede">Paste a screenshot of your prison screen (<kbd>Ctrl</kbd>+<kbd>V</kbd>), drop it here, or choose a file. The reader fills in your board, instruments, Chromatic prisoners, today's doors and the days until the riot. Check what it read, then use it. It's still learning: anything it's unsure of is marked Check.</p>
+        <p class="az-scan-lede">Seeing an event, instrument or gift the simulator doesn't have yet? <button type="button" class="link" data-report="other">Report it with a screenshot</button>.</p>
       </div>
       <div class="az-scan-buttons">
         <label class="btn" for="az-scan-file">Choose a screenshot</label>
@@ -78,6 +79,7 @@
           <section class="az-instruments-panel" aria-labelledby="az-instruments-title">
             <h3 class="az-game-h" id="az-instruments-title">Torture Instrument</h3>
             <div class="az-instruments" id="az-tools"></div>
+            <button type="button" class="az-report-link" data-report="tool">An instrument that isn't here? Report it</button>
           </section>
         </div>
         <div class="board az-board" id="az-board">
@@ -113,6 +115,7 @@
               <button type="button" data-v="execution">Execution</button>
             </div>
             <p class="field-note">The door the warden just opened held it. The inmate that came out must be in the warden's cell.</p>
+            <p class="field-note">A different event? <button type="button" class="link" data-report="event">Report it with a screenshot</button>.</p>
           </div>
           <div class="az-stepbox" data-step="choice">
             <span class="field-label">What's on offer</span>
@@ -122,6 +125,7 @@
               <button type="button" data-v="gift">Warden's Cache gift</button>
             </div>
             <div class="az-offer" id="az-offer"></div>
+            <p class="field-note">An instrument or gift that isn't listed? <button type="button" class="link" data-report="tool">Report it with a screenshot</button>.</p>
           </div>
           <div class="az-stepbox" data-step="window">
             <span class="field-label">Which window</span>
@@ -262,14 +266,15 @@
   <footer class="az-foot">
     <p>Made by <strong>CoffeeBns</strong>: <a href="https://twitch.tv/coffeebns" target="_blank" rel="noopener">twitch.tv/coffeebns</a> and <a href="https://youtube.com/@CoffeeBns" target="_blank" rel="noopener">youtube.com/@CoffeeBns</a>.</p>
     <p>The advice comes from the simulator's rules-based strategy, tuned over millions of simulated runs, with no AI involved. Each option is played out from your position many times, with everything you can't see re-rolled. The rules follow the season's video reveal, and odds are practice values, so live results may differ. Your board is saved in this browser. Boards you ask about in a row are also shared, with no account or address attached, so the simulator's odds can be measured against live. You can turn that off under the ask button.</p>
-    <p class="az-foot-links"><button type="button" class="link" id="az-open-sim">Play this position in the simulator</button></p>
+    <p class="az-foot-links"><button type="button" class="link" id="az-open-sim">Play this position in the simulator</button> · <button type="button" class="link" data-report="other">Report something the simulator doesn't have</button></p>
   </footer>
 </main>
 
-<script src="js/engine.js?v=20261013h"></script>
-<script src="js/board.js?v=20261013h"></script>
-<script src="js/solver.js?v=20261013h"></script>
-<script src="js/live.js?v=20261013h"></script>
-<script src="js/analyze.js?v=20261013h"></script>
+<script src="js/engine.js?v=20261014a"></script>
+<script src="js/board.js?v=20261014a"></script>
+<script src="js/solver.js?v=20261014a"></script>
+<script src="js/live.js?v=20261014a"></script>
+<script src="js/report.js?v=20261014a"></script>
+<script src="js/analyze.js?v=20261014a"></script>
 </body>
 </html>

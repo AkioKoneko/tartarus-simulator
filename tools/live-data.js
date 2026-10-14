@@ -7,6 +7,8 @@
  *
  *   node tools/live-data.js pull     new boards from the collector, then rates
  *   node tools/live-data.js rates    recompute beta/data/rates.json
+ *   node tools/live-data.js reports  download new reports of things the
+ *                                    simulator doesn't know yet (local only)
  *
  * pull needs the collector's address and export token, from LIVE_DATA_URL and
  * LIVE_DATA_TOKEN (or --url and --token). The repo's scheduled workflow,
@@ -64,6 +66,76 @@ async function pull() {
   }
   console.log(total ? `Pulled ${total} new ${total === 1 ? 'board' : 'boards'}.` : 'No new boards.');
   if (total || !fs.existsSync(RATES)) rates();
+}
+
+// ---------- Reports ----------
+// Reports of an event, instrument or gift the simulator doesn't know yet
+// (js/report.js) stay in the collector's database, out of this public repo:
+// they're free text and screenshots from anyone. This downloads the new ones,
+// screenshots included, into trainingdata/reports/ (gitignored), through
+// wrangler with your own Cloudflare login, so no export token is needed.
+
+const REPORTS = path.join(ROOT, 'trainingdata', 'reports');
+const IMAGE_EXT = { 'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/png': 'png' };
+
+// Runs one query on the live database. The SQL must not contain double quotes.
+function d1(sql) {
+  const { execSync } = require('child_process');
+  if (sql.includes('"')) throw new Error('No double quotes in the SQL.');
+  const out = execSync(`npx --yes wrangler d1 execute tartarus-live --remote --json --command "${sql}"`, {
+    cwd: path.join(ROOT, 'worker'),
+    encoding: 'utf8',
+    maxBuffer: 256 * 1024 * 1024,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const parsed = JSON.parse(out.slice(out.indexOf('[')));
+  return parsed[0].results || [];
+}
+
+const slug = (text) => (text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'unnamed';
+
+function reports() {
+  fs.mkdirSync(REPORTS, { recursive: true });
+  const statePath = path.join(REPORTS, 'state.json');
+  const state = readJson(statePath, { last: 0 });
+  const fresh = [];
+  for (;;) {
+    const rows = d1(`SELECT id, received, kind, name, body, image_type, image_size FROM reports WHERE id > ${Number(state.last) || 0} ORDER BY id LIMIT 200`);
+    if (!rows.length) break;
+    // Screenshots a few at a time: hex doubles their size on the way.
+    const shots = rows.filter((r) => r.image_size);
+    for (let i = 0; i < shots.length; i += 8) {
+      const ids = shots.slice(i, i + 8).map((r) => Number(r.id)).join(',');
+      for (const img of d1(`SELECT id, hex(image) AS hex FROM reports WHERE id IN (${ids})`)) {
+        const row = rows.find((r) => r.id === img.id);
+        row.file = `${String(row.id).padStart(5, '0')}-${row.kind}-${slug(row.name)}.${IMAGE_EXT[row.image_type] || 'bin'}`;
+        fs.writeFileSync(path.join(REPORTS, row.file), Buffer.from(img.hex, 'hex'));
+      }
+    }
+    const lines = rows.map(({ body, ...row }) => JSON.stringify(Object.assign(row, JSON.parse(body))));
+    fs.appendFileSync(path.join(REPORTS, 'reports.jsonl'), `${lines.join('\n')}\n`);
+    fresh.push(...rows);
+    state.last = rows[rows.length - 1].id;
+    writeJson(statePath, state);
+    if (rows.length < 200) break;
+  }
+  if (!fresh.length) {
+    console.log('No new reports.');
+    return;
+  }
+  // What was reported, most reports first.
+  const byName = new Map();
+  for (const r of fresh) {
+    const key = `${r.kind}: ${r.name || '(no name)'}`;
+    if (!byName.has(key)) byName.set(key, []);
+    byName.get(key).push(r);
+  }
+  console.log(`${fresh.length} new ${fresh.length === 1 ? 'report' : 'reports'} in ${path.relative(ROOT, REPORTS)}:`);
+  for (const [key, list] of [...byName].sort((a, b) => b[1].length - a[1].length)) {
+    const text = JSON.parse(list[list.length - 1].body).text;
+    const files = list.filter((r) => r.file).length;
+    console.log(`  ${key} (${list.length}${files ? `, ${files} screenshot${files === 1 ? '' : 's'}` : ''})${text ? `: ${text.slice(0, 100)}` : ''}`);
+  }
 }
 
 // ---------- Reading ----------
@@ -438,8 +510,9 @@ module.exports = { measure, observe, pairsOf, print };
 if (require.main === module) (async () => {
   if (mode === 'pull') await pull();
   else if (mode === 'rates') rates();
+  else if (mode === 'reports') reports();
   else {
-    console.error('Usage: node tools/live-data.js pull | rates [--all]');
+    console.error('Usage: node tools/live-data.js pull | rates [--all] | reports');
     process.exit(2);
   }
 })().catch((e) => {

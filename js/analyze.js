@@ -1760,7 +1760,10 @@
       if (file) readImageFile(file);
       e.target.value = '';
     });
+    // While the report dialog is open, pastes and drops are its screenshot.
+    const reporting = () => !!window.TartarusReport && TartarusReport.isOpen();
     document.addEventListener('paste', (e) => {
+      if (reporting()) return;
       const items = e.clipboardData ? [...e.clipboardData.items] : [];
       const item = items.find((i) => i.kind === 'file' && /^image\//.test(i.type));
       if (!item) return;
@@ -1770,7 +1773,7 @@
     });
     const hasFiles = (e) => !!e.dataTransfer && [...e.dataTransfer.types].includes('Files');
     document.addEventListener('dragover', (e) => {
-      if (!hasFiles(e)) return;
+      if (!hasFiles(e) || reporting()) return;
       e.preventDefault();
       $('az-scan').classList.add('is-drop');
     });
@@ -1778,13 +1781,20 @@
       if (!e.relatedTarget) $('az-scan').classList.remove('is-drop');
     });
     document.addEventListener('drop', (e) => {
-      if (!hasFiles(e)) return;
+      if (!hasFiles(e) || reporting()) return;
       e.preventDefault();
       $('az-scan').classList.remove('is-drop');
       const file = e.dataTransfer.files && e.dataTransfer.files[0];
       if (file) readImageFile(file);
     });
     $('az-scan-use').addEventListener('click', useScan);
+    // Reports of something new carry where the player was, nothing more.
+    if (window.TartarusReport) {
+      TartarusReport.setup({
+        app: 'analyze-20261014a',
+        context: () => ({ page: 'analyze', day: model.day, step: model.step, chain: model.chain }),
+      });
+    }
     $('az-toast-actions').addEventListener('click', (e) => {
       const b = e.target.closest('[data-toast]');
       if (!b) return;
