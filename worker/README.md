@@ -33,6 +33,17 @@ node tools/live-data.js reports --watch [--every 60]
 
 A check costs one small query, so a check every minute uses about 1,440 of the free plan's 5 million daily row reads. At about 50 KB a screenshot, a free 500 MB database holds around 10,000 of them next to the boards.
 
+## Pictures from Follow my game (beta)
+
+The analyzer's hidden Follow my game panel (`analyze.html?auto=1`, `js/auto.js` and `js/capture.js`) follows the player's game log and takes pictures of the shared game window. With "Send the pictures" on, each one goes to `POST /v1/captures`, shrunk to WebP of at most 1,280 pixels wide and 220 KB. Each picture comes with the log lines behind it and what the reader made of it.
+
+Pictures are kept in their own database, `tartarus-captures` (the `CAPTURES` binding), so they can never crowd out the boards. Until that database exists, the route answers "not open yet". `captures.sql` and `wrangler.jsonc` say how to create it. The Worker:
+- keeps 300 pictures per address a day, 1,500 from everyone a day, and 3,000 in all, then refuses more,
+- drops a picture it already has (the same bytes),
+- counts all that in single-row counters, so a full table costs no more to check than an empty one.
+
+To read them: `node tools/live-data.js captures` downloads the new pictures into `trainingdata/captures/<date>/` (gitignored). To make room, delete some rows and lower the `stored` counter in `counts` to match.
+
 ## Where the data goes
 
 `.github/workflows/live-data.yml` runs every 6 hours. It calls `node tools/live-data.js pull`, which:

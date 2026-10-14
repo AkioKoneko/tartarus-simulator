@@ -356,7 +356,7 @@
 
   const solver = { worker: null, failed: false, id: 0, st: null, key: '', instant: null, result: null };
 
-  function ask() {
+  function ask(quiet) {
     const { st, problems } = buildState(model);
     showProblems(problems);
     if (problems.length) return;
@@ -377,7 +377,7 @@
     const rollouts = clamp(Math.round(PLAYOUT_BUDGET / Math.max(1, options)), 400, 1600);
     startCheck(solver.id, st, rollouts);
     render();
-    $('az-results').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (quiet !== true) $('az-results').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
   function startCheck(id, st, rollouts) {
@@ -1242,6 +1242,12 @@
       toast('This browser couldn’t open that image.', 'bad');
       return;
     }
+    readBitmap(source);
+  }
+
+  // Reads a picture of the game (a pasted screenshot, or a frame from Follow
+  // my game). opts.quiet skips the prompts; opts.onRead hears how it went.
+  function readBitmap(source, opts) {
     // Very large screenshots are scaled down; the reader works at any size.
     const scale = Math.min(1, 2600 / source.width);
     const w = Math.round(source.width * scale);
@@ -1252,26 +1258,36 @@
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(source, 0, 0, w, h);
     reader.image = canvas;
-    runScan(ctx.getImageData(0, 0, w, h));
+    runScan(ctx.getImageData(0, 0, w, h), opts);
   }
 
-  function runScan(imageData) {
+  function runScan(imageData, opts) {
+    const o = opts || {};
     reader.id += 1;
     const id = reader.id;
     const t0 = performance.now();
     const done = (result, error) => {
-      if (id !== reader.id) return;
+      if (id !== reader.id) {
+        if (o.onRead) o.onRead({ ok: false, skipped: true, reason: 'a newer picture came in' });
+        return;
+      }
       reader.ms = Math.round(performance.now() - t0);
       if (error || !result) {
         reader.result = null;
         scanStatus(`The reader hit a problem: ${error || 'no result'}.`, true);
-        toast(`The reader hit a problem: ${error || 'no result'}.`, 'bad');
+        if (!o.quiet) toast(`The reader hit a problem: ${error || 'no result'}.`, 'bad');
         renderScan();
+        if (o.onRead) o.onRead({ ok: false, reason: error || 'no result', ms: reader.ms });
         return;
       }
       reader.result = result;
       reader.reading = result.ok ? scanToModel(result, model) : null;
       scanStatus(result.ok ? `Read in ${(reader.ms / 1000).toFixed(1)} s. Check it below, then use it.` : `${result.reason} Try a screenshot of the prison screen, with the whole board in view.`, !result.ok);
+      if (o.onRead) o.onRead(result.ok ? { ok: true, day: reader.reading.model.day, unsure: reader.reading.checks.size, ms: reader.ms } : { ok: false, reason: result.reason, ms: reader.ms });
+      if (o.quiet) {
+        renderScan();
+        return;
+      }
       if (!result.ok) toast(`${result.reason} Try a screenshot of the prison screen, with the whole board in view.`, 'bad');
       else {
         const m = reader.reading.model;
@@ -1519,7 +1535,7 @@
     ctx.setLineDash([]);
   }
 
-  function useScan() {
+  function useScan(quiet) {
     const rd = reader.reading;
     if (!rd) return;
     undo.push({ model: JSON.parse(JSON.stringify(model)), selected });
@@ -1534,6 +1550,7 @@
     renderScan();
     changed();
     scanStatus(rd.checks.size ? `Board filled in. Check the ${T.plural(rd.checks.size, 'cell')} marked Check, then ask what to do.` : 'Board filled in. Look it over, then ask what to do.');
+    if (quiet === true) return;
     toast(rd.checks.size ? `Loaded day ${model.day}. Check the ${T.plural(rd.checks.size, 'cell')} marked Check, then ask what to do.` : `Loaded day ${model.day}. Ask what to do when it looks right.`, 'ok');
     $('az-board').scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
@@ -1690,7 +1707,7 @@
       changed();
     });
 
-    $('az-go').addEventListener('click', ask);
+    $('az-go').addEventListener('click', () => ask());
     $('az-do').addEventListener('click', () => {
       const rec = fresh() ? recommendation() : null;
       if (rec) doMove(rec.action);
@@ -1813,7 +1830,17 @@
       const file = e.dataTransfer.files && e.dataTransfer.files[0];
       if (file) readImageFile(file);
     });
-    $('az-scan-use').addEventListener('click', useScan);
+    $('az-scan-use').addEventListener('click', () => useScan());
+    // Follow my game (js/auto.js, beta): read frames of the game, load
+    // them, and ask, without the prompts a pasted screenshot gets.
+    window.TartarusAnalyzer = {
+      readFrame: (bitmap) => new Promise((resolve) => readBitmap(bitmap, { quiet: true, onRead: resolve })),
+      useReading: () => useScan(true),
+      ask: () => ask(true),
+      recommendation: () => (fresh() ? recommendation() : null),
+      day: () => model.day,
+      toast,
+    };
     // Reports of something new carry where the player was, nothing more.
     if (window.TartarusReport) {
       TartarusReport.setup({

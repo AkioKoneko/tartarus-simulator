@@ -4390,3 +4390,149 @@ textarea {
 .rp .sheet-body > .field-note:first-child {
   margin: 0 0 14px;
 }
+
+/* Follow my game (js/auto.js, beta) */
+
+.az-auto-beta {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--teal) 70%, transparent);
+  border-radius: var(--radius);
+  color: var(--teal);
+  font: 600 11px/1.2 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.az-auto-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.az-auto-step {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid var(--iron);
+  border-radius: var(--radius);
+}
+
+.az-auto-step .field-note {
+  margin: 6px 0 0;
+}
+
+.az-auto-n {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--teal) 22%, var(--slab-hi));
+  color: var(--teal);
+  font-weight: 700;
+}
+
+.az-auto-note {
+  min-height: 1.2em;
+  margin: 10px 0 0;
+  color: var(--blood);
+}
+
+.az-auto-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.az-auto-caps {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.az-auto-caps li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 8px;
+  border: 1px solid var(--iron);
+  border-radius: var(--radius);
+}
+
+.az-auto-caps li p {
+  margin: 0;
+}
+
+.az-auto-caps img,
+.az-auto-nothumb {
+  display: block;
+  flex: none;
+  width: 160px;
+  max-width: 40vw;
+  aspect-ratio: 2560 / 1080;
+  object-fit: cover;
+  border-radius: 2px;
+  background: var(--slab-hi);
+}
+
+.az-auto-empty {
+  color: var(--ash);
+  border-style: dashed !important;
+}
+
+.az-auto-dev {
+  margin-top: 14px;
+}
+
+.az-auto-dev summary {
+  cursor: pointer;
+  color: var(--ash);
+}
+
+.az-auto-dev textarea,
+.az-auto-dev input[type="text"] {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.az-auto-seen {
+  max-height: 320px;
+  overflow: auto;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  font: 12px/1.45 var(--font-mono);
+}
+
+.az-auto-seen li {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--iron);
+  color: var(--ash);
+  overflow-wrap: anywhere;
+}
+
+.az-auto-seen li.is-hit {
+  color: var(--chalk);
+}
+
+.az-auto-at {
+  flex: none;
+  color: var(--iron-hi);
+}
+
+.az-auto-kind {
+  flex: none;
+  color: var(--teal);
+}

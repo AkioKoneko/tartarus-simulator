@@ -12,6 +12,12 @@
       "database_name": "tartarus-live",
       "database_id": "cd66b631-39c6-44b6-92e3-bcafd87c76e0"
     }
+    // Follow my game's pictures (POST /v1/captures) get their own database.
+    // Until it's created, that route answers "not open yet". To open it:
+    //   npx wrangler d1 create tartarus-captures
+    //   npx wrangler d1 execute tartarus-captures --remote --file captures.sql
+    // then add here, with the id the create printed, and deploy:
+    // , { "binding": "CAPTURES", "database_name": "tartarus-captures", "database_id": "..." }
   ],
   // Per address: at most 60 uploads a minute (each carries up to 10 boards).
   "ratelimits": [
