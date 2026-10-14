@@ -1,0 +1,23 @@
+{
+  // Run and Debug (F5): the local copy of the site, for testing before a push.
+  // Pages reload themselves when a site file changes, and the server restarts
+  // when tools/serve.js changes. The browser opens when it's ready.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Local site",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/serve.js",
+      "args": ["--live"],
+      "runtimeArgs": ["--watch-path=${workspaceFolder}/tools/serve.js"],
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"],
+      "serverReadyAction": {
+        "pattern": "http://localhost:([0-9]+)/",
+        "uriFormat": "http://localhost:%s/analyze.html",
+        "action": "openExternally"
+      }
+    }
+  ]
+}

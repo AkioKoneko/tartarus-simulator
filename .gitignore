@@ -7,3 +7,7 @@ worker/.dev.vars
 
 # Tools that only run on this machine (the canvas screenshot watcher).
 local/
+
+# Test files: served by the local site (tools/serve.js), never committed.
+sandbox/*
+!sandbox/README.md

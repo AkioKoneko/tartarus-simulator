@@ -1,0 +1,15 @@
+{
+  // Terminal > Run Task > "Local site": the same local copy of the site as
+  // Run and Debug's "Local site", without the debugger.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Local site",
+      "type": "shell",
+      "command": "node --watch-path=tools/serve.js tools/serve.js --live",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    }
+  ]
+}
