@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261014e">
+<link rel="stylesheet" href="css/style.css?v=20261014f">
 </head>
 <body>
 <main class="analyzer" id="analyzer">
@@ -66,7 +66,7 @@
     <div class="az-scan-head">
       <div>
         <h2 class="az-h2" id="az-auto-title">Follow my game <span class="az-auto-beta">Beta</span></h2>
-        <p class="az-scan-lede">Connect your game log and share the game window, and the analyzer follows along. Each time the log shows a move, it takes a picture of the game, reads the board and refreshes the advice. Chrome or Edge on a PC, with the game borderless or windowed. Pictures stay in this browser unless you turn on sending. <a href="follow.html">How it works, with its code</a>.</p>
+        <p class="az-scan-lede">Connect your game log and share the game window, and the analyzer follows along. Each time the log shows a move, it takes a picture of the game, reads the board and refreshes the advice. Chrome or Edge on a PC, with the game borderless or windowed. Pictures never leave this browser. <a href="follow.html">How it works, with its code</a>.</p>
       </div>
     </div>
     <div class="az-auto-gate" id="az-auto-gate" hidden>
@@ -103,7 +103,6 @@
     <div class="az-auto-options">
       <label class="toggle"><input type="checkbox" id="az-auto-read"><span><strong>Read each picture into the board</strong><small>Cells it's unsure of are marked Check.</small></span></label>
       <label class="toggle"><input type="checkbox" id="az-auto-ask"><span><strong>Then ask what to do</strong><small>The advice refreshes after every move.</small></span></label>
-      <label class="toggle"><input type="checkbox" id="az-auto-send"><span><strong>Send the pictures to help train the reader</strong><small>Shrunk pictures of the game window go to the simulator's private database.</small></span></label>
     </div>
     <ol class="az-auto-caps" id="az-auto-caps" aria-live="polite"></ol>
     <details class="az-auto-dev">
@@ -327,13 +326,13 @@
   </footer>
 </main>
 
-<script src="js/engine.js?v=20261014e"></script>
-<script src="js/board.js?v=20261014e"></script>
-<script src="js/solver.js?v=20261014e"></script>
-<script src="js/live.js?v=20261014e"></script>
-<script src="js/report.js?v=20261014e"></script>
-<script src="js/capture.js?v=20261014e"></script>
-<script src="js/analyze.js?v=20261014e"></script>
-<script src="js/auto.js?v=20261014e"></script>
+<script src="js/engine.js?v=20261014f"></script>
+<script src="js/board.js?v=20261014f"></script>
+<script src="js/solver.js?v=20261014f"></script>
+<script src="js/live.js?v=20261014f"></script>
+<script src="js/report.js?v=20261014f"></script>
+<script src="js/capture.js?v=20261014f"></script>
+<script src="js/analyze.js?v=20261014f"></script>
+<script src="js/auto.js?v=20261014f"></script>
 </body>
 </html>

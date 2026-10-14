@@ -12,8 +12,6 @@
  *   node tools/live-data.js reports --watch [--every 60]
  *                                    keep checking, and print a NEW REPORT
  *                                    line for each one as it arrives
- *   node tools/live-data.js captures download new pictures from Follow my
- *                                    game (local only)
  *
  * pull needs the collector's address and export token, from LIVE_DATA_URL and
  * LIVE_DATA_TOKEN (or --url and --token). The repo's scheduled workflow,
@@ -152,38 +150,6 @@ function reports(opts) {
     console.log(`  ${key} (${list.length}${files ? `, ${files} screenshot${files === 1 ? '' : 's'}` : ''})${text ? `: ${text.slice(0, 100)}` : ''}`);
   }
   return fresh;
-}
-
-// Pictures from Follow my game (js/auto.js) live in their own database,
-// tartarus-captures. This downloads the new ones into
-// trainingdata/captures/<date>/, with captures.jsonl saying which log lines
-// set each one off and what the reader made of it.
-function captures() {
-  const DIR = path.join(ROOT, 'trainingdata', 'captures');
-  fs.mkdirSync(DIR, { recursive: true });
-  const statePath = path.join(DIR, 'state.json');
-  const state = readJson(statePath, { last: 0 });
-  let total = 0;
-  for (;;) {
-    const rows = d1(`SELECT id, received, client, kind, body, image_type, image_size FROM captures WHERE id > ${Number(state.last) || 0} ORDER BY id LIMIT 100`, 'tartarus-captures');
-    if (!rows.length) break;
-    for (let i = 0; i < rows.length; i += 5) {
-      const ids = rows.slice(i, i + 5).map((r) => Number(r.id)).join(',');
-      for (const img of d1(`SELECT id, hex(image) AS hex FROM captures WHERE id IN (${ids})`, 'tartarus-captures')) {
-        const row = rows.find((r) => r.id === img.id);
-        const day = /^\d{4}-\d{2}-\d{2}$/.test(row.received) ? row.received : 'unknown';
-        fs.mkdirSync(path.join(DIR, day), { recursive: true });
-        row.file = path.join(day, `${String(row.id).padStart(6, '0')}-${row.kind}.${IMAGE_EXT[row.image_type] || 'bin'}`);
-        fs.writeFileSync(path.join(DIR, row.file), Buffer.from(img.hex, 'hex'));
-      }
-    }
-    fs.appendFileSync(path.join(DIR, 'captures.jsonl'), `${rows.map(({ body, ...row }) => JSON.stringify(Object.assign(row, JSON.parse(body)))).join('\n')}\n`);
-    total += rows.length;
-    state.last = rows[rows.length - 1].id;
-    writeJson(statePath, state);
-    if (rows.length < 100) break;
-  }
-  console.log(total ? `${total} new ${total === 1 ? 'picture' : 'pictures'} in ${path.relative(ROOT, DIR)}.` : 'No new pictures.');
 }
 
 // Checks for new reports every --every seconds (60 by default) until
@@ -574,13 +540,12 @@ module.exports = { measure, observe, pairsOf, print };
 if (require.main === module) (async () => {
   if (mode === 'pull') await pull();
   else if (mode === 'rates') rates();
-  else if (mode === 'captures') captures();
   else if (mode === 'reports') {
     if (args.includes('--watch')) await watchReports();
     else reports();
   }
   else {
-    console.error('Usage: node tools/live-data.js pull | rates [--all] | reports [--watch] [--every 60] | captures');
+    console.error('Usage: node tools/live-data.js pull | rates [--all] | reports [--watch] [--every 60]');
     process.exit(2);
   }
 })().catch((e) => {

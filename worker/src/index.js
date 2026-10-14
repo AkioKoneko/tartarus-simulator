@@ -18,12 +18,6 @@ const DAILY_REPORTS = 20; // reports per address per day
 const IMAGES_PER_NAME = 3; // screenshots kept per reported name; later reports keep their text only
 const REPORT_KINDS = ['event', 'tool', 'gift', 'other'];
 const IMAGE_TYPES = ['image/webp', 'image/jpeg', 'image/png'];
-// Pictures from Follow my game (js/auto.js), in their own database (the
-// CAPTURES binding), so they can never crowd out the boards.
-const MAX_CAPTURE = 240000; // bytes per picture, after the page shrinks it
-const DAILY_CAPTURES = 300; // pictures per address per day
-const DAILY_CAPTURES_ALL = 1500; // pictures from everyone per day
-const MAX_CAPTURES_STORED = 3000; // then none until the maintainer clears some
 
 const STEPS = ['patrol', 'manage', 'event', 'choice', 'window'];
 const KINDS = ['sealed', 'inmate', 'empty', 'scratch', 'scouted', 'nest'];
@@ -50,7 +44,6 @@ export default {
     try {
       if (url.pathname === '/v1/snapshots' && request.method === 'POST') return await receive(request, env);
       if (url.pathname === '/v1/reports' && request.method === 'POST') return await receiveReport(request, env);
-      if (url.pathname === '/v1/captures' && request.method === 'POST') return await receiveCapture(request, env);
       if (url.pathname === '/v1/export' && request.method === 'GET') return await exportRows(request, env, url);
       if (url.pathname === '/v1/health') return json({ ok: true });
       return json({ error: 'Not found.' }, 404);
@@ -202,66 +195,6 @@ function cleanImage(img, max = MAX_IMAGE) {
   if (!real) bad('image');
   return { type, bytes, hash: '' };
 }
-
-// #region captures
-// ---------- Captures ----------
-// A picture of the game window, taken when the player's log showed a move,
-// with the log lines behind it and what the reader made of it. Counters
-// keep each upload to a few single-row writes, however full the table gets.
-
-async function receiveCapture(request, env) {
-  if (!env.CAPTURES) return json({ error: 'Sending pictures isn’t open yet.' }, 503);
-  const text = await request.text();
-  if (text.length > Math.ceil((MAX_CAPTURE * 4) / 3) + 20000) return json({ error: 'Too large.' }, 413);
-  let input;
-  try {
-    input = JSON.parse(text);
-  } catch (e) {
-    return json({ error: 'Not JSON.' }, 400);
-  }
-  const day = new Date().toISOString().slice(0, 10);
-  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-  const key = await sha256(`${env.IP_SALT || ''}|${day}|${ip}|captures`);
-  if (env.LIMIT) {
-    const { success } = await env.LIMIT.limit({ key });
-    if (!success) return json({ error: 'Too many pictures. Try again in a minute.' }, 429);
-  }
-  let c;
-  try {
-    c = cleanCapture(input);
-  } catch (e) {
-    return json({ error: e.message === 'Bad image size' ? 'The picture is too large.' : 'That picture is missing something or has something it shouldn’t.' }, 400);
-  }
-  const db = env.CAPTURES;
-  const count = (k) => db.prepare('INSERT INTO counts (key, n) VALUES (?1, 1) ON CONFLICT(key) DO UPDATE SET n = n + 1 RETURNING n').bind(k).first('n');
-  if ((await count(key)) > DAILY_CAPTURES) return json({ error: 'That’s the most pictures for today. Thank you!' }, 429);
-  if ((await count(`day:${day}`)) > DAILY_CAPTURES_ALL) return json({ error: 'The simulator has enough pictures for today. Thank you!' }, 429);
-  c.hash = await sha256Bytes(c.image.bytes);
-  if (await db.prepare('SELECT 1 FROM captures WHERE image_hash = ? LIMIT 1').bind(c.hash).first()) return json({ stored: 0, same: true });
-  if ((await count('stored')) > MAX_CAPTURES_STORED) return json({ error: 'The picture store is full for now. Thank you!' }, 507);
-  const result = await db.prepare('INSERT OR IGNORE INTO captures (uid, received, client, app, kind, body, image, image_type, image_hash, image_size) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .bind(c.uid, day, c.client, c.app, c.kind, JSON.stringify({ hits: c.hits, read: c.read }), c.image.bytes, c.image.type, c.hash, c.image.bytes.byteLength)
-    .run();
-  return json({ stored: result.meta.changes || 0 });
-}
-
-function cleanCapture(c) {
-  if (!c || typeof c !== 'object') bad('capture');
-  const id = (v, what) => (typeof v === 'string' && ID.test(v) ? v : bad(what));
-  const plain = (v, max) => (typeof v === 'string' ? v.replace(/[\u0000-\u001F\u007F]/g, ' ').trim().slice(0, max) : '');
-  const r = c.read && typeof c.read === 'object' ? c.read : null;
-  return {
-    uid: id(c.uid, 'uid'),
-    client: id(c.client, 'client'),
-    app: typeof c.app === 'string' && /^[\w.-]{0,24}$/.test(c.app) ? c.app : bad('app'),
-    kind: word(c.kind),
-    hits: list(c.hits || [], 20, (h) => ({ kind: word(h && h.kind), at: plain(h && h.at, 32), text: plain(h && h.text, 120) }), 'hits'),
-    read: r ? { ok: bool(r.ok), day: r.day == null ? null : int(r.day, 1, 60, 'day'), unsure: int(r.unsure || 0, 0, 16, 'unsure'), reason: plain(r.reason, 200) } : null,
-    image: cleanImage(c.image, MAX_CAPTURE),
-  };
-}
-
-// #endregion
 
 // ---------- Cleaning ----------
 // Each snapshot is rebuilt from the fields the analyzer sends. Anything out

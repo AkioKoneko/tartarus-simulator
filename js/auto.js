@@ -2,9 +2,10 @@
  * The analyzer's panel for js/capture.js. The player connects the game log
  * and shares the game window; each time the log shows a move, the frame it
  * grabs is read into the board (TartarusAnalyzer.readFrame) and the advice
- * refreshes. Captures can also be sent, shrunk, to help train the reader.
- * The triggers are editable on the page while the prison's log lines are
- * being worked out. ?auto=1 turns the panel on in this browser, ?auto=0 off. */
+ * refreshes. Pictures never leave the browser. The triggers are editable on
+ * the page while the prison's log lines are being worked out. ?auto=1 shows
+ * the panel in this browser, ?auto=0 hides it; nothing in it runs until the
+ * player agrees on follow.html. */
 (function () {
   'use strict';
 
@@ -14,10 +15,7 @@
   if (!C || !A || !panel) return;
 
   const KEY = 'tartarus-sim:auto:v1';
-  const ENDPOINT = 'https://tartarus-live.blahdot3h.workers.dev';
-  const MAX_SEND = 220000; // bytes per capture sent
-  const SEND_WIDTH = 1280;
-  const KEEP = 12; // captures listed
+  const KEEP = 12; // pictures listed
   const RANK = { board: 1, brushstroke: 2, open: 3, startover: 4, chest: 5, finish: 6, manual: 7 };
   // #region default-triggers
   // The prison's log lines aren't known until the season starts. Until
@@ -46,34 +44,36 @@
       return {};
     }
   }
-  const prefs = Object.assign({ enabled: false, consent: 0, rules: DEFAULT_RULES, watch: DEFAULT_WATCH, read: true, ask: true, send: false, client: '' }, load());
+  // The panel saves only its own settings. Whether Follow my game is on (the
+  // player's agreement) is written only by follow.html.
+  const OWN = ['show', 'rules', 'watch', 'read', 'ask'];
+  const prefs = Object.assign({ show: false, rules: DEFAULT_RULES, watch: DEFAULT_WATCH, read: true, ask: true }, load());
   const save = () => {
     try {
-      localStorage.setItem(KEY, JSON.stringify(prefs));
+      const all = load();
+      for (const k of OWN) all[k] = prefs[k];
+      localStorage.setItem(KEY, JSON.stringify(all));
     } catch (e) {
       // Private windows can refuse; settings last until the tab closes.
     }
   };
+  // While it's in beta, the panel shows only with ?auto=1 (?auto=0 hides it).
   const flag = new URLSearchParams(location.search).get('auto');
-  if (flag === '1') prefs.enabled = true;
-  if (flag === '0') prefs.enabled = false;
-  if (!prefs.client) prefs.client = randomId();
-  save();
-  panel.hidden = !prefs.enabled;
-  if (!prefs.enabled) return;
+  if (flag === '1' || flag === '0') {
+    prefs.show = flag === '1';
+    save();
+  }
+  panel.hidden = !prefs.show;
+  if (!prefs.show) return;
+  // #region agreement
   // Nothing runs until the player has read follow.html and agreed to this
-  // version of it.
-  const agreed = prefs.consent === C.CONSENT_VERSION;
+  // version of it: the panel shows only a link to that page, and none of
+  // the code below (connecting the log, sharing a window) is set up.
+  const agreed = C.agreed();
   $('az-auto-gate').hidden = agreed;
   $('az-auto-body').hidden = !agreed;
   if (!agreed) return;
-
-  function randomId() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    const bytes = new Uint8Array(20);
-    crypto.getRandomValues(bytes);
-    return [...bytes].map((b) => chars[b % chars.length]).join('');
-  }
+  // #endregion
 
   // "kind | pattern | settle" lines into triggers.
   function parseRules(text) {
@@ -90,7 +90,7 @@
 
   // ---------- The panel ----------
 
-  const captures = []; // newest first: { id, time, kind, hits, thumb, read, sent }
+  const captures = []; // newest first: { id, time, kind, hits, thumb, full, read }
   const seen = []; // newest first: { at, line, kind }
   let nextId = 1;
   let reading = null; // the capture being read
@@ -115,14 +115,13 @@
 
   function renderCaptures() {
     $('az-auto-caps').innerHTML = captures.map((c) => {
-      const read = !c.frame ? 'No picture: share the game window.'
+      const read = !c.frame ? `No picture: ${c.why || 'share the game window first.'}`
         : !c.read ? (prefs.read ? 'Reading…' : 'Not read (reading is off).')
           : c.read.skipped ? 'Skipped: a newer picture came in.'
             : c.read.ok ? `Read day ${c.read.day}${c.read.unsure ? `, ${c.read.unsure} to check` : ''} in ${(c.read.ms / 1000).toFixed(1)} s${c.used ? ', loaded' : ''}${c.asked ? ', asked' : ''}.`
               : `Not read: ${c.read.reason}`;
-      const sent = c.sent ? ` · ${esc(c.sent)}` : '';
       const why = c.hits.length ? c.hits.map((h) => h.text || h.kind).slice(0, 3).join(', ') : c.kind;
-      return `<li>${c.thumb ? `<a href="${c.full || c.thumb}" target="_blank" rel="noopener"><img src="${c.thumb}" alt="The game at ${esc(c.time.toLocaleTimeString())}"></a>` : '<span class="az-auto-nothumb"></span>'}<div><p><b>${esc(c.kind)}</b> · ${esc(c.time.toLocaleTimeString())}</p><p class="field-note">${esc(why)}</p><p class="field-note">${esc(read)}${sent}</p></div></li>`;
+      return `<li>${c.thumb ? `<a href="${c.full || c.thumb}" target="_blank" rel="noopener"><img src="${c.thumb}" alt="The game at ${esc(c.time.toLocaleTimeString())}"></a>` : '<span class="az-auto-nothumb"></span>'}<div><p><b>${esc(c.kind)}</b> · ${esc(c.time.toLocaleTimeString())}</p><p class="field-note">${esc(why)}</p><p class="field-note">${esc(read)}</p></div></li>`;
     }).join('') || '<li class="az-auto-empty">No pictures yet. They come when the log shows a move, or when you press Take a picture now.</li>';
   }
 
@@ -147,43 +146,12 @@
     return null;
   }
 
-  const base64 = (blob) => new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result).split(',')[1] || '');
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(blob);
-  });
-
-  // #region send
-  async function send(c) {
-    c.sent = 'sending…';
-    renderCaptures();
-    try {
-      const blob = await shrink(c.frame, SEND_WIDTH, MAX_SEND);
-      if (!blob) throw new Error('too large to send');
-      const body = JSON.stringify({
-        uid: randomId(),
-        client: prefs.client,
-        app: 'analyze-auto',
-        kind: c.kind,
-        hits: c.hits.slice(0, 20),
-        read: c.read ? { ok: !!c.read.ok, day: c.read.day || null, unsure: c.read.unsure || 0, reason: c.read.reason || '' } : null,
-        image: { type: blob.type, data: await base64(blob) },
-      });
-      const res = await fetch(`${ENDPOINT}/v1/captures`, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body });
-      const out = await res.json().catch(() => ({}));
-      c.sent = res.ok ? `sent (${Math.round(blob.size / 1000)} KB)` : `not sent: ${out.error || `HTTP ${res.status}`}`;
-    } catch (e) {
-      c.sent = `not sent: ${e.message || e}`;
-    }
-    renderCaptures();
-  }
-
-  // #endregion
-
   // #region each-picture
+  // Each picture is read into the board in this browser, and the 12 newest
+  // are listed here as small previews, in memory only: closing the tab
+  // drops them. Nothing is uploaded.
   async function onFrame(f) {
-    const c = { id: nextId++, time: f.time, kind: f.kind, hits: f.hits || [], frame: f.frame, read: null, sent: '', thumb: '', full: '' };
+    const c = { id: nextId++, time: f.time, kind: f.kind, hits: f.hits || [], frame: f.frame, why: f.why || '', read: null, thumb: '', full: '' };
     captures.unshift(c);
     for (const old of captures.splice(KEEP)) {
       if (old.thumb) URL.revokeObjectURL(old.thumb);
@@ -212,7 +180,6 @@
       }
       renderCaptures();
     }
-    if (prefs.send) send(c);
   }
 
   // #endregion
@@ -231,7 +198,6 @@
   $('az-auto-watch').value = prefs.watch;
   $('az-auto-read').checked = prefs.read;
   $('az-auto-ask').checked = prefs.ask;
-  $('az-auto-send').checked = prefs.send;
   const applyRules = () => {
     const n = C.setRules(parseRules(prefs.rules));
     $('az-auto-rules-note').textContent = `${n} ${n === 1 ? 'trigger' : 'triggers'} in use.`;
@@ -255,7 +221,7 @@
     save();
     $('az-auto-watch-note').textContent = C.setWatch(prefs.watch) ? '' : 'That pattern isn’t valid.';
   });
-  for (const id of ['read', 'ask', 'send']) {
+  for (const id of ['read', 'ask']) {
     $(`az-auto-${id}`).addEventListener('change', (e) => {
       prefs[id] = e.target.checked;
       save();

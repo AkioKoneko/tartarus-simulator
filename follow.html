@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Follow My Game</title>
-<meta name="description" content="What the board analyzer's Follow my game feature reads, sees and sends, with the code that does each part, and where to turn it on.">
+<meta name="description" content="What the board analyzer's Follow my game feature reads and sees, with the code that does each part, and where to turn it on.">
 <meta name="robots" content="noindex">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230f1216'/%3E%3Ccircle cx='8' cy='8' r='4.5' fill='none' stroke='%235fc4b8' stroke-width='1.6'/%3E%3Ccircle cx='8' cy='8' r='1.6' fill='%235fc4b8'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261014e">
+<link rel="stylesheet" href="css/style.css?v=20261014f">
 <style>
   /* A long read in the simulator's look, like the strategy guide. */
   .guide {
@@ -229,17 +229,17 @@
   <a class="guide-back" href="analyze.html">← Back to the board analyzer</a>
   <p class="eyebrow">Tartarus Simulator · Board analyzer · Beta</p>
   <h1>What Follow my game does</h1>
-  <p class="lede">Follow my game lets the board analyzer keep up with your game by itself. It notices in the game's log when you make a move, takes a picture of the game window, reads the board from it, and updates the advice. This page says exactly what it reads, what it sees and what it sends, with the code that does each part. The code is loaded from the same files your browser runs, so it can't differ from what's described here.</p>
+  <p class="lede">Follow my game lets the board analyzer keep up with your game by itself. It notices in the game's log when you make a move, takes a picture of the game window, reads the board from it, and updates the advice. Everything happens in your browser, on your PC. This page says exactly what it reads and what it sees, with the code that does each part. The code is loaded from the same files your browser runs, so it can't differ from what's described here.</p>
 
   <section class="guide-section">
     <h2>In short</h2>
     <ul class="facts">
+      <li><b>Nothing before you agree.</b> Until you agree at the bottom of this page, the analyzer shows only a link here. It can't open your log or see any window.</li>
       <li><b>One file, read only.</b> It reads the game log you pick (<code>UE_game.log</code>), and only the lines the game writes after you connect it. It can't open any other file, and it never changes the log.</li>
-      <li><b>One window, only at moves.</b> It sees only the window you choose to share. It takes a single picture when the log shows a move, or when you press Take a picture now. Nothing is recorded in between.</li>
-      <li><b>Pictures stay on your PC.</b> The screenshot reader reads each picture inside your browser. Unless you turn on Send the pictures, no picture leaves your PC.</li>
-      <li><b>Sending is off until you turn it on.</b> With it on, each picture is shrunk to at most 1,280 pixels wide and 220 KB. It's sent with the few log lines that set it off and what the reader made of it. No account, no name, and no address goes with it.</li>
+      <li><b>One window, only with the log connected.</b> It takes pictures of the one window you share, never a whole screen or a browser tab. It only does so while the game log is connected: when the log shows a move, or when you press Take a picture now. Nothing is recorded in between.</li>
+      <li><b>Nothing is uploaded.</b> The screenshot reader reads each picture inside your browser. Pictures are kept as small previews in memory and are gone when you close the tab. Follow my game never sends a picture or your log anywhere.</li>
       <li><b>Boards, only if you share boards.</b> The board it reads from each picture is treated like any board you ask about. If board sharing is on (the switch under the ask button), the board is shared for the odds study: its cells, day and tools, with no picture and nothing about you. Turn that switch off and nothing is shared.</li>
-      <li><b>Off whenever you like.</b> Stop following and Stop sharing end it at once, as does your browser's own stop-sharing button. The bottom of this page turns it off for good.</li>
+      <li><b>Off whenever you like.</b> Stop following and Stop sharing end it at once, as does your browser's own stop-sharing button. Turning it off at the bottom of this page stops pictures at once, even in an analyzer tab that's already open.</li>
     </ul>
   </section>
 
@@ -248,8 +248,9 @@
     <p>Chrome or Edge asks you twice, and nothing happens until you say yes both times:</p>
     <ol>
       <li><b>To open a file.</b> You pick <code>UE_game.log</code>, in your Steam library under <code>Torchlight Infinite\UE_game\TorchLight\Saved\Logs</code>. The site gets read-only access to that one file. On your next visit, the browser asks again before the site can read it.</li>
-      <li><b>To share a window.</b> You pick the Torchlight: Infinite window. While it's shared, the browser shows that it is, with a button to stop.</li>
+      <li><b>To share a window.</b> The browser lists your open windows, and you pick Torchlight: Infinite. Whole screens aren't offered. While the window is shared, the browser shows which one, with a button to stop.</li>
     </ol>
+    <p class="note">Browsers never tell a website which program a window belongs to: not its name, its title or its process. So the code can't check that the window is the game. What it does check is that you shared one window, not your screen or a browser tab, and the browser's sharing bar shows you which window that is. Pick the game, and only the game is seen.</p>
     <p class="note">Other browsers can't follow a file on your PC, so Follow my game needs Chrome or Edge on a PC. Run the game borderless or windowed: in exclusive fullscreen, a shared window looks black.</p>
   </section>
 
@@ -257,40 +258,33 @@
     <h2>How it works, with its code</h2>
     <p>Each step shows the code that does it, word for word, with its line numbers in the file. It's read from the site just now.</p>
 
-    <h3>1. You pick the log</h3>
+    <h3>1. Nothing runs before you agree</h3>
+    <p>When the analyzer opens, it checks for your agreement first. Without it, the panel shows only a link to this page, and none of the code that connects the log or shares a window is set up.</p>
+    <div class="code" data-file="js/auto.js" data-region="agreement"></div>
+    <p>The part that takes pictures checks again on its own, every time, right before each picture. A picture is taken only if three things hold: you agreed to this version of this page, the game log is connected and being read, and what's shared is a single window. Connecting the log or sharing a window without your agreement is refused too.</p>
+    <div class="code" data-file="js/capture.js" data-region="guard"></div>
+
+    <h3>2. You pick the log</h3>
     <p><code>connectLog</code> opens the browser's file picker, and the site gets only the file you choose. <code>resumeLog</code> is for later visits: the browser remembers your choice, but asks you again before the site may read it.</p>
     <div class="code" data-file="js/capture.js" data-region="pick-log"></div>
 
-    <h3>2. It reads only the new lines</h3>
+    <h3>3. It reads only the new lines</h3>
     <p>Once a second, the follower checks whether the log has grown, and reads only the part added since its last look. It starts at the end of the log, so nothing written before you connected is ever read. Each new line is checked against the triggers below. A line that matches nothing is dropped; a line that matches the watch pattern is shown to you on the page. It runs in a background worker, so it keeps up when the tab is hidden.</p>
     <div class="code" data-file="js/capture.js" data-region="read-log"></div>
 
-    <h3>3. It watches for moves</h3>
+    <h3>4. It watches for moves</h3>
     <p>The triggers are patterns for the lines the game writes when something happens. Each has a kind, the pattern, and a settle time. The prison's lines are added once the new season is live; until then the defaults are the Frozen Canvas's, which test the whole path. You can see and change the triggers on the analyzer, under Triggers and log lines.</p>
     <div class="code" data-file="js/auto.js" data-region="default-triggers"></div>
     <p>When matching lines come in a burst, it waits until the log has been quiet for the settle time, so the animations finish. Then it takes one picture for the whole burst.</p>
     <div class="code" data-file="js/capture.js" data-region="triggers"></div>
 
-    <h3>4. It takes one picture of the window you shared</h3>
-    <p><code>connectWindow</code> asks the browser to share a window, which you pick. <code>grab</code> takes a single frame from it, and runs only when a trigger fires or you press Take a picture now.</p>
+    <h3>5. It takes one picture of the window you shared</h3>
+    <p><code>connectWindow</code> asks the browser to share a window, which you pick. <code>useStream</code> turns away a whole screen or a browser tab and stops that share at once. <code>grab</code> takes a single still frame, and only when the check from step 1 allows it. In Chrome and Edge, nothing plays the window as video in between.</p>
     <div class="code" data-file="js/capture.js" data-region="share-window"></div>
 
-    <h3>5. The picture is read into your board</h3>
-    <p>The screenshot reader, running in your browser, turns the picture into a board. The page loads that board and asks for advice. It keeps the pictures only in its list of the last 12, in memory, and they're gone when you close the tab. If board sharing is on, the board (never the picture) is shared like any board you ask about. If Send the pictures is on, the picture is sent after it's read.</p>
+    <h3>6. The picture is read into your board</h3>
+    <p>The screenshot reader, running in your browser, turns the picture into a board. The page loads that board and asks for advice. Nothing is uploaded.</p>
     <div class="code" data-file="js/auto.js" data-region="each-picture"></div>
-
-    <h3>6. Sending, only if you turn it on</h3>
-    <p>With Send the pictures on, this shrinks the picture and sends it, with the log lines that set it off and what the reader made of it. <code>client</code> is a random id made in this browser, so pictures from one browser can be told apart.</p>
-    <div class="code" data-file="js/auto.js" data-region="send"></div>
-    <p>This is the server's side. It checks every field, keeps only real images within the size limit, drops a picture it already has, and stores the rest. It counts pictures against a scrambled code for your connection that changes every day; your address itself is never stored.</p>
-    <div class="code" data-file="worker/src/index.js" data-region="captures"></div>
-  </section>
-
-  <section class="guide-section">
-    <h2>Where sent pictures go</h2>
-    <p>Sent pictures go to the simulator's private database at Cloudflare. They aren't public, they aren't in the site's GitHub repository, and only the simulator's maintainer can download them. They're used to teach the screenshot reader and to check the simulator's rules against the live game.</p>
-    <p>The store takes at most 300 pictures a day from one connection and 1,500 a day in all, and it holds at most 3,000 at a time.</p>
-    <p>This browser's id is <code id="client-id">…</code>. To have the pictures sent from this browser deleted, send that id to <a href="https://twitch.tv/coffeebns" target="_blank" rel="noopener">CoffeeBns</a>.</p>
   </section>
 
   <section class="guide-section">
@@ -305,7 +299,7 @@
   <section class="guide-section" id="agree">
     <h2>Turn it on</h2>
     <div class="agree">
-      <label class="toggle"><input type="checkbox" id="agree-box"><span><strong>I've read this page.</strong><small>I agree to let Follow my game read the game log I pick and take pictures of the window I share, as described above. Sending stays off until I turn it on.</small></span></label>
+      <label class="toggle"><input type="checkbox" id="agree-box"><span><strong>I've read this page.</strong><small>I agree to let Follow my game read the game log I pick and take pictures of the window I share, in this browser, as described above.</small></span></label>
       <div class="agree-actions">
         <button type="button" class="btn btn-primary" id="agree-on" disabled>Turn on Follow my game</button>
         <button type="button" class="btn" id="agree-off" hidden>Turn it off and forget my log</button>
@@ -316,7 +310,7 @@
   </section>
 </main>
 
-<script src="js/capture.js?v=20261014e"></script>
+<script src="js/capture.js?v=20261014f"></script>
 <script>
 (function () {
   'use strict';
@@ -325,9 +319,8 @@
   const REPO = 'https://github.com/blahdot3h/tartarus-simulator/blob/main/';
   const VERSION = (window.TartarusCapture && window.TartarusCapture.CONSENT_VERSION) || 1;
   const FILES = [
-    ['js/capture.js', 'Follows the log and takes pictures of the shared window.'],
-    ['js/auto.js', 'The analyzer’s panel: what happens to each picture, and sending.'],
-    ['worker/src/index.js', 'The server that receives sent pictures (and the analyzer’s other uploads).'],
+    ['js/capture.js', 'Follows the log, checks your agreement, and takes pictures of the shared window.'],
+    ['js/auto.js', 'The analyzer’s panel: the agreement check, the triggers, and what happens to each picture.'],
   ];
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -349,19 +342,7 @@
       return false;
     }
   }
-  function randomId() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    const bytes = new Uint8Array(20);
-    crypto.getRandomValues(bytes);
-    return [...bytes].map((b) => chars[b % chars.length]).join('');
-  }
-
   const prefs = load();
-  if (!prefs.client) {
-    prefs.client = randomId();
-    save(prefs);
-  }
-  $('client-id').textContent = prefs.client;
   $('consent-version').textContent = VERSION;
 
   function renderAgreement() {
@@ -379,7 +360,7 @@
     location.href = 'analyze.html?auto=1#az-auto';
   });
   $('agree-off').addEventListener('click', () => {
-    Object.assign(prefs, { enabled: false, consent: 0, consentAt: null, send: false });
+    Object.assign(prefs, { enabled: false, consent: 0, consentAt: null });
     save(prefs);
     try {
       indexedDB.deleteDatabase('tartarus-sim-capture'); // the remembered log

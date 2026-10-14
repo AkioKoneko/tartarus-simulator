@@ -27,6 +27,7 @@
   let tail = null; // { post(message), stop() }
   let track = null;
   let imageCapture = null;
+  let surface = ''; // what's shared: 'window' is the only kind accepted
   let video = null;
 
   const emit = (name, data) => listeners[name].forEach((fn) => {
@@ -119,6 +120,7 @@
   function startFollower(handle) {
     if (tail) tail.stop();
     const onMessage = (m) => {
+      if (stopIfOff()) return;
       if (m.type === 'started') setState({ log: 'on', file: m.name, error: '', note: '' });
       else if (m.type === 'rotated') setState({ note: 'The game started a new log.' });
       else if (m.type === 'error') setState({ log: 'error', error: m.message });
@@ -213,7 +215,7 @@
     if (!b) return;
     const frame = await grab();
     if (frame) setState({ frames: state.frames + 1 });
-    emit('frame', { kind: b.kind, hits: b.hits, frame, time: new Date() });
+    emit('frame', { kind: b.kind, hits: b.hits, frame, why: frame ? '' : whyNot(), time: new Date() });
   }
 
   // #endregion
@@ -251,10 +253,66 @@
     }
   }
 
+  // ---------- When pictures may be taken ----------
+
+  // #region guard
+  // What follow.html saves when the player agrees (shared with js/auto.js),
+  // and the version of that page they agreed to.
+  const SETTINGS = 'tartarus-sim:auto:v1';
+  const CONSENT_VERSION = 1;
+
+  // Whether the player agreed to this version of follow.html. It's read
+  // again every time it's needed, so turning Follow my game off on that
+  // page stops it here at once, even in a tab that's already open.
+  function agreed() {
+    try {
+      const s = JSON.parse(localStorage.getItem(SETTINGS) || 'null');
+      return !!s && s.enabled === true && s.consent === CONSENT_VERSION;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function mustAgree() {
+    if (!agreed()) throw new Error('Read and agree on the Follow my game page first.');
+  }
+
+  // A picture may be taken only when all of these hold, checked right
+  // before each one: the player agreed, a game log is connected and being
+  // read, and what's shared is a single window that's still live. A whole
+  // screen or a browser tab is never accepted (see useStream).
+  function mayCapture() {
+    return agreed() && state.log === 'on' && !!track && track.readyState === 'live' && surface === 'window';
+  }
+
+  // Why a picture can't be taken right now, for the page to say.
+  function whyNot() {
+    if (!agreed()) return 'Follow my game is off.';
+    if (state.log !== 'on') return 'connect the game log first.';
+    return 'share the game window first.';
+  }
+
+  // Turning Follow my game off on follow.html, in any tab, stops everything
+  // here at once: the log stops being read and the window share ends.
+  function stopIfOff() {
+    if (agreed()) return false;
+    if (tail || track) {
+      stopLog();
+      stopWindow();
+      setState({ note: 'Follow my game was turned off.' });
+    }
+    return true;
+  }
+  window.addEventListener('storage', (e) => {
+    if (e.key === SETTINGS) stopIfOff();
+  });
+  // #endregion
+
   // ---------- The log: picking it ----------
 
   // #region pick-log
   async function connectLog() {
+    mustAgree();
     if (typeof window.showOpenFilePicker !== 'function') throw new Error('This browser can’t follow a file on your PC. Use Chrome or Edge.');
     const [handle] = await window.showOpenFilePicker({ id: 'torchlight-log', multiple: false, types: [{ description: 'Torchlight: Infinite log', accept: { 'text/plain': ['.log'] } }] });
     useHandle(handle);
@@ -264,6 +322,7 @@
   // The log picked on an earlier visit. The browser asks again for leave to
   // read it, and that takes a click: without one this returns 'ask'.
   async function resumeLog(click) {
+    if (!agreed()) return 'none';
     const handle = await recall();
     if (!handle || typeof handle.queryPermission !== 'function') return 'none';
     let p = await handle.queryPermission({ mode: 'read' });
@@ -279,6 +338,7 @@
   // #endregion
 
   function useHandle(handle) {
+    mustAgree();
     setState({ log: 'starting', file: handle.name || '', error: '' });
     startFollower(handle);
   }
@@ -293,47 +353,72 @@
 
   // #region share-window
   async function connectWindow() {
+    mustAgree();
     if (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== 'function') throw new Error('This browser can’t share a window.');
+    // The browser's picker lists the open windows; the player picks the
+    // game. Whole screens and this tab aren't offered, and the share can't
+    // be switched to something else while it runs.
     const stream = await navigator.mediaDevices.getDisplayMedia({
       video: { displaySurface: 'window', frameRate: { ideal: 5, max: 10 } },
       audio: false,
+      monitorTypeSurfaces: 'exclude',
       selfBrowserSurface: 'exclude',
-      surfaceSwitching: 'include',
+      surfaceSwitching: 'exclude',
     });
     useStream(stream);
   }
 
   function useStream(stream) {
+    mustAgree();
     stopWindow();
-    track = stream.getVideoTracks()[0];
-    if (!track) throw new Error('That share has no picture.');
+    const t = stream.getVideoTracks()[0];
+    const kind = t && t.getSettings ? t.getSettings().displaySurface : '';
+    // Only a single window is accepted: a whole screen or a browser tab is
+    // turned away, and its share stopped at once.
+    if (kind !== 'window') {
+      stream.getTracks().forEach((x) => x.stop());
+      throw new Error('Share the Torchlight: Infinite window itself, not a whole screen or a browser tab.');
+    }
+    track = t;
+    surface = kind;
     track.addEventListener('ended', () => {
       track = null;
+      surface = '';
       imageCapture = null;
       setState({ window: 'off', windowSize: '', note: 'Window sharing stopped.' });
     });
-    imageCapture = typeof ImageCapture === 'function' ? new ImageCapture(track) : null;
-    video = document.createElement('video');
-    video.muted = true;
-    video.playsInline = true;
-    video.srcObject = stream;
-    video.play().catch(() => {});
-    const s = track.getSettings ? track.getSettings() : {};
+    // Chrome and Edge take a still frame only when a picture is due, and
+    // nothing plays the window as video in between. Other browsers need a
+    // hidden video element to take a frame from.
+    if (typeof ImageCapture === 'function') imageCapture = new ImageCapture(track);
+    else {
+      video = document.createElement('video');
+      video.muted = true;
+      video.playsInline = true;
+      video.srcObject = stream;
+      video.play().catch(() => {});
+    }
+    const s = track.getSettings();
     setState({ window: 'on', windowSize: s.width ? `${s.width}×${s.height}` : '', note: '' });
   }
 
   function stopWindow() {
     if (track) track.stop();
     track = null;
+    surface = '';
     imageCapture = null;
     if (video) video.srcObject = null;
     video = null;
     setState({ window: 'off', windowSize: '' });
   }
 
-  // One frame of the shared window, as an ImageBitmap, or null.
+  // One frame of the shared window, as an ImageBitmap, or null when a
+  // picture isn't allowed right now (see mayCapture).
   async function grab() {
-    if (!track || track.readyState !== 'live') return null;
+    if (!mayCapture()) {
+      stopIfOff();
+      return null;
+    }
     try {
       if (imageCapture) return await imageCapture.grabFrame();
     } catch (e) {
@@ -352,7 +437,7 @@
   async function captureNow(kind) {
     const frame = await grab();
     if (frame) setState({ frames: state.frames + 1 });
-    emit('frame', { kind: kind || 'manual', hits: [], frame, time: new Date() });
+    emit('frame', { kind: kind || 'manual', hits: [], frame, why: frame ? '' : whyNot(), time: new Date() });
     return !!frame;
   }
 
@@ -385,7 +470,8 @@
   window.TartarusCapture = {
     // follow.html explains this code. When what it does changes, this goes
     // up, and players are asked to read and agree again.
-    CONSENT_VERSION: 1,
+    CONSENT_VERSION,
+    agreed,
     supported: {
       log: typeof window.showOpenFilePicker === 'function',
       window: !!(navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function'),
