@@ -157,7 +157,14 @@
   const cellLabel = (n) => `${String.fromCharCode(65 + colOf(n))}${rowOf(n) + 1}`;
 
   // The cells an objective at `at` looks at, not counting its own.
+  // The cells in a range, worked out once: callers only read the lists.
+  const RANGE_CACHE = {};
   function rangeCells(at, range) {
+    const byCell = RANGE_CACHE[range] || (RANGE_CACHE[range] = []);
+    return byCell[at] || (byCell[at] = rangeList(at, range));
+  }
+
+  function rangeList(at, range) {
     const r = rowOf(at);
     const c = colOf(at);
     const out = [];
@@ -262,8 +269,13 @@
     sortInventory(state);
     // The first Coloring Paint is already on the canvas.
     const blanks = blankCells(state);
-    const first = randomColoring(state);
-    const at = pickOne(state, blanks);
+    // On a cell where its objective can be met: every live start had room in
+    // its range, and the game wouldn't deal a dead canvas.
+    let first = randomColoring(state);
+    const room = (n, o) => rangeCells(n, o.range).filter((m) => state.cells[m].kind === 'blank').length >= o.need;
+    for (let i = 0; i < 20 && !blanks.some((n) => room(n, first)); i++) first = randomColoring(state);
+    const fits = blanks.filter((n) => room(n, first));
+    const at = pickOne(state, fits.length ? fits : blanks);
     putColoring(state, at, first, false);
     log(state, `A new canvas: ${blanks.length} blank cells, ${ice} ice, ${voids} void.${hasChest ? ' A Treasure Chest is among the paints.' : ' No Treasure Chest among the paints.'}`);
     markStart(state);
@@ -652,7 +664,7 @@
 
   const api = {
     VERSION, SIZE, CELLS, MAX_LEVEL, MONSTERS, GAMEPLAY, GAMEPLAY_HIGH, CHEST, RANGES, RANGE_IDS, TARGETS, DIRECTIONS, EFFECTS, EFFECT_IDS, DEFAULT_PARAMS,
-    newCanvas, normalizeParams, place, force, reset, markStart, chooseDirection, chooseEffect, refresh, placeColoring, placeTargets,
+    newCanvas, normalizeParams, place, force, reset, markStart, usable, chooseDirection, chooseEffect, refresh, placeColoring, placeTargets,
     rangeCells, progress, openInRange, failed, blankCells, fillable, filled, chests, bestChest, rainbows, score, isChest, matches, paintName,
     rowOf, colOf, cellLabel, objectiveText, effectText, clone, rand, makePaint, randomPaint, randomColoring, sortInventory, finish,
   };

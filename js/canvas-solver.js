@@ -73,6 +73,9 @@
     return best;
   }
 
+  // Paints in hand that an objective's target takes, never the chest.
+  const stock = (st, target) => st.inventory.filter((p) => !isChest(p) && matches(p, target)).length;
+
   // How close a paint is to a rainbow: raising it is worth the change in this.
   const POT = [0, 0, 0.01, 0.03, 0.08, 0.2, 0.45, 1];
 
@@ -176,125 +179,170 @@
     return { type: 'place', inv: inv >= 0 ? inv : 0, cell: cells[0] };
   }
 
-  // The most this Coloring Paint could add toward rainbows from any cell it
-  // can finish from.
-  function bestRainbowGain(st, o) {
-    let best = 0;
-    for (const at of C.placeTargets(st)) if (feasible(st, o, at, at).slack >= 0) best = Math.max(best, rangeGain(st, at, o));
-    return best;
-  }
-
-  // Brushstrokes and where the new Coloring Paint goes.
+  // Brushstrokes and where the new Coloring Paint goes. Every choice is
+  // judged by where it would let the Coloring Paint land: the score of the
+  // best cell it could go on, after the effect.
   function decideOffer(st) {
     const f = st.offer;
-    const c = chestCell(st);
-    const chestLive = c >= 0 && st.cells[c].paint.level < MAX_LEVEL;
-    const o = f.coloring;
+    const memo = new Map(); // shapes already scored in this decision
     if (f.stage === 'direction') {
-      const rank = (dir) => directionValue(st, dir, o, c, chestLive);
-      const best = f.directions.slice().sort((a, b) => rank(b) - rank(a))[0];
-      if (rank(best) < 2 && st.refreshes > 0 && chestLive) return { type: 'refresh' };
+      const values = new Map(f.directions.map((dir) => [dir, directionValue(st, dir, memo)]));
+      const rank = (dir) => values.get(dir);
+      const best = f.directions.slice().sort((x, y) => rank(y) - rank(x))[0];
+      if (rank(best) < 0 && st.refreshes > 0) return { type: 'refresh' }; // every way it goes, its objective can't be met
       return { type: 'direction', dir: best };
     }
     if (f.stage === 'effect') {
-      const rank = (id) => effectValue(st, id, o, c, chestLive);
-      const best = f.effects.slice().sort((a, b) => rank(b) - rank(a))[0];
-      if (rank(best) < 2 && st.refreshes > 0 && chestLive) return { type: 'refresh' };
+      const values = new Map(f.effects.map((id) => [id, effectValue(st, id, memo)]));
+      const rank = (id) => values.get(id);
+      const best = f.effects.slice().sort((x, y) => rank(y) - rank(x))[0];
+      if (rank(best) < 0 && st.refreshes > 0) return { type: 'refresh' };
       return { type: 'effect', id: best };
     }
-    return { type: 'coloring', cell: placeColoringCell(st, o, c, chestLive) };
+    const c = chestCell(st);
+    const chestLive = c >= 0 && st.cells[c].paint.level < MAX_LEVEL;
+    return { type: 'coloring', cell: bestPlacement(st, f.coloring, f.placeOn, c, chestLive).cell };
   }
 
-  // Can this Coloring Paint be placed to raise the chest, with room to finish?
-  function canFeedChest(st, o, c) {
-    if (c < 0 || !matches(st.cells[c].paint, o.target)) return false;
-    return C.placeTargets(st).some((at) => reaches(st, at, o, c) && feasible(st, o, at, at).slack >= 0);
+  // What a blank cell is worth: each objective spends one on its Coloring
+  // Paint and more on its paints.
+  const CELL = 15;
+
+  // Where a Coloring Paint can go with this placeOn (as the engine allows).
+  function targetsFor(st, placeOn) {
+    const out = [];
+    st.cells.forEach((c, n) => {
+      if (c.kind === 'blank' && !c.paint) out.push(n);
+      else if (placeOn === 'void' && c.kind === 'void') out.push(n);
+      else if (placeOn === 'blocked' && c.kind === 'blocked') out.push(n);
+      else if (placeOn === 'broken' && c.kind === 'broken') out.push(n);
+      else if (placeOn === 'painted' && c.kind === 'blank' && c.paint && !c.anchor) out.push(n);
+    });
+    return out;
   }
 
-  function directionValue(st, dir, o, c, chestLive) {
-    if (!chestLive) {
-      // Rainbows: Layer when this objective already lifts high paints,
-      // Reimagine to point a weak one somewhere better.
-      const g = bestRainbowGain(st, o);
-      if (dir === 'stack') return g >= 0.3 ? 5 : 2.5;
-      if (dir === 'turn') return g >= 0.3 ? 2.5 : 4;
-      return 2;
+  // How good a cell is for this Coloring Paint.
+  function placementScore(st, o, at, c, chestLive, lines, inHand) {
+    const fz = feasible(st, o, at, at);
+    // An objective that can't be met ends the chain of Coloring Paints, so
+    // that outweighs everything else. Met the moment it lands is best: the
+    // next Coloring Paint comes without spending a cell.
+    const short = Math.max(0, o.need - fz.have);
+    const can = fz.slack >= 0 && inHand >= short;
+    let s = (can ? 200 : -200) + Math.min(fz.slack, 3) * 2 + (short === 0 ? 60 : -8 * short);
+    const gain = o.gain + (o.extras.includes('plusOne') ? 1 : 0);
+    const range = rangeCells(at, o.range);
+    const hitsChest = c >= 0 && range.includes(c);
+    if (chestLive && can && reaches(st, at, o, c)) s += 70 + 30 * gain;
+    if (chestLive && can && hitsChest && o.extras.includes('randomOne')) s += 30 / Math.max(2, range.filter((n) => st.cells[n].paint).length + short);
+    if (!chestLive) s += 40 * rangeGain(st, at, o) + (o.extras.includes('randomOne') ? 5 : 0);
+    if (o.extras.includes('sameContent')) s += 5;
+    if (o.extras.includes('reroll')) {
+      if (hitsChest) s -= 1000;
+      if (!chestLive && c < 0) s += range.filter((n) => st.cells[n].paint && !st.cells[n].anchor).length;
     }
-    const feeds = o.target !== 'monster' && canFeedChest(st, o, c);
-    if (dir === 'stack') return feeds ? 5 : 1;
-    if (dir === 'turn') return o.target === 'monster' ? 4 : feeds ? 2 : 3;
-    return feeds ? 2.5 : 3.5; // spread: room, or a way onto painted cells
+    const cell = st.cells[at];
+    const old = cell.paint;
+    if (cell.kind === 'void') {
+      s += CELL; // it leaves a blank cell free for a paint
+      if (o.paint && isChest(o.paint)) s -= 200; // but a chest placed there is gone
+    } else if (cell.kind === 'blocked' || cell.kind === 'broken') {
+      s += CELL; // it uses up an ice or broken cell instead of a blank one
+    } else if (old) {
+      // Painting over: a blank cell stays free, but the old paint is gone.
+      s += CELL - (isChest(old) ? 1000 : chestLive ? 3 * old.level : 40 * POT[old.level] + old.level);
+    } else if (lines.has(at)) s -= 3; // it takes a cell the chest could use
+    return s;
   }
 
-  function effectValue(st, id, o, c, chestLive) {
-    if (!chestLive) {
-      switch (id) {
-        case 'plusOne': return 6;
-        case 'randomOne': return 3.5;
-        case 'sameContent': return 3.5;
-        case 'reroll': return c >= 0 ? 0 : 1.5; // never near a finished chest; otherwise levels stay and a chest might turn up
-        case 'flip': return bestRainbowGain(st, Object.assign({}, o, { target: o.target === 'monster' ? 'gameplay' : 'monster' })) > bestRainbowGain(st, o) ? 5 : 1;
-        case 'needDown': return 3.5;
-        case 'reRange': return 3;
-        case 'renew': return 2;
-        case 'onPainted': return 3;
-        case 'repair': return 3;
-        default: return 2;
+  function bestPlacement(st, o, placeOn, c, chestLive, chestLineSet) {
+    const lines = chestLineSet || chestLines(st, c);
+    const inHand = stock(st, o.target);
+    let best = { cell: -1, score: -Infinity };
+    for (const at of targetsFor(st, placeOn)) {
+      const score = placementScore(st, o, at, c, chestLive, lines, inHand);
+      if (score > best.score) best = { cell: at, score };
+    }
+    return best;
+  }
+
+  // The best cell's score for a Coloring Paint shaped this way.
+  function shapeValue(st, o, placeOn, memo) {
+    const key = memo && `${o.range}|${o.target}|${o.need}|${o.gain}|${o.extras.join(',')}|${placeOn}`;
+    if (memo && memo.has(key)) return memo.get(key);
+    const v = shapeScore(st, o, placeOn, memo);
+    if (memo) memo.set(key, v);
+    return v;
+  }
+
+  function shapeScore(st, o, placeOn, memo) {
+    // The chest and its lines are the same for every shape in a decision.
+    let ctx = memo && memo.get('ctx');
+    if (!ctx) {
+      const c = chestCell(st);
+      ctx = { c, chestLive: c >= 0 && st.cells[c].paint.level < MAX_LEVEL, lines: chestLines(st, c) };
+      if (memo) memo.set('ctx', ctx);
+    }
+    const b = bestPlacement(st, o, placeOn, ctx.c, ctx.chestLive, ctx.lines);
+    return b.cell < 0 ? -300 : b.score;
+  }
+
+  // An effect's worth: the Coloring Paint's best cell after it. Random
+  // effects (a new range, a new Coloring Paint) are averaged over what they
+  // could give.
+  function effectValue(st, id, memo) {
+    const f = st.offer;
+    const o = f.coloring;
+    const P = st.params;
+    const shape = (patch) => Object.assign({}, o, patch);
+    const value = (x, placeOn) => shapeValue(st, x, placeOn || f.placeOn, memo);
+    const weighted = (weights, fn) => {
+      let sum = 0;
+      let total = 0;
+      for (const [k, w] of Object.entries(weights)) {
+        if (w <= 0) continue;
+        sum += w * fn(k);
+        total += w;
       }
-    }
-    const feeds = o.target !== 'monster' && canFeedChest(st, o, c);
+      return total ? sum / total : value(o);
+    };
     switch (id) {
-      case 'plusOne': return feeds ? 6 : 1;
-      case 'randomOne': return feeds ? 4 : 1;
-      case 'sameContent': return o.paint && isChest(o.paint) ? 6 : 1;
-      case 'reroll': return 0; // could turn the chest into something else
-      case 'flip': return o.target === 'monster' ? 6 : 0;
-      case 'needDown': return 3.5;
-      case 'reRange': return feeds ? 1 : 3;
-      case 'renew': return o.target === 'monster' ? 3 : 1;
-      case 'relevel': return 1;
-      case 'onPainted': return 4;
+      case 'flip': return value(shape({ target: o.target === 'monster' ? 'gameplay' : 'monster' }));
+      case 'needDown': return value(shape({ need: Math.max(1, o.need - 1) }));
+      case 'reRange': return weighted(Object.fromEntries(Object.entries(P.rangeWeights).filter(([k]) => k !== o.range)), (r) => value(shape({ range: r })));
+      case 'renew': return weighted(P.rangeWeights, (r) => weighted(P.targetWeights, (t) => value(shape({ range: r, target: t, need: P.needByLevel[2], extras: [] }))));
+      case 'relevel': return value(o) + 1;
+      case 'onVoid': return value(o, 'void');
+      case 'onBlocked': return value(o, 'blocked');
+      case 'onPainted': return value(o, 'painted');
+      case 'onBroken': return value(o, 'broken');
       case 'iceRow':
       case 'iceCol':
       case 'iceAdj':
-      case 'voidNear': return 3;
-      case 'onVoid': return 2.5;
-      case 'onBlocked': return 2.5;
-      case 'repair': return 3;
-      case 'onBroken': return 2.5;
-      default: return 1;
+      case 'voidNear':
+      case 'repair': return value(o) + 0.7 * CELL; // a cell opens, if one is near where it lands
+      case 'plusOne':
+      case 'randomOne':
+      case 'sameContent':
+      case 'reroll': return value(shape({ extras: o.extras.concat([id]) }));
+      default: return value(o);
     }
   }
 
-  function placeColoringCell(st, o, c, chestLive) {
-    const targets = C.placeTargets(st);
-    const lines = chestLines(st, c);
-    let best = targets[0];
-    let bestScore = -Infinity;
-    for (const at of targets) {
-      const fz = feasible(st, o, at, at);
-      let s = Math.min(fz.slack, 3) * 2 + (fz.slack >= 0 ? 10 : -10);
-      const hitsChest = c >= 0 && rangeCells(at, o.range).includes(c);
-      if (chestLive && reaches(st, at, o, c)) s += 100;
-      if (!chestLive) s += 40 * rangeGain(st, at, o);
-      if (o.extras.includes('reroll')) {
-        if (hitsChest) s -= 1000;
-        if (!chestLive && c < 0) s += rangeCells(at, o.range).filter((n) => st.cells[n].paint && !st.cells[n].anchor).length;
-      }
-      const old = st.cells[at].paint;
-      if (st.cells[at].kind === 'void') {
-        s += 3; // it leaves a blank cell free for a paint
-        if (o.paint && isChest(o.paint)) s -= 200; // but a chest placed there is gone
-      } else if (old) {
-        // Painting over: a blank cell stays free, but the old paint is gone.
-        s += 3 - (isChest(old) ? 1000 : chestLive ? old.level : 40 * POT[old.level] + old.level);
-      } else if (lines.has(at)) s -= 3; // it takes a cell the chest could use
-      if (s > bestScore) {
-        bestScore = s;
-        best = at;
-      }
+  // A direction's worth: the better of the 2 effects it would offer, on
+  // average over the pairs it could deal.
+  function directionValue(st, dir, memo) {
+    const o = st.offer.coloring;
+    const pool = C.EFFECT_IDS.filter((id) => C.EFFECTS[id].dir === dir && C.usable(st, id, o)).map((id) => effectValue(st, id, memo));
+    if (!pool.length) return shapeValue(st, o, st.offer.placeOn, memo);
+    if (pool.length === 1) return pool[0];
+    let sum = 0;
+    let pairs = 0;
+    for (let i = 0; i < pool.length; i++) for (let j = i + 1; j < pool.length; j++) {
+      sum += Math.max(pool[i], pool[j]);
+      pairs += 1;
     }
-    return best;
+    return sum / pairs;
   }
 
   // ---------- Playing ----------

@@ -317,7 +317,8 @@ node tools/canvas-sim.js eval --games 400000
 | Before forcing broke a paint, with Global objectives | 71.3% ± 0.4 | 0.31 ± 0.005 |
 | Forcing breaks a paint, with Global objectives (40,000 canvases) | 55.2% ± 1.1 | 0.29 ± 0.011 |
 | **Forcing breaks a paint, no Global objectives** | **42.1% ± 0.7** (average chest level 4.80) | **0.091 ± 0.003** |
-| **All rules confirmed by the player (2026-10-13)** | **37.8% ± 0.6** (average chest level 4.69; 21% of chests are lost to forcing) | **0.102 ± 0.003** |
+| All rules confirmed by the player (2026-10-13) | 37.8% ± 0.6 (average chest level 4.69; 21% of chests are lost to forcing) | 0.102 ± 0.003 |
+| **Look-ahead strategy (below)** | **37.6% ± 0.6** (average chest level 5.38; forcing 0.4 times a canvas, about 4% of chests lost) | **0.787 ± 0.009** |
 
 Two rule changes on 2026-10-13 moved these numbers:
 - **Forcing breaks a paint.** About 1 chest in 6 is lost to a break, even with the risk check below.
@@ -351,16 +352,24 @@ node tools/canvas-sim.js resets --games 20000 [--cap 100]
 
 | 20,000 chest canvases | Lv7 per attempt | Colored Snow per Lv7 chest | Never got there in 100 attempts |
 | --- | --- | --- | --- |
-| Forcing as below | 23.5% | 85.5 (81% of it on forcing) | 0.2% |
-| Never forcing | 0.6% | 809 | 60.6% |
+| Old strategy, forcing | 23.5% | 85.5 (81% of it on forcing) | 0.2% |
+| Old strategy, never forcing | 0.6% | 809 | 60.6% |
+| **Look-ahead, forcing** (5,000 canvases) | 17.0% | **49.0 ± 3.9** (50% on forcing; median 10) | 0.7% |
+| **Look-ahead, never forcing** (5,000 canvases) | 8.7% | **52.5 ± 3.2** (median 10) | 4.9% |
 
-This disagrees with live play. Players reach Lv7 by starting over, without much forcing, so the strategy without forcing is missing how they do it. Fixing that is the next job.
+The old strategy disagreed with live play, where players reach Lv7 by starting over and rarely force. Three fixes closed the gap:
+- The starting Coloring Paint now always lands where its objective can be met. Random placement had left 55% of practice canvases dead from the start.
+- An objective that can't be met is never chosen, even to reach the chest.
+- Brushstrokes are chosen by look-ahead.
+
+Without forcing, a chest canvas now completes 6.8 objectives instead of 1.7, and 38% of Coloring Paints complete the moment they land. Forcing and never forcing now cost about the same Colored Snow per Lv7 chest; never forcing just takes about twice the attempts. The per-attempt rates are pooled over attempts, so the hard canvases that take many attempts weigh most. Played once, a chest canvas reaches Lv7 30.6% of the time without forcing.
 
 **The strategy:**
 - **Placing the chest:** it goes first, on the cell whose row, column, diagonals and neighbors have the most open cells.
 - **Objectives that reach the chest:** fill their ranges with matching paint.
 - **Objectives that don't:** finish them quickly, off the chest's lines.
-- **Brushstrokes:** Layer when the next objective can reach the chest, Reimagine to flip a monster target, Spread to open room.
+- **Brushstrokes, by look-ahead:** each effect is worth the best cell score the Coloring Paint would get after it. Random effects (a new range, a new Coloring Paint) are averaged over what they could give. A direction is worth the better of the 2 effects it would deal, on average. If nothing on offer can be met, refresh.
+- **Where the Coloring Paint goes:** never where its objective can't be met. Best is a cell where it completes the moment it lands, and where it reaches the chest (more with Layer +1). Void, ice and broken cells score a cell's worth, because they save a blank one.
 - **Never** take the re-roll effect while a chest is on the canvas.
 - **Without a chest:** aim each objective at the highest paints (Layer's +1 is best), and force a stuck one when it pushes paints toward Lv7 by more than the break costs on average. Never force with a Lv7 chest on the canvas.
 - **Forcing:** when an objective is stuck, force it if it feeds the chest, or to get a new Coloring Paint while the chest has room. Only with at least 6 paints on the canvas, so the break hits the chest 1 time in 6 or less. Thresholds from 4 to 8 score within 2 points of each other. Splitting the rule (forcing for the chest sooner, for a new Coloring Paint later) or capping forces scored 2 to 8 points worse.
