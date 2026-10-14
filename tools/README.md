@@ -308,7 +308,9 @@ node tools/canvas-sim.js eval --games 400000
   - the brushstroke pools,
   - ice and void counts.
 
-**Result with the practice values** (400,000 canvases, 80,081 with a chest, about 20 seconds): a Lv7 chest on **63.8% ± 0.3** of chest canvases, with an average final chest level of 6.09.
+**Result with the practice values** (400,000 canvases, 80,081 with a chest, about 20 seconds): a Lv7 chest on **65.9% ± 0.3** of chest canvases, with an average final chest level of 6.12.
+- Live rules the user confirmed: an objective raises each matching paint in range by +1, and only Layer effects add more.
+- Every Coloring Paint seen live came at Lv3 and needs 3 paints.
 - The void count (11–15) comes from a live screenshot: 15 void and 4 ice cells, leaving 17 cells to fill.
 - With the first guess of 9–12 void cells, the rate was 74.8%, so tight canvases cost a lot.
 - One player's log from the research (42 chest canvases, 40 at Lv7) suggests live play does better, maybe through refreshes and choices the practice values miss.

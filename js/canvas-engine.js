@@ -82,11 +82,11 @@
     chestChance: 20, // % of canvases with a Treasure Chest in the inventory
     chestLevels: [30, 34, 22, 10, 4], // weights for the chest's starting level, Lv1-5
     chestShare: 8, // % of random gameplay paints (from "random paint" effects) that are chests
-    coloringLevels: [0, 0, 60, 30, 10], // weights for a Coloring Paint's level, Lv1-5
+    coloringLevels: [0, 0, 100, 0, 0], // weights for a Coloring Paint's level, Lv1-5 (live: every one seen came at Lv3)
     rangeWeights: { row: 22, col: 22, diag: 22, adj: 22, all: 12 },
     targetWeights: { monster: 40, gameplay: 40, all: 20 },
     needByLevel: [3, 3, 3, 4, 4], // paints an objective needs, by its Coloring Paint's level 1-5
-    gainTwoChance: [0, 0, 0, 50, 0], // % chance the effect is +2 instead of +1, by level 1-5
+    gainTwoChance: [0, 0, 0, 0, 0], // % chance the effect is +2 instead of +1, by level 1-5 (live: always +1; more only from Layer)
     refreshes: 2, // brushstroke refreshes per canvas (pactspirits: Rainbowpaint Owl 3 and 5)
     forcedMax: 3, // Forced Color Mixing uses per canvas
     forcedCost: [5, 10, 15], // Colored Snow for each use
@@ -448,7 +448,7 @@
         o.range = pickWeighted(state, Object.fromEntries(Object.entries(P.rangeWeights).filter(([k]) => k !== o.range)));
         break;
       case 'relevel':
-        o.paint.level = Number(pickWeighted(state, P.coloringLevels)) + 1;
+        o.paint.level = Number(pickWeighted(state, P.inventoryLevels)) + 1;
         break;
       case 'renew':
         f.coloring = randomColoring(state);
