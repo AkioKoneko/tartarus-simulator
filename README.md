@@ -57,7 +57,7 @@ The board layout follows the original Chinese tool. The rules follow the video r
 | `js/live.js` | Shares the boards players ask about in the analyzer, in runs of two or more in a row, to measure live's odds |
 | `worker/` | The collector those boards go to: a Cloudflare Worker with a D1 database (see `worker/README.md`) |
 | `tools/live-data.js`, `beta/data/` | Pulls the shared boards into the repo and measures the live odds against the simulator's (`beta/data/rates.json`) |
-| `canvas.html`, `css/canvas.css`, `js/canvas-ui.js` | The Frozen Canvas trainer: practice canvases, or your own canvas set up by hand, with move advice |
+| `canvas.html`, `css/canvas.css`, `js/canvas-ui.js` | The Frozen Canvas trainer: practice canvases, or your own canvas set up by hand, with move advice. Hidden for now: no page links to it |
 | `js/canvas-engine.js` | The Frozen Canvas rules (6×6 canvas, paints, objectives, brushstrokes). No DOM, so it also runs under Node |
 | `js/canvas-solver.js` | The canvas strategy and its Monte Carlo check, aiming for a Lv7 Treasure Chest |
 | `tools/canvas-sim.js` | The canvas lab: plays canvases with the strategy and measures the Lv7 chest rate |
