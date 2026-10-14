@@ -25,7 +25,13 @@ Reports stay in D1. Nothing serves them publicly, and the workflow doesn't commi
 node tools/live-data.js reports
 ```
 
-This runs `wrangler` with your own Cloudflare login and downloads the new reports into `trainingdata/reports/`, which git ignores: `reports.jsonl` plus one image file per screenshot. At about 50 KB a screenshot, a free 500 MB database holds around 10,000 of them next to the boards.
+This runs `wrangler` with your own Cloudflare login and downloads the new reports into `trainingdata/reports/`, which git ignores: `reports.jsonl` plus one image file per screenshot. Each new report also prints one `NEW REPORT #id kind: name | says: … | screenshot: …` line. To keep checking, every 60 seconds by default:
+
+```
+node tools/live-data.js reports --watch [--every 60]
+```
+
+A check costs one small query, so a check every minute uses about 1,440 of the free plan's 5 million daily row reads. At about 50 KB a screenshot, a free 500 MB database holds around 10,000 of them next to the boards.
 
 ## Where the data goes
 

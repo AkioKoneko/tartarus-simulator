@@ -9,6 +9,9 @@
  *   node tools/live-data.js rates    recompute beta/data/rates.json
  *   node tools/live-data.js reports  download new reports of things the
  *                                    simulator doesn't know yet (local only)
+ *   node tools/live-data.js reports --watch [--every 60]
+ *                                    keep checking, and print a NEW REPORT
+ *                                    line for each one as it arrives
  *
  * pull needs the collector's address and export token, from LIVE_DATA_URL and
  * LIVE_DATA_TOKEN (or --url and --token). The repo's scheduled workflow,
@@ -94,7 +97,8 @@ function d1(sql) {
 
 const slug = (text) => (text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'unnamed';
 
-function reports() {
+function reports(opts) {
+  const o = opts || {};
   fs.mkdirSync(REPORTS, { recursive: true });
   const statePath = path.join(REPORTS, 'state.json');
   const state = readJson(statePath, { last: 0 });
@@ -120,8 +124,17 @@ function reports() {
     if (rows.length < 200) break;
   }
   if (!fresh.length) {
-    console.log('No new reports.');
-    return;
+    if (!o.quiet) console.log('No new reports.');
+    return fresh;
+  }
+  // One line per report, for a watcher (or a person) to act on.
+  for (const r of fresh) {
+    const b = JSON.parse(r.body);
+    const parts = [`NEW REPORT #${r.id} ${r.kind}: ${r.name || '(no name)'}`];
+    if (b.text) parts.push(`says: ${b.text.replace(/\s+/g, ' ').slice(0, 300)}`);
+    if (b.outcome) parts.push(`happened: ${b.outcome.replace(/\s+/g, ' ').slice(0, 200)}`);
+    if (r.file) parts.push(`screenshot: ${path.relative(ROOT, path.join(REPORTS, r.file))}`);
+    console.log(parts.join(' | '));
   }
   // What was reported, most reports first.
   const byName = new Map();
@@ -135,6 +148,23 @@ function reports() {
     const text = JSON.parse(list[list.length - 1].body).text;
     const files = list.filter((r) => r.file).length;
     console.log(`  ${key} (${list.length}${files ? `, ${files} screenshot${files === 1 ? '' : 's'}` : ''})${text ? `: ${text.slice(0, 100)}` : ''}`);
+  }
+  return fresh;
+}
+
+// Checks for new reports every --every seconds (60 by default) until
+// stopped. A failed check (the network, or an expired login) is reported and
+// the next one tries again.
+async function watchReports() {
+  const every = Math.max(20, Number(flag('every')) || 60);
+  console.log(`Watching for new reports every ${every} s. Ctrl+C to stop.`);
+  for (;;) {
+    try {
+      reports({ quiet: true });
+    } catch (e) {
+      console.log(`Check failed, trying again in ${every} s: ${String((e && e.message) || e).split('\n')[0]}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, every * 1000));
   }
 }
 
@@ -510,9 +540,12 @@ module.exports = { measure, observe, pairsOf, print };
 if (require.main === module) (async () => {
   if (mode === 'pull') await pull();
   else if (mode === 'rates') rates();
-  else if (mode === 'reports') reports();
+  else if (mode === 'reports') {
+    if (args.includes('--watch')) await watchReports();
+    else reports();
+  }
   else {
-    console.error('Usage: node tools/live-data.js pull | rates [--all] | reports');
+    console.error('Usage: node tools/live-data.js pull | rates [--all] | reports [--watch] [--every 60]');
     process.exit(2);
   }
 })().catch((e) => {

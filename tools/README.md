@@ -258,6 +258,7 @@ node tools/live-data.js pull     # new boards from the collector (the workflow d
 node tools/live-data.js rates    # the report, also saved as beta/data/rates.json
 node tools/live-data.js rates --all   # also count guesses nobody confirmed
 node tools/live-data.js reports  # new reports of unknown events, instruments and gifts, into trainingdata/reports/
+node tools/live-data.js reports --watch   # keep checking every minute; one NEW REPORT line each
 ```
 
 It measures:
