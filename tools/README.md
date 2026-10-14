@@ -329,7 +329,13 @@ Live rules the user confirmed:
 - An objective raises each matching paint in range by +1, and only Layer effects add more.
 - Spread's ice effects turn an ice cell into a blank cell that takes paints.
 - A Coloring Paint placed on a void cell isn't a paint: the cell stays void, and only its objective works from there.
-- Forced Color Mixing meets the objective, but 1 random paint on the canvas breaks: it's gone, and nothing can go on that cell until it's repaired. How a repair happens isn't known yet.
+- Forced Color Mixing meets the objective, but 1 random placed paint breaks (it can be the chest): it's gone, and nothing can go on that cell until a Spread effect repairs it. Another Spread effect lets the Coloring Paint go on a broken cell.
+- Diagonal is the full X to the canvas edges. Adjacent is the 4 cells sharing an edge. A Coloring Paint doesn't count for its own objective, and the objective doesn't raise it.
+- A Coloring Paint placed on a painted cell overwrites the paint there.
+- Layer's random +1 can hit any paint in range, whatever the objective's type.
+- A chest is never on the grid at the start. About 1 canvas in 4 or 5 has one among the paints, usually at Lv2 (practice values 22% and mostly Lv2).
+- The canvas ends when every cell is filled. Once an objective fails, no new Coloring Paints come.
+- Brushstroke refreshes are 0 to 2 a canvas, by the level of the pet.
 - Every Coloring Paint seen live came at Lv3 and needs 3.
 - The void count (11–15) comes from a live screenshot.
 

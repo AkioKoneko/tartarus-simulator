@@ -65,7 +65,12 @@
     iceCol: { dir: 'spread', text: 'The nearest ice cell in its column turns blank', zh: '将纵向范围中最近1个阻挡地块转变为空白地块' },
     voidNear: { dir: 'spread', text: 'The nearest void cell in its row or column turns blank', zh: '使虚空地块转变为空白地块' },
     onVoid: { dir: 'spread', text: 'It can be placed on a void cell, where its objective works but it isn\'t a paint', zh: '使自身可以放置在虚空地块上' }, // confirmed by the player: the cell stays void    onBlocked: { dir: 'spread', text: 'This can be placed on a Blocked Cell', zh: '可放置于阻挡地块' }, // confirmed live
-    onPainted: { dir: 'spread', text: 'It can be placed on a painted cell, but loses its own content', zh: '可放置于已放置颜料的空白地块中，但会失去自身内容' },
+    onPainted: { dir: 'spread', text: 'It can be placed on a painted cell, replacing that paint', zh: '可放置于已放置颜料的空白地块中，但会失去自身内容' }, // the player: it overwrites the old paint
+    // Broken cells (from Forced Color Mixing): the player has seen Spread
+    // effects that repair them or let the Coloring Paint go on them. Their
+    // exact wording isn't known yet.
+    repair: { dir: 'spread', text: 'The nearest broken cell is repaired and turns blank' },
+    onBroken: { dir: 'spread', text: 'It can be placed on a broken cell' },
     // Layer: an extra effect when this objective is met.
     plusOne: { dir: 'stack', text: 'Its mixing effect raises 1 more level', zh: '调色效果额外提升1级' },
     randomOne: { dir: 'stack', text: '1 random paint in range rises 1 more level', zh: '对作用范围内的随机1个颜料额外提升1级' },
@@ -81,15 +86,15 @@
     inventory: 30, // paints offered on a new canvas
     inventoryLevels: [40, 34, 18, 6, 2], // weights for Lv1-5 in the inventory
     gameplayShare: 50, // % of paints that are gameplay paints
-    chestChance: 20, // % of canvases with a Treasure Chest in the inventory
-    chestLevels: [30, 34, 22, 10, 4], // weights for the chest's starting level, Lv1-5
+    chestChance: 22, // % of canvases with a Treasure Chest in the inventory (the player: 1 in 4 or 5; never on the grid at the start)
+    chestLevels: [10, 80, 10, 0, 0], // weights for the chest's starting level, Lv1-5 (the player: usually Lv2)
     chestShare: 8, // % of random gameplay paints (from "random paint" effects) that are chests
     coloringLevels: [0, 0, 100, 0, 0], // weights for a Coloring Paint's level, Lv1-5 (live: every one seen came at Lv3)
     rangeWeights: { row: 25, col: 25, diag: 25, adj: 25, all: 0 }, // the player knows Horizontal, Vertical, Diagonal and Adjacent; Global is unseen
     targetWeights: { monster: 40, gameplay: 40, all: 20 },
     needByLevel: [3, 3, 3, 4, 4], // paints an objective needs, by its Coloring Paint's level 1-5
     gainTwoChance: [0, 0, 0, 0, 0], // % chance the effect is +2 instead of +1, by level 1-5 (live: always +1; more only from Layer)
-    refreshes: 2, // brushstroke refreshes per canvas (pactspirits: Rainbowpaint Owl 3 and 5)
+    refreshes: 2, // brushstroke refreshes per canvas: 0 to 2, by the level of your pet (pactspirit)
     forcedMax: 3, // Forced Color Mixing uses per canvas
     forcedCost: [5, 10, 15], // Colored Snow for each use
     redrawCost: 5, // Colored Snow to start over
@@ -351,8 +356,9 @@
     const gain = o.gain + (o.extras.includes('plusOne') ? 1 : 0);
     for (const n of hits) raise(state, n, gain);
     // Extra mixing effects from a Layer brushstroke.
+    // Any paint in range, whatever the objective's type, even one at Lv7.
     if (o.extras.includes('randomOne')) {
-      const painted = inRange.filter((n) => state.cells[n].paint && state.cells[n].paint.level < MAX_LEVEL);
+      const painted = inRange.filter((n) => state.cells[n].paint);
       if (painted.length) raise(state, pickOne(state, painted), 1);
     }
     if (o.extras.includes('sameContent') && o.paint) {
@@ -435,6 +441,7 @@
     if (id === 'iceRow' || id === 'iceCol') return state.cells.some((c) => c.kind === 'blocked');
     if (id === 'voidNear' || id === 'onVoid') return state.cells.some((c) => c.kind === 'void');
     if (id === 'onBlocked') return state.cells.some((c) => c.kind === 'blocked');
+    if (id === 'repair' || id === 'onBroken') return state.cells.some((c) => c.kind === 'broken');
     return true;
   }
 
@@ -484,6 +491,9 @@
       case 'onPainted':
         f.placeOn = 'painted';
         break;
+      case 'onBroken':
+        f.placeOn = 'broken';
+        break;
       default:
         if (EFFECTS[id].dir === 'stack') o.extras.push(id);
     }
@@ -510,6 +520,7 @@
       if (c.kind === 'blank' && !c.paint) return n;
       if (f.placeOn === 'void' && c.kind === 'void') return n;
       if (f.placeOn === 'blocked' && c.kind === 'blocked') return n;
+      if (f.placeOn === 'broken' && c.kind === 'broken') return n;
       if (f.placeOn === 'painted' && c.kind === 'blank' && c.paint && !c.anchor) return n;
       return -1;
     }).filter((n) => n >= 0);
@@ -520,21 +531,23 @@
   function placeColoring(state, cell) {
     const f = state.offer;
     if (state.phase !== 'offer' || !f || f.stage !== 'place') return fail('Choose a brushstroke first.');
-    if (!placeTargets(state).includes(cell)) return fail(f.placeOn === 'painted' ? 'Place it on a blank or painted cell.' : f.placeOn === 'void' ? 'Place it on a blank or void cell.' : f.placeOn === 'blocked' ? 'Place it on a blank or ice cell.' : 'Place it on a blank cell.');
+    if (!placeTargets(state).includes(cell)) return fail(f.placeOn === 'painted' ? 'Place it on a blank or painted cell.' : f.placeOn === 'void' ? 'Place it on a blank or void cell.' : f.placeOn === 'blocked' ? 'Place it on a blank or ice cell.' : f.placeOn === 'broken' ? 'Place it on a blank or broken cell.' : 'Place it on a blank cell.');
     const c = state.cells[cell];
     // On a void cell the Coloring Paint isn't there as a paint: the cell stays
-    // void, and only its objective works from it. On an ice cell it's painted.
-    const lost = !!c.paint || c.kind === 'void';
-    if (c.kind === 'blocked') c.kind = 'blank';
+    // void, and only its objective works from it. On an ice or broken cell
+    // it's painted, and on a painted cell it replaces the paint there.
+    const lost = c.kind === 'void';
+    if (c.paint) log(state, `The ${c.paint.type} Lv${c.paint.level} on ${cellLabel(cell)} was painted over.`);
+    if (c.kind === 'blocked' || c.kind === 'broken') c.kind = 'blank';
     putColoring(state, cell, f.coloring, lost);
     // Spread effects that act from where it lands.
-    if (f.effect === 'iceRow' || f.effect === 'iceCol' || f.effect === 'voidNear') {
-      const kind = f.effect === 'voidNear' ? 'void' : 'blocked';
-      const line = f.effect === 'iceRow' ? rangeCells(cell, 'row') : f.effect === 'iceCol' ? rangeCells(cell, 'col') : rangeCells(cell, 'row').concat(rangeCells(cell, 'col'));
+    if (f.effect === 'iceRow' || f.effect === 'iceCol' || f.effect === 'voidNear' || f.effect === 'repair') {
+      const kind = f.effect === 'voidNear' ? 'void' : f.effect === 'repair' ? 'broken' : 'blocked';
+      const line = f.effect === 'iceRow' ? rangeCells(cell, 'row') : f.effect === 'iceCol' ? rangeCells(cell, 'col') : f.effect === 'repair' ? rangeCells(cell, 'all') : rangeCells(cell, 'row').concat(rangeCells(cell, 'col'));
       const near = line.filter((n) => state.cells[n].kind === kind).sort((a, b) => dist(a, cell) - dist(b, cell))[0];
       if (near != null) {
         state.cells[near].kind = 'blank';
-        log(state, `${f.effect === 'voidNear' ? 'Void' : 'Ice'} cell ${cellLabel(near)} turned blank.`);
+        log(state, `${f.effect === 'voidNear' ? 'Void' : f.effect === 'repair' ? 'Broken' : 'Ice'} cell ${cellLabel(near)} ${f.effect === 'repair' ? 'was repaired' : 'turned blank'}.`);
       }
     }
     state.offer = null;
@@ -546,8 +559,7 @@
   const dist = (a, b) => Math.abs(rowOf(a) - rowOf(b)) + Math.abs(colOf(a) - colOf(b));
 
   // Puts a Coloring Paint on the canvas and makes its objective active. On a
-  // painted cell the cell keeps its paint, and on a void cell it stays void:
-  // either way the Coloring Paint's own content is lost.
+  // void cell it isn't a paint (`lost`): the cell stays void.
   function putColoring(state, cell, coloring, lost) {
     const c = state.cells[cell];
     if (!lost) c.paint = coloring.paint;

@@ -238,6 +238,7 @@
         case 'reRange': return 3;
         case 'renew': return 2;
         case 'onPainted': return 3;
+        case 'repair': return 3;
         default: return 2;
       }
     }
@@ -258,6 +259,8 @@
       case 'voidNear': return 3;
       case 'onVoid': return 2.5;
       case 'onBlocked': return 2.5;
+      case 'repair': return 3;
+      case 'onBroken': return 2.5;
       default: return 1;
     }
   }
@@ -277,10 +280,14 @@
         if (hitsChest) s -= 1000;
         if (!chestLive && c < 0) s += rangeCells(at, o.range).filter((n) => st.cells[n].paint && !st.cells[n].anchor).length;
       }
+      const old = st.cells[at].paint;
       if (st.cells[at].kind === 'void') {
         s += 3; // it leaves a blank cell free for a paint
         if (o.paint && isChest(o.paint)) s -= 200; // but a chest placed there is gone
-      } else if (lines.has(at) && !st.cells[at].paint) s -= 3; // it takes a cell the chest could use
+      } else if (old) {
+        // Painting over: a blank cell stays free, but the old paint is gone.
+        s += 3 - (isChest(old) ? 1000 : chestLive ? old.level : 40 * POT[old.level] + old.level);
+      } else if (lines.has(at)) s -= 3; // it takes a cell the chest could use
       if (s > bestScore) {
         bestScore = s;
         best = at;
