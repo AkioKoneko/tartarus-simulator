@@ -344,7 +344,7 @@
       case 'force': return 'The objective is stuck: forcing it costs Colored Snow but moves the chest along.';
       case 'refresh': return 'Neither option helps the chest: re-roll them.';
       case 'direction':
-        return a.dir === 'stack' ? 'Stack adds to the next objective’s effect: worth it when that objective can reach the chest.' : a.dir === 'turn' ? 'Turn can fix the objective: switch a monster target to gameplay, or change its range.' : 'Spread opens room: ice or void cells turn blank, or the paint can go on a painted cell.';
+        return a.dir === 'stack' ? 'Stack adds to the next objective’s effect: worth it when that objective can reach the chest.' : a.dir === 'turn' ? 'Reimagine can fix the objective: switch a monster target to gameplay, or change its range.' : 'Spread opens room: ice or void cells turn blank, or the paint can go on a painted cell.';
       case 'effect': return C.EFFECTS[a.id].text + '.';
       case 'coloring': return c >= 0 && reaches(st, a.cell, st.offer.coloring, c) ? 'From here its objective reaches the chest, with room to finish it.' : 'Here it can be finished fast without crowding the chest.';
       default: return '';

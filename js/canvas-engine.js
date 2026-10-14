@@ -43,13 +43,15 @@
 
   // Brushstrokes: after an objective is met, a new Coloring Paint is offered
   // with 2 of these 3 directions; the chosen one offers 2 of its effects.
+  // Reimagine and Spread are the English client's names; Stack (堆砌) is a
+  // translation until it's seen live.
   const DIRECTIONS = {
-    turn: { name: 'Turn', zh: '转锋', text: 'Changes the objective and its effect' },
-    spread: { name: 'Spread', zh: '扩散', text: 'Acts on special cells' },
-    stack: { name: 'Stack', zh: '堆砌', text: 'Adds an extra mixing effect' },
+    turn: { name: 'Reimagine', zh: '转锋', text: 'Changes the Color Mixing Objective and Effect' },
+    spread: { name: 'Spread', zh: '扩散', text: 'Takes effect on Special Cells' },
+    stack: { name: 'Stack', zh: '堆砌', text: 'Adds an extra Color Mixing Effect' },
   };
   const EFFECTS = {
-    // Turn: reshape the offered Coloring Paint before it's placed.
+    // Reimagine: reshape the offered Coloring Paint before it's placed.
     flip: { dir: 'turn', text: 'Switch its target to the other paint type', zh: '转变自身的作用对象为另一类型' },
     needDown: { dir: 'turn', text: 'The objective needs 1 fewer paint', zh: '调色目标的进度要求减少1' },
     reRange: { dir: 'turn', text: 'Change its range at random', zh: '转变调色目标和效果的范围' },
@@ -423,7 +425,7 @@
     return ok();
   }
 
-  // Applies a chosen effect. Turn effects reshape the Coloring Paint now;
+  // Applies a chosen effect. Reimagine effects reshape the Coloring Paint now;
   // Spread effects change where it can go or act when it's placed; Stack
   // effects ride along until its objective is met.
   function chooseEffect(state, id) {
