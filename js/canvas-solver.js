@@ -182,6 +182,7 @@
       case 'iceCol':
       case 'voidNear': return 3;
       case 'onVoid': return 2.5;
+      case 'onBlocked': return 2.5;
       default: return 1;
     }
   }

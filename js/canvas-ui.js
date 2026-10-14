@@ -242,7 +242,7 @@
       html += `<p class="cv-offer-head">Choose a ${esc(C.DIRECTIONS[f.direction].name)} effect</p>`;
       html += f.effects.map((id) => `<button type="button" class="cv-stroke" data-effect="${id}"><span>${esc(C.EFFECTS[id].text)}</span></button>`).join('');
     } else {
-      html += `<p class="cv-offer-head">Place it: click a highlighted cell${f.placeOn === 'void' ? ' (void cells too)' : f.placeOn === 'painted' ? ' (painted cells too)' : ''}.</p>`;
+      html += `<p class="cv-offer-head">Place it: click a highlighted cell${f.placeOn === 'void' ? ' (void cells too)' : f.placeOn === 'blocked' ? ' (ice cells too)' : f.placeOn === 'painted' ? ' (painted cells too)' : ''}.</p>`;
     }
     if (f.stage !== 'place') html += `<button type="button" class="link cv-refresh" data-refresh${st.refreshes > 0 ? '' : ' disabled'}>Refresh (${st.refreshes} left)</button>`;
     return html;
@@ -327,7 +327,7 @@
       return `<div class="cv-pick-row"><span>Direction taken</span>${dirs.map((d) => `<button type="button" class="az-flag" data-offer-took="${d}" aria-pressed="${f.direction === d}">${C.DIRECTIONS[d].name}</button>`).join('')}</div>
         <div class="cv-pick-row cv-wrap"><span>Effects offered</span>${pool.map((id) => `<button type="button" class="az-flag" data-offer-effect="${id}" aria-pressed="${f.effects.includes(id)}">${esc(C.EFFECTS[id].text)}</button>`).join('')}</div>`;
     }
-    return `<div class="cv-pick-row"><span>It can go on</span>${[['blank', 'Blank cells'], ['void', 'Blank or void cells'], ['painted', 'Blank or painted cells']].map(([v, label]) => `<button type="button" class="az-flag" data-offer-on="${v}" aria-pressed="${f.placeOn === v}">${label}</button>`).join('')}</div>`;
+    return `<div class="cv-pick-row"><span>It can go on</span>${[['blank', 'Blank cells'], ['void', 'Blank or void cells'], ['blocked', 'Blank or ice cells'], ['painted', 'Blank or painted cells']].map(([v, label]) => `<button type="button" class="az-flag" data-offer-on="${v}" aria-pressed="${f.placeOn === v}">${label}</button>`).join('')}</div>`;
   }
 
   function paintFrom(spec, st) {

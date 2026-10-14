@@ -20,7 +20,8 @@
 
   const MONSTERS = ['Ratlin', 'Dwarf', 'Agito', 'Pest', 'Dragonbone', 'Aember', 'Test Subject', 'Gang', 'Ichi', 'Sand Monster', 'Eumbra', 'Einherjar', 'Ghost'];
   const GAMEPLAY = ['Survival', 'God of Machines', 'God of Might', 'Goddess of Hunting', 'God of War', 'Season'];
-  // Gameplay paints that only come at Lv5 and up.
+  // Gameplay paints from past seasons. SS6 data had them at Lv5 and up only,
+  // but live a Clockwork Ballet Coloring Paint started at Lv3, so any level.
   const GAMEPLAY_HIGH = ['Dark Surge', 'Blacksail', 'Cube of Rapacity', 'Aeterna', 'Twinightmare', 'Whispering Mist', 'Clockwork Ballet'];
   const CHEST = 'Treasure Chest';
 
@@ -61,6 +62,7 @@
     iceCol: { dir: 'spread', text: 'The nearest ice cell in its column turns blank', zh: '将纵向范围中最近1个阻挡地块转变为空白地块' },
     voidNear: { dir: 'spread', text: 'The nearest void cell in its row or column turns blank', zh: '使虚空地块转变为空白地块' },
     onVoid: { dir: 'spread', text: 'It can be placed on a void cell', zh: '使自身可以放置在虚空地块上' },
+    onBlocked: { dir: 'spread', text: 'This can be placed on a Blocked Cell', zh: '可放置于阻挡地块' }, // confirmed live
     onPainted: { dir: 'spread', text: 'It can be placed on a painted cell, but loses its own content', zh: '可放置于已放置颜料的空白地块中，但会失去自身内容' },
     // Layer: an extra effect when this objective is met.
     plusOne: { dir: 'stack', text: 'Its mixing effect raises 1 more level', zh: '调色效果额外提升1级' },
@@ -178,7 +180,7 @@
     const gameplay = rand(state) * 100 < P.gameplayShare;
     if (!gameplay) return makePaint(state, 'monster', pickOne(state, MONSTERS), level);
     if (chest !== false && rand(state) * 100 < P.chestShare) return makePaint(state, 'gameplay', CHEST, level);
-    const pool = level >= 5 ? GAMEPLAY.concat(GAMEPLAY_HIGH) : GAMEPLAY;
+    const pool = GAMEPLAY.concat(GAMEPLAY_HIGH);
     return makePaint(state, 'gameplay', pickOne(state, pool), level);
   }
 
@@ -410,6 +412,7 @@
     if (id === 'needDown') return o.need > 1;
     if (id === 'iceRow' || id === 'iceCol') return state.cells.some((c) => c.kind === 'blocked');
     if (id === 'voidNear' || id === 'onVoid') return state.cells.some((c) => c.kind === 'void');
+    if (id === 'onBlocked') return state.cells.some((c) => c.kind === 'blocked');
     return true;
   }
 
@@ -453,6 +456,9 @@
       case 'onVoid':
         f.placeOn = 'void';
         break;
+      case 'onBlocked':
+        f.placeOn = 'blocked';
+        break;
       case 'onPainted':
         f.placeOn = 'painted';
         break;
@@ -481,6 +487,7 @@
     return state.cells.map((c, n) => {
       if (c.kind === 'blank' && !c.paint) return n;
       if (f.placeOn === 'void' && c.kind === 'void') return n;
+      if (f.placeOn === 'blocked' && c.kind === 'blocked') return n;
       if (f.placeOn === 'painted' && c.kind === 'blank' && c.paint && !c.anchor) return n;
       return -1;
     }).filter((n) => n >= 0);
@@ -491,10 +498,10 @@
   function placeColoring(state, cell) {
     const f = state.offer;
     if (state.phase !== 'offer' || !f || f.stage !== 'place') return fail('Choose a brushstroke first.');
-    if (!placeTargets(state).includes(cell)) return fail(f.placeOn === 'painted' ? 'Place it on a blank or painted cell.' : f.placeOn === 'void' ? 'Place it on a blank or void cell.' : 'Place it on a blank cell.');
+    if (!placeTargets(state).includes(cell)) return fail(f.placeOn === 'painted' ? 'Place it on a blank or painted cell.' : f.placeOn === 'void' ? 'Place it on a blank or void cell.' : f.placeOn === 'blocked' ? 'Place it on a blank or ice cell.' : 'Place it on a blank cell.');
     const c = state.cells[cell];
     const onPainted = !!c.paint;
-    if (c.kind === 'void') c.kind = 'blank';
+    if (c.kind === 'void' || c.kind === 'blocked') c.kind = 'blank';
     putColoring(state, cell, f.coloring, onPainted);
     // Spread effects that act from where it lands.
     if (f.effect === 'iceRow' || f.effect === 'iceCol' || f.effect === 'voidNear') {
