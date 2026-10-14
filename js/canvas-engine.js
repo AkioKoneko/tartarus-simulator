@@ -27,8 +27,9 @@
   const CHEST = 'Treasure Chest';
 
   // Where an objective looks, from its Coloring Paint's cell. `name` is the
-  // word the English client uses ("Adjacent" is confirmed from a live
-  // screenshot; the others are the likely translations of the Chinese).
+  // word the English client uses (Adjacent, Diagonal and Vertical are seen
+  // live, and the player confirms Horizontal). Global is from the Chinese
+  // guides only and isn't dealt.
   const RANGES = {
     row: { name: 'Horizontal', zh: '横向', text: 'in its row' },
     col: { name: 'Vertical', zh: '纵向', text: 'in its column' },
@@ -58,12 +59,12 @@
     reRange: { dir: 'turn', text: 'Change its direction (range) at random', zh: '转变调色目标和效果的范围' }, // confirmed live
     relevel: { dir: 'turn', text: 'Re-roll its own level, same content', zh: '随机转变自身的等级，内容不变' },
     renew: { dir: 'turn', text: 'Get a new random Coloring Paint instead', zh: '重新获得1个随机调色颜料' },
-    // Spread: special cells.
+    // Spread: special cells. An ice cell that turns blank takes paints like any
+    // blank cell (confirmed by the player).
     iceRow: { dir: 'spread', text: 'The nearest ice cell in its row turns blank', zh: '将横向范围中最近1个阻挡地块转变为空白地块' },
     iceCol: { dir: 'spread', text: 'The nearest ice cell in its column turns blank', zh: '将纵向范围中最近1个阻挡地块转变为空白地块' },
     voidNear: { dir: 'spread', text: 'The nearest void cell in its row or column turns blank', zh: '使虚空地块转变为空白地块' },
-    onVoid: { dir: 'spread', text: 'It can be placed on a void cell', zh: '使自身可以放置在虚空地块上' },
-    onBlocked: { dir: 'spread', text: 'This can be placed on a Blocked Cell', zh: '可放置于阻挡地块' }, // confirmed live
+    onVoid: { dir: 'spread', text: 'It can be placed on a void cell, where its objective works but it isn\'t a paint', zh: '使自身可以放置在虚空地块上' }, // confirmed by the player: the cell stays void    onBlocked: { dir: 'spread', text: 'This can be placed on a Blocked Cell', zh: '可放置于阻挡地块' }, // confirmed live
     onPainted: { dir: 'spread', text: 'It can be placed on a painted cell, but loses its own content', zh: '可放置于已放置颜料的空白地块中，但会失去自身内容' },
     // Layer: an extra effect when this objective is met.
     plusOne: { dir: 'stack', text: 'Its mixing effect raises 1 more level', zh: '调色效果额外提升1级' },
@@ -84,7 +85,7 @@
     chestLevels: [30, 34, 22, 10, 4], // weights for the chest's starting level, Lv1-5
     chestShare: 8, // % of random gameplay paints (from "random paint" effects) that are chests
     coloringLevels: [0, 0, 100, 0, 0], // weights for a Coloring Paint's level, Lv1-5 (live: every one seen came at Lv3)
-    rangeWeights: { row: 22, col: 22, diag: 22, adj: 22, all: 12 },
+    rangeWeights: { row: 25, col: 25, diag: 25, adj: 25, all: 0 }, // the player knows Horizontal, Vertical, Diagonal and Adjacent; Global is unseen
     targetWeights: { monster: 40, gameplay: 40, all: 20 },
     needByLevel: [3, 3, 3, 4, 4], // paints an objective needs, by its Coloring Paint's level 1-5
     gainTwoChance: [0, 0, 0, 0, 0], // % chance the effect is +2 instead of +1, by level 1-5 (live: always +1; more only from Layer)
@@ -372,12 +373,26 @@
     state.stats.objectives += 1;
     if (forced) state.stats.forced += 1;
     log(state, `${forced ? 'Forced' : 'Objective met'}: ${TARGETS[o.target].name.toLowerCase()} paints ${RANGES[o.range].text} rose ${gain} level${gain === 1 ? '' : 's'} (${hits.length} paint${hits.length === 1 ? '' : 's'}).`);
+    if (forced) breakOne(state);
     state.active = null;
     if (!blankCells(state).length && !canPlaceAnywhere(state)) {
       finish(state);
       return;
     }
     offerColoring(state);
+  }
+
+  // Forcing's price: 1 random paint on the canvas is gone, and its cell breaks.
+  // Nothing goes on a broken cell until it's repaired.
+  function breakOne(state) {
+    const painted = state.cells.map((c, n) => (c.kind === 'blank' && c.paint ? n : -1)).filter((n) => n >= 0);
+    if (!painted.length) return;
+    const n = pickOne(state, painted);
+    const c = state.cells[n];
+    log(state, `Cell ${cellLabel(n)} broke, and its ${c.paint.type} Lv${c.paint.level} is gone.`);
+    c.kind = 'broken';
+    c.paint = null;
+    c.anchor = false;
   }
 
   function raise(state, n, by) {
@@ -507,9 +522,11 @@
     if (state.phase !== 'offer' || !f || f.stage !== 'place') return fail('Choose a brushstroke first.');
     if (!placeTargets(state).includes(cell)) return fail(f.placeOn === 'painted' ? 'Place it on a blank or painted cell.' : f.placeOn === 'void' ? 'Place it on a blank or void cell.' : f.placeOn === 'blocked' ? 'Place it on a blank or ice cell.' : 'Place it on a blank cell.');
     const c = state.cells[cell];
-    const onPainted = !!c.paint;
-    if (c.kind === 'void' || c.kind === 'blocked') c.kind = 'blank';
-    putColoring(state, cell, f.coloring, onPainted);
+    // On a void cell the Coloring Paint isn't there as a paint: the cell stays
+    // void, and only its objective works from it. On an ice cell it's painted.
+    const lost = !!c.paint || c.kind === 'void';
+    if (c.kind === 'blocked') c.kind = 'blank';
+    putColoring(state, cell, f.coloring, lost);
     // Spread effects that act from where it lands.
     if (f.effect === 'iceRow' || f.effect === 'iceCol' || f.effect === 'voidNear') {
       const kind = f.effect === 'voidNear' ? 'void' : 'blocked';
@@ -529,13 +546,13 @@
   const dist = (a, b) => Math.abs(rowOf(a) - rowOf(b)) + Math.abs(colOf(a) - colOf(b));
 
   // Puts a Coloring Paint on the canvas and makes its objective active. On a
-  // painted cell, the cell keeps its paint and the Coloring Paint's own
-  // content is lost.
-  function putColoring(state, cell, coloring, onPainted) {
+  // painted cell the cell keeps its paint, and on a void cell it stays void:
+  // either way the Coloring Paint's own content is lost.
+  function putColoring(state, cell, coloring, lost) {
     const c = state.cells[cell];
-    if (!onPainted) c.paint = coloring.paint;
+    if (!lost) c.paint = coloring.paint;
     c.anchor = true;
-    state.active = { cell, paint: onPainted ? null : coloring.paint, range: coloring.range, target: coloring.target, need: coloring.need, gain: coloring.gain, extras: coloring.extras.slice() };
+    state.active = { cell, paint: lost ? null : coloring.paint, range: coloring.range, target: coloring.target, need: coloring.need, gain: coloring.gain, extras: coloring.extras.slice() };
     log(state, `Coloring Paint on ${cellLabel(cell)}: place ${coloring.need} ${TARGETS[coloring.target].name.toLowerCase()} paints ${RANGES[coloring.range].text}, then they rise ${coloring.gain}.`);
   }
 

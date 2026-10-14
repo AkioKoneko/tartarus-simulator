@@ -297,10 +297,10 @@ node tools/canvas-sim.js eval --games 400000
 - Confirmed:
   - a 6×6 canvas of blank, ice and void cells,
   - monster (round) and gameplay (diamond) paints, Lv1–7,
-  - objectives with a range (row, column, diagonals, the 4 neighbors, the whole canvas) and a target type, where paints already in range count,
+  - objectives with a range (Horizontal, Vertical, Diagonal, Adjacent) and a target type, where paints already in range count,
   - meeting an objective raises every matching paint in range,
   - the three brushstroke directions (Reimagine, Spread, Layer): 2 are offered, then 2 effects from the chosen one,
-  - Forced Color Mixing at 5 and then 10 Colored Snow, 3 a canvas.
+  - Forced Color Mixing at 5 and then 10 Colored Snow, 3 a canvas. It breaks 1 random paint on the canvas.
 - **Practice values**, in `DEFAULT_PARAMS` and editable on the page, cover everything the game hides:
   - how often a canvas has a chest,
   - the inventory's levels,
@@ -310,19 +310,26 @@ node tools/canvas-sim.js eval --games 400000
 
 **Two goals.** On a canvas with a Treasure Chest, the goal is a Lv7 chest. Without one, it's as many rainbow (Lv7) paints as possible. Their eggs can drop skills too. The score is the chest's worth by level (Lv7 = 100), plus 4 for each other rainbow paint.
 
-**Result with the practice values** (200,000 canvases, about 25 seconds):
+**Result with the practice values** (100,000 canvases, about 15 seconds):
 
-| | Old strategy | New strategy |
+| | Lv7 chest, on chest canvases | Rainbow paints, on canvases without a chest |
 | --- | --- | --- |
-| Lv7 chest, on chest canvases | 65.7% | **71.3% ± 0.4** (average chest level 6.46, plus 0.68 other rainbows) |
-| Rainbow paints, on canvases without a chest | 0.08 | **0.31 ± 0.005** |
+| Before forcing broke a paint, with Global objectives | 71.3% ± 0.4 | 0.31 ± 0.005 |
+| Forcing breaks a paint, with Global objectives (40,000 canvases) | 55.2% ± 1.1 | 0.29 ± 0.011 |
+| **Forcing breaks a paint, no Global objectives** | **42.1% ± 0.7** (average chest level 4.80) | **0.091 ± 0.003** |
 
-On chest-less canvases, 14% now end with at least one rainbow, up from 5%.
+Two rule changes on 2026-10-13 moved these numbers:
+- **Forcing breaks a paint.** About 1 chest in 6 is lost to a break, even with the risk check below.
+- **No Global objectives.** The player knows four ranges, so Global isn't dealt. Whole-canvas objectives made most of the rainbows on chest-less canvases.
 
-The chest gain fixes a bug in the old strategy. Once its chest reached Lv7, it went fishing for another chest with Layer's re-roll effect, and sometimes re-rolled its own finished chest. A Lv7 chest only changes through an effect like that, so the strategy never takes re-roll while a chest is on the canvas.
+An earlier fix in the strategy still holds. Once its chest reached Lv7, it went fishing for another chest with Layer's re-roll effect, and sometimes re-rolled its own finished chest. A Lv7 chest only changes through an effect like that, so the strategy never takes re-roll while a chest is on the canvas.
 
 Live rules the user confirmed:
+- The ranges are Horizontal, Vertical, Diagonal and Adjacent.
 - An objective raises each matching paint in range by +1, and only Layer effects add more.
+- Spread's ice effects turn an ice cell into a blank cell that takes paints.
+- A Coloring Paint placed on a void cell isn't a paint: the cell stays void, and only its objective works from there.
+- Forced Color Mixing meets the objective, but 1 random paint on the canvas breaks: it's gone, and nothing can go on that cell until it's repaired. How a repair happens isn't known yet.
 - Every Coloring Paint seen live came at Lv3 and needs 3.
 - The void count (11–15) comes from a live screenshot.
 
@@ -332,5 +339,5 @@ Live rules the user confirmed:
 - **Objectives that don't:** finish them quickly, off the chest's lines.
 - **Brushstrokes:** Layer when the next objective can reach the chest, Reimagine to flip a monster target, Spread to open room.
 - **Never** take the re-roll effect while a chest is on the canvas.
-- **Without a chest:** aim each objective at the highest paints (Global ranges and Layer's +1 are best), and force a stuck one that would push paints toward Lv7.
-- **Forcing:** force an objective that feeds the chest when it gets stuck.
+- **Without a chest:** aim each objective at the highest paints (Layer's +1 is best), and force a stuck one when it pushes paints toward Lv7 by more than the break costs on average. Never force with a Lv7 chest on the canvas.
+- **Forcing:** when an objective is stuck, force it if it feeds the chest, or to get a new Coloring Paint while the chest has room. Only with at least 6 paints on the canvas, so the break hits the chest 1 time in 6 or less. Thresholds from 4 to 8 score within 2 points of each other.

@@ -14,6 +14,9 @@
   const L = (n) => C.cellLabel(n);
   const KEY = 'tartarus-sim:canvas:v1';
   const ROLLOUTS = 300;
+  // Bumped when the practice values' defaults change: saved ones from before
+  // are dropped, so everyone plays the current rules.
+  const PARAMS_REV = 2;
 
   const store = {
     get() {
@@ -35,12 +38,14 @@
   // ---------- State ----------
 
   const saved = store.get() || {};
-  let params = C.normalizeParams(saved.params);
+  const current = saved.paramsRev === PARAMS_REV;
+  let params = C.normalizeParams(current ? saved.params : null);
   let mode = saved.mode === 'mine' ? 'mine' : 'practice';
   const games = {
-    practice: valid(saved.practice) ? saved.practice : C.newCanvas({ params }),
+    practice: current && valid(saved.practice) ? saved.practice : C.newCanvas({ params }),
     mine: valid(saved.mine) ? saved.mine : emptyCanvas(),
   };
+  if (!current) games.mine.params = C.normalizeParams(params);
   const stats = Object.assign({ canvases: 0, chests: 0, lv7: 0, levels: 0, rainbows: 0, plain: 0 }, saved.stats || {});
   const undo = { practice: [], mine: [] };
   let setup = saved.setup !== false; // My canvas: setting up (true) or playing (false)
@@ -69,7 +74,7 @@
   const key = () => JSON.stringify([mode, game().cells, game().inventory, game().active, game().offer, game().phase, game().forced, game().refreshes]);
 
   function save() {
-    store.set({ mode, params, practice: games.practice, mine: games.mine, stats, setup });
+    store.set({ mode, params, paramsRev: PARAMS_REV, practice: games.practice, mine: games.mine, stats, setup });
   }
 
   function changed() {
@@ -114,6 +119,7 @@
   // ---------- Drawing ----------
 
   const CHEST_ART = '<svg class="cv-chest" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 14h22v13H5z" fill="#8a5a2b"/><path d="M5 14c0-7 22-7 22 0z" fill="#b5783a"/><path d="M5 14h22v2.5H5zM5 22h22v2H5z" fill="#e0b04a"/><rect x="14" y="16" width="4" height="5" rx="1" fill="#f6dc7a"/><circle cx="16" cy="18.5" r="0.9" fill="#3b2a12"/></svg>';
+  const CRACK = '<svg class="cv-crack" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l6 2 2-5 3 6 4-3 3 4M9 11l-2 9M14 12l1 4 5 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>';
   const BRUSH = '<svg class="cv-brush" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3l4 4-9 9-4-4z" fill="currentColor" opacity=".55"/><path d="M8 12l4 4c-1 3-4 5-8 5 0-4 1-7 4-9z" fill="currentColor"/></svg>';
   // Two letters per paint, so different paints read apart at a glance.
   const SHORT = {
@@ -136,6 +142,7 @@
     let inner = '';
     if (c.kind === 'blocked') inner = '<span class="cv-ice" aria-hidden="true"></span>';
     else if (c.kind === 'void') inner = '<span class="cv-void" aria-hidden="true"></span>';
+    else if (c.kind === 'broken') inner = CRACK;
     else if (c.paint) inner = token(c.paint);
     else inner = BRUSH;
     const bang = c.anchor ? `<span class="cv-bang${st.active && st.active.cell === n ? ' is-live' : ''}" aria-hidden="true">!</span>` : '';
@@ -146,7 +153,8 @@
     const c = st.cells[n];
     const where = `Cell ${L(n)}: `;
     if (c.kind === 'blocked') return `${where}ice (blocked)`;
-    if (c.kind === 'void') return `${where}void`;
+    if (c.kind === 'void') return `${where}void${c.anchor ? ', with the objective’s Coloring Paint' : ''}`;
+    if (c.kind === 'broken') return `${where}broken`;
     if (!c.paint) return `${where}blank${c.anchor ? ', the objective’s Coloring Paint' : ''}`;
     return `${where}${C.paintName(c.paint)}${c.anchor ? ', a Coloring Paint' : ''}`;
   }
@@ -230,6 +238,7 @@
     const left = P.forcedMax - st.forced;
     const cost = P.forcedCost[Math.min(st.forced, P.forcedCost.length - 1)];
     $('cv-force').textContent = `Forced Color Mixing (${left}/${P.forcedMax}) · ${cost} Snow`;
+    $('cv-force').title = 'Meets the objective now, but 1 random paint on the canvas breaks: it’s gone, and nothing goes on its cell.';
     $('cv-force').disabled = !(st.phase === 'paint' && st.active && left > 0) || editing;
     $('cv-undo').disabled = !undo[mode].length;
     $('cv-new').textContent = mode === 'practice' ? 'New canvas' : setup ? 'Play this canvas' : 'Back to setting up';
@@ -275,7 +284,7 @@
       const c = st.cells[selected];
       const isAnchor = st.active && st.active.cell === selected;
       body.innerHTML = `<p class="cv-edit-title">Cell ${L(selected)}</p>
-        <div class="cv-pick-row"><span>Cell</span>${['blank', 'blocked', 'void'].map((k) => `<button type="button" class="az-flag" data-set-kind="${k}" aria-pressed="${!c.paint && c.kind === k}">${k === 'blocked' ? 'Ice' : k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>
+        <div class="cv-pick-row"><span>Cell</span>${['blank', 'blocked', 'void', 'broken'].map((k) => `<button type="button" class="az-flag" data-set-kind="${k}" aria-pressed="${!c.paint && c.kind === k}">${k === 'blocked' ? 'Ice' : k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>
         <div class="cv-pick-row"><span>Treasure Chest</span>${lv(1, 7).map((l) => `<button type="button" class="cv-mini" data-set-paint="chest:${l}" aria-pressed="${C.isChest(c.paint) && c.paint.level === l}">${token({ cls: 'gameplay', type: C.CHEST, level: l })}</button>`).join('')}</div>
         <div class="cv-pick-row"><span>Gameplay</span>${lv(1, 7).map((l) => `<button type="button" class="cv-mini" data-set-paint="gameplay:${l}" aria-pressed="${!!c.paint && c.paint.cls === 'gameplay' && !C.isChest(c.paint) && c.paint.level === l}">${token({ cls: 'gameplay', type: 'Survival', level: l })}</button>`).join('')}</div>
         <div class="cv-pick-row"><span>Monster</span>${lv(1, 7).map((l) => `<button type="button" class="cv-mini" data-set-paint="monster:${l}" aria-pressed="${!!c.paint && c.paint.cls === 'monster' && c.paint.level === l}">${token({ cls: 'monster', type: 'Dwarf', level: l })}</button>`).join('')}</div>
@@ -430,7 +439,7 @@
       const v = params[k];
       const text = Array.isArray(v) ? v.join(', ') : String(v);
       return `<label class="field"><span class="field-label">${esc(label)}</span><input type="text" data-lab="${k}" value="${esc(text)}"></label>`;
-    }).join('') + `<label class="field"><span class="field-label">Objective ranges (row, column, diagonals, adjacent, whole)</span><input type="text" data-lab-map="rangeWeights" value="${esc(Object.values(params.rangeWeights).join(', '))}"></label><label class="field"><span class="field-label">Objective targets (monster, gameplay, any)</span><input type="text" data-lab-map="targetWeights" value="${esc(Object.values(params.targetWeights).join(', '))}"></label>`;
+    }).join('') + `<label class="field"><span class="field-label">Objective ranges (Horizontal, Vertical, Diagonal, Adjacent, Global)</span><input type="text" data-lab-map="rangeWeights" value="${esc(Object.values(params.rangeWeights).join(', '))}"></label><label class="field"><span class="field-label">Objective targets (monster, gameplay, any)</span><input type="text" data-lab-map="targetWeights" value="${esc(Object.values(params.targetWeights).join(', '))}"></label>`;
   }
 
   function setParams(next) {

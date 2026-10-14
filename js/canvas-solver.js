@@ -87,6 +87,16 @@
     return sum;
   }
 
+  // Forcing breaks 1 random paint on the canvas, so it's a gamble: the chest
+  // goes with odds 1 in (paints on the canvas).
+  const FORCE_MIN = 6; // paints on the canvas before forcing risks the chest (the lab's best: 4 to 10 are close)
+  const painted = (st) => st.cells.filter((c) => c.kind === 'blank' && c.paint).length;
+  // What a random break costs toward rainbows, on average.
+  function breakLoss(st) {
+    const list = st.cells.filter((c) => c.kind === 'blank' && c.paint);
+    return list.length ? list.reduce((s, c) => s + POT[c.paint.level], 0) / list.length : 0;
+  }
+
   // ---------- The strategy ----------
 
   function decide(st) {
@@ -133,8 +143,9 @@
         }
       } else if (left > 0 && chestLive && st.forced < st.params.forcedMax) {
         // Stuck: force it when it would feed the chest, or to get a new
-        // Coloring Paint while the chest still has room to grow.
-        if (helps || open(st, [...lines]) >= 3) return { type: 'force' };
+        // Coloring Paint while the chest still has room to grow, once enough
+        // paints are down that the break is unlikely to hit the chest.
+        if ((helps || open(st, [...lines]) >= 3) && painted(st) >= FORCE_MIN) return { type: 'force' };
       }
     }
     // Filler: away from the chest's lines, and off the active range so it
@@ -146,7 +157,8 @@
   }
 
   // No chest to raise: meet objectives that lift high paints, and force one
-  // that's stuck when it would push paints toward Lv7.
+  // that's stuck when it would push paints toward Lv7 by more than the break
+  // costs. Never with a Lv7 chest on the canvas: the break could take it.
   function rainbowPaint(st, blanks, o) {
     if (o) {
       const inRange = rangeCells(o.cell, o.range).filter((n) => blank(st, n));
@@ -154,7 +166,7 @@
       if (left > 0 && inRange.length >= left) {
         const inv = spare(st, o.target);
         if (inv >= 0) return { type: 'place', inv, cell: inRange[0] };
-      } else if (left > 0 && st.forced < st.params.forcedMax && rangeGain(st, o.cell, o) >= 0.4) {
+      } else if (left > 0 && st.forced < st.params.forcedMax && !C.chests(st).length && rangeGain(st, o.cell, o) - breakLoss(st) >= 0.4) {
         return { type: 'force' };
       }
     }
@@ -265,7 +277,10 @@
         if (hitsChest) s -= 1000;
         if (!chestLive && c < 0) s += rangeCells(at, o.range).filter((n) => st.cells[n].paint && !st.cells[n].anchor).length;
       }
-      if (lines.has(at) && !st.cells[at].paint) s -= 3; // it takes a cell the chest could use
+      if (st.cells[at].kind === 'void') {
+        s += 3; // it leaves a blank cell free for a paint
+        if (o.paint && isChest(o.paint)) s -= 200; // but a chest placed there is gone
+      } else if (lines.has(at) && !st.cells[at].paint) s -= 3; // it takes a cell the chest could use
       if (s > bestScore) {
         bestScore = s;
         best = at;
@@ -403,7 +418,7 @@
       // No chest to raise: rainbows.
       switch (a.type) {
         case 'place': return st.active && rangeCells(st.active.cell, st.active.range).includes(a.cell) ? 'No chest here, so rainbows are the goal: finish this objective to lift the paints in its range.' : 'Filler, off the objective’s range so it keeps its cells.';
-        case 'force': return 'The objective is stuck, and meeting it pushes high paints toward Lv7: worth the Colored Snow.';
+        case 'force': return 'The objective is stuck, and meeting it pushes high paints toward Lv7: worth the Colored Snow and the paint it breaks.';
         case 'direction': return a.dir === 'stack' ? 'Layer adds to this objective’s lift: best when its range holds high paints.' : a.dir === 'turn' ? 'Reimagine can point this objective at better paints: switch its type or its direction.' : 'Spread opens room for objectives to finish.';
         case 'effect': return `${C.EFFECTS[a.id].text}.`;
         case 'coloring': return 'From here its objective lifts the most high paints toward Lv7, with room to finish.';
@@ -419,7 +434,7 @@
         }
         return 'Filler, away from the chest’s lines so they stay open for objectives that can raise it.';
       }
-      case 'force': return 'The objective is stuck: forcing it costs Colored Snow but moves the chest along.';
+      case 'force': return 'The objective is stuck: forcing it costs Colored Snow and breaks 1 random paint, but with this many paints down the chest is rarely the one.';
       case 'refresh': return 'Neither option helps the chest: re-roll them.';
       case 'direction':
         return a.dir === 'stack' ? 'Layer adds to the next objective’s effect: worth it when that objective can reach the chest.' : a.dir === 'turn' ? 'Reimagine can fix the objective: switch a monster target to gameplay, or change its range.' : 'Spread opens room: ice or void cells turn blank, or the paint can go on a painted cell.';
