@@ -452,8 +452,11 @@
   // ---------- Playing a move here ----------
 
   // Plays a move with the simulator's dice. The cells it changes are marked
-  // for the player to set to what their game shows.
-  function doMove(action) {
+  // for the player to set to what their game shows. With toNextDay, the
+  // strategy then plays the rest of the day the same way, as if the player
+  // followed the advice, and stops at the next day's patrol: the player then
+  // pastes a screenshot of their new day, or fixes the marked cells.
+  function doMove(action, toNextDay) {
     const { st, problems } = buildState(model);
     if (problems.length) {
       showProblems(problems);
@@ -472,21 +475,38 @@
       showProblems([result ? result.reason : 'That move could not be played.']);
       return;
     }
+    let more = 0;
+    const startDay = st.day;
+    if (toNextDay) {
+      const nextPatrol = () => st.day > startDay && st.phase === 'patrol' && !st.pending.length && !(st.challenge && st.challenge.window);
+      for (let i = 0; i < 80 && st.phase !== 'ended' && !nextPatrol(); i++) {
+        let next = null;
+        try {
+          next = S.decide(st, S.paramsFor(st), Math.random);
+          if (next && !(S.apply(st, next) || {}).ok) next = null;
+        } catch (e) {
+          next = null;
+        }
+        if (!next) break;
+        more += 1;
+      }
+    }
     undo.push({ model: before, selected });
     if (undo.length > 30) undo.shift();
     model = modelFrom(st, before);
     flags = new Set(model.cells.map((c, n) => (cellSig(c) !== cellSig(before.cells[n]) ? n : -1)).filter((n) => n >= 0));
-    applied = { label, changed: [...flags], newDay: model.day !== before.day, doors: model.step === 'patrol' ? model.dest.slice() : [], ended: !!model.ended, step: model.step };
+    applied = { label, changed: [...flags], newDay: model.day !== before.day, doors: model.step === 'patrol' ? model.dest.slice() : [], ended: !!model.ended, step: model.step, more, toNextDay: !!toNextDay };
     const filled = [...flags].map((n) => `c${n}`);
     if (applied.newDay && model.step === 'patrol') filled.push('dest');
     if (model.step === 'event') filled.push('event');
     if (model.step === 'choice' && model.choice.kind !== 'gift') filled.push('choice');
-    via = { action, label, filled, touched: new Set() };
+    via = { action, label: toNextDay ? `${label}, then the rest of day ${startDay} by the strategy`.slice(0, 120) : label, filled, touched: new Set() };
     solver.st = null;
     solver.id += 1;
     showProblems([]);
     changed();
     $('az-applied').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (toNextDay && !model.ended) toast(`Day ${model.day}. Paste a screenshot of your new day (Ctrl+V) to load it, or fix the cells marked Check.`, 'ok', [{ id: 'pick', label: 'Choose a screenshot', primary: true }]);
   }
 
   function labelFor(action) {
@@ -827,6 +847,7 @@
     $('az-res-move').textContent = rec ? rec.label : 'Nothing to decide here.';
     $('az-do').hidden = !rec || stale;
     $('az-do').textContent = rec && rec.action.type === 'end' ? 'End the day here' : 'Do it here';
+    $('az-next').hidden = !rec || stale;
     $('az-undo').hidden = !undo.length;
     let body = '';
     if (stale) body += '<p class="trainer-verdict">The board changed since this check. Ask again for advice on the new board.</p>';
@@ -918,6 +939,7 @@
     box.hidden = !applied;
     if (!applied) return;
     let html = `<p class="trainer-eyebrow">Played here with the simulator's dice</p><p class="az-applied-move">${esc(applied.label)}</p>`;
+    if (applied.toNextDay && !applied.ended) html += `<p class="trainer-why">${applied.more ? `Then the strategy played the rest of the day (${applied.more} more ${applied.more === 1 ? 'move' : 'moves'}), as if you followed its advice. ` : ''}What really happened in your game will differ: paste a screenshot of your new day (Ctrl+V) to load it, or fix the cells marked Check.</p>`;
     if (applied.ended) html += '<p class="trainer-why">That ended the run. Load another board, or play a new run in the simulator.</p>';
     else {
       if (applied.changed.length) html += `<p class="trainer-why">${applied.changed.length === 1 ? 'Cell' : 'Cells'} ${applied.changed.map(L).join(', ')} changed, marked Check. Set ${applied.changed.length === 1 ? 'it' : 'them'} to what your game shows.</p>`;
@@ -1673,6 +1695,10 @@
       const rec = fresh() ? recommendation() : null;
       if (rec) doMove(rec.action);
     });
+    $('az-next').addEventListener('click', () => {
+      const rec = fresh() ? recommendation() : null;
+      if (rec) doMove(rec.action, true);
+    });
     $('az-undo').addEventListener('click', undoMove);
     $('az-applied').addEventListener('click', (e) => {
       if (e.target.closest('[data-undo]')) undoMove();
@@ -1800,6 +1826,7 @@
       if (!b) return;
       $('az-toast').hidden = true;
       if (b.dataset.toast === 'use') useScan();
+      else if (b.dataset.toast === 'pick') $('az-scan-file').click();
       else $('az-scan').scrollIntoView({ block: 'start', behavior: 'smooth' });
     });
     $('az-scan-discard').addEventListener('click', () => {
