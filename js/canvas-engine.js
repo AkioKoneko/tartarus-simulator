@@ -24,13 +24,15 @@
   const GAMEPLAY_HIGH = ['Dark Surge', 'Blacksail', 'Cube of Rapacity', 'Aeterna', 'Twinightmare', 'Whispering Mist', 'Clockwork Ballet'];
   const CHEST = 'Treasure Chest';
 
-  // Where an objective looks, from its Coloring Paint's cell.
+  // Where an objective looks, from its Coloring Paint's cell. `name` is the
+  // word the English client uses ("Adjacent" is confirmed from a live
+  // screenshot; the others are the likely translations of the Chinese).
   const RANGES = {
-    row: { name: 'Row', zh: '横向', text: 'in its row' },
-    col: { name: 'Column', zh: '纵向', text: 'in its column' },
-    diag: { name: 'Diagonals', zh: '对角斜向', text: 'on its diagonals' },
+    row: { name: 'Horizontal', zh: '横向', text: 'in its row' },
+    col: { name: 'Vertical', zh: '纵向', text: 'in its column' },
+    diag: { name: 'Diagonal', zh: '对角斜向', text: 'on its diagonals' },
     adj: { name: 'Adjacent', zh: '相邻', text: 'next to it' },
-    all: { name: 'Whole canvas', zh: '全图', text: 'anywhere on the canvas' },
+    all: { name: 'Global', zh: '全图', text: 'anywhere on the canvas' },
   };
   const RANGE_IDS = Object.keys(RANGES);
   const TARGETS = {
@@ -70,7 +72,7 @@
   // Practice values: what the game doesn't show. Adjust as live play teaches.
   const DEFAULT_PARAMS = {
     blocked: [4, 6], // ice cells on a new canvas, min and max
-    voids: [9, 12], // void cells on a new canvas, min and max
+    voids: [11, 15], // void cells on a new canvas, min and max (live: 11 and 15 seen)
     inventory: 30, // paints offered on a new canvas
     inventoryLevels: [40, 34, 18, 6, 2], // weights for Lv1-5 in the inventory
     gameplayShare: 50, // % of paints that are gameplay paints
@@ -524,16 +526,19 @@
 
   // ---------- Text ----------
 
+  // The game's English wording: "Fill a Adjacent Cell with a Monster
+  // Paint(0/3)", "Color Mixing Effect:Level up the Adjacent Monster Paint by
+  // 1 level(s)".
   function objectiveText(o, prog) {
     if (!o) return '';
     const done = prog == null ? '' : ` (${prog}/${o.need})`;
-    return `Place ${TARGETS[o.target].name.toLowerCase()} paints ${RANGES[o.range].text}${done}`;
+    return `Fill a ${RANGES[o.range].name} Cell with a${o.target === 'all' ? 'ny' : ''} ${o.target === 'all' ? '' : `${TARGETS[o.target].name} `}Paint${done}`;
   }
 
   function effectText(o) {
     if (!o) return '';
     const gain = o.gain + (o.extras.includes('plusOne') ? 1 : 0);
-    return `Mixing effect: ${TARGETS[o.target].name.toLowerCase()} paints ${RANGES[o.range].text} rise ${gain} level${gain === 1 ? '' : 's'}`;
+    return `Color Mixing Effect: Level up the ${RANGES[o.range].name} ${o.target === 'all' ? '' : `${TARGETS[o.target].name} `}Paint by ${gain} level(s)`;
   }
 
   function clone(state) {

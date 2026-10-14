@@ -396,7 +396,7 @@
     box.hidden = mode !== 'practice';
     if (mode !== 'practice') return;
     const rate = stats.chests ? Math.round((100 * stats.lv7) / stats.chests) : 0;
-    box.innerHTML = `<h2 class="az-h2">Your practice</h2><p>${stats.canvases} canvas${stats.canvases === 1 ? '' : 'es'} finished, ${stats.chests} with a chest, <b>${stats.lv7} Lv7 chest${stats.lv7 === 1 ? '' : 's'}</b>${stats.chests ? ` (${rate}% of chest canvases; the trainer’s strategy makes about 70% with these practice values)` : ''}.</p>`;
+    box.innerHTML = `<h2 class="az-h2">Your practice</h2><p>${stats.canvases} canvas${stats.canvases === 1 ? '' : 'es'} finished, ${stats.chests} with a chest, <b>${stats.lv7} Lv7 chest${stats.lv7 === 1 ? '' : 's'}</b>${stats.chests ? ` (${rate}% of chest canvases; the trainer’s strategy makes about 64% with these practice values)` : ''}.</p>`;
   }
 
   // ---------- Practice values ----------
