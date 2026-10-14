@@ -9,8 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261013j">
-<link rel="stylesheet" href="css/canvas.css?v=20261013j">
+<link rel="stylesheet" href="css/style.css?v=20261013k">
+<link rel="stylesheet" href="css/canvas.css?v=20261013k">
 </head>
 <body>
 <main class="cv" id="cv">
@@ -103,7 +103,7 @@
       <li><b>The canvas.</b> 6×6 cells: blank cells take paints, ice cells (blocked) and void cells don't. One Coloring Paint starts on the canvas, marked "!".</li>
       <li><b>The objective.</b> The active Coloring Paint asks for paints of a type (monster, gameplay or any) in its range: its row, its column, its diagonals, the 4 cells next to it, or the whole canvas. Paints already there count; the Coloring Paint itself doesn't.</li>
       <li><b>Meeting it.</b> Once enough are in range, every matching paint in range rises 1 or 2 levels, to Lv7 at most. The Treasure Chest is a gameplay paint, so gameplay and "any" objectives that reach it raise it.</li>
-      <li><b>The next Coloring Paint.</b> A new one is offered. Pick a brushstroke direction: Reimagine (change its target or range), Spread (open ice or void cells, or place it on a painted cell), or Stack (an extra effect when it's met). Then pick 1 of 2 effects, and place it.</li>
+      <li><b>The next Coloring Paint.</b> A new one is offered. Pick a brushstroke direction: Reimagine (change its target or range), Spread (open ice or void cells, or place it on a painted cell), or Layer (an extra effect when it's met). Then pick 1 of 2 effects, and place it.</li>
       <li><b>When stuck.</b> Forced Color Mixing meets the objective right away, for Colored Snow (5, then 10, then 15; 3 a canvas).</li>
       <li><b>The end.</b> The canvas is done when its cells are full. Then the painting becomes a map, and a Lv7 chest is where the money is.</li>
     </ol>
@@ -116,8 +116,8 @@
   </footer>
 </main>
 
-<script src="js/canvas-engine.js?v=20261013j"></script>
-<script src="js/canvas-solver.js?v=20261013j"></script>
-<script src="js/canvas-ui.js?v=20261013j"></script>
+<script src="js/canvas-engine.js?v=20261013k"></script>
+<script src="js/canvas-solver.js?v=20261013k"></script>
+<script src="js/canvas-ui.js?v=20261013k"></script>
 </body>
 </html>

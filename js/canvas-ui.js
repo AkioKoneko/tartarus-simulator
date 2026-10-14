@@ -314,7 +314,7 @@
       + seg('target', Object.keys(C.TARGETS).map((t) => [t, C.TARGETS[t].name]), o.target)
       + seg('need', [1, 2, 3, 4, 5, 6].map((n) => [n, String(n)]), o.need)
       + seg('gain', [1, 2, 3].map((n) => [n, `+${n}`]), o.gain)
-      + `<div class="cv-pick-row"><span>Stack effects</span>${['plusOne', 'randomOne', 'sameContent', 'reroll'].map((id) => `<button type="button" class="az-flag" data-extra="${scope}:${id}" aria-pressed="${o.extras.includes(id)}">${esc(C.EFFECTS[id].text)}</button>`).join('')}</div>`;
+      + `<div class="cv-pick-row"><span>Layer effects</span>${['plusOne', 'randomOne', 'sameContent', 'reroll'].map((id) => `<button type="button" class="az-flag" data-extra="${scope}:${id}" aria-pressed="${o.extras.includes(id)}">${esc(C.EFFECTS[id].text)}</button>`).join('')}</div>`;
   }
 
   function offerChoices(f) {

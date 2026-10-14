@@ -299,7 +299,7 @@ node tools/canvas-sim.js eval --games 400000
   - monster (round) and gameplay (diamond) paints, Lv1–7,
   - objectives with a range (row, column, diagonals, the 4 neighbors, the whole canvas) and a target type, where paints already in range count,
   - meeting an objective raises every matching paint in range,
-  - the three brushstroke directions (Reimagine, Spread, Stack): 2 are offered, then 2 effects from the chosen one,
+  - the three brushstroke directions (Reimagine, Spread, Layer): 2 are offered, then 2 effects from the chosen one,
   - Forced Color Mixing at 5 and then 10 Colored Snow, 3 a canvas.
 - **Practice values**, in `DEFAULT_PARAMS` and editable on the page, cover everything the game hides:
   - how often a canvas has a chest,
@@ -317,6 +317,6 @@ node tools/canvas-sim.js eval --games 400000
 - **Placing the chest:** it goes first, on the cell whose row, column, diagonals and neighbors have the most open cells.
 - **Objectives that reach the chest:** fill their ranges with matching paint.
 - **Objectives that don't:** finish them quickly, off the chest's lines.
-- **Brushstrokes:** Stack when the next objective can reach the chest, Reimagine to flip a monster target, Spread to open room.
+- **Brushstrokes:** Layer when the next objective can reach the chest, Reimagine to flip a monster target, Spread to open room.
 - **Never** take the re-roll effect with the chest in range.
 - **Forcing:** force an objective that feeds the chest when it gets stuck.

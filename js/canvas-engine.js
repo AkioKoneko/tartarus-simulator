@@ -43,18 +43,17 @@
 
   // Brushstrokes: after an objective is met, a new Coloring Paint is offered
   // with 2 of these 3 directions; the chosen one offers 2 of its effects.
-  // Reimagine and Spread are the English client's names; Stack (堆砌) is a
-  // translation until it's seen live.
+  // Reimagine, Spread and Layer are the English client's names.
   const DIRECTIONS = {
     turn: { name: 'Reimagine', zh: '转锋', text: 'Changes the Color Mixing Objective and Effect' },
     spread: { name: 'Spread', zh: '扩散', text: 'Takes effect on Special Cells' },
-    stack: { name: 'Stack', zh: '堆砌', text: 'Adds an extra Color Mixing Effect' },
+    stack: { name: 'Layer', zh: '堆砌', text: 'Adds additional Color Mixing Effects' },
   };
   const EFFECTS = {
     // Reimagine: reshape the offered Coloring Paint before it's placed.
     flip: { dir: 'turn', text: 'Switch its target to the other paint type', zh: '转变自身的作用对象为另一类型' },
     needDown: { dir: 'turn', text: 'The objective needs 1 fewer paint', zh: '调色目标的进度要求减少1' },
-    reRange: { dir: 'turn', text: 'Change its range at random', zh: '转变调色目标和效果的范围' },
+    reRange: { dir: 'turn', text: 'Change its direction (range) at random', zh: '转变调色目标和效果的范围' }, // confirmed live
     relevel: { dir: 'turn', text: 'Re-roll its own level, same content', zh: '随机转变自身的等级，内容不变' },
     renew: { dir: 'turn', text: 'Get a new random Coloring Paint instead', zh: '重新获得1个随机调色颜料' },
     // Spread: special cells.
@@ -63,7 +62,7 @@
     voidNear: { dir: 'spread', text: 'The nearest void cell in its row or column turns blank', zh: '使虚空地块转变为空白地块' },
     onVoid: { dir: 'spread', text: 'It can be placed on a void cell', zh: '使自身可以放置在虚空地块上' },
     onPainted: { dir: 'spread', text: 'It can be placed on a painted cell, but loses its own content', zh: '可放置于已放置颜料的空白地块中，但会失去自身内容' },
-    // Stack: an extra effect when this objective is met.
+    // Layer: an extra effect when this objective is met.
     plusOne: { dir: 'stack', text: 'Its mixing effect raises 1 more level', zh: '调色效果额外提升1级' },
     randomOne: { dir: 'stack', text: '1 random paint in range rises 1 more level', zh: '对作用范围内的随机1个颜料额外提升1级' },
     sameContent: { dir: 'stack', text: 'Every paint on the canvas with its content rises 1 more level', zh: '对全图中与自身内容相同的颜料额外提升1级' },
@@ -341,7 +340,7 @@
     const hits = inRange.filter((n) => matches(state.cells[n].paint, o.target));
     const gain = o.gain + (o.extras.includes('plusOne') ? 1 : 0);
     for (const n of hits) raise(state, n, gain);
-    // Extra mixing effects from a Stack brushstroke.
+    // Extra mixing effects from a Layer brushstroke.
     if (o.extras.includes('randomOne')) {
       const painted = inRange.filter((n) => state.cells[n].paint && state.cells[n].paint.level < MAX_LEVEL);
       if (painted.length) raise(state, pickOne(state, painted), 1);
@@ -426,8 +425,8 @@
   }
 
   // Applies a chosen effect. Reimagine effects reshape the Coloring Paint now;
-  // Spread effects change where it can go or act when it's placed; Stack
-  // effects ride along until its objective is met.
+  // Spread effects change where it can go or act when it's placed; Layer
+  // (Layer) effects ride along until its objective is met.
   function chooseEffect(state, id) {
     const f = state.offer;
     if (state.phase !== 'offer' || !f || f.stage !== 'effect') return fail('There is no brushstroke effect to choose.');
