@@ -46,8 +46,8 @@
   }
   // The panel saves only its own settings. Whether Follow my game is on (the
   // player's agreement) is written only by follow.html.
-  const OWN = ['show', 'rules', 'watch', 'read', 'ask'];
-  const prefs = Object.assign({ show: false, rules: DEFAULT_RULES, watch: DEFAULT_WATCH, read: true, ask: true }, load());
+  const OWN = ['show', 'rules', 'watch', 'read', 'accept', 'ask'];
+  const prefs = Object.assign({ show: false, rules: DEFAULT_RULES, watch: DEFAULT_WATCH, read: true, accept: false, ask: true }, load());
   const save = () => {
     try {
       const all = load();
@@ -118,7 +118,7 @@
       const read = !c.frame ? `No picture: ${c.why || 'share the game window first.'}`
         : !c.read ? (prefs.read ? 'Reading…' : 'Not read (reading is off).')
           : c.read.skipped ? 'Skipped: a newer picture came in.'
-            : c.read.ok ? `Read day ${c.read.day}${c.read.unsure ? `, ${c.read.unsure} to check` : ''} in ${(c.read.ms / 1000).toFixed(1)} s${c.used ? ', loaded' : ''}${c.asked ? ', asked' : ''}.`
+            : c.read.ok ? `Read day ${c.read.day}${c.read.unsure ? `, ${c.read.unsure} to check` : ''} in ${(c.read.ms / 1000).toFixed(1)} s${c.waiting ? ', waiting for you to use it' : c.used ? ', loaded' : c.skipped ? ', skipped' : c.replaced ? ', replaced by a newer picture' : ''}${c.asked ? ', asked' : ''}.`
               : `Not read: ${c.read.reason}`;
       const why = c.hits.length ? c.hits.map((h) => h.text || h.kind).slice(0, 3).join(', ') : c.kind;
       return `<li>${c.thumb ? `<a href="${c.full || c.thumb}" target="_blank" rel="noopener"><img src="${c.thumb}" alt="The game at ${esc(c.time.toLocaleTimeString())}"></a>` : '<span class="az-auto-nothumb"></span>'}<div><p><b>${esc(c.kind)}</b> · ${esc(c.time.toLocaleTimeString())}</p><p class="field-note">${esc(why)}</p><p class="field-note">${esc(read)}</p></div></li>`;
@@ -147,9 +147,11 @@
   }
 
   // #region each-picture
-  // Each picture is read into the board in this browser, and the 12 newest
-  // are listed here as small previews, in memory only: closing the tab
-  // drops them. Nothing is uploaded.
+  // Each picture is read in this browser. What was read is shown to the
+  // player, who uses it as the board or skips it (unless they've turned on
+  // using each reading without asking). The 12 newest pictures are listed
+  // here as small previews, in memory only: closing the tab drops them.
+  // Nothing is uploaded.
   async function onFrame(f) {
     const c = { id: nextId++, time: f.time, kind: f.kind, hits: f.hits || [], frame: f.frame, why: f.why || '', read: null, thumb: '', full: '' };
     captures.unshift(c);
@@ -171,11 +173,29 @@
       reading = c;
       c.read = await A.readFrame(f.frame);
       if (c.read.ok && reading === c) {
-        A.useReading();
-        c.used = true;
-        if (prefs.ask) {
-          A.ask();
-          c.asked = true;
+        const use = () => {
+          c.waiting = false;
+          c.used = true;
+          if (prefs.ask) {
+            A.ask();
+            c.asked = true;
+          }
+          renderCaptures();
+        };
+        if (prefs.accept) {
+          // Use each reading without asking.
+          A.useReading();
+          use();
+        } else {
+          // Show what was read, and wait for the player to use it.
+          c.waiting = true;
+          A.offerReading(use, (why) => {
+            if (!c.waiting) return;
+            c.waiting = false;
+            if (why === 'replaced') c.replaced = true;
+            else c.skipped = true;
+            renderCaptures();
+          });
         }
       }
       renderCaptures();
@@ -197,6 +217,7 @@
   $('az-auto-rules').value = prefs.rules;
   $('az-auto-watch').value = prefs.watch;
   $('az-auto-read').checked = prefs.read;
+  $('az-auto-accept').checked = prefs.accept;
   $('az-auto-ask').checked = prefs.ask;
   const applyRules = () => {
     const n = C.setRules(parseRules(prefs.rules));
@@ -221,7 +242,7 @@
     save();
     $('az-auto-watch-note').textContent = C.setWatch(prefs.watch) ? '' : 'That pattern isn’t valid.';
   });
-  for (const id of ['read', 'ask']) {
+  for (const id of ['read', 'accept', 'ask']) {
     $(`az-auto-${id}`).addEventListener('change', (e) => {
       prefs[id] = e.target.checked;
       save();

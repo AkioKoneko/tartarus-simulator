@@ -1209,15 +1209,53 @@
 
   // A notice pinned to the window while a screenshot is read, so a paste
   // shows it's working wherever the page is scrolled. kind: busy, ok or bad.
+  // A sticky one stays until it's answered.
   let toastTimer = 0;
-  function toast(text, kind, actions) {
+  function toast(text, kind, actions, sticky) {
     const box = $('az-toast');
     clearTimeout(toastTimer);
     box.className = `az-toast is-${kind}`;
     $('az-toast-text').textContent = text;
     $('az-toast-actions').innerHTML = (actions || []).map((a) => `<button type="button" class="btn${a.primary ? ' btn-primary' : ''}" data-toast="${a.id}">${esc(a.label)}</button>`).join('');
     box.hidden = false;
-    if (kind !== 'busy') toastTimer = setTimeout(() => (box.hidden = true), actions && actions.length ? 15000 : 6000);
+    if (kind !== 'busy' && !sticky) toastTimer = setTimeout(() => (box.hidden = true), actions && actions.length ? 15000 : 6000);
+  }
+
+  // Follow my game asks before a reading becomes the board: what's run when
+  // the player uses it (from the prompt or the reading's own button), or
+  // skips it.
+  let accepted = null;
+  let skipped = null;
+
+  // What a reading would change on the board, in a line, for that prompt.
+  function readingChanges(rd) {
+    const m = rd.model;
+    const parts = [m.day !== model.day ? `day ${model.day} → ${m.day}` : `day ${m.day}`];
+    if (m.warden !== model.warden) parts.push(`warden to ${m.warden === T.OFFICE ? 'the office' : L(m.warden)}`);
+    const changed = m.cells.map((c, n) => (cellSig(c) !== cellSig(model.cells[n]) ? n : -1)).filter((n) => n >= 0);
+    parts.push(changed.length ? `${T.plural(changed.length, 'cell')} changed: ${changed.slice(0, 6).map((n) => `${L(n)} ${cellShort(m.cells[n])}`).join(', ')}${changed.length > 6 ? '…' : ''}` : 'no cells changed');
+    if (m.step === 'patrol' && m.dest.length) parts.push(`doors ${m.dest.map(L).join(', ')}`);
+    const tools = m.tools.filter((t) => !model.tools.includes(t));
+    if (tools.length) parts.push(`new instrument${tools.length === 1 ? '' : 's'}: ${tools.map((t) => T.toolName(t)).join(', ')}`);
+    if (m.vault.length !== model.vault.length) parts.push(T.plural(m.vault.length, 'Chromatic prisoner'));
+    if (rd.checks.size) parts.push(`${rd.checks.size} to check`);
+    return parts.join(' · ');
+  }
+
+  function offerReading(onUse, onSkip) {
+    const rd = reader.reading;
+    if (!rd) return false;
+    accepted = onUse || null;
+    skipped = onSkip || null;
+    toast(`From your game: ${readingChanges(rd)}. Use it as your board?`, 'ok', [{ id: 'use', label: 'Use this board', primary: true }, { id: 'review', label: 'Review it first' }, { id: 'skip', label: 'Skip' }], true);
+    return true;
+  }
+
+  function skipReading(why) {
+    const s = skipped;
+    accepted = null;
+    skipped = null;
+    if (s) s(why || 'skipped');
   }
 
   function scanStatus(text, bad) {
@@ -1263,6 +1301,8 @@
 
   function runScan(imageData, opts) {
     const o = opts || {};
+    // A newer reading replaces one still waiting for an answer.
+    if (accepted || skipped) skipReading('replaced');
     reader.id += 1;
     const id = reader.id;
     const t0 = performance.now();
@@ -1550,6 +1590,10 @@
     renderScan();
     changed();
     scanStatus(rd.checks.size ? `Board filled in. Check the ${T.plural(rd.checks.size, 'cell')} marked Check, then ask what to do.` : 'Board filled in. Look it over, then ask what to do.');
+    const after = accepted;
+    accepted = null;
+    skipped = null;
+    if (after) after();
     if (quiet === true) return;
     toast(rd.checks.size ? `Loaded day ${model.day}. Check the ${T.plural(rd.checks.size, 'cell')} marked Check, then ask what to do.` : `Loaded day ${model.day}. Ask what to do when it looks right.`, 'ok');
     $('az-board').scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -1836,6 +1880,7 @@
     window.TartarusAnalyzer = {
       readFrame: (bitmap) => new Promise((resolve) => readBitmap(bitmap, { quiet: true, onRead: resolve })),
       useReading: () => useScan(true),
+      offerReading,
       ask: () => ask(true),
       recommendation: () => (fresh() ? recommendation() : null),
       day: () => model.day,
@@ -1853,10 +1898,16 @@
       if (!b) return;
       $('az-toast').hidden = true;
       if (b.dataset.toast === 'use') useScan();
+      else if (b.dataset.toast === 'skip') skipReading();
       else if (b.dataset.toast === 'pick') $('az-scan-file').click();
       else $('az-scan').scrollIntoView({ block: 'start', behavior: 'smooth' });
     });
     $('az-scan-discard').addEventListener('click', () => {
+      if (accepted || skipped) {
+        // Discarding a reading Follow my game asked about skips it.
+        $('az-toast').hidden = true;
+        skipReading();
+      }
       reader.result = null;
       reader.reading = null;
       renderScan();
