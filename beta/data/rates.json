@@ -1,9 +1,9 @@
 {
   "about": "Live odds measured from boards shared by the board analyzer, next to the values the simulator uses (js/engine.js DEFAULT_PARAMS). Made by tools/live-data.js.",
   "counted": "only what players set or confirmed against their game",
-  "boards": 480,
-  "runs": 48,
-  "steps": 432,
+  "boards": 537,
+  "runs": 58,
+  "steps": 479,
   "latest": "2026-10-15",
   "leftOut": 255,
   "doors": {
@@ -357,11 +357,11 @@
   "events": {
     "about": "Special events behind doors. Simulator: eventChance per sealed cell at the start, then a 50/50 Chain reaction or Execution.",
     "dayOneDoorsWithEvents": {
-      "n": 390,
+      "n": 515,
       "count": 6,
-      "share": 0.015384615384615385,
-      "low": 0.007069388031836956,
-      "high": 0.03315388954981008,
+      "share": 0.011650485436893204,
+      "low": 0.005350087106097367,
+      "high": 0.025182545589507613,
       "sim": 0.18,
       "verdict": "differs from the simulator"
     },
@@ -379,24 +379,24 @@
   },
   "mornings": {
     "about": "The doors on offer each morning. Simulator: 3 of the 5 cells ahead (2 with the Burning Stake), and fewerDoorsChance for a morning with one fewer.",
-    "n": 9,
+    "n": 10,
     "doorCounts": {
       "1": 1,
-      "3": 8
+      "3": 9
     },
     "fewerDoors": {
-      "n": 9,
+      "n": 10,
       "count": 1,
-      "share": 0.1111111111111111,
-      "low": 0.019890371327130535,
-      "high": 0.4350062147680601,
+      "share": 0.1,
+      "low": 0.01787574951572113,
+      "high": 0.4041563854975721,
       "sim": 0,
       "verdict": "too few yet"
     },
     "stepsAhead": {
-      "1": 5,
-      "2": 7,
-      "3": 4,
+      "1": 6,
+      "2": 8,
+      "3": 5,
       "4": 2,
       "5": 7
     },
