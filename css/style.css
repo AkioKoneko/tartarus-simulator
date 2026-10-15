@@ -346,6 +346,22 @@ a.menu-item {
   color: var(--ash);
 }
 
+/* The board analyzer leads the list, since it's the tool for the live game.
+   It takes the teal the trainer marks its recommended moves with. */
+.route-featured {
+  border-color: color-mix(in srgb, var(--teal) 55%, var(--iron));
+  background: color-mix(in srgb, var(--teal) 9%, var(--slab));
+}
+
+.route-featured:hover {
+  border-color: var(--teal);
+  background: color-mix(in srgb, var(--teal) 15%, var(--slab-hi));
+}
+
+.route-featured .route-name {
+  color: var(--teal);
+}
+
 .title-utils {
   display: flex;
   flex-wrap: wrap;
@@ -2434,6 +2450,20 @@ textarea {
 .menu-item span {
   font-size: 13.5px;
   color: var(--ash);
+}
+
+/* The board analyzer, in the same teal as its card on the title screen. */
+.menu-featured {
+  border-color: color-mix(in srgb, var(--teal) 55%, var(--iron));
+  background: color-mix(in srgb, var(--teal) 9%, var(--slab-hi));
+}
+
+.menu-featured:hover {
+  border-color: var(--teal);
+}
+
+.menu-featured strong {
+  color: var(--teal);
 }
 
 .button-row {

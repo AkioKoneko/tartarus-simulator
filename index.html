@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261013h">
+<link rel="stylesheet" href="css/style.css?v=20261014h">
 </head>
 <body>
 <div class="app" id="app">
@@ -29,6 +29,11 @@
         This began as an English translation of <a href="https://torchlightskill.com/talos/" target="_blank" rel="noopener">塔羅斯监狱 (Talos Prison)</a>, a free Chinese fan simulator by 爱玩游戏的吉吉罗. The board layout follows the original, but the rules in this version have been updated to match the video reveal, so it now differs heavily from the Chinese sim. The original author is not involved in this version.
       </p>
       <div class="title-actions">
+        <a class="route route-featured" href="analyze.html">
+          <span class="route-name">Board analyzer</span>
+          <span class="route-text">Playing live? Enter your board exactly as it is, with your tools and contracts, and get the best move for that position.</span>
+          <span class="route-meta">Your position · move advice</span>
+        </a>
         <button type="button" class="btn btn-primary btn-continue" id="btn-continue" hidden>
           <span>Continue run</span><small id="continue-meta"></small>
         </button>
@@ -47,11 +52,6 @@
           <span class="route-text">Fixed scenes for special events, Tusk, Prey, Scratch and Rat nest, so you can test each one on its own.</span>
           <span class="route-meta">5 scenes</span>
         </button>
-        <a class="route" href="analyze.html">
-          <span class="route-name">Board analyzer</span>
-          <span class="route-text">Playing live? Enter your board exactly as it is, with your tools and contracts, and get the best move for that position.</span>
-          <span class="route-meta">Your position · move advice</span>
-        </a>
         <a class="route" href="strategy.html">
           <span class="route-name">Strategy guide</span>
           <span class="route-text">New here? Learn a rough strategy first: what over 25 million simulated runs say about vaulting Rainbows.</span>
@@ -264,8 +264,8 @@
       <button type="button" class="x" data-close aria-label="Close">×</button>
     </header>
     <nav class="sheet-body menu">
+      <a class="menu-item menu-featured" href="analyze.html"><strong>Board analyzer</strong><span>Enter your live board and get the best move</span></a>
       <button type="button" class="menu-item" data-open="dlg-handbook"><strong>Handbook</strong><span>Patrols, events, the food chain, markers and tools</span></button>
-      <a class="menu-item" href="analyze.html"><strong>Board analyzer</strong><span>Enter your live board and get the best move</span></a>
       <a class="menu-item" href="strategy.html"><strong>Strategy guide</strong><span>A rough strategy from over 25 million simulated runs</span></a>
       <button type="button" class="menu-item" data-open="dlg-run"><strong>Run &amp; saves</strong><span>Inmates, undo, export and import</span></button>
       <button type="button" class="menu-item" data-open="dlg-prefs"><strong>Preferences</strong><span>Trainer, quick decisions, motion and sound</span></button>
@@ -628,11 +628,11 @@
   </div>
 </dialog>
 
-<script src="js/engine.js?v=20261013h"></script>
-<script src="js/board.js?v=20261013h"></script>
-<script src="js/sound.js?v=20261013h"></script>
-<script src="js/guide-data.js?v=20261013h"></script>
-<script src="js/solver.js?v=20261013h"></script>
-<script src="js/ui.js?v=20261013h"></script>
+<script src="js/engine.js?v=20261014h"></script>
+<script src="js/board.js?v=20261014h"></script>
+<script src="js/sound.js?v=20261014h"></script>
+<script src="js/guide-data.js?v=20261014h"></script>
+<script src="js/solver.js?v=20261014h"></script>
+<script src="js/ui.js?v=20261014h"></script>
 </body>
 </html>
