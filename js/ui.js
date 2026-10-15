@@ -71,14 +71,12 @@
     const saved = store.get(KEYS.params);
     if (saved) return T.normalizeParams(saved);
     let old = store.get('tartarus-sim:params:v3');
+    const drop = ['patrolRange', 'startTools'];
     if (!old) {
       old = store.get('tartarus-sim:params:v2');
-      if (old && typeof old === 'object') delete old.loopChain;
+      drop.push('loopChain');
     }
-    if (old && typeof old === 'object') {
-      delete old.patrolRange;
-      delete old.startTools;
-    }
+    if (old && typeof old === 'object') for (const key of drop) delete old[key];
     return T.normalizeParams(old);
   }
 
@@ -108,7 +106,7 @@
 
   const escortName = (key) => (key && T.ESCORTS[key] ? T.ESCORTS[key].name.toLowerCase() : '');
   const windowOpen = (st) => !!(st && st.challenge && st.challenge.window);
-  const blocked = (st) => !st || st.phase === 'ended' || st.pending.length > 0 || windowOpen(st) || st.phase === 'event';
+  const blocked = (st) => !st || st.phase === 'ended' || st.pending.length > 0 || windowOpen(st) || st.phase === 'event' || st.phase === 'office' || !!st.chaining;
 
   function toast(text, info) {
     const el = $('toast');
@@ -321,6 +319,17 @@
       ui.selected = ui.selected === n && !double ? null : n;
       render();
     };
+    // A chain waiting for its next meal: a click previews the bite and a
+    // second click takes it; a double-click takes it at once.
+    if (st.chaining && !st.pending.length && T.chainOptions(st).some((o) => o.cell === n)) {
+      const again = ui.pending && ui.pending.kind === 'chain' && ui.pending.to === n;
+      if (double || again || ui.prefs.quick) act((s) => T.chainBite(s, n), { select: st.position });
+      else {
+        ui.pending = { kind: 'chain', to: n };
+        render();
+      }
+      return;
+    }
     if (blocked(st)) {
       inspect();
       return;
@@ -389,17 +398,19 @@
     const st = ui.state;
     const free = !blocked(st);
     const sel = ui.selected !== null ? st.cells[ui.selected] : null;
-    // Only the inmate in the warden's cell can start the day's devour.
-    const hunter = free && st.phase === 'manage' && T.canDevourNow(st) && sel && sel.n === st.position && !sel.sealed && sel.inmate ? sel : null;
+    // Only the inmate in the warden's cell can start the day's devour. A
+    // chain waiting for its next meal shows that meal's choices.
+    const chaining = !!st.chaining && !st.pending.length;
+    const hunter = chaining ? st.cells[st.position] : free && st.phase === 'manage' && T.canDevourNow(st) && sel && sel.n === st.position && !sel.sealed && sel.inmate ? sel : null;
     const hunting = !!hunter;
     const targets = new Map();
-    if (hunter) for (const o of T.devourOptions(st, hunter.n)) targets.set(o.cell, o);
+    if (hunter) for (const o of chaining ? T.chainOptions(st) : T.devourOptions(st, hunter.n)) targets.set(o.cell, o);
     const victims = new Set(st.phase === 'event' && st.event && st.event.kind === 'execution' ? T.executionVictims(st, st.event.cell).map((c) => c.n) : []);
     const dests = free && st.phase === 'patrol' ? new Set(T.patrolOptions(st)) : new Set();
     $('board').classList.toggle('is-patrolling', dests.size > 0);
     const aim = ui.pending && ui.pending.kind === 'patrol' ? ui.pending.cell : ui.hover;
     const path = st.chain && st.phase === 'patrol' && dests.has(aim) ? new Set(T.clockwisePath(st, aim)) : new Set();
-    const pendingTarget = ui.pending && ui.pending.kind === 'devour' ? ui.pending.to : null;
+    const pendingTarget = ui.pending && (ui.pending.kind === 'devour' || ui.pending.kind === 'chain') ? ui.pending.to : null;
     for (const cell of st.cells) {
       const el = cellEls[cell.n];
       const p = cellParts(cell, st);
@@ -456,12 +467,13 @@
         else if (!c.sealed && c.inmate) {
           const count = T.devourOptions(st, n).length;
           meta = `${T.describe(c.inmate)} · ${count ? T.plural(count, 'target') : 'no target'}`;
-        } else if (!c.sealed) meta = 'Empty cell';
+        } else if (n === T.OFFICE) meta = "Warden's office · Instigate or Bestow";
+        else if (!c.sealed) meta = 'Empty cell';
         else if (c.nest) meta = `Rat nest · hatches day ${c.nest.due}`;
         else if (c.known === 2) meta = `${T.describe(c.hidden)} inside`;
         else if (c.known === 1) meta = `${T.tierName(c.hidden.tier)} inside`;
         else meta = 'Locked · unknown inside';
-        const event = c.sealed && c.event && !st.chain ? '<span class="dest-event">Event</span>' : '';
+        const event = c.sealed && c.event && c.seen && !st.chain ? '<span class="dest-event">Event</span>' : '';
         // A known inmate shows its portrait; a locked cell shows its door.
         const face = !c.sealed && c.inmate
           ? `<span class="dest-face t${c.inmate.tier}" aria-hidden="true">${PORTRAITS[c.inmate.beast]}</span>`
@@ -530,7 +542,7 @@
     }
     if (st.pending.length) {
       const kind = st.pending[0].kind;
-      const title = kind === 'gift' ? "Warden's Cache" : kind === 'refit' ? 'Refit' : 'Objective met';
+      const title = kind === 'gift' ? "Warden's Treasure" : kind === 'refit' ? 'Refit' : 'Objective met';
       const detail = kind === 'gift' ? 'A Rainbow reached the vault. Pick one gift; it takes effect at once.' : kind === 'refit' ? 'Delivery complete. Pick a tool for the rest of the run.' : `${T.OBJECTIVES[st.objective.id].name} is complete. Pick a tool for the rest of the run.`;
       setDecision(title, detail, [['Choose', openChoice, 'primary']], true);
       return;
@@ -547,6 +559,19 @@
     }
     if (st.phase === 'event' && st.event) {
       renderEvent(st);
+      return;
+    }
+    if (st.phase === 'office') {
+      setDecision("The warden's office", `Choose one. Instigate: ${T.INSTIGATE_EVENTS} new special events appear behind locked doors. Bestow: 1 random inmate on the block rises a tier.`, [
+        ['Instigate', () => run((s) => T.officeAct(s, 'instigate')), 'primary'],
+        ['Bestow', () => run((s) => T.officeAct(s, 'bestow')), 'primary'],
+      ], true);
+      return;
+    }
+    if (st.chaining && !(ui.pending && ui.pending.kind === 'chain')) {
+      const eater = st.cells[st.position].inmate;
+      const count = T.chainOptions(st).length;
+      setDecision('Devour chain: pick the next meal', `The ${T.describe(eater)} in cell ${L(st.position)} must keep eating, and it has ${count} meals to choose from. Click one on the board to preview the bite, or double-click to take it. The chain ends when it has nothing left to eat.`, [], true);
       return;
     }
     if (ui.pending) {
@@ -571,7 +596,7 @@
     if (!T.canDevourNow(st)) lead = 'Today’s devour is used. Swap or end the day.';
     else if (st.position === T.OFFICE) lead = 'The warden is in the office, so there is no devour today. Swap or end the day.';
     else if (!warden.inmate || warden.sealed) lead = `The warden's cell (${L(st.position)}) is empty, so there is no devour today. Swap or end the day.`;
-    else if (devours) lead = `The ${T.describe(warden.inmate)} in the warden's cell (${L(st.position)}) can make today's devour. Select it to see its ${T.plural(devours, 'target')}, or double-click a target to devour it. The eater then chains on by itself.`;
+    else if (devours) lead = `The ${T.describe(warden.inmate)} in the warden's cell (${L(st.position)}) can make today's devour. Select it to see its ${T.plural(devours, 'target')}, or double-click a target to devour it. It then must keep eating while it can: a single meal is taken at once, and you pick when there's a choice.`;
     else lead = `The ${T.describe(warden.inmate)} in the warden's cell (${L(st.position)}) has no target today. Swap or end the day.`;
     const parts = [lead];
     if (due && due.deadline === st.day) parts.push(`"${due.name}" is due: ending the day opens its delivery window.`);
@@ -592,6 +617,23 @@
       const scarce = T.scarceBeasts(st).map(T.beastName);
       const into = scarce.length === 1 ? `a Supreme ${scarce[0]}, the scarcest beast on the block` : `a Supreme ${scarce.join(' or ')} (the scarcest beasts on the block, one at random)`;
       setDecision('Behind Closed Doors', `Accept to turn the ${T.describe(who)} in cell ${L(n)} into ${into}. It triggers no other effects.`, [
+        ['Accept', () => run((s) => T.resolveEvent(s, true)), 'primary'],
+        ['Skip', () => run((s) => T.resolveEvent(s, false))],
+      ], true);
+      return;
+    }
+    if (['appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2'].includes(kind)) {
+      let detail;
+      if (kind === 'appetite') {
+        const low = T.lowestInmates(st);
+        const who = low.length === 1 ? `the ${T.describe(low[0])} in cell ${L(T.cellOf(st, low[0].id).n)}` : `one of the ${low.length} ${T.tierName(low[0].tier)} inmates, at random`;
+        detail = `Accept to give ${who} ${T.APPETITE_TRIES} tries at +1 tier, each with a ${Math.round(100 * T.APPETITE_ODDS)}% chance.`;
+      } else if (kind === 'crow') detail = `Accept to see the rarity behind the next ${T.CROW_CELLS} locked cells clockwise from the warden. Their beasts stay hidden.`;
+      else if (kind === 'freedom') detail = `Accept to open ${T.FREEDOM_CELLS} random locked cells. They trigger no other effects.`;
+      else if (kind === 'usurp1') detail = 'Accept to raise 1 random inmate a tier. Usurpation I then leaves the special events, Usurpation II joins them, and one appears behind a random locked door.';
+      else if (kind === 'usurp2') detail = 'Accept to raise 2 random inmates a tier each.';
+      else detail = 'Accept to open a random locked cell with a Legendary or better inmate inside. It triggers no other effects.';
+      setDecision(T.eventName(kind), detail, [
         ['Accept', () => run((s) => T.resolveEvent(s, true)), 'primary'],
         ['Skip', () => run((s) => T.resolveEvent(s, false))],
       ], true);
@@ -624,12 +666,13 @@
       } else if (!c.sealed && c.inmate) {
         const count = T.devourOptions(st, p.cell).length;
         parts.push(`The warden walks to the ${T.describe(c.inmate)} in cell ${L(p.cell)}. It then makes today's devour${count ? ` (${T.plural(count, 'target')} from there)` : ', but it has no target from there'}.`);
-      } else if (!c.sealed) parts.push('An empty cell: the warden walks there.');
+      } else if (p.cell === T.OFFICE) parts.push(`The warden's office: there you choose Instigate (${T.INSTIGATE_EVENTS} new special events behind locked doors) or Bestow (1 random inmate rises a tier).`);
+      else if (!c.sealed) parts.push('An empty cell: the warden walks there.');
       else if (c.nest) parts.push(`This destroys the rat nest due on day ${c.nest.due}.`);
       else if (c.known === 2) parts.push(`A ${T.describe(c.hidden)} waits inside.`);
       else if (c.known === 1) parts.push(`A ${T.tierName(c.hidden.tier)} inmate waits inside. Its beast is unknown.`);
       else parts.push('The occupant stays unknown until the door opens.');
-      if (c.sealed && c.event && !st.chain) parts.push('A special event waits behind this door.');
+      if (c.sealed && c.event && c.seen && !st.chain) parts.push('A special event waits behind this door.');
       if (st.tools.includes('keys') && c.sealed && !st.chain) parts.push('Lost Ring of Keys: 80% chance the neighbors open too.');
       const steps = T.stepsBetween(st.position, p.cell);
       if (st.tools.includes('shackles') && steps >= 4) parts.push(`Long-Chained Shackles: a ${steps}-cell walk, so 40% chance a random inmate rises a tier.`);
@@ -653,7 +696,7 @@
       const meal = target.sealed ? `the ${T.tierName(target.hidden.tier)} inmate behind the scratched door` : `the ${T.describe(target.inmate)}`;
       const extras = [];
       if (notes.length) extras.push(`Bonus: ${notes.join(', ')}.`);
-      extras.push('This is today’s devour. Afterwards the eater chains on by itself into random valid targets. Click the target again to devour.');
+      extras.push('This is today’s devour. Afterwards the eater must keep eating while it can: a single meal is taken at once, and you pick when there’s a choice. Click the target again to devour.');
       if (saw) extras.push('Rusty Saw may add +1.');
       if (st.tools.includes('collar')) extras.push('Barbed Collar: each bite after this one has an 80% chance of +1.');
       if (revenge) extras.push("Avenger's Casket may open a new meal.");
@@ -662,6 +705,29 @@
       setDecision(`Devour, +${gain}?`, `The ${T.describe(eater)} in cell ${L(p.from)} eats ${meal} in cell ${L(p.to)}. It ${outcome}. ${extras.join(' ')}`.trim(), [
         ['Devour', () => run((s) => T.devour(s, p.from, p.to)), 'primary'],
         ['Cancel', back],
+      ], true);
+      return;
+    }
+    if (p.kind === 'chain') {
+      const eater = st.cells[st.position].inmate;
+      const option = st.chaining ? T.chainOptions(st).find((o) => o.cell === p.to) : null;
+      if (!option || !eater) {
+        ui.pending = null;
+        renderDecision();
+        return;
+      }
+      const target = st.cells[p.to];
+      const { gain, notes } = T.gainFor(st, st.position, option);
+      const to = Math.min(T.RAINBOW, eater.tier + gain);
+      const meal = target.sealed ? `the ${T.tierName(target.hidden.tier)} inmate behind the scratched door` : `the ${T.describe(target.inmate)}`;
+      const extras = [];
+      if (notes.length) extras.push(`Bonus: ${notes.join(', ')}.`);
+      if (st.tools.includes('saw')) extras.push('Rusty Saw may add +1.');
+      if (st.tools.includes('collar')) extras.push('Barbed Collar: 80% chance of +1.');
+      const outcome = to === T.RAINBOW ? 'reaches Rainbow and leaves for the vault' : `rises to ${T.tierName(to)}, then its beast re-rolls`;
+      setDecision(`Next bite, +${gain}?`, `The ${T.describe(eater)} eats ${meal} in cell ${L(p.to)}. It ${outcome}. ${extras.join(' ')}`.trim(), [
+        ['Eat it', () => run((s) => T.chainBite(s, p.to), { select: st.position }), 'primary'],
+        ['Back', back],
       ], true);
       return;
     }
@@ -696,7 +762,7 @@
     const actions = [];
     const free = !blocked(st);
     if (cell.n === T.OFFICE) {
-      setDecision(`Cell ${L(cell.n)}: the warden's office`, "Every run starts here. No inmate, marker or event is ever held in the office, so it is never a patrol destination. The warden passes it on the walk around the ring.", [['Deselect', cancel]]);
+      setDecision(`Cell ${L(cell.n)}: the warden's office`, `Every run starts here, and no inmate, marker or event is ever held in it. It can be one of the morning's destinations: walking here, you choose Instigate (${T.INSTIGATE_EVENTS} new special events behind locked doors) or Bestow (1 random inmate rises a tier).`, [['Deselect', cancel]]);
       return;
     }
     if (cell.sealed) {
@@ -706,7 +772,7 @@
       else if (cell.known === 1) parts.push(`A ${T.tierName(cell.hidden.tier)} inmate waits inside. Its beast is unknown.`);
       else parts.push('The occupant is unknown.');
       if (cell.scratch) parts.push(`A ${T.tierName(cell.hidden.tier)} Wolf can devour it through the scratched door.`);
-      if (cell.event) parts.push('A special event waits behind this door. It triggers only when a patrol opens it.');
+      if (cell.event && cell.seen) parts.push('A special event waits behind this door. It triggers only when a patrol opens it.');
       if (free && st.phase === 'patrol' && !st.destinations.includes(cell.n)) parts.push('It is not one of today’s destinations.');
       actions.push(['Deselect', cancel]);
       setDecision(`Cell ${L(cell.n)}: sealed`, parts.join(' '), actions);
@@ -867,6 +933,13 @@
       else if (x.type === 'armed') out.push(item('Chain reaction armed', ''));
       else if (x.type === 'trickster') out.push(item('Behind Closed Doors', `${tok(x.who, { cell: x.cell })}<span class="then">›</span>${tok(x.after, { cell: x.cell })}`));
       else if (x.type === 'shackles') out.push(item('Shackles +1', tok(x.who, { cell: x.cell })));
+      else if (x.type === 'appetite') out.push(item(`Ravenous Appetite +${x.gain}`, `${tok(x.who, { cell: x.cell })}<span class="then">›</span>${tok(x.after, { cell: x.cell })}`));
+      else if (x.type === 'convict') out.push(item('High-Risk Convict', x.cell === null ? '<span class="recap-note">no cell left</span>' : `<span class="recap-note">cell ${L(x.cell)}</span>`));
+      else if (x.type === 'crow') out.push(item('Crow Whispers', `<span class="recap-note">${x.cells.length ? `rarity shown at ${x.cells.map(L).join(', ')}` : 'nothing left to show'}</span>`));
+      else if (x.type === 'usurp1' || x.type === 'usurp2') out.push(item(T.eventName(x.type), x.raised.length ? x.raised.map((r) => tok(r.who, { cell: r.cell })).join('') : '<span class="recap-note">no one</span>'));
+      else if (x.type === 'freedom') out.push(item('Taste of Freedom', `<span class="recap-note">${x.cells.length ? `opened ${x.cells.map(L).join(', ')}` : 'no locked cell left'}</span>`));
+      else if (x.type === 'instigate') out.push(item('Instigate', `<span class="recap-note">${x.cells.length ? `events at ${x.cells.map(L).join(', ')}` : 'no free door'}</span>`));
+      else if (x.type === 'bestow') out.push(item('Bestow +1', x.who ? tok(x.who, { cell: x.cell }) : '<span class="recap-note">no one</span>'));
       else if (x.type === 'objective') out.push(item('Objective met', `<span class="recap-note">${esc(T.OBJECTIVES[x.id].name)}</span>`));
       else if (x.type === 'skipped') out.push(item(`Skipped ${x.name}`, ''));
       else if (x.type === 'execution') {
@@ -876,7 +949,7 @@
       else if (x.type === 'swap') out.push(item(`Swap ${L(x.cell)}`, `${tok(x.old, { cell: x.cell, eaten: true })}<span class="then">›</span>${tok(x.fresh, { cell: x.cell })}`));
       else if (x.type === 'rainbow') out.push(item('Rainbow', tok(x.who), 'is-rainbow'));
       else if (x.type === 'tool') out.push(item('Tool', `<span class="recap-note">${esc(T.toolName(x.id))}</span>`));
-      else if (x.type === 'gift') out.push(item('Cache', `<span class="recap-note">${esc(T.toolName(x.id))}</span>`));
+      else if (x.type === 'gift') out.push(item('Treasure', `<span class="recap-note">${esc(T.toolName(x.id))}</span>`));
       else if (x.type === 'ivory') out.push(item('Tusk', `<span class="recap-note">${T.plural(x.count, 'inmate')} +1</span>`));
       else if (x.type === 'deliver') out.push(item('Delivered', `<span class="recap-note">${esc(x.name)} · ${x.points} pts</span>`));
       else if (x.type === 'skip') out.push(item('Skipped', `<span class="recap-note">${esc(x.name)}</span>`));
@@ -935,12 +1008,12 @@
         : '<span class="vault-slot" aria-hidden="true"></span>';
     }
     $('vault').innerHTML = html;
-    const cache = st.params.rewards ? `Warden's Cache gifts earned: ${st.cache}.` : `Warden's Cache claims: ${st.cache}.`;
+    const cache = st.params.rewards ? `Warden's Treasure gifts earned: ${st.cache}.` : `Warden's Treasure claims: ${st.cache}.`;
     $('vault-note').textContent = st.vault.length
       ? `${T.plural(st.vault.length, 'Rainbow')} in the vault. ${cache}${st.mode === 'challenge' ? ' Vault Rainbows count for the heavy contract.' : ''}`
       : st.params.rewards
-        ? "Inmates that reach Rainbow leave the block and wait here. Each one opens the Warden's Cache, where you pick a gift."
-        : "Inmates that reach Rainbow leave the block and wait here. Each one adds a Warden's Cache claim.";
+        ? "Inmates that reach Rainbow leave the block and wait here. Each one opens the Warden's Treasure, where you pick a gift."
+        : "Inmates that reach Rainbow leave the block and wait here. Each one adds a Warden's Treasure claim.";
   }
 
   function renderTools() {
@@ -948,7 +1021,7 @@
     const list = $('tool-list');
     if (!st.tools.length) {
       let empty;
-      if (st.mode === 'challenge') empty = 'No tools yet. Your first Supreme and each of your first two deliveries earn one.';
+      if (st.mode === 'challenge') empty = 'No tools yet. Meeting the objective and each of your first two deliveries earn one.';
       else if (st.params.rewards) empty = 'No tools yet. Meeting the objective earns one. The Lab can add more, or start drills with random tools.';
       else empty = 'Rewards are off for this drill. Add tools in the Lab to test them.';
       list.innerHTML = `<li class="tool-text">${empty}</li>`;
@@ -988,6 +1061,10 @@
         return ['Go', () => run((s) => T.patrol(s, tip.cell), { select: tip.cell })];
       case 'devour':
         return ['Devour', () => run((s) => T.devour(s, tip.from, tip.to), { select: tip.from })];
+      case 'chain':
+        return ['Eat', () => run((s) => T.chainBite(s, tip.to), { select: tip.from })];
+      case 'office':
+        return [tip.choice === 'bestow' ? 'Bestow' : 'Instigate', () => run((s) => T.officeAct(s, tip.choice))];
       case 'swap':
         return ['Swap', () => run((s) => T.swap(s, tip.cell))];
       case 'event':
@@ -1027,7 +1104,7 @@
   const solverFits = (st) => st && st.phase !== 'ended';
 
   // A stable name for an action, for lists that update in place.
-  const actionKey = (a) => [a.type, a.cell, a.to, a.id, a.accept, (a.cells || []).slice().sort((x, y) => x - y).join('.'), (a.vaultIds || []).slice().sort((x, y) => x - y).join('.'), a.escort].join('|');
+  const actionKey = (a) => [a.type, a.cell, a.to, a.id, a.accept, a.choice, (a.cells || []).slice().sort((x, y) => x - y).join('.'), (a.vaultIds || []).slice().sort((x, y) => x - y).join('.'), a.escort].join('|');
 
   // The convoy being loaded in the open delivery window, when it meets the
   // contract. The live check plays it out next to the trainer's own options.
@@ -1050,6 +1127,14 @@
     chain: 'Training: accepting Chain reactions vaulted more Rainbows than skipping them.',
     execution: 'Training: accept an Execution only when it gains more than it removes.',
     trickster: 'Behind Closed Doors makes a Supreme for free: accept it unless the inmate already is one.',
+    appetite: 'Ravenous Appetite only adds tiers: accept it.',
+    convict: 'High-Risk Convict opens a cell on a Legendary for free: accept it.',
+    crow: 'Crow Whispers costs nothing: accept it, then aim your patrols at the higher rarities it shows.',
+    freedom: 'Taste of Freedom opens 3 doors for free: accept it.',
+    usurp1: 'Usurpation I raises an inmate for free, and brings Usurpation II: accept it.',
+    usurp2: 'Usurpation II raises two inmates for free: accept it.',
+    office: 'At the office, Bestow when a raise helps now, and Instigate when the block needs new doors with events.',
+    chainPick: 'A chain must go on while it can, but you pick each meal: take the one that keeps the chain fed at the next tier.',
     gift: 'Training: picking the gift that fits the board beat always taking the same one.',
     window: 'Contracts: on the first two, send inmates you can spare by light escort, and keep 3 vouchers for the heavy contract. Sending the most points every time passed far less often.',
     heavy: 'Contracts: the heavy contract ends the run, so it takes the most points your vouchers can escort.',
@@ -1077,8 +1162,10 @@
     if (st.challenge && st.phase !== 'event') return nextContractLesson(st);
     if (st.phase === 'event' && st.event) {
       if (st.event.kind === 'chain') return (vs('skipChain', 'Training: skipping Chain reactions cost Rainbows') || LESSONS.chain) + (g ? '.' : '');
-      return st.event.kind === 'trickster' ? LESSONS.trickster : LESSONS.execution;
+      return LESSONS[st.event.kind] || LESSONS.execution;
     }
+    if (st.phase === 'office') return LESSONS.office;
+    if (st.chaining) return LESSONS.chainPick;
     if (st.phase === 'patrol') return action && action.type === 'early' ? LESSONS.early : LESSONS.patrol;
     if (!action) return '';
     if (action.type === 'devour') return (vs('wait2', 'Training: devour every day you can, unless it breaks a prey mark. Waiting for a bigger chain cost Rainbows') || LESSONS.devour) + (g ? '.' : '');
@@ -1204,7 +1291,7 @@
     const st = ui.state;
     if (!action || !st) return;
     if (action.type === 'patrol') run((s) => window.TartarusSolver.apply(s, action), { select: action.cell });
-    else if (action.type === 'devour' || action.type === 'swap') run((s) => window.TartarusSolver.apply(s, action), { select: st.position });
+    else if (action.type === 'devour' || action.type === 'chain' || action.type === 'swap') run((s) => window.TartarusSolver.apply(s, action), { select: st.position });
     else if (action.type === 'end') run((s) => T.endDay(s), { select: null });
     // A convoy opens the delivery window with it loaded, to check before sending.
     else if (action.type === 'deliver') openDeliver({ cells: action.cells, vaultIds: action.vaultIds, escort: action.escort });
@@ -1513,7 +1600,7 @@
     const rec = recommendation(st);
     solver.rec = rec;
     const a = rec ? rec.action : null;
-    const cell = a && a.type === 'patrol' ? a.cell : a && a.type === 'devour' ? a.to : null;
+    const cell = a && a.type === 'patrol' ? a.cell : a && (a.type === 'devour' || a.type === 'chain') ? a.to : null;
     cellEls.forEach((el, n) => el.btn.classList.toggle('is-hint', n === cell));
     for (const card of document.querySelectorAll('#dest-cards [data-dest]')) card.classList.toggle('is-hint', Number(card.dataset.dest) === cell);
     $('btn-swap').classList.toggle('is-hint', !!a && a.type === 'swap');
@@ -1796,7 +1883,7 @@
     const goal = T.OBJECTIVES[st.objective.id].name;
     const copy = {
       tool: ['Objective met', 'Choose a tool', `${goal} is complete. Take one tool for the rest of the run.`],
-      gift: ["Warden's Cache", 'Choose a gift', 'A Rainbow reached the vault. Pick one gift; it takes effect at once.'],
+      gift: ["Warden's Treasure", 'Choose a gift', 'A Rainbow reached the vault. Pick one gift; it takes effect at once.'],
       refit: ['Refit', 'Choose a tool', 'Delivery complete. Take one tool for the rest of the run.'],
     }[choice.kind];
     $('choice-eyebrow').textContent = copy[0];
@@ -1921,7 +2008,7 @@
       $('results-contracts').innerHTML = '';
       $('results-facts').innerHTML = facts([
         ['Rainbows', r.roster.byTier[T.RAINBOW]],
-        [st.params.rewards ? 'Cache gifts' : 'Cache claims', r.cache],
+        [st.params.rewards ? 'Treasure gifts' : 'Treasure claims', r.cache],
         ['Best rarity', T.tierName(r.best), true],
         ['Inmates', r.roster.rows.length],
         ['Patrols', r.stats.patrols],
@@ -2406,7 +2493,7 @@
 
   function fillHandbookTools() {
     const tools = T.TOOL_IDS.map((id) => `<dt>${esc(T.toolName(id))}</dt><dd>${esc(T.toolText(id))}</dd>`);
-    const gifts = T.GIFT_IDS.map((id) => `<dt class="m-gift">${esc(T.toolName(id))}</dt><dd>Warden's Cache gift. ${esc(T.toolText(id))}</dd>`);
+    const gifts = T.GIFT_IDS.map((id) => `<dt class="m-gift">${esc(T.toolName(id))}</dt><dd>Warden's Treasure gift. ${esc(T.toolText(id))}</dd>`);
     $('hb-tools').innerHTML = [...tools, ...gifts].join('');
   }
 

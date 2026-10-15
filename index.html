@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261015a">
+<link rel="stylesheet" href="css/style.css?v=20261015b">
 </head>
 <body>
 <div class="app" id="app">
@@ -296,8 +296,9 @@
 
       <h3>A day on the block</h3>
       <ol class="steps">
-        <li><strong>Patrol.</strong> Each morning offers three destination cells from the next six clockwise from the warden. The office counts as one of those six steps but is never offered. They glow on the ring and appear as cards under it. A destination can be a locked cell, which opens when the warden arrives, or a cell whose inmate you already know. You can't see inside a locked cell until it opens. You must patrol before anything else.</li>
-        <li><strong>Devour.</strong> Once a day, after the patrol, and only the inmate in the warden's cell can start it. Double-click a highlighted target to devour it, or click it once to preview the bite and again to confirm. If the eater then has another valid target, it chains on by itself: it devours a random valid target, and keeps going while targets remain. A chain can't be stopped. The log and the recap under the ring show every bite as icons.</li>
+        <li><strong>Patrol.</strong> Each morning offers three destination cells from the next six clockwise from the warden. They glow on the ring and appear as cards under it. A destination can be a locked cell, which opens when the warden arrives, a cell whose inmate you already know, or the warden's office. You can't see inside a locked cell until it opens. You must patrol before anything else.</li>
+        <li><strong>The office.</strong> When the warden walks to the office, choose one: <strong>Instigate</strong> puts new special events behind 2 random locked doors, and <strong>Bestow</strong> raises 1 random inmate on the block a tier.</li>
+        <li><strong>Devour.</strong> Once a day, after the patrol, and only the inmate in the warden's cell can start it. Double-click a highlighted target to devour it, or click it once to preview the bite and again to confirm. The eater then must keep eating while it has a valid target: a single target is taken at once, and when there are several you pick one. A chain can't be stopped. The log and the recap under the ring show every bite as icons.</li>
         <li><strong>Swap.</strong> Once a day, replace the inmate in the warden's cell with a brand-new random one. It can come out stronger or weaker. No other cell can be swapped.</li>
         <li><strong>End the day.</strong> The next morning, prey marks grow, ripe nests hatch, and new destinations are drawn. A recap of the day you just finished appears under the destination cards.</li>
       </ol>
@@ -308,7 +309,7 @@
       <p>The New Run screen and the Lab can switch to the Chinese sim's two-meal chain instead. There, Mammoth also eats Wolf and Lion also eats Rat, for six relations in all.</p>
 
       <h3>Rarity</h3>
-      <p>Normal, Magic, Rare, Legendary, Supreme, Rainbow. A devour raises the eater one tier, then re-rolls its beast, so check its new matchups before the next meal. An inmate that reaches Rainbow leaves its cell for the vault and adds a Warden's Cache claim. You can keep raising more Rainbows for the rest of the run.</p>
+      <p>Normal, Magic, Rare, Legendary, Supreme, Rainbow. A devour raises the eater one tier, then re-rolls its beast, so check its new matchups before the next meal. An inmate that reaches Rainbow leaves its cell for the vault and opens the Warden's Treasure. You can keep raising more Rainbows for the rest of the run.</p>
 
       <h3>Special events</h3>
       <p>Some sealed doors carry an event badge. When your patrol opens one, the event appears and you choose to accept or skip it. Doors opened any other way use up their event without triggering it.</p>
@@ -319,8 +320,20 @@
         <dd>The inmate in the opened cell removes every inmate on the block that it can eat and that has a lower rarity. It gains one tier for each.</dd>
         <dt class="m-event">Behind Closed Doors</dt>
         <dd>The inmate in the opened cell becomes a Supreme of the scarcest beast on the block (none counts; a tie is settled at random). It triggers no other effects.</dd>
+        <dt class="m-event">Ravenous Appetite</dt>
+        <dd>A random inmate of the lowest rarity on the block gets 5 tries at +1 tier, each with a 50% chance.</dd>
+        <dt class="m-event">High-Risk Convict</dt>
+        <dd>A random locked cell opens with a Legendary or better inmate inside. It triggers no other effects.</dd>
+        <dt class="m-event">Crow Whispers</dt>
+        <dd>The next 4 locked cells clockwise from the warden show the rarity of the inmate inside. Their beasts stay hidden until the doors open.</dd>
+        <dt class="m-event">Taste of Freedom</dt>
+        <dd>3 random locked cells open. They trigger no other effects.</dd>
+        <dt class="m-event">Usurpation I</dt>
+        <dd>1 random inmate rises a tier. Usurpation I then leaves the special events and Usurpation II joins them, and one appears behind a random locked door at once.</dd>
+        <dt class="m-event">Usurpation II</dt>
+        <dd>2 random inmates rise a tier (its card hasn't been seen yet).</dd>
       </dl>
-      <p>Each special event is equally likely behind a door.</p>
+      <p>About 5% of locked cells hide a special event (the game calls them Prison Incidents), each kind in the pool equally likely, and a cell that seals again can hide a new one. You only see an event's badge once the warden has walked past its door.</p>
 
       <h3>Markers</h3>
       <dl class="defs">
@@ -334,9 +347,9 @@
         <dd>A sealed nest hatches a Rare Rat on the morning two days after it appears. Opening the door before then destroys it.</dd>
       </dl>
 
-      <h3>Objectives, tools and the Warden's Cache</h3>
-      <p>Every drill starts with one random tool, as the live game does. Each run also has an objective, shown with the run's goal: <strong>King of the Caged</strong> (at least 1 inmate's rarity reaches Supreme) or <strong>Prison Walk</strong> (move 18 tiles: every cell the warden walks counts). Meeting it earns a tool: pick one of three, and it lasts for the rest of the run. The live game has more objectives, and what they pay isn't known yet, so every objective here pays a tool. The contract challenge always plays for King of the Caged, and its starting kit takes the place of the random tool.</p>
-      <p>Each Rainbow that reaches the vault opens the Warden's Cache: pick one gift, which takes effect at once. In the Lab you can change how many tools a drill starts with, or switch rewards off for pure rules practice.</p>
+      <h3>Objectives, tools and the Warden's Treasure</h3>
+      <p>Every drill starts with one random tool, as the live game does. Each run also draws a random objective, shown with the run's goal: <strong>King of the Caged</strong> (at least 1 inmate's rarity reaches Supreme) or <strong>Prison Walk</strong> (move 18 tiles: every cell the warden walks counts). Meeting it earns a tool: pick one of three, and it lasts for the rest of the run. So a Supreme earns a tool only in runs whose objective is King of the Caged. The live game has more objectives, and what they pay isn't known yet, so every objective here pays a tool. In the contract challenge, the starting kit takes the place of the random tool.</p>
+      <p>Each Rainbow that reaches the vault opens the Warden's Treasure: pick one gift, which takes effect at once. In the Lab you can change how many tools a drill starts with, or switch rewards off for pure rules practice.</p>
       <dl class="defs" id="hb-tools"></dl>
 
       <h3>Contract challenge</h3>
@@ -351,7 +364,7 @@
         <li><strong>Grades.</strong> Each move you make is graded against the live check of the position before it: the best move, close to the best (within the margin of error), or what it cost. The panel keeps a tally for the run.</li>
       </ul>
       <p>For the big picture before you play, read the <a href="strategy.html">strategy guide</a>. To get advice on your own board in the live game, open the <a href="analyze.html">board analyzer</a>: set every cell, your tools and contracts, and it recommends the move the same way the trainer does.</p>
-      <p>There's no AI involved: the strategy is a set of scoring rules whose weights were tuned over millions of simulated runs. Its main lessons on the single-meal chain: devour whenever you can (unless it would break a prey mark, which gives free tiers every morning), swap low-tier inmates in the warden's cell (Normal and Magic; Rare too when you have tools), accept Chain reactions and Behind Closed Doors, accept an Execution when it gains more than it removes, and keep opening doors. Each beast waiting at a tier covers one of the four beasts a chain's eater can re-roll into, so a tier with all four keeps any chain going. Held from day 1, the best tools were the Long-Chained Shackles, Skewered Rat Heads and Hangman's Noose. The Squirming Iron Box hurt the most, and the Iron Pestle came out slightly below no tool.</p>
+      <p>There's no AI involved: the strategy is a set of scoring rules whose weights were tuned over millions of simulated runs. Its main lessons on the single-meal chain: devour whenever you can (unless it would break a prey mark, which gives free tiers every morning), swap low-tier inmates in the warden's cell (Normal and Magic; Rare too when you have tools), accept Chain reactions, Behind Closed Doors, Ravenous Appetite, High-Risk Convict, Crow Whispers, Taste of Freedom and the Usurpations, accept an Execution when it gains more than it removes, and keep opening doors. Each beast waiting at a tier covers one of the four beasts a chain's eater can re-roll into, so a tier with all four keeps any chain going. Held from day 1, the best tools were the Long-Chained Shackles, Skewered Rat Heads and Hangman's Noose. The Squirming Iron Box hurt the most, and the Iron Pestle came out slightly below no tool.</p>
       <p>In the contract challenge, the strategy sends inmates it can spare by light escort on the first two contracts, keeps 3 vouchers for the heavy contract, and gets the block ready for each contract in the last days before its deadline. Sending the most points every time passes far less often.</p>
 
       <h3>Practice values</h3>
@@ -499,6 +512,12 @@
                 <option value="chain">Chain reaction</option>
                 <option value="execution">Execution</option>
                 <option value="trickster">Behind Closed Doors</option>
+                <option value="appetite">Ravenous Appetite</option>
+                <option value="convict">High-Risk Convict</option>
+                <option value="crow">Crow Whispers</option>
+                <option value="freedom">Taste of Freedom</option>
+                <option value="usurp1">Usurpation I</option>
+                <option value="usurp2">Usurpation II</option>
               </select>
             </div>
             </div>
@@ -537,7 +556,7 @@
   </div>
 </dialog>
 
-<!-- Choice: milestone tool, Warden's Cache gift or refit -->
+<!-- Choice: objective tool, Warden's Treasure gift or refit -->
 <dialog class="sheet" id="dlg-choice" aria-labelledby="choice-title">
   <div class="sheet-inner">
     <header class="sheet-head">
@@ -636,11 +655,12 @@
   </div>
 </dialog>
 
-<script src="js/engine.js?v=20261015a"></script>
-<script src="js/board.js?v=20261015a"></script>
-<script src="js/sound.js?v=20261015a"></script>
-<script src="js/guide-data.js?v=20261015a"></script>
-<script src="js/solver.js?v=20261015a"></script>
-<script src="js/ui.js?v=20261015a"></script>
+<script src="js/engine.js?v=20261015b"></script>
+<script src="js/board.js?v=20261015b"></script>
+<script src="js/sound.js?v=20261015b"></script>
+<script src="js/guide-data.js?v=20261015b"></script>
+<script src="js/tool-combos.js?v=20261015b"></script>
+<script src="js/solver.js?v=20261015b"></script>
+<script src="js/ui.js?v=20261015b"></script>
 </body>
 </html>

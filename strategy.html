@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261015a">
+<link rel="stylesheet" href="css/style.css?v=20261015b">
 <style>
   /* The strategy guide: a long read in the simulator's own look. */
   .guide {
@@ -352,6 +352,20 @@
     color: var(--bone);
   }
 
+  /* Instrument pairs: each cell names the instrument, then its numbers.
+     On a phone the table scrolls inside its frame rather than squeezing. */
+  .guide td small {
+    display: block;
+    margin-top: 3px;
+    font: 500 11px/1.3 var(--font-mono);
+    color: var(--ash);
+    white-space: nowrap;
+  }
+
+  #pairs-section table {
+    min-width: 600px;
+  }
+
   .cta {
     display: grid;
     gap: 12px;
@@ -430,21 +444,22 @@
     <div class="stat"><b data-g="chainShare"></b><span>of Rainbows come from devour chains</span></div>
     <div class="stat"><b>Day <span data-g="firstDay"></span></b><span>when the first Rainbow usually lands</span></div>
   </div>
-  <p class="note basis">Data basis: the single-meal food chain (Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth), in the default drill: a random tool to start, another for meeting the run's objective (King of the Caged or Prison Walk), and a Warden's Cache gift per Rainbow. The headline numbers come from <span data-g="headlineRuns"></span> runs, with margins under ±<span data-g="ci"></span>. Generated <span data-g="generated"></span>.</p>
+  <p class="note basis">Data basis: the single-meal food chain (Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth), in the default drill: a random tool to start, another for meeting the run's objective (King of the Caged or Prison Walk), and a Warden's Treasure gift per Rainbow. The headline numbers come from <span data-g="headlineRuns"></span> runs, with margins under ±<span data-g="ci"></span>. Generated <span data-g="generated"></span>.</p>
   <p class="jump" id="jump-challenge" hidden>Playing the contract challenge? <a href="#challenge">Jump to the convoy rules</a>: what to send, and how to pass.</p>
 
   <section class="guide-section">
     <h2>The short version</h2>
     <ol class="rules">
       <li><strong>Devour every day you can.</strong><span>Waiting to build a bigger chain cost Rainbows: <span data-g="wait2"></span> per run with a small threshold and <span data-g="wait5"></span> with a large one, against <span data-g="full"></span> when you always devour (no tools).<span class="rule-note"><b>The one exception: don't break a prey mark.</b> When a Lion marks a prey of its own rarity, both rise a tier every morning for free until the mark runs out. Eating the marked prey ends the mark, and so does letting the marked Lion devour, since it usually turns into another beast. Either way you trade several free tiers for one. A devour almost never loses value otherwise: two inmates of one rarity become one a tier higher, which is worth more than the pair. In the contract challenge, also keep the inmates the next contract needs.</span></span></li>
-      <li><strong>Swap the warden's low-tier inmate every day.</strong><span><span data-g="swapTiers"></span>. A fresh roll is worth more on average. Never swapping drops results to <span data-g="neverSwap"></span> per run, the costliest mistake in the study.</span></li>
-      <li><strong>Accept Chain reactions.</strong><span>Opening every door on the next walk floods the block with material: <span data-g="full"></span> per run against <span data-g="skipChain"></span> when skipped.</span></li>
+      <li><strong>Swap the warden's low-tier inmate every day.</strong><span><span data-g="swapTiers"></span>. A fresh roll is worth more on average. Never swapping drops results to <span data-g="neverSwap"></span> per run, one of the costliest mistakes in the study.</span></li>
+      <li><strong>Chain reactions are a close call.</strong><span>Opening every door on the next walk floods the block with new inmates, but it also opens doors you might rather have kept. <span data-g="chainNote"></span> The Trainer's live check compares both each time.</span></li>
       <li><strong>Accept an Execution only when it gains more than it removes.</strong><span>Count what it would wipe out. Always accepting gave <span data-g="alwaysExec"></span> and never accepting <span data-g="neverExec"></span>, against <span data-g="full"></span> when you check first.</span></li>
-      <li><strong>Accept Behind Closed Doors.</strong><span>The inmate behind the door becomes a Supreme of the scarcest beast on the block, one step from Rainbow, and nothing else is set off. Skip it only when that inmate already is a Supreme.</span></li>
-      <li><strong>Keep opening doors.</strong><span>New inmates are the raw material for every chain, and a locked door usually beats walking to an inmate with nothing to eat. Walking farther helped only slightly on this food chain (<span data-g="full"></span> against <span data-g="shortWalks"></span> for short walks).</span></li>
+      <li><strong>Accept the events that only give.</strong><span>Behind Closed Doors makes the inmate behind the door a Supreme of the scarcest beast on the block, one step from Rainbow; skip it only when that inmate already is a Supreme. Ravenous Appetite, High-Risk Convict and Crow Whispers never cost anything.</span></li>
+      <li><strong>Stop at the office when it pays.</strong><span>The warden's office can be a destination. Bestow raises 1 random inmate a tier; Instigate puts special events behind 2 locked doors. Pick by what the block needs, as the Trainer does: <span data-g="full"></span> per run, against <span data-g="alwaysBestow"></span> always taking Bestow and <span data-g="alwaysInstigate"></span> always taking Instigate.</span></li>
+      <li><strong>Keep opening doors, and walk far.</strong><span>New inmates are the raw material for every chain, and a locked door usually beats walking to an inmate with nothing to eat. Walking farther pays: <span data-g="full"></span> per run against <span data-g="shortWalks"></span> for short walks, with six cells in reach, Prison Walk counting tiles and the office on the way around.</span></li>
       <li><strong>Know what keeps a chain going.</strong><span>Each beast has one meal, so each beast waiting at the next tier covers one of the four beasts the eater can re-roll into. A tier holding a Mammoth, a Lion, a Wolf and a Rat guarantees the next bite. The Trainer's chain odds do this math for you when you pick the first meal.</span></li>
       <li><strong>Take <span data-g="tool1"></span> or <span data-g="tool2"></span> when offered.</strong><span><span data-g="toolNote"></span></span></li>
-      <li><strong>At the Warden's Cache, take what fits the board.</strong><span><span data-g="giftNote"></span></span></li>
+      <li><strong>At the Warden's Treasure, take what fits the board.</strong><span><span data-g="giftNote"></span></span></li>
     </ol>
   </section>
 
@@ -453,8 +468,8 @@
     <p>Every day runs in the same order. Here is what the strategy does at each step.</p>
     <ol class="steps-day">
       <li><b>Patrol</b><div><p>Pick one of the three destinations. A locked door usually wins: it adds a new inmate, who may devour today from the warden's cell. Go to a known inmate instead when it has a strong devour waiting. A door with an event badge is a bonus. Prefer the farther destination when they're close: it counts toward Prison Walk, and with the Long-Chained Shackles a walk of 4 or more cells can raise an inmate a tier. Don't open a rat nest before it hatches.</p></div></li>
-      <li><b>Event</b><div><p>Accept a Chain reaction, and Behind Closed Doors unless its inmate is already a Supreme. For an Execution, count the inmates it would remove against the tiers the executioner gains, and accept only if you come out ahead.</p></div></li>
-      <li><b>Devour</b><div><p>If the warden's inmate has a target, devour. Pick the first meal whose chain is worth the most: the Trainer shows each option's chain odds. After that bite the chain runs by itself and can't be stopped.</p></div></li>
+      <li><b>Event</b><div><p>Accept Ravenous Appetite, High-Risk Convict, Crow Whispers, Taste of Freedom and both Usurpations, and Behind Closed Doors unless its inmate is already a Supreme. Chain reactions are the close call above. For an Execution, count the inmates it would remove against the tiers the executioner gains, and accept only if you come out ahead.</p></div></li>
+      <li><b>Devour</b><div><p>If the warden's inmate has a target, devour. Pick the first meal whose chain is worth the most: the Trainer shows each option's chain odds. After that bite the chain must go on, and can't be stopped: when the eater has more than one meal, pick the one whose next tier still has food for the beast it may re-roll into.</p></div></li>
       <li><b>Swap</b><div><p>If the warden's inmate is low-tier, swap it. When it has nothing to eat, swap <em>before</em> the devour: the new inmate might have a target today.</p></div></li>
       <li><b>End the day</b><div><p>Once nothing in the warden's cell can gain, end the day. The next morning, prey marks grow, nests hatch, and new destinations are drawn.</p></div></li>
     </ol>
@@ -494,29 +509,43 @@
       <table>
         <thead><tr><th>Tool</th><th>What it does</th></tr></thead>
         <tbody>
-          <tr><td>Long-Chained Shackles</td><td>A walk of 4 or more cells has a 40% chance to raise a random inmate a tier. With six cells in reach, most mornings offer a walk that long.</td></tr>
-          <tr><td>Skewered Rat Heads</td><td>Rats can eat Rats, and a Rat's devour gains an extra tier.</td></tr>
           <tr><td>Hangman's Noose</td><td>Swapped-in inmates are never Normal or Magic, so every daily swap is an upgrade.</td></tr>
+          <tr><td>Long-Chained Shackles</td><td>A walk of 4 or more cells has a 40% chance to raise a random inmate a tier. With six cells in reach, most mornings offer a walk that long.</td></tr>
+          <tr><td>Raging Beast's Agonizing Muzzle</td><td>A devour gains 2 extra tiers when 4 or fewer inmates are left on the block after the meal.</td></tr>
+          <tr><td>Skewered Rat Heads</td><td>Rats can eat Rats, and a Rat's devour gains an extra tier.</td></tr>
           <tr><td>Avenger's Casket</td><td>A devour can open a fresh meal at the eater's new rarity, which stretches chains.</td></tr>
-          <tr><td>Maddened Beast's Barbed Collar</td><td>Each bite a chain takes by itself has an 80% chance of an extra tier, so long chains climb faster.</td></tr>
           <tr><td>Rusty Saw</td><td>A 25% chance of an extra tier on each bite.</td></tr>
+          <tr><td>Maddened Beast's Barbed Collar</td><td>Each bite a chain takes by itself has an 80% chance of an extra tier, so long chains climb faster.</td></tr>
+          <tr><td>Sorting Hook</td><td>Doors never hold a Normal, so every new inmate starts at Magic or better.</td></tr>
           <tr><td>Fanged Guillotine</td><td>Wolves can also eat Rats below their own rarity, so a Wolf finds a meal far more often.</td></tr>
           <tr><td>Iron Tongs of Lust</td><td>A Mammoth gets a Tusk mark each morning: swapping it out raises other inmates a tier.</td></tr>
-          <tr><td>Sorting Hook</td><td>Doors never hold a Normal, so every new inmate starts at Magic or better.</td></tr>
           <tr><td>Lost Ring of Keys</td><td>Patrols often open the neighboring doors too: more inmates.</td></tr>
-          <tr><td>Agonizing Muzzle</td><td>+2 tiers, but only while 3 or fewer inmates are on the block.</td></tr>
-          <tr><td>Gaoler's Execution Axe</td><td>When a swap brings in a higher rarity, 2 random sealed cells open: more inmates, but only on the lucky swaps.</td></tr>
-          <tr><td>Searing Branding Iron</td><td>A patrol that opens a door has a 35% chance to copy its inmate into another unopened cell, which opens holding the copy.</td></tr>
           <tr><td>Warden's Scales</td><td>After a swap, usually shows the best inmate behind the locked doors. Knowing it changes little.</td></tr>
           <tr><td>Iron Pestle</td><td>A swap keeps the beast and re-rolls only the rarity, which leaves the block less varied.</td></tr>
+          <tr><td>Gaoler's Execution Axe</td><td>When a swap brings in a higher rarity, 2 random sealed cells open: more inmates, but only on the lucky swaps.</td></tr>
+          <tr><td>Searing Branding Iron</td><td>A patrol that opens a door has a 35% chance to copy its inmate into another unopened cell, which opens holding the copy.</td></tr>
+          <tr><td>Forged Key</td><td>Each morning offers one destination fewer. A patrol that opens a door has a 50% chance to open one more random sealed cell. The lost choice costs more than the extra doors give.</td></tr>
           <tr><td>Squirming Iron Box</td><td>Turns a sealed cell into a rat nest every morning, which ties up doors for a Rare Rat at best.</td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
+  <section class="guide-section" id="pairs-section" hidden>
+    <h2>Instrument pairs</h2>
+    <p>A run starts with one instrument, and meeting the objective offers three more. What the second is worth depends on the first, so take the one that adds the most to what you hold. For each starting instrument, its three best partners: what the partner adds, then Rainbows per run holding both from day 1, with no other rewards.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>You hold</th><th>Best second</th><th>Next</th><th>Then</th></tr></thead>
+        <tbody id="pairs"></tbody>
+      </table>
+    </div>
+    <p id="pairs-note"></p>
+    <p class="note" id="pairs-runs"></p>
+  </section>
+
   <section class="guide-section">
-    <h2>The Warden's Cache</h2>
+    <h2>The Warden's Treasure</h2>
     <p>Each Rainbow offers one of four gifts. Rainbows per run with tools on, <span data-g="sideRuns"></span> runs each:</p>
     <div class="bars" id="gifts"></div>
     <p>Judge the gift by the board. Crimson Vintage shines with many inmates below Legendary. The Three-Headed Thumb Ring helps when there are plenty of sealed doors. The Brass Horn of Strife pays when lots of inmates already have targets. Brand of Original Sin helps when many inmates have nothing to eat.</p>
@@ -529,7 +558,7 @@
     <p>A typical run opens about <span data-g="doors"></span> doors, swaps <span data-g="swaps"></span> times and devours <span data-g="devours"></span> times.</p>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Strategy</th><th class="num">No tools</th><th class="num">Tools and Cache on</th></tr></thead>
+        <thead><tr><th>Strategy</th><th class="num">No tools</th><th class="num">Tools and Treasure on</th></tr></thead>
         <tbody id="compare"></tbody>
       </table>
     </div>
@@ -607,12 +636,13 @@
 
   <footer class="method">
     <p>This English version and guide are made by <strong>CoffeeBns</strong>: <a href="https://twitch.tv/coffeebns" target="_blank" rel="noopener">twitch.tv/coffeebns</a> and <a href="https://youtube.com/@CoffeeBns" target="_blank" rel="noopener">youtube.com/@CoffeeBns</a>.</p>
-    <p><strong>How these numbers were made.</strong> Every run used the simulator's own rules engine. A rules-based strategy played them, making each choice from what a player can see. There's no AI involved: it's a set of scoring rules whose weights were tuned for this food chain by trying each value and keeping whichever vaulted more Rainbows. This data set took <span data-g="totalRuns"></span> runs and <span data-g="minutes"></span> minutes. The rules follow the season's video reveal and what players have since seen live. Odds and limits are practice values and may differ from the live game: new inmates roll 52% Normal, 27% Magic, 15% Rare and 6% Legendary, 18% of cells hide an event (each of the three kinds equally often), and you get one devour and one swap a day over a 20-day drill. The full tables are in the <a href="https://github.com/blahdot3h/tartarus-simulator/tree/main/tools" target="_blank" rel="noopener">strategy lab's notes</a>.</p>
+    <p><strong>How these numbers were made.</strong> Every run used the simulator's own rules engine. A rules-based strategy played them, making each choice from what a player can see. There's no AI involved: it's a set of scoring rules whose weights were tuned for this food chain by trying each value and keeping whichever vaulted more Rainbows. This data set took <span data-g="totalRuns"></span> runs and <span data-g="minutes"></span> minutes. The rules follow the season's video reveal and what players have since seen live. Odds and limits are practice values and may differ from the live game: new inmates roll 52% Normal, 27% Magic, 15% Rare and 6% Legendary, 5% of sealed cells hide an event, every kind equally likely, which shows only once the warden walks past, and you get one devour and one swap a day over a 20-day drill. The full tables are in the <a href="https://github.com/blahdot3h/tartarus-simulator/tree/main/tools" target="_blank" rel="noopener">strategy lab's notes</a>.</p>
   </footer>
 </main>
 
-<script src="js/guide-data.js?v=20261015a"></script>
-<script src="js/board.js?v=20261015a"></script>
+<script src="js/guide-data.js?v=20261015b"></script>
+<script src="js/tool-combos.js?v=20261015b"></script>
+<script src="js/board.js?v=20261015b"></script>
 <script>
   // Fills the guide from js/guide-data.js, generated by
   // node tools/strategy-sim.js guide.
@@ -637,9 +667,10 @@
     // Tools that did worse than none, from the worst: a small loss (under
     // 0.02 Rainbows) reads as "slightly".
     const worse = tools.filter((t) => t.delta < 0).reverse();
+    const named = worse.map((t) => `the ${t.name}${-t.delta < 0.02 ? ' (slightly)' : ''}`);
     const worseNote = !worse.length ? ''
       : worse.length === 1 ? ` The ${worse[0].name} was the only tool that made things worse.`
-        : ` Some tools made things worse: ${worse.map((t) => `the ${t.name}${-t.delta < 0.02 ? ' (slightly)' : ''}`).join(' and ')}.`;
+        : ` Some tools made things worse: ${named.slice(0, -1).join(', ')} and ${named[named.length - 1]}.`;
     const times = (t) => (t.value / G.toolBase).toFixed(1);
     const bestFixed = G.gifts.slice(1)[0];
 
@@ -661,10 +692,19 @@
       wait2: two(habit('wait2').value),
       wait5: two(habit('wait5').value),
       neverSwap: two(habit('neverSwap').value),
-      skipChain: two(habit('skipChain').value),
+      chainNote: (() => {
+        const tooled = G.params.rewards.acceptChain ? 'accepts' : 'skips';
+        const skip = habit('skipChain');
+        const accept = habit('acceptChain');
+        if (skip) return `With no instruments, accepting them made ${two(habit('full').value)} per run against ${two(skip.value)} skipping. With instruments, the Trainer ${tooled} them.`;
+        if (accept) return `With no instruments, skipping them made ${two(habit('full').value)} per run against ${two(accept.value)} accepting. With instruments, the Trainer ${tooled} them.`;
+        return '';
+      })(),
       alwaysExec: two(habit('alwaysExec').value),
       neverExec: two(habit('neverExec').value),
       shortWalks: two(habit('shortWalks').value),
+      alwaysBestow: habit('alwaysBestow') ? two(habit('alwaysBestow').value) : '?',
+      alwaysInstigate: habit('alwaysInstigate') ? two(habit('alwaysInstigate').value) : '?',
       swapTiers: `Swap ${tierList(G.params.notools.swapMaxTier)} inmates with no tools, and ${tierList(G.params.rewards.swapMaxTier)} once you hold tools`,
       tool1: tools[0].name,
       tool2: tools[1].name,
@@ -722,6 +762,35 @@
     bars('habits', habits.map((h) => ({ label: h.label, value: h.value, key: h.id === 'full', bad: h.value < full * 0.7 })), Math.max(...habits.map((h) => h.value)) * 1.05, two);
     const toolRows = [...tools.map((t) => ({ label: t.name, value: t.value, sub: `${t.delta >= 0 ? '+' : '−'}${two(Math.abs(t.delta))}`, key: t === tools[0] || t === tools[1], bad: t.delta < 0 })), { label: 'No tool', value: G.toolBase }].sort((a, b) => b.value - a.value);
     bars('tools', toolRows, Math.max(...toolRows.map((r) => r.value)) * 1.05, two);
+    // Instrument pairs, from node tools/strategy-sim.js combos
+    // (js/tool-combos.js), for the guide's food chain.
+    const combos = window.TARTARUS_COMBOS && window.TARTARUS_COMBOS[G.chain];
+    if (combos && combos.sizes && combos.sizes[2]) {
+      const nameOf = Object.fromEntries(tools.map((t) => [t.id, t.name]));
+      const key = (ids) => ids.map((id) => String.fromCharCode(97 + combos.ids.indexOf(id))).sort().join('');
+      const value = (ids) => (ids.length ? combos.v[key(ids)] : combos.base);
+      const signed = (v) => `${v >= 0 ? '+' : '−'}${two(Math.abs(v))}`;
+      const held = combos.ids.filter((id) => nameOf[id] && value([id]) !== undefined).sort((a, b) => value([b]) - value([a]));
+      document.getElementById('pairs').innerHTML = held.map((h) => {
+        const partners = held.filter((id) => id !== h && value([h, id]) !== undefined).sort((a, b) => value([h, b]) - value([h, a]));
+        return `<tr><td>${esc(nameOf[h])}<small>${two(value([h]))} alone</small></td>${partners.slice(0, 3).map((id) => `<td>${esc(nameOf[id])}<small>${signed(value([h, id]) - value([h]))} · ${two(value([h, id]))}</small></td>`).join('')}</tr>`;
+      }).join('');
+      // Pairs worth more, or less, than their parts: both together against
+      // each one's gain over no instrument, added up.
+      const pairs = [];
+      held.forEach((a, i) => held.slice(i + 1).forEach((b) => {
+        if (value([a, b]) !== undefined) pairs.push({ a, b, both: value([a, b]), extra: value([a, b]) - value([a]) - value([b]) + combos.base });
+      }));
+      pairs.sort((x, y) => y.extra - x.extra);
+      const pairName = (p) => `${nameOf[p.a]} with ${nameOf[p.b]} (${two(p.both)}, ${signed(p.extra)})`;
+      const listed = (ps) => ps.map(pairName).join('; ');
+      const clash = pairs.slice(-2).reverse().filter((p) => p.extra < -0.05);
+      document.getElementById('pairs-note').textContent = `The pairs worth the most beyond their parts: ${listed(pairs.slice(0, 3))}. The number after each pair's Rainbows is what the pair makes beyond the two instruments' separate gains.${clash.length ? ` The worst clashes: ${listed(clash)}.` : ''}`;
+      const s1 = combos.sizes[1];
+      const s2 = combos.sizes[2];
+      document.getElementById('pairs-runs').textContent = `${s2.sets} pairs and ${s1.sets} single instruments on the same prisons, ${(s1.runs + s2.runs).toLocaleString()} runs, each measured to within ±${Math.max(s1.margin, s2.margin).toFixed(3)} Rainbows per run. Generated ${combos.generated}.`;
+      document.getElementById('pairs-section').hidden = false;
+    }
     const giftRows = G.gifts.map((g) => ({ label: g.id === 'scored' ? 'Judged on the spot' : `Always ${g.name}`, value: g.value, key: g.id === 'scored' })).sort((a, b) => b.value - a.value);
     bars('gifts', giftRows, Math.max(...giftRows.map((r) => r.value)) * 1.05, two);
     const counts = H.rainbowCounts;

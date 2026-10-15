@@ -196,6 +196,10 @@
       '<circle cx="14" cy="33" r="7.5" fill="none" stroke="#4d505b" stroke-width="4.2"/><circle cx="14" cy="33" r="7.5" fill="none" stroke="#9a9eaa" stroke-width="1"/>' +
       spikes(35, 13, 7.5, 10.5, 8, 0.5, '#b9bcc6') +
       '<circle cx="35" cy="13" r="6.5" fill="none" stroke="#4d505b" stroke-width="3.8"/><circle cx="35" cy="13" r="6.5" fill="none" stroke="#9a9eaa" stroke-width="1"/>'),
+    // Forged Key: two old keys on a small ring, in a cold blue glow.
+    forged: icon('glow-blue',
+      '<circle cx="24" cy="11" r="6" fill="none" stroke="#8d92a8" stroke-width="2.2"/><circle cx="29" cy="15" r="4.4" fill="none" stroke="#6f7488" stroke-width="1.8"/>' +
+      key(20, 10) + key(29, -14)),
     // Maddened Beast's Barbed Collar: a blood-red collar ringed with barbs.
     collar: icon('glow-red',
       spikes(24, 24, 14.5, 21.5, 14, 0, '#3a1012') +
@@ -214,6 +218,20 @@
     event: mark('<path d="M24 4l20 20-20 20L4 24Z" fill="#3b2410" stroke="#f28c36" stroke-width="2.4"/><path d="M21.6 12h4.8l-1 15h-2.8Z" fill="#f28c36"/><circle cx="24" cy="33" r="2.7" fill="#f28c36"/>'),
     chain: mark('<rect x="6" y="15" width="22" height="13" rx="6.5" fill="none" stroke="#f28c36" stroke-width="3.6" transform="rotate(-30 17 21.5)"/><rect x="20" y="20" width="22" height="13" rx="6.5" fill="none" stroke="#f5b26b" stroke-width="3.6" transform="rotate(-30 31 26.5)"/>'),
     execution: mark('<path d="M30 6l4 4L12 44l-4-3Z" fill="#7a5130"/><path d="M27 4c7 1 13 6 15 14l-11 3c-1-5-3-8-8-10Z" fill="#c3c6cd" stroke="#7d8089" stroke-width="1"/><path d="M38 9c2.2 2.4 3.4 5.4 4 9" stroke="#e0675f" stroke-width="2" fill="none"/>'),
+    // Ravenous Appetite: a tray piled with food.
+    appetite: mark('<path d="M6 30h36l-4 8H10Z" fill="#7a5130" stroke="#c9a35a" stroke-width="1.6"/><path d="M12 30c0-7 5-12 12-12s12 5 12 12Z" fill="#b8202a"/><circle cx="18" cy="24" r="3" fill="#e8a33a"/><circle cx="26" cy="21" r="3.4" fill="#e8a33a"/><circle cx="31" cy="26" r="2.6" fill="#e8a33a"/><path d="M24 8v6M19 10l2 5M29 10l-2 5" stroke="#c9cbd2" stroke-width="1.6" stroke-linecap="round"/>'),
+    // High-Risk Convict: an open cell door with a Legendary's orange glow.
+    convict: mark('<path d="M10 44V18a11 11 0 0 1 22 0v26Z" fill="#2a2f37" stroke="#f28c36" stroke-width="2.4"/><path d="M15 20v22M21 18v24M27 20v22" stroke="#f28c36" stroke-width="2"/><path d="M32 18l8-4v30l-8-2Z" fill="#3a3f48" stroke="#9aa0ad" stroke-width="1.2"/>'),
+    // Crow Whispers: a crow's head over a "?" door.
+    crow: mark('<path d="M14 44V24a10 10 0 0 1 20 0v20Z" fill="#2a2f37" stroke="#8d92a8" stroke-width="2"/><path d="M20.5 27a3.5 3.5 0 1 1 5.5 2.9c-1.4 1-2 1.8-2 3.6M24 37.5v.5" stroke="#5fc4b8" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="M8 12c4-6 12-7 16-3l8-1-6 4c-3 4-9 5-14 3Z" fill="#1d1b20" stroke="#6f7488" stroke-width="1"/><circle cx="20" cy="10.5" r="1.2" fill="#e0675f"/>'),
+    // Taste of Freedom: a key over three open doors.
+    freedom: mark('<path d="M4 44V26a6 6 0 0 1 12 0v18ZM18 44V22a6 6 0 0 1 12 0v22ZM32 44V26a6 6 0 0 1 12 0v18Z" fill="#2a2f37" stroke="#c9a35a" stroke-width="1.8"/><circle cx="18" cy="9" r="4.5" fill="none" stroke="#e8c46a" stroke-width="2.2"/><path d="M22.5 9h17M33 9v4M37 9v3" stroke="#e8c46a" stroke-width="2.2" stroke-linecap="round"/>'),
+    // Usurpation: a name gouged into the wall, with one or two claw marks.
+    usurp1: mark('<rect x="6" y="8" width="36" height="32" rx="3" fill="#2a2f37" stroke="#9aa0ad" stroke-width="1.4"/><path d="M14 14l4 20M20 13l4 20M26 14l4 20" stroke="#e0675f" stroke-width="2.2" stroke-linecap="round"/><path d="M35 15v18" stroke="#f5ecd8" stroke-width="3" stroke-linecap="round"/>'),
+    usurp2: mark('<rect x="6" y="8" width="36" height="32" rx="3" fill="#2a2f37" stroke="#9aa0ad" stroke-width="1.4"/><path d="M11 14l4 20M17 13l4 20M23 14l4 20" stroke="#e0675f" stroke-width="2.2" stroke-linecap="round"/><path d="M32 15v18M38 15v18" stroke="#f5ecd8" stroke-width="3" stroke-linecap="round"/>'),
+    // A locked door showing its inmate's rarity, beast unknown: a "?" tinted
+    // by the rarity.
+    revealed: mark('<path d="M12 44V18a12 12 0 0 1 24 0v26Z" fill="#2a2f37" stroke="var(--tc)" stroke-width="2.4"/><path d="M19.5 22a4.5 4.5 0 1 1 7 3.7c-1.8 1.3-2.5 2.4-2.5 4.6M24 36v.6" stroke="var(--tc)" stroke-width="2.6" fill="none" stroke-linecap="round"/>'),
     // Behind Closed Doors: a shut door with an Ultimate's red star.
     trickster: mark('<path d="M12 44V20a12 12 0 0 1 24 0v24Z" fill="#2a2f37" stroke="#ea4f57" stroke-width="2.4"/><path d="M24 13.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.8Z" fill="#ea4f57"/><circle cx="31" cy="35" r="1.7" fill="#c9a35a"/>'),
     nest: mark('<path d="M6 34c6 7 30 7 36 0M8 30c6 8 26 8 32 0M10 38c8 5 20 5 28 0" fill="none" stroke="#8a6a3c" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="13" r="5" fill="#d9a634"/><circle cx="32" cy="13" r="5" fill="#d9a634"/><path d="M24 11c7 0 10 6 7 12-2 4-5 7-7 9-2-2-5-5-7-9-3-6 0-12 7-12Z" fill="#f1c84a"/><circle cx="20.5" cy="19" r="1.5" fill="#3b2f19"/><circle cx="27.5" cy="19" r="1.5" fill="#3b2f19"/>'),
@@ -256,7 +274,7 @@
       } else {
         label += 'sealed';
       }
-      if (cell.event) {
+      if (cell.event && cell.seen !== false) {
         badges.push('<span class="badge badge-event">Event</span>');
         label += ', special event behind the door';
       }

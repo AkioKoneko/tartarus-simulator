@@ -34,13 +34,15 @@ function emptyStats() {
     devours: 0, bites: 0, chainHist: [0, 0, 0, 0, 0, 0, 0],
     fromChain: 0, fromDevour: 0, fromOther: 0, bestTier: [0, 0, 0, 0, 0, 0],
     swaps: 0, executions: 0, opened: 0, firstDay: 0, firstCount: 0,
-    stairs: {},
+    stairs: {}, crashes: 0, crash: null,
   };
 }
 
 function merge(a, b) {
   for (const k of Object.keys(b)) {
-    if (k === 'stairs') {
+    if (k === 'crash') {
+      if (!a.crash) a.crash = b.crash;
+    } else if (k === 'stairs') {
       for (const [key, v] of Object.entries(b.stairs)) {
         const t = a.stairs[key] || (a.stairs[key] = { n: 0, rainbow: 0, bites: 0 });
         t.n += v.n;
@@ -87,11 +89,13 @@ const BASELINES = {
 function newDrill(game, i, seedWord) {
   // Rewards on plays like the live game: a random tool to start, one for the
   // objective and a gift per Rainbow. No tools means none at all.
-  const params = { rewards: !!game.rewards, loopChain: !!game.loop, startTools: game.rewards && !game.tool ? 1 : 0 };
+  const params = { rewards: !!game.rewards, loopChain: !!game.loop, startTools: game.rewards && !game.tool && !game.tools ? 1 : 0 };
   const st = T.newGame({ mode: 'drill', scenario: game.scenario || 'empty', seed: `${seedWord}-${i}`, params });
-  if (game.tool) {
-    st.tools = [game.tool];
-  }
+  // Tools held from day 1: one (game.tool) or a set (game.tools).
+  if (game.tool) st.tools = [game.tool];
+  if (game.tools) st.tools = game.tools.slice();
+  // The Forged Key takes a door off today's offer too.
+  if (st.tools.includes('forged')) st.destinations = st.destinations.slice(0, Math.max(1, st.params.destinations - 1));
   return st;
 }
 
@@ -117,37 +121,45 @@ function playGames(job) {
     const random = S.rng32(i * 2654435761 + 7);
     const decide = job.policy === 'solver' ? (s) => S.decide(s, job.params, random) : (s) => BASELINES[job.policy](s, random);
     let firstDay = 0;
-    for (let guard = 0; st.phase !== 'ended' && guard < 2000; guard++) {
-      const action = decide(st);
-      const vaultBefore = st.vault.length;
-      const key = job.stairs && action.type === 'devour' ? stairKey(st, st.position) : null;
-      const result = S.apply(st, action);
-      if (!result.ok) {
-        if (!S.apply(st, { type: 'end' }).ok) break;
-        continue;
-      }
-      const gained = st.vault.length - vaultBefore;
-      if (action.type === 'devour') {
-        let bites = 1;
-        for (let k = st.log.length - 1; k >= 0; k--) {
-          const x = st.log[k].x;
-          if (x && x.type === 'devour') {
-            bites = x.bites.length;
-            break;
+    // A game that throws is left out and reported (the first one in full),
+    // so one bad state can't end a long run.
+    try {
+      for (let guard = 0; st.phase !== 'ended' && guard < 2000; guard++) {
+        const action = decide(st);
+        const vaultBefore = st.vault.length;
+        const key = job.stairs && action.type === 'devour' ? stairKey(st, st.position) : null;
+        const result = S.apply(st, action);
+        if (!result.ok) {
+          if (!S.apply(st, { type: 'end' }).ok) break;
+          continue;
+        }
+        const gained = st.vault.length - vaultBefore;
+        if (action.type === 'devour') {
+          let bites = 1;
+          for (let k = st.log.length - 1; k >= 0; k--) {
+            const x = st.log[k].x;
+            if (x && x.type === 'devour') {
+              bites = x.bites.length;
+              break;
+            }
           }
-        }
-        stats.devours += 1;
-        stats.bites += bites;
-        stats.chainHist[Math.min(6, bites)] += 1;
-        if (gained) stats[bites > 1 ? 'fromChain' : 'fromDevour'] += gained;
-        if (key) {
-          const t = stats.stairs[key] || (stats.stairs[key] = { n: 0, rainbow: 0, bites: 0 });
-          t.n += 1;
-          t.bites += bites;
-          if (gained) t.rainbow += 1;
-        }
-      } else if (gained) stats.fromOther += gained;
-      if (gained && !firstDay) firstDay = st.day;
+          stats.devours += 1;
+          stats.bites += bites;
+          stats.chainHist[Math.min(6, bites)] += 1;
+          if (gained) stats[bites > 1 ? 'fromChain' : 'fromDevour'] += gained;
+          if (key) {
+            const t = stats.stairs[key] || (stats.stairs[key] = { n: 0, rainbow: 0, bites: 0 });
+            t.n += 1;
+            t.bites += bites;
+            if (gained) t.rainbow += 1;
+          }
+        } else if (gained) stats.fromOther += gained;
+        if (gained && !firstDay) firstDay = st.day;
+      }
+    } catch (e) {
+      stats.crashes += 1;
+      if (!stats.crash) stats.crash = `game ${job.seed}-${i}, tools [${st.tools.join(',')}], day ${st.day}, phase ${st.phase}: ${String(e && e.stack).split('\n').slice(0, 8).join(' | ')}`;
+      continue;
     }
     const r = st.vault.length;
     stats.games += 1;
@@ -329,13 +341,15 @@ for (let i = 0; i < THREADS; i++) {
 }
 
 // Splits `games` games into chunks across the pool; resolves merged stats.
+// extra.from starts at a later game number, to add runs to a measurement.
 function run(policy, params, game, games, extra) {
   const challenge = !!game.challenge;
   const chunks = Math.max(THREADS, Math.ceil(games / (challenge ? 1000 : 2500)));
   const size = Math.ceil(games / chunks);
+  const first = (extra && extra.from) || 0;
   const jobs = [];
-  for (let from = 0; from < games; from += size) {
-    jobs.push({ policy, params, game, challenge, from, to: Math.min(games, from + size), seed: (extra && extra.seed) || SEED, stairs: !!(extra && extra.stairs) });
+  for (let from = first; from < first + games; from += size) {
+    jobs.push({ policy, params, game, challenge, from, to: Math.min(first + games, from + size), seed: (extra && extra.seed) || SEED, stairs: !!(extra && extra.stairs) });
   }
   let next = 0;
   const total = challenge ? emptyChallengeStats() : emptyStats();
@@ -346,6 +360,7 @@ function run(policy, params, game, games, extra) {
       if (finished) return;
       finished = true;
       GAMES_PLAYED += stats.games;
+      if (stats.crashes) console.log(`WARNING: ${stats.crashes} game(s) threw and were left out. The first: ${stats.crash}`);
       resolveRun(stats);
     };
     const launch = (worker) => {
@@ -452,7 +467,8 @@ async function tune(game, games, rounds, start, grid) {
   console.log(`start: ${fmt(bestStats)}`);
   for (let round = 1; round <= rounds; round++) {
     let changed = false;
-    for (const [key, values] of Object.entries(grid || GRID)) {
+    // A grid can be a function of the weights, re-centered every round.
+    for (const [key, values] of Object.entries(typeof grid === 'function' ? grid(best) : grid || GRID)) {
       const tried = [];
       for (const value of values) {
         if (value === best[key]) {
@@ -494,6 +510,8 @@ function fineGrid(p) {
     minDevour: [-1, 0, 1],
     execMargin: [-5, 0, 5, 10],
     acceptChain: [true, false],
+    wInstigate: scale(p.wInstigate, [0.5, 1, 2]),
+    wCrow: scale(p.wCrow, [0.5, 1, 2]),
   };
 }
 
@@ -615,18 +633,21 @@ async function challengeGuide(games) {
 async function train(games) {
   const t0 = Date.now();
   const finalGames = Number(opt('final', 1000000));
+  // The single-meal chain is the default, so it gets the most runs. --only
+  // single or two trains one chain's profiles.
+  const only = opt('only', 'all');
   const variants = [
-    { name: 'rewards', profile: 'rewards', game: { rewards: true }, games, rounds: 2 },
-    { name: 'notools', profile: 'notools', game: { rewards: false }, games, rounds: 2 },
-    { name: 'loop-rewards', profile: 'rewards', game: { rewards: true, loop: true }, games: Math.round(games / 3), rounds: 1 },
-    { name: 'loop-notools', profile: 'notools', game: { rewards: false, loop: true }, games: Math.round(games / 3), rounds: 1 },
-  ];
+    { name: 'loop-rewards', profile: 'loop-rewards', game: { rewards: true, loop: true }, games, rounds: 2 },
+    { name: 'loop-notools', profile: 'loop-notools', game: { rewards: false, loop: true }, games, rounds: 2 },
+    { name: 'rewards', profile: 'rewards', game: { rewards: true }, games: Math.round(games / 2), rounds: 1 },
+    { name: 'notools', profile: 'notools', game: { rewards: false }, games: Math.round(games / 2), rounds: 1 },
+  ].filter((v) => only === 'all' || (only === 'single') === v.name.startsWith('loop-'));
   const out = { when: new Date().toISOString(), threads: THREADS, gamesPerTest: games, finalGames, variants: {} };
   for (const v of variants) {
     console.log(`
 == ${v.name}: fine-tune on ${v.games.toLocaleString()} runs per test ==`);
     const start = Object.assign({}, S.DEFAULTS, S.PROFILES[v.profile]);
-    const tuned = await tune(v.game, v.games, v.rounds, start, fineGrid(start));
+    const tuned = await tune(v.game, v.games, v.rounds, start, fineGrid);
     save(`tuned-${v.name}.json`, tuned.params);
     const before = await run('solver', start, v.game, finalGames, { seed: 'FINAL' });
     const after = await run('solver', tuned.params, v.game, finalGames, { seed: 'FINAL' });
@@ -638,6 +659,137 @@ async function train(games) {
   save('train-report.json', out);
   console.log(`
 trained on ${GAMES_PLAYED.toLocaleString()} simulated runs in ${(out.seconds / 60).toFixed(1)} minutes; saved tools/results/train-report.json`);
+}
+
+// ---------- Instrument sets ----------
+
+// Every set of up to `--max` instruments (4 by default) held from day 1,
+// with no other rewards, on the same prisons (seed COMBO: game i of every
+// set is the same prison), so the sets compare fairly. Each set runs until
+// its 95% margin is under `--margin` Rainbows per run (0.01 by default).
+// Sets of 3 and 4 vary more, so they need more runs: they first get a coarse
+// margin (`--coarse`, 0.03) so every set has a value early, and are then
+// refined. Saves tools/results/tool-combos-<chain>.json as it goes; stop it
+// any time (`--minutes` stops it cleanly) and run it again to carry on.
+// Writes js/tool-combos.js, which the strategy uses to pick instruments by
+// what's already held.
+async function combos() {
+  const t0 = Date.now();
+  const start = GAMES_PLAYED;
+  const loop = opt('chain', 'single') !== 'two';
+  const name = loop ? 'single' : 'two';
+  const max = Number(opt('max', 4));
+  const margin = Number(opt('margin', 0.01));
+  const coarse = Number(opt('coarse', 0.03));
+  const limit = Number(opt('minutes', 0)) * 60000 || Infinity;
+  const PILOT = 4000;
+  const params = Object.assign({}, S.DEFAULTS, S.PROFILES[loop ? 'loop-notools' : 'notools']);
+  const game = { rewards: false, loop };
+  const ids = T.TOOL_IDS;
+  const file = path.join(RESULTS, `tool-combos-${name}.json`);
+  // Carry on from an earlier run if it played the same way.
+  let out = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+  if (out && (out.seed !== 'COMBO' || JSON.stringify(out.ids) !== JSON.stringify(ids) || JSON.stringify(out.params) !== JSON.stringify(params) || !out.sets[''])) {
+    console.log('The saved sets were played with other weights or instruments: starting over.');
+    out = null;
+  }
+  if (!out) out = { chain: name, seed: 'COMBO', ids, params, sets: {} };
+  out.margin = margin;
+  const priorRuns = out.totalRuns || 0;
+  const keyOf = (set) => set.slice().sort().join('|');
+  const sets = [[]];
+  const pick = (from, size, chosen) => {
+    if (chosen.length === size) return sets.push(chosen.slice());
+    for (let i = from; i < ids.length; i++) pick(i + 1, size, [...chosen, ids[i]]);
+  };
+  for (let k = 1; k <= max; k++) pick(0, k, []);
+  for (const set of sets) if (!out.sets[keyOf(set)]) out.sets[keyOf(set)] = { n: 0, sum: 0, sq: 0 };
+  const sd = (r) => Math.sqrt(Math.max(0, r.sq / r.n - (r.sum / r.n) ** 2));
+  const ci = (r) => (r.n ? (1.96 * sd(r)) / Math.sqrt(r.n) : Infinity);
+  const runsFor = (r, target) => (r.n < PILOT ? PILOT : Math.ceil(((1.96 * sd(r)) / target) ** 2));
+  let saved = Date.now();
+  const write = () => {
+    for (const r of Object.values(out.sets)) if (r.n) Object.assign(r, { v: +(r.sum / r.n).toFixed(4), ci: +ci(r).toFixed(4) });
+    out.generated = new Date().toISOString().slice(0, 10);
+    out.totalRuns = priorRuns + GAMES_PLAYED - start;
+    save(path.basename(file), out);
+    saved = Date.now();
+  };
+  console.log(`\n== ${name} chain: ${(sets.length - 1).toLocaleString()} instrument sets of up to ${max}, each to ±${margin} ==`);
+  const stages = [
+    { sizes: [0, 1, 2], target: margin },
+    { sizes: [3, 4], target: coarse },
+    { sizes: [3], target: margin },
+    { sizes: [4], target: margin },
+  ];
+  let stopped = false;
+  for (const stage of stages) {
+    const group = sets.filter((s) => stage.sizes.includes(s.length));
+    // Top up until every set in the stage meets its margin; the margin
+    // needs an estimate of the set's spread, so it can take a few passes.
+    for (let pass = 0; pass < 6 && !stopped; pass++) {
+      const todo = group.map((set) => ({ set, r: out.sets[keyOf(set)] })).map((x) => Object.assign(x, { add: Math.min(runsFor(x.r, stage.target) - x.r.n, 200000) })).filter((x) => x.add > 0);
+      if (!todo.length) break;
+      console.log(`sets of ${stage.sizes.join(' and ')} to ±${stage.target}, pass ${pass + 1}: ${todo.length} sets, ${todo.reduce((a, x) => a + x.add, 0).toLocaleString()} runs`);
+      const BATCH = 8;
+      for (let i = 0; i < todo.length; i += BATCH) {
+        if (Date.now() - t0 > limit) {
+          stopped = true;
+          break;
+        }
+        const batch = todo.slice(i, i + BATCH);
+        const results = await Promise.all(batch.map((x) => run('solver', params, Object.assign({}, game, { tools: x.set }), x.add, { seed: 'COMBO', from: x.r.n })));
+        batch.forEach((x, j) => {
+          x.r.n += results[j].games;
+          x.r.sum += results[j].rainbows;
+          x.r.sq += results[j].rainbowsSq;
+        });
+        if (Date.now() - saved > 60000) {
+          write();
+          console.log(`  ${Math.min(todo.length, i + BATCH)} / ${todo.length}, ${(GAMES_PLAYED - start).toLocaleString()} runs, ${((Date.now() - t0) / 60000).toFixed(1)} min`);
+        }
+      }
+    }
+    if (stopped) break;
+  }
+  write();
+  writeCombosJs();
+  const bySize = {};
+  for (const set of sets) {
+    const r = out.sets[keyOf(set)];
+    const b = bySize[set.length] || (bySize[set.length] = { sets: 0, runs: 0, worst: 0 });
+    b.sets += 1;
+    b.runs += r.n;
+    b.worst = Math.max(b.worst, ci(r));
+  }
+  for (const [k, b] of Object.entries(bySize)) console.log(`${k} held: ${b.sets} sets, ${b.runs.toLocaleString()} runs, widest margin ±${b.worst.toFixed(4)}`);
+  console.log(`\n${(GAMES_PLAYED - start).toLocaleString()} runs in ${((Date.now() - t0) / 60000).toFixed(1)} minutes${stopped ? ' (stopped at the time limit; run again to carry on)' : ''}; saved tools/results/${path.basename(file)} and js/tool-combos.js`);
+}
+
+// js/tool-combos.js: each chain's measured sets, keyed by the instruments'
+// letters (a for the first in TOOL_IDS) in order, values to 3 decimals.
+function writeCombosJs() {
+  const data = {};
+  for (const name of ['single', 'two']) {
+    const file = path.join(RESULTS, `tool-combos-${name}.json`);
+    if (!fs.existsSync(file)) continue;
+    const c = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const letter = (id) => String.fromCharCode(97 + c.ids.indexOf(id));
+    const v = {};
+    // Per number held: how many sets, their runs, and the widest margin.
+    const sizes = {};
+    for (const [key, r] of Object.entries(c.sets)) {
+      if (!key || !r.n) continue;
+      v[key.split('|').map(letter).sort().join('')] = +r.v.toFixed(3);
+      const s = sizes[key.split('|').length] || (sizes[key.split('|').length] = { sets: 0, runs: 0, margin: 0 });
+      s.sets += 1;
+      s.runs += r.n;
+      s.margin = +Math.max(s.margin, r.ci).toFixed(4);
+    }
+    if (!c.sets[''] || !c.sets[''].n) continue;
+    data[name] = { generated: c.generated, ids: c.ids, base: +c.sets[''].v.toFixed(3), sizes, v };
+  }
+  fs.writeFileSync(path.join(__dirname, '..', 'js', 'tool-combos.js'), `/* Generated by tools/strategy-sim.js combos: Rainbows per run with each set of instruments held from day 1. Do not edit by hand. */\n(function (root) {\n  root.TARTARUS_COMBOS = ${JSON.stringify(data)};\n  if (typeof module === 'object' && module.exports) module.exports = root.TARTARUS_COMBOS;\n})(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);\n`);
 }
 
 // ---------- Chain math (exact, no simulation) ----------
@@ -688,7 +840,7 @@ async function guide(games) {
     pRewards.toolRank = toolRank;
   }
 
-  console.log('\n== Warden\'s Cache ==');
+  console.log('\n== Warden\'s Treasure ==');
   const scored = await run('solver', Object.assign({}, pRewards, { giftRank: null }), rewards, side, { seed });
   out.gifts = [{ id: 'scored', value: +mean(scored).toFixed(4) }];
   for (const id of T.GIFT_IDS) {
@@ -732,7 +884,9 @@ async function guide(games) {
     ['swapRares', 'Swapping Rares too', { swapMaxTier: 2 }],
     ['wait2', 'Waiting for bigger chains (small threshold)', { minDevour: 2 }],
     ['wait5', 'Waiting for bigger chains (large threshold)', { minDevour: 5 }],
-    ['skipChain', 'Skipping Chain reactions', { acceptChain: false }],
+    pNotools.acceptChain ? ['skipChain', 'Skipping Chain reactions', { acceptChain: false }] : ['acceptChain', 'Accepting Chain reactions', { acceptChain: true }],
+    ['alwaysBestow', 'Always choosing Bestow at the office', { office: 'bestow' }],
+    ['alwaysInstigate', 'Always choosing Instigate at the office', { office: 'instigate' }],
     ['neverSwap', 'Never swapping', { swapMaxTier: -1 }],
   ];
   out.habits = [];
@@ -861,6 +1015,24 @@ async function main() {
     await challengeTune(games);
   } else if (mode === 'cguide') {
     await challengeGuide(games);
+  } else if (mode === 'combos') {
+    await combos();
+  } else if (mode === 'variants') {
+    // Drills with the profile the run's settings pick (or --params), and
+    // variants of it on the same prisons, e.g. --variants ";toolSets=false".
+    const profile = `${game.loop ? 'loop-' : ''}${game.rewards ? 'rewards' : 'notools'}`;
+    const base = loadParams() || Object.assign({}, S.DEFAULTS, S.PROFILES[profile]);
+    let first = null;
+    for (const variant of String(opt('variants', '')).split(';').map((v) => v.trim())) {
+      const change = {};
+      for (const pair of variant.split(',').filter(Boolean)) {
+        const [k, v] = pair.split('=').map((x) => x.trim());
+        change[k] = v === 'true' ? true : v === 'false' ? false : v === 'null' ? null : isNaN(Number(v)) ? v : Number(v);
+      }
+      const stats = await run('solver', Object.assign({}, base, change), game, games);
+      first = first || stats;
+      console.log(`[${variant || profile}] ${fmt(stats)}${stats === first ? '' : `  (${mean(stats) - mean(first) >= 0 ? '+' : ''}${(mean(stats) - mean(first)).toFixed(4)})`}`);
+    }
   } else if (mode === 'challenge') {
     const loop = opt('chain', 'single') !== 'two';
     const cgame = { challenge: true, loop, loadout: opt('loadout', 'all') };
@@ -892,7 +1064,7 @@ async function main() {
   pool.forEach((p) => p.w.terminate());
 }
 
-// The full study: no tools, then tools and the Warden's Cache, then chains.
+// The full study: no tools, then tools and the Warden's Treasure, then chains.
 async function report(games) {
   const out = { games, seed: SEED, threads: THREADS, when: new Date().toISOString() };
   const tuneGames = Number(opt('tune-games', 40000));
@@ -921,7 +1093,7 @@ async function report(games) {
   const toolRank = T.TOOL_IDS.slice().sort((a, b) => out.tools[b].rainbowsPerRun - out.tools[a].rainbowsPerRun);
   const withRank = Object.assign({}, tuned.params, { toolRank });
 
-  console.log('\n== 4. Rewards on: tool at the first Supreme, Cache gift per Rainbow ==');
+  console.log('\n== 4. Rewards on: tool at the first Supreme, Treasure gift per Rainbow ==');
   out.rewards = {};
   for (const policy of ['random', 'simple']) out.rewards[policy] = describe(await run(policy, null, rewards, games));
   out.rewards.tuned = describe(await run('solver', withRank, rewards, games));

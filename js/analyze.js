@@ -13,8 +13,9 @@
   const S = window.TartarusSolver;
   const B = window.TartarusBoard;
   const SHARE = window.TartarusLive || null;
-  // The event kinds the live collector (worker/) accepts.
+  // The event kinds and steps the live collector (worker/) accepts.
   const COLLECTOR_EVENTS = ['unknown', 'chain', 'execution'];
+  const COLLECTOR_STEPS = ['patrol', 'manage', 'event', 'choice', 'window'];
   const $ = (id) => document.getElementById(id);
   const L = (n) => T.cellLabel(n);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -34,7 +35,7 @@
   const SAVE_KEY = 'tartarus-sim:save:v2';
   const PLAYOUT_BUDGET = 9600; // playouts per check, shared across the options
   const LIVE_MIN = 150; // playouts per option before the live check can lead
-  const STEPS = ['patrol', 'manage', 'event', 'choice', 'window'];
+  const STEPS = ['patrol', 'manage', 'chain', 'event', 'choice', 'window'];
   const STEP_NAMES = { patrol: 'Which door to patrol', manage: 'After the patrol', event: 'A special event', choice: 'A tool or gift', window: 'A delivery' };
   const BEAST_KEYS = { m: 'mammoth', l: 'lion', w: 'wolf', r: 'rat' };
   const TOP_TIER = T.SUPREME; // Rainbows leave for the vault, so cells hold Normal to Supreme
@@ -71,6 +72,7 @@
     switch (c.kind) {
       case 'inmate': return ['inmate', c.beast, toInt(c.tier, 0), !!c.ivory, c.prey ? [c.prey.cell, c.prey.rounds] : null].join('|');
       case 'scratch': return ['scratch', toInt(c.tier, 0), c.event || ''].join('|');
+      case 'revealed': return ['revealed', toInt(c.tier, 0), c.event || ''].join('|');
       case 'scouted': return ['scouted', c.beast, toInt(c.tier, 0), c.event || ''].join('|');
       case 'sealed': return ['sealed', c.event || ''].join('|');
       case 'nest': return ['nest', toInt(c.due, 0)].join('|');
@@ -95,7 +97,8 @@
       choice: { kind: 'tool', options: [] },
       windowKind: 'due',
       chainArmed: false,
-      objective: 'king',
+      // Until the player sets it, no objective's tool is assumed.
+      objective: 'other',
       walkTiles: 0,
       milestone: false,
       tools: [],
@@ -113,9 +116,9 @@
     out.ch = Object.assign(blankModel().ch, m.ch || {});
     out.choice = Object.assign(blankModel().choice, m.choice || {});
     out.cells = m.cells.map((c, n) => (n === T.OFFICE ? officeCell() : Object.assign(sealedCell(), c)));
-    out.dest = Array.isArray(m.dest) ? m.dest.filter((n) => Number.isInteger(n) && n !== T.OFFICE && n < T.CELL_COUNT) : [];
+    out.dest = Array.isArray(m.dest) ? m.dest.filter((n) => Number.isInteger(n) && n >= 0 && n < T.CELL_COUNT) : [];
     if (!STEPS.includes(out.step)) out.step = 'patrol';
-    if (!T.OBJECTIVES[out.objective]) out.objective = 'king';
+    if (!T.OBJECTIVES[out.objective]) out.objective = 'other';
     out.walkTiles = clamp(toInt(out.walkTiles, 0), 0, T.OBJECTIVES.walk.need);
     return out;
   }
@@ -147,7 +150,10 @@
     st.cells = m.cells.map((c, n) => {
       const cell = { n, sealed: n !== T.OFFICE, inmate: null, hidden: null, known: 0, scratch: false, nest: null, event: null, ivory: false };
       if (n === T.OFFICE) return cell;
+      // Doors marked with an event ("!") have been passed; the rest may still
+      // hide one the player can't see.
       const setEvent = () => {
+        cell.seen = !!c.event;
         if (!c.event) return;
         cell.event = T.EVENTS[c.event] ? c.event : 'chain';
         if (c.event === 'unknown') cell.eventKnown = false;
@@ -164,8 +170,9 @@
         cell.known = 2;
         cell.hidden = make(c.beast, c.tier);
         setEvent();
-      } else if (c.kind === 'scratch') {
-        cell.scratch = true;
+      } else if (c.kind === 'scratch' || c.kind === 'revealed') {
+        // The rarity shows; the beast stays hidden (re-rolled by the solver).
+        cell.scratch = c.kind === 'scratch';
         cell.known = 1;
         cell.hidden = make(T.BEASTS[Math.floor(Math.random() * 4)], c.tier);
         setEvent();
@@ -195,8 +202,7 @@
     st.tools = T.TOOL_IDS.filter((id) => m.tools.includes(id));
     st.position = clamp(toInt(m.warden, 0), 0, T.CELL_COUNT - 1);
     st.chain = !!m.chainArmed;
-    // The challenge always plays for King of the Caged.
-    st.objective = { id: challenge ? 'king' : m.objective, progress: m.objective === 'walk' ? clamp(toInt(m.walkTiles, 0), 0, T.OBJECTIVES.walk.need) : 0 };
+    st.objective = { id: m.objective, progress: m.objective === 'walk' ? clamp(toInt(m.walkTiles, 0), 0, T.OBJECTIVES.walk.need) : 0 };
     st.milestone = !!m.milestone || (st.objective.id === 'walk' && st.objective.progress >= T.OBJECTIVES.walk.need);
     st.stats.best = Math.max(0, ...st.cells.filter((c) => c.inmate).map((c) => c.inmate.tier), st.vault.length ? T.RAINBOW : 0);
     st.used = { swap: 0, devour: 0 };
@@ -231,7 +237,7 @@
       case 'patrol': {
         st.phase = 'patrol';
         st.destinations = [...new Set(m.dest)]
-          .filter((n) => Number.isInteger(n) && n !== T.OFFICE && n < T.CELL_COUNT)
+          .filter((n) => Number.isInteger(n) && n >= 0 && n < T.CELL_COUNT && n !== st.position)
           .sort((a, b) => T.stepsBetween(st.position, a) - T.stepsBetween(st.position, b));
         if (!st.destinations.length) problems.push("Mark today's doors: tick them under “Which door to patrol”, or select a cell and press Today's door.");
         break;
@@ -266,8 +272,24 @@
         ch.window = { early };
         break;
       }
+      case 'chain': {
+        // The warden's inmate has eaten and must eat again; the game asks
+        // which meal when there's more than one.
+        usedToday();
+        st.used.devour = 1;
+        const here = st.cells[st.position];
+        if (!here || here.sealed || !here.inmate) {
+          problems.push("A chain needs its eater in the warden's cell: put the warden there and set the inmate as it is now.");
+          break;
+        }
+        st.chaining = { eater: here.inmate.id, at: 0, bites: [] };
+        if (T.chainOptions(st).length < 2) problems.push("Your game asks for a meal only when the chaining inmate has 2 or more to choose from. Check the board: it can't find 2 meals for it.");
+        break;
+      }
       default:
         usedToday();
+        // With the warden in the office, the decision is Instigate or Bestow.
+        if (st.position === T.OFFICE) st.phase = 'office';
     }
     return { st, problems };
   }
@@ -283,7 +305,7 @@
     m.maxDays = st.mode === 'challenge' ? (prev ? prev.maxDays : T.DEFAULT_PARAMS.drillDays) : st.maxDays;
     m.warden = st.position;
     m.chainArmed = !!st.chain;
-    m.objective = st.objective ? st.objective.id : 'king';
+    m.objective = st.objective ? st.objective.id : 'other';
     m.walkTiles = st.objective ? st.objective.progress : 0;
     m.milestone = !!st.milestone;
     m.tools = st.tools.slice();
@@ -293,10 +315,11 @@
       const before = prev ? prev.cells[c.n] : null;
       // The simulator only shows that a door hides an event, not which kind.
       let event = null;
-      if (c.event) event = c.eventKnown === false || !before || !before.event ? 'unknown' : before.event;
+      if (c.event && c.seen !== false) event = c.eventKnown === false || !before || !before.event ? 'unknown' : before.event;
       if (c.sealed) {
         if (c.nest) return { kind: 'nest', due: c.nest.due };
         if (c.scratch && c.hidden && c.known) return { kind: 'scratch', tier: Math.min(TOP_TIER, c.hidden.tier), event };
+        if (c.hidden && c.known === 1) return { kind: 'revealed', tier: Math.min(TOP_TIER, c.hidden.tier), event };
         if (c.hidden && c.known >= 2) return { kind: 'scouted', beast: c.hidden.beast, tier: Math.min(TOP_TIER, c.hidden.tier), event };
         return { kind: 'sealed', event };
       }
@@ -315,7 +338,8 @@
     } else if (st.phase === 'event' && st.event) {
       m.step = 'event';
       m.eventKind = st.event.kind;
-    } else m.step = st.phase === 'patrol' ? 'patrol' : 'manage';
+    } else if (st.chaining) m.step = 'chain';
+    else m.step = st.phase === 'patrol' ? 'patrol' : 'manage';
     m.dest = st.phase === 'patrol' ? st.destinations.slice() : [];
     m.devourUsed = st.used.devour > 0;
     m.swapUsed = st.used.swap > 0;
@@ -371,11 +395,14 @@
     showProblems(problems);
     if (problems.length) return;
     if (SHARE) {
-      // The collector rejects event kinds it doesn't know. Until it learns
-      // Behind Closed Doors, a board with one isn't shared, and the next board
-      // starts a new run, so no shared step spans it.
+      // The collector rejects what it doesn't know yet: the newer event
+      // kinds, the office as a door, a chain's pick and doors that show a
+      // rarity without a scratch. Until it learns
+      // them, such a board isn't shared, and the next board starts a new
+      // run, so no shared step spans it.
       const kinds = [...model.cells.map((c) => c.event).filter(Boolean), ...(model.step === 'event' ? [model.eventKind] : [])];
-      if (kinds.every((k) => COLLECTOR_EVENTS.includes(k))) SHARE.record(model, via && Object.assign({}, via, { touched: [...via.touched] }));
+      const known = kinds.every((k) => COLLECTOR_EVENTS.includes(k)) && !model.dest.includes(T.OFFICE) && COLLECTOR_STEPS.includes(model.step) && !model.cells.some((c) => c.kind === 'revealed');
+      if (known) SHARE.record(model, via && Object.assign({}, via, { touched: [...via.touched] }));
       else SHARE.reset('manual');
     }
     via = null;
@@ -479,7 +506,11 @@
       showProblems(problems);
       return;
     }
-    for (const c of st.cells) if (c.sealed && c.event && c.eventKnown === false) c.event = T.EVENT_IDS[Math.floor(Math.random() * T.EVENT_IDS.length)];
+    for (const c of st.cells) {
+      if (c.sealed && c.event && c.eventKnown === false) c.event = T.EVENT_POOL[Math.floor(Math.random() * T.EVENT_POOL.length)];
+      // A door not marked with an event may hide one nobody has seen.
+      if (c.sealed && c.seen === false && !c.nest && Math.random() * 100 < st.params.eventChance) c.event = T.EVENT_POOL[Math.floor(Math.random() * T.EVENT_POOL.length)];
+    }
     const before = JSON.parse(JSON.stringify(model));
     const label = labelFor(action);
     let result;
@@ -598,10 +629,17 @@
         btn('sealed:chain', 'Locked door with a Chain reaction', B.MARKS.chain),
         btn('sealed:execution', 'Locked door with an Execution', B.MARKS.execution),
         btn('sealed:trickster', 'Locked door with Behind Closed Doors', B.MARKS.trickster),
+        btn('sealed:appetite', 'Locked door with Ravenous Appetite', B.MARKS.appetite),
+        btn('sealed:convict', 'Locked door with High-Risk Convict', B.MARKS.convict),
+        btn('sealed:crow', 'Locked door with Crow Whispers', B.MARKS.crow),
+        btn('sealed:freedom', 'Locked door with Taste of Freedom', B.MARKS.freedom),
+        btn('sealed:usurp1', 'Locked door with Usurpation I', B.MARKS.usurp1),
+        btn('sealed:usurp2', 'Locked door with Usurpation II', B.MARKS.usurp2),
         btn('scouted', "Scouted door (Warden's Scales): set its beast and rarity in the panel below", B.MARKS.scouted),
       ]),
       row('Other', '', [btn('nest', 'Rat nest', B.MARKS.nest), btn('empty', 'Empty cell', B.MARKS.empty), btn('ivory', 'Tusk mark: toggles on the inmate here', B.MARKS.ivory)]),
       row('Scratched', '', tiers.map((name, t) => btn(`scratch:${t}`, `Scratched door showing ${name}`, B.MARKS.scratch, `t${t}`))),
+      row('Rarity shown', '', tiers.map((name, t) => btn(`revealed:${t}`, `Locked door showing a ${name} inside, beast unknown (a "?" portrait)`, B.MARKS.revealed, `t${t}`))),
     ].join('');
   }
 
@@ -610,6 +648,7 @@
     const tier = clamp(toInt(c.tier, 0), 0, TOP_TIER);
     if (c.kind === 'inmate') return `inmate:${c.beast}:${tier}`;
     if (c.kind === 'scratch') return `scratch:${tier}`;
+    if (c.kind === 'revealed') return `revealed:${tier}`;
     if (c.kind === 'scouted') return 'scouted';
     if (c.kind === 'sealed') return c.event ? `sealed:${c.event}` : 'sealed';
     return c.kind;
@@ -642,6 +681,12 @@
       if (mc.event === 'chain') badges = badges.replace('>Event<', '>Chain<');
       else if (mc.event === 'execution') badges = badges.replace('>Event<', '>Execution<');
       else if (mc.event === 'trickster') badges = badges.replace('>Event<', '>Closed Doors<');
+      else if (mc.event === 'appetite') badges = badges.replace('>Event<', '>Appetite<');
+      else if (mc.event === 'convict') badges = badges.replace('>Event<', '>Convict<');
+      else if (mc.event === 'crow') badges = badges.replace('>Event<', '>Crow<');
+      else if (mc.event === 'freedom') badges = badges.replace('>Event<', '>Freedom<');
+      else if (mc.event === 'usurp1') badges = badges.replace('>Event<', '>Usurp. I<');
+      else if (mc.event === 'usurp2') badges = badges.replace('>Event<', '>Usurp. II<');
       if (cell.n === selected) p.cls.push('is-selected');
       if (doors.has(cell.n)) p.cls.push('is-dest');
       if (flags.has(cell.n)) p.cls.push('is-check');
@@ -683,7 +728,7 @@
     const office = n === T.OFFICE;
     $('az-cell-title').textContent = office ? 'Cell 01 · the office' : `Cell ${L(n)}`;
     $('az-warden').setAttribute('aria-pressed', String(model.warden === n));
-    $('az-door').hidden = office || model.step !== 'patrol';
+    $('az-door').hidden = n === model.warden || model.step !== 'patrol';
     $('az-door').setAttribute('aria-pressed', String(model.dest.includes(n)));
     $('az-match').hidden = office || !flags.has(n);
     $('az-office-note').hidden = !office;
@@ -692,7 +737,7 @@
     pressGroup('az-kind', c.kind);
     const inmate = c.kind === 'inmate';
     const scouted = c.kind === 'scouted';
-    const tiered = inmate || scouted || c.kind === 'scratch';
+    const tiered = inmate || scouted || c.kind === 'scratch' || c.kind === 'revealed';
     $('az-beast-field').hidden = !(inmate || scouted);
     $('az-tier-field').hidden = !tiered;
     $('az-tier-legend').textContent = inmate ? 'Rarity' : scouted ? 'Rarity the scales showed' : 'Rarity you can see on the door';
@@ -719,7 +764,7 @@
       $('az-prey-of').hidden = hunter < 0;
       if (hunter >= 0) $('az-prey-of').textContent = `Marked as prey by the Lion in cell ${L(hunter)}: both rise a tier each morning for ${T.plural(model.cells[hunter].prey.rounds, 'more morning')}.`;
     }
-    $('az-event-field').hidden = !(c.kind === 'sealed' || c.kind === 'scratch' || scouted);
+    $('az-event-field').hidden = !(c.kind === 'sealed' || c.kind === 'scratch' || c.kind === 'revealed' || scouted);
     pressGroup('az-event', c.event || 'none');
     $('az-nest-field').hidden = c.kind !== 'nest';
     if (c.kind === 'nest') $('az-nest-due').value = String(toInt(c.due, model.day + 2));
@@ -747,8 +792,7 @@
     // Today's doors: the cells within reach of the warden, plus any ticked.
     const ahead = [];
     for (let i = 1; i < T.CELL_COUNT && ahead.length < T.DEFAULT_PARAMS.patrolRange; i++) {
-      const n = (model.warden + i) % T.CELL_COUNT;
-      if (n !== T.OFFICE) ahead.push(n);
+      ahead.push((model.warden + i) % T.CELL_COUNT);
     }
     const doors = [...new Set([...ahead, ...model.dest])];
     setHTML($('az-doors'), doors
@@ -766,9 +810,8 @@
     for (const b of $('az-tools').querySelectorAll('[data-tool]')) b.setAttribute('aria-pressed', String(model.tools.includes(b.dataset.tool)));
     $('az-rewards-wrap').hidden = challenge;
     $('az-rewards').checked = challenge || !!model.rewards;
-    const goal = challenge ? 'king' : model.objective;
+    const goal = model.objective;
     $('az-objective').value = goal;
-    $('az-objective').disabled = challenge;
     $('az-objective-text').textContent = T.OBJECTIVES[goal].text;
     $('az-walk-wrap').hidden = goal !== 'walk';
     if (document.activeElement !== $('az-walk')) $('az-walk').value = String(model.walkTiles);
@@ -789,6 +832,7 @@
     if (!c) return '';
     if (c.kind === 'inmate') return `${T.tierName(c.tier).slice(0, 3)} ${T.beastName(c.beast)}`;
     if (c.kind === 'scratch') return `${T.tierName(c.tier).slice(0, 3)} door`;
+    if (c.kind === 'revealed') return `${T.tierName(c.tier).slice(0, 3)} inside`;
     if (c.kind === 'scouted') return `Scouted ${T.tierName(c.tier).slice(0, 3)} ${T.beastName(c.beast)}`;
     if (c.kind === 'nest') return 'Nest';
     if (c.kind === 'empty') return 'Empty';
@@ -799,7 +843,7 @@
   function renderOffer() {
     const kind = model.choice.kind;
     if (kind === 'gift') {
-      $('az-offer').innerHTML = `<p class="field-note">The Warden's Cache always offers all four gifts: ${T.GIFT_IDS.map((id) => esc(T.toolName(id))).join(', ')}.</p>`;
+      $('az-offer').innerHTML = `<p class="field-note">The Warden's Treasure always offers all four gifts: ${T.GIFT_IDS.map((id) => esc(T.toolName(id))).join(', ')}.</p>`;
       return;
     }
     const free = T.TOOL_IDS.filter((id) => !model.tools.includes(id));
@@ -1065,7 +1109,7 @@
     }
     const [kind, a, b] = value.split(':');
     if (kind === 'inmate') setCell(n, { kind, beast: a, tier: Number(b) });
-    else if (kind === 'scratch') setCell(n, { kind, tier: Number(a) });
+    else if (kind === 'scratch' || kind === 'revealed') setCell(n, { kind, tier: Number(a) });
     else if (kind === 'sealed') setCell(n, { kind, event: a || null });
     else setCell(n, { kind });
   }
@@ -1094,7 +1138,7 @@
       c.prey = null;
       c.ivory = false;
     }
-    if (c.kind === 'scratch') c.tier = clamp(toInt(c.tier, 1), 0, TOP_TIER);
+    if (c.kind === 'scratch' || c.kind === 'revealed') c.tier = clamp(toInt(c.tier, 1), 0, TOP_TIER);
     if (c.kind === 'scouted') {
       c.beast = T.BEASTS.includes(c.beast) ? c.beast : 'mammoth';
       c.tier = clamp(toInt(c.tier, 0), 0, TOP_TIER);
@@ -1139,7 +1183,7 @@
   }
 
   function toggleDoor(n) {
-    if (n === T.OFFICE) return;
+    if (n === model.warden) return;
     const has = model.dest.includes(n);
     model.dest = has ? model.dest.filter((x) => x !== n) : [...model.dest, n];
     if (!has && model.step !== 'patrol') model.step = 'patrol';
@@ -1451,7 +1495,7 @@
     } else notes.push('The warden’s arrow wasn’t found: set the warden.');
     if (r.doors && r.doors.cells.length) {
       m.step = 'patrol';
-      m.dest = r.doors.cells.filter((n) => n !== T.OFFICE);
+      m.dest = r.doors.cells.filter((n) => n !== m.warden);
       if (r.doors.conf < 0.6) notes.push('Today’s doors were hard to read: check them.');
     } else {
       m.step = 'manage';
@@ -1471,7 +1515,7 @@
     const highest = Math.max(0, ...m.cells.filter((c) => c.kind === 'inmate').map((c) => c.tier));
     // King of the Caged is met once a Supreme or Chromatic shows. Prison
     // Walk's tiles aren't read, so they keep what was set.
-    if (m.objective === 'king' || m.mode === 'challenge') m.milestone = highest >= T.SUPREME || chromatic > 0;
+    if (m.objective === 'king') m.milestone = highest >= T.SUPREME || chromatic > 0;
     // The jaws marker shows on every inmate with something to eat. Cells that
     // disagree were probably misread. A washed-out portrait takes the beast
     // that makes the jaws fit.
@@ -1648,7 +1692,7 @@
     segment('az-beasts', (v) => setCell(selected, { kind: model.cells[selected].kind === 'scouted' ? 'scouted' : 'inmate', beast: v }));
     segment('az-tiers', (v) => {
       const c = model.cells[selected];
-      setCell(selected, { kind: c.kind === 'scratch' || c.kind === 'scouted' ? c.kind : 'inmate', tier: Number(v) });
+      setCell(selected, { kind: ['scratch', 'scouted', 'revealed'].includes(c.kind) ? c.kind : 'inmate', tier: Number(v) });
     });
     segment('az-event', (v) => setCell(selected, { event: v === 'none' ? null : v }));
     $('az-ivory').addEventListener('change', (e) => setCell(selected, { ivory: e.target.checked }));
@@ -1973,7 +2017,7 @@
       const c = model.cells[selected];
       let handled = true;
       if (BEAST_KEYS[key]) setCell(selected, { kind: 'inmate', beast: BEAST_KEYS[key] });
-      else if (key >= '1' && key <= '5') setCell(selected, { kind: c.kind === 'scratch' || c.kind === 'scouted' ? c.kind : 'inmate', tier: Number(key) - 1 });
+      else if (key >= '1' && key <= '5') setCell(selected, { kind: ['scratch', 'scouted', 'revealed'].includes(c.kind) ? c.kind : 'inmate', tier: Number(key) - 1 });
       else if (key === 's' || key === 'delete' || key === 'backspace') setCell(selected, { kind: 'sealed' });
       else if (key === 'x') setCell(selected, { kind: 'scratch' });
       else if (key === 'n') setCell(selected, { kind: 'nest' });

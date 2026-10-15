@@ -12,14 +12,16 @@ Needs Node 18 or newer. From the project folder:
 node tools/strategy-sim.js eval   --games 1000000            # random play vs a simple player vs the solver strategy
 node tools/strategy-sim.js tune   --games 40000 --rounds 3   # coordinate search over the strategy's weights
 node tools/strategy-sim.js tools  --games 200000             # each tool held from day 1
-node tools/strategy-sim.js gifts  --games 200000             # Warden's Cache choices
+node tools/strategy-sim.js gifts  --games 200000             # Warden's Treasure choices
 node tools/strategy-sim.js chains --games 200000             # chain odds by beasts per tier
 node tools/strategy-sim.js report --games 1000000            # the whole study, saved to tools/results/
-node tools/strategy-sim.js train  --games 150000 --final 1000000   # fine-tunes every profile the Trainer uses
+node tools/strategy-sim.js train  --games 150000 --final 1000000   # fine-tunes every profile the Trainer uses (--only single or two)
+node tools/strategy-sim.js combos --minutes 60               # every set of up to 4 instruments, each to ±0.01; run again to carry on
+node tools/strategy-sim.js variants --rewards on --loop --variants ";toolSets=false"   # the drill profile against changed weights, same prisons
 ```
 
 Options:
-- `--rewards on`: runs start with a random tool, as live ones do, the run's objective (King of the Caged or Prison Walk) earns another, and each Rainbow opens the Warden's Cache. The default is no tools at all.
+- `--rewards on`: runs start with a random tool, as live ones do, the run's objective (King of the Caged or Prison Walk) earns another, and each Rainbow opens the Warden's Treasure. The default is no tools at all.
 - `--loop`: the hard mode loop food chain.
 - `--params file.json`: start from saved weights.
 - `--threads N`: how many threads to use.
@@ -30,10 +32,11 @@ Options:
 At every decision the strategy scores each legal move from what the player can see:
 
 - **Patrol.** It scores each destination. A locked door is worth what a new inmate is worth, plus what it could do today from the warden's cell, plus any event behind the door. A known inmate is worth its best devour or swap. A small bonus per step favors walking further, and another counts tiles toward Prison Walk while it still pays a tool (`wGoal`; 0, 1 and 3 all scored 1.71 Rainbows per run on 200,000 runs, since the objective gets met anyway). With the Long-Chained Shackles, a walk of 4 or more cells adds 40% of a tier on an average inmate.
-- **Devour.** It takes the first meal with the highest expected value. That value comes from an exact calculation of the random chain that follows, including tools such as the Barbed Collar's +1 on chained bites.
+- **Devour.** It takes the first meal with the highest expected value. That value comes from an exact calculation of the chain that follows, including tools such as the Barbed Collar's +1 on chained bites. The chain must go on while the eater can eat, and when it has more than one meal the player picks: the calculation, and the strategy, take the best one each time.
+- **The office.** A destination like any other. There it compares Bestow (1 random inmate +1 tier, worth the average raise) with Instigate (events behind 2 locked doors, worth an average event each, halved by `wInstigate` since a patrol still has to reach them).
 - **Swap.** It swaps the warden's inmate when it's at or below a tier threshold. It swaps first if the new inmate's chance to devour is worth more than today's devour. With the Gaoler's Execution Axe, the 2 doors a higher roll opens count toward the swap's value.
-- **Events.** It accepts Chain reactions, and Behind Closed Doors unless the inmate is already a Supreme. It accepts an Execution when the executioner gains more than it removes. A door whose event kind isn't known counts as each kind a third of the time.
-- **Tools and gifts.** Tools follow a ranking measured by the lab. Gifts are scored on the spot.
+- **Events.** It accepts Chain reactions, Ravenous Appetite, High-Risk Convict and Crow Whispers, and Behind Closed Doors unless the inmate is already a Supreme. It accepts an Execution when the executioner gains more than it removes. Events show only once the warden has walked past their door: a door not yet passed counts as hiding one 5% of the time, and an event whose kind isn't known counts as each kind equally. A door whose rarity shows (Crow Whispers, a scratch, the Scales) is valued at that rarity.
+- **Instruments and gifts.** An instrument is picked by what it adds to the ones already held, from the measured sets in `js/tool-combos.js` (see below); without them, by a ranking measured by the lab. The contract challenge keeps its own ranking. Gifts are scored on the spot.
 
 The in-game Trainer shows this strategy's pick right away. It then plays each candidate move out hundreds of times with the strategy, re-rolling everything the player can't see each time. It keeps the strategy's pick unless the playouts find a clearly better move. Each move the player makes is graded against those playouts.
 
@@ -47,7 +50,7 @@ The strategy has four tuned profiles, chosen by the run's settings: drills with 
 node tools/strategy-sim.js guide --chain single --no-tune --games 100000 --side 100000 --habit-games 100000 --compare 100000
 ```
 
-The latest run (2026-10-15) took 4,100,000 runs in 4.5 minutes. Its full numbers are in `results/guide-data-single.json`.
+The latest run (2026-10-15, evening) took 4,400,000 runs in 4.8 minutes. Its full numbers are in `results/guide-data-single.json`.
 
 **Two-meal chain data, kept separately.** If live turns out to use the Chinese sim's two-meal chain, its data is ready:
 - `results/guide-data-two.json`: the same measurements, from `guide --chain two`.
@@ -101,6 +104,45 @@ The two-meal chain's challenge profile had a one-round tune (5.2 million runs, 7
 
 ## Results
 
+### The office, steered chains and six more events; retrained (2026-10-15, evening)
+
+More live play filled in the season:
+- **The office is a destination.** Walking there offers Instigate (special events behind 2 locked doors; 2 is what one run showed) or Bestow (1 random inmate rises a tier).
+- **Chains are steered.** A chain still runs while the eater has a meal, but when there are two or more the player picks the next one.
+- **Six more events**, all equally likely: Ravenous Appetite, High-Risk Convict, Crow Whispers, Taste of Freedom, and Usurpation I, which leaves the pool once it fires and puts Usurpation II behind a door at once. What Usurpation II does (2 inmates rise) is a guess.
+- **Events are hidden.** About 5% of locked cells hold one, shown only once the warden walks past; an event room also holds an inmate.
+- **The Forged Key**, a 17th instrument: one destination fewer each morning, and a patrol that opens a door has a 50% chance to open another. The **Muzzle** now counts the block after the meal (4 or fewer).
+- **Objectives are random in the contract challenge too**, and King of the Caged is never assumed.
+
+**Training.** `train --only single --games 200000` fine-tuned both single-meal drill profiles, 2 rounds each, with two new weights in the grid: Instigate's share of an event's worth (`wInstigate`) and a Crow Whispers door (`wCrow`). It took 27,600,000 runs in 35.9 minutes. On 1,000,000 fresh prisons:
+
+| Profile | Before | After | Runs with a Rainbow |
+| --- | --- | --- | --- |
+| Rewards on (the default drill) | 1.903 | **1.939** ± 0.003 | 82% → 83% |
+| No tools | 0.719 | **0.761** ± 0.001 | 59% → 61% |
+
+- **Chain reactions.** With no instruments, skipping them now beats accepting them (0.762 against 0.745 in tuning), so that profile skips them. With rewards on, accepting stays slightly ahead (1.947 against 1.944).
+- **The office.** Instigate's weight has a sharp best value at 0.5. At 0.25 the Trainer mostly bestows, and at 1 it mostly instigates, and both cost 4–6%. Picking by the board, it bestowed about 1.7 times and instigated about 1.2 times per run.
+- Both profiles put less weight on each step walked (`wStep` 1 → 0.5) and more on a vaulted Rainbow (`rainbowMult`). With rewards on, the Trainer now also swaps Legendaries (`swapMaxTier` 3), though that barely differs from stopping at Rare.
+
+**Instrument sets.** What a second instrument is worth depends on the first, so `combos` measures every set of up to 4 instruments held from day 1, with no other rewards, on the same prisons (seed `COMBO`: game *i* is the same prison for every set). Each set runs until its own 95% margin is under ±0.01 Rainbows per run, the guide's target. Sets with more instruments spread more and need more runs, so they come in stages: singles and pairs first, then sets of 3 and 4 to a coarse ±0.03, then refined to ±0.01. The file `results/tool-combos-single.json` keeps each set's run count and sums, so a later run carries on where the last one stopped. `js/tool-combos.js` holds the values for the Trainer and the guide.
+
+Singles and pairs: 5,165,948 runs in 5.7 minutes, every set within ±0.010. With no instrument 0.761.
+
+- **Best pairs:** Muzzle with Hangman's Noose 3.93, Squirming Iron Box with Skewered Rat Heads 3.79, Noose with Long-Chained Shackles 3.17, Noose with Rat Heads 2.84, Avenger's Casket with Noose 2.66.
+- **Worth more than their parts** (the pair against the two instruments' separate gains added up): Iron Box with Rat Heads +2.70, since the box's daily rat nests become meals once Rats can eat Rats. Iron Box alone is the worst instrument (0.36), but with Rat Heads it's the second-best pair. Also Muzzle with Noose +1.32 and Noose with Shackles +0.47.
+- **Clashes:** Iron Box with Noose −0.53, Muzzle with Lost Ring of Keys −0.53 (the Ring's extra doors keep the block above the Muzzle's 4), Iron Box with Muzzle −0.51.
+- **The best second instrument differs from the single ranking for 9 of the 17 starting ones.** For example, holding Rat Heads the Iron Box adds 2.30 and the Noose 1.35, and holding the Noose the Muzzle adds 2.16 and the Shackles 1.40.
+
+The Trainer now takes the offered instrument that adds the most to the ones held, from these sets (`toolSets`; past 4 held it averages over the measured subsets). The contract challenge keeps its own ranking, since it plays for points. On 1,000,000 drills with rewards on (`variants --rewards on --loop --seed AB --variants ";toolSets=false"`), that made **1.998** Rainbows per run against 1.938 with the single ranking: +0.059, or 3.1%, on the same prisons.
+
+**The guide's data** (`guide --no-tune` at 100,000 runs per measurement: 4,400,000 runs in 4.8 minutes). Rewards on: **1.998** Rainbows per run, 83.5% of runs vault one, the first around day 12. With no tools: 0.759.
+
+- **Each instrument held from day 1:** Hangman's Noose 1.767, Long-Chained Shackles 1.674, Agonizing Muzzle 1.605, Skewered Rat Heads 1.482, Avenger's Casket 1.429, Rusty Saw 1.163, Barbed Collar 1.159, Sorting Hook 1.104, Fanged Guillotine 1.082, Iron Tongs of Lust 0.978, Lost Ring of Keys 0.797, Warden's Scales 0.781. Worse than none: Iron Pestle 0.739, Gaoler's Execution Axe 0.730, Searing Branding Iron 0.723, Forged Key 0.533 (the lost destination each morning costs more than its extra doors give) and Squirming Iron Box 0.353.
+- **The office:** always choosing Bestow makes 0.566 and always choosing Instigate 0.659, against 0.759 for picking by the board.
+- **Warden's Treasure:** judging each gift on the spot (1.998) beats always taking the same one: Crimson Vintage 1.963, Brand of Original Sin 1.810, Brass Horn of Strife 1.733, Three-Headed Thumb Ring 1.659.
+- **Contract challenge** (`cguide --games 200000 --habit-games 100000`; its profile wasn't retrained): the trained strategy passes 94.9% with 52.8 points, up from 93.9% and 52.1 this morning. Sending the most points on every contract still fails most runs (28.6% pass), and playing with the drill weights costs 1.6% of passes.
+
 ### New live rules, re-measured (2026-10-15)
 
 Live play showed more of the season, and the simulator now follows it:
@@ -141,7 +183,7 @@ The Long-Chained Shackles are the strongest instrument on the single-meal chain 
 
 **Contract challenge** (`cguide`: 2,000,000 runs plus 300,000 per variant, 6.5 million runs in 8.3 minutes). The trained strategy passes 93.9% with 52.1 points (was 94.5% and 52.3). Putting the Long-Chained Shackles second in the challenge's instrument order, after Hangman's Noose, raised the pass rate from 93.3% to 93.8% on 300,000 runs (96.5% to 96.6% on the two-meal chain), so both challenge profiles rank it there, with the Barbed Collar fifth. Starts: Supply 94.4%, Lean 90.5%, Rat-breeding 96.7%. Runs that still fail: 4.6% never reach a Supreme or Rainbow by day 12, and 1.6% ship the heavy contract but miss both early ones.
 
-The solver's instrument rankings (`toolRank` in PROFILES) follow these orders.
+The solver's instrument rankings (`toolRank` in PROFILES) followed these orders until the evening's re-measure above.
 
 ### Instruments, re-measured (2026-10-13)
 

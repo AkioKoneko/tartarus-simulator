@@ -4,7 +4,7 @@
  * A newer request replaces the one in progress. */
 'use strict';
 
-importScripts(`engine.js${self.location.search}`, `solver.js${self.location.search}`);
+importScripts(`engine.js${self.location.search}`, `tool-combos.js${self.location.search}`, `solver.js${self.location.search}`);
 
 let current = 0;
 
