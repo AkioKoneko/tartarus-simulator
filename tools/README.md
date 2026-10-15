@@ -136,6 +136,11 @@ Singles and pairs: 5,165,948 runs in 5.7 minutes, every set within ±0.010. With
 
 The Trainer now takes the offered instrument that adds the most to the ones held, from these sets (`toolSets`; past 4 held it averages over the measured subsets). The contract challenge keeps its own ranking, since it plays for points. On 1,000,000 drills with rewards on (`variants --rewards on --loop --seed AB --variants ";toolSets=false"`), that made **1.998** Rainbows per run against 1.938 with the single ranking: +0.059, or 3.1%, on the same prisons.
 
+Sets of 3 and 4 (the same night, 71,157,462 runs in 90 minutes; 76,323,410 with the pairs): all 680 sets of 3 within ±0.01; all 2,380 sets of 4 within ±0.03, and 481 of them refined to ±0.01. Finishing the sets of 4 to ±0.01 needs about 83 million more runs (around 2 to 3 hours); `combos --minutes N` carries on.
+
+- **Best sets of 3:** Iron Box, Avenger's Casket and Rat Heads 5.32; Iron Box, Rusty Saw and Rat Heads 5.03; Muzzle, Noose and Rat Heads 5.03; Muzzle, Noose and Shackles 5.02.
+- **Best set of 4:** Iron Box, Muzzle, Noose and Rat Heads, 7.82 (±0.03). The Muzzle and the Iron Box clash as a pair, but they're the best two to add to Noose and Rat Heads, so sets can't be judged by adding up pairs. That's why the Trainer reads the measured set itself.
+
 **The guide's data** (`guide --no-tune` at 100,000 runs per measurement: 4,400,000 runs in 4.8 minutes). Rewards on: **1.998** Rainbows per run, 83.5% of runs vault one, the first around day 12. With no tools: 0.759.
 
 - **Each instrument held from day 1:** Hangman's Noose 1.767, Long-Chained Shackles 1.674, Agonizing Muzzle 1.605, Skewered Rat Heads 1.482, Avenger's Casket 1.429, Rusty Saw 1.163, Barbed Collar 1.159, Sorting Hook 1.104, Fanged Guillotine 1.082, Iron Tongs of Lust 0.978, Lost Ring of Keys 0.797, Warden's Scales 0.781. Worse than none: Iron Pestle 0.739, Gaoler's Execution Axe 0.730, Searing Branding Iron 0.723, Forged Key 0.533 (the lost destination each morning costs more than its extra doors give) and Squirming Iron Box 0.353.

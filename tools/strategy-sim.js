@@ -728,7 +728,13 @@ async function combos() {
     // Top up until every set in the stage meets its margin; the margin
     // needs an estimate of the set's spread, so it can take a few passes.
     for (let pass = 0; pass < 6 && !stopped; pass++) {
-      const todo = group.map((set) => ({ set, r: out.sets[keyOf(set)] })).map((x) => Object.assign(x, { add: Math.min(runsFor(x.r, stage.target) - x.r.n, 200000) })).filter((x) => x.add > 0);
+      // A set short of its margin gets at least 5% more runs (and 500), so
+      // a set sitting right at the margin doesn't take many tiny passes.
+      const more = (r) => {
+        const need = runsFor(r, stage.target) - r.n;
+        return need > 0 ? Math.min(Math.max(need, Math.ceil(0.05 * r.n), 500), 200000) : 0;
+      };
+      const todo = group.map((set) => ({ set, r: out.sets[keyOf(set)] })).map((x) => Object.assign(x, { add: more(x.r) })).filter((x) => x.add > 0);
       if (!todo.length) break;
       console.log(`sets of ${stage.sizes.join(' and ')} to ±${stage.target}, pass ${pass + 1}: ${todo.length} sets, ${todo.reduce((a, x) => a + x.add, 0).toLocaleString()} runs`);
       const BATCH = 8;
