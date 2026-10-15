@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261014i">
+<link rel="stylesheet" href="css/style.css?v=20261015a">
 </head>
 <body>
 <main class="analyzer" id="analyzer">
@@ -128,8 +128,14 @@
       <div class="az-game-mid">
         <div class="az-game-left">
           <section class="az-objective" aria-labelledby="az-objective-title">
-            <h3 class="az-game-h" id="az-objective-title">Objective: King of the Caged</h3>
-            <p>At least 1 inmate's rarity reaches Supreme</p>
+            <h3 class="az-game-h" id="az-objective-title"><label for="az-objective">Objective:</label>
+              <select id="az-objective" class="az-objective-pick">
+                <option value="king">King of the Caged</option>
+                <option value="walk">Prison Walk</option>
+              </select>
+            </h3>
+            <p id="az-objective-text">At least 1 inmate's rarity reaches Supreme</p>
+            <label class="az-walk" id="az-walk-wrap" hidden><span>Tiles moved</span> <input type="number" id="az-walk" min="0" max="18" step="1"> <span>/18</span></label>
             <label class="az-done"><input type="checkbox" id="az-milestone"> <span>Completed</span></label>
           </section>
           <section class="az-instruments-panel" aria-labelledby="az-instruments-title">
@@ -158,7 +164,7 @@
           </div>
           <div class="az-stepbox" data-step="patrol">
             <div class="az-doorcards" id="az-doors"></div>
-            <p class="field-note">Light up the doors your game offers today. They come from the next five cells clockwise from the warden.</p>
+            <p class="field-note">Light up the doors your game offers today. They come from the next six cells clockwise from the warden.</p>
           </div>
           <div class="az-stepbox az-used" data-step="manage choice">
             <label class="toggle"><input type="checkbox" id="az-swapped"><span><strong>Replace used today</strong><small>Only the warden's inmate can be swapped, once a day.</small></span></label>
@@ -169,6 +175,7 @@
             <div class="az-seg" id="az-event-kind">
               <button type="button" data-v="chain">Chain reaction</button>
               <button type="button" data-v="execution">Execution</button>
+              <button type="button" data-v="trickster">Behind Closed Doors</button>
             </div>
             <p class="field-note">The door the warden just opened held it. The inmate that came out must be in the warden's cell.</p>
             <p class="field-note">A different event? <button type="button" class="link" data-report="event">Report it with a screenshot</button>.</p>
@@ -176,7 +183,7 @@
           <div class="az-stepbox" data-step="choice">
             <span class="field-label">What's on offer</span>
             <div class="az-seg" id="az-choice-kind">
-              <button type="button" data-v="tool">First Supreme's instrument</button>
+              <button type="button" data-v="tool">Objective's instrument</button>
               <button type="button" data-v="refit">Refit instrument</button>
               <button type="button" data-v="gift">Warden's Cache gift</button>
             </div>
@@ -266,6 +273,7 @@
               <button type="button" data-v="unknown">Event, kind unknown</button>
               <button type="button" data-v="chain">Chain reaction</button>
               <button type="button" data-v="execution">Execution</button>
+              <button type="button" data-v="trickster">Behind Closed Doors</button>
             </div>
           </fieldset>
           <label class="field az-nest" id="az-nest-field"><span class="field-label">Hatches on day</span><input type="number" id="az-nest-due" min="1" max="60" step="1"></label>
@@ -300,7 +308,7 @@
       <section class="az-panel">
         <h2 class="az-h2">Rewards</h2>
         <div class="toggles az-reward-toggles">
-          <label class="toggle" id="az-rewards-wrap"><input type="checkbox" id="az-rewards"><span><strong>Rewards on</strong><small>Your first Supreme earns an instrument, and each Chromatic prisoner opens the Warden's Cache.</small></span></label>
+          <label class="toggle" id="az-rewards-wrap"><input type="checkbox" id="az-rewards"><span><strong>Rewards on</strong><small>Meeting the objective earns an instrument, and each Chromatic prisoner opens the Warden's Cache.</small></span></label>
         </div>
       </section>
 
@@ -327,13 +335,13 @@
   </footer>
 </main>
 
-<script src="js/engine.js?v=20261014i"></script>
-<script src="js/board.js?v=20261014i"></script>
-<script src="js/solver.js?v=20261014i"></script>
-<script src="js/live.js?v=20261014i"></script>
-<script src="js/report.js?v=20261014i"></script>
-<script src="js/capture.js?v=20261014i"></script>
-<script src="js/analyze.js?v=20261014i"></script>
-<script src="js/auto.js?v=20261014i"></script>
+<script src="js/engine.js?v=20261015a"></script>
+<script src="js/board.js?v=20261015a"></script>
+<script src="js/solver.js?v=20261015a"></script>
+<script src="js/live.js?v=20261015a"></script>
+<script src="js/report.js?v=20261015a"></script>
+<script src="js/capture.js?v=20261015a"></script>
+<script src="js/analyze.js?v=20261015a"></script>
+<script src="js/auto.js?v=20261015a"></script>
 </body>
 </html>

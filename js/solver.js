@@ -29,12 +29,13 @@
     wStep: 0, // patrol: per step walked (negative keeps the warden slow)
     wNest: -6, // patrol: opening a rat nest before it hatches
     wChain: 4, // patrol: a door that hides a Chain reaction
+    wGoal: 1, // patrol: per tile walked toward Prison Walk, while it pays a tool
     wStair: 0, // keeping a spread of beasts at each tier, so chains can go on
     minDevour: 0, // skip devours worth less than this (-1e9: never skip)
     swapMaxTier: 0, // swap the warden's inmate only at or below this tier
     execMargin: 0, // accept an Execution worth more than this
     acceptChain: true, // accept Chain reactions
-    toolRank: ['skewer', 'revenge', 'rope', 'saw', 'guillotine', 'hook', 'tongs', 'keys', 'muzzle', 'fire', 'scales', 'pestle', 'ironbox'], // measured: each tool held from day 1
+    toolRank: ['shackles', 'skewer', 'rope', 'revenge', 'collar', 'saw', 'guillotine', 'tongs', 'hook', 'keys', 'muzzle', 'axe', 'fire', 'scales', 'pestle', 'ironbox'], // measured: each tool held from day 1
     giftRank: null, // null scores the gifts on the spot; or a fixed order
     // Contract challenge: convoys for the first two contracts weigh their
     // points against what the inmates sent would be worth kept on the block.
@@ -54,13 +55,13 @@
   // run's settings. From tools/results/ (train-report.json for the two-meal
   // chain, guide-data-single.json for the single-meal one).
   const PROFILES = {
-    rewards: { tierBase: 3, rainbowMult: 1, wOpen: 2.5, wNow: 1.5, wWalk: 1, wStep: 1, wChain: 8, wStair: 0.5, swapMaxTier: 2, minDevour: 0, execMargin: 10, acceptChain: true, toolRank: ['rope', 'revenge', 'skewer', 'saw', 'hook', 'keys', 'tongs', 'guillotine', 'muzzle', 'fire', 'scales', 'pestle', 'ironbox'] },
-    notools: { tierBase: 2.5, rainbowMult: 2, wOpen: 1.875, wNow: 1, wWalk: 1, wStep: 1, wChain: 16, wStair: 0.25, swapMaxTier: 1, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['rope', 'revenge', 'skewer', 'saw', 'hook', 'keys', 'tongs', 'guillotine', 'muzzle', 'fire', 'scales', 'pestle', 'ironbox'] },
-    'loop-rewards': { tierBase: 2.75, rainbowMult: 1, wOpen: 2, wNow: 1.125, wWalk: 1, wStep: 1, wChain: 4, wStair: 0.5, swapMaxTier: 2, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['skewer', 'revenge', 'rope', 'saw', 'guillotine', 'hook', 'tongs', 'keys', 'muzzle', 'fire', 'scales', 'pestle', 'ironbox'] },
-    'loop-notools': { tierBase: 2.5, rainbowMult: 8, wOpen: 3, wNow: 0.5, wWalk: 1.5, wStep: 1, wChain: 16, wStair: 0.25, swapMaxTier: 1, minDevour: 0, execMargin: 5, acceptChain: true, toolRank: ['skewer', 'revenge', 'rope', 'saw', 'guillotine', 'hook', 'tongs', 'keys', 'muzzle', 'fire', 'scales', 'pestle', 'ironbox'] },
+    rewards: { tierBase: 3, rainbowMult: 1, wOpen: 2.5, wNow: 1.5, wWalk: 1, wStep: 1, wChain: 8, wStair: 0.5, swapMaxTier: 2, minDevour: 0, execMargin: 10, acceptChain: true, toolRank: ['rope', 'shackles', 'revenge', 'collar', 'skewer', 'saw', 'hook', 'keys', 'guillotine', 'tongs', 'muzzle', 'axe', 'fire', 'scales', 'pestle', 'ironbox'] },
+    notools: { tierBase: 2.5, rainbowMult: 2, wOpen: 1.875, wNow: 1, wWalk: 1, wStep: 1, wChain: 16, wStair: 0.25, swapMaxTier: 1, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['rope', 'shackles', 'revenge', 'collar', 'skewer', 'saw', 'hook', 'keys', 'guillotine', 'tongs', 'muzzle', 'axe', 'fire', 'scales', 'pestle', 'ironbox'] },
+    'loop-rewards': { tierBase: 2.75, rainbowMult: 1, wOpen: 2, wNow: 1.125, wWalk: 1, wStep: 1, wChain: 4, wStair: 0.5, swapMaxTier: 2, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['shackles', 'skewer', 'rope', 'revenge', 'collar', 'saw', 'guillotine', 'tongs', 'hook', 'keys', 'muzzle', 'axe', 'fire', 'scales', 'pestle', 'ironbox'] },
+    'loop-notools': { tierBase: 2.5, rainbowMult: 8, wOpen: 3, wNow: 0.5, wWalk: 1.5, wStep: 1, wChain: 16, wStair: 0.25, swapMaxTier: 1, minDevour: 0, execMargin: 5, acceptChain: true, toolRank: ['shackles', 'skewer', 'rope', 'revenge', 'collar', 'saw', 'guillotine', 'tongs', 'hook', 'keys', 'muzzle', 'axe', 'fire', 'scales', 'pestle', 'ironbox'] },
     // The contract challenge, tuned on passing first and then points.
-    challenge: { tierBase: 2.25, rainbowMult: 0.5, wOpen: 1.5, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 16, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 20, acceptChain: true, toolRank: ['rope', 'skewer', 'revenge', 'keys', 'ironbox', 'muzzle', 'saw', 'hook', 'tongs', 'guillotine', 'fire', 'scales', 'pestle'], keep1: 1, keep2: 0.25, reserve: 3, earlyPoints: -1, wNeed: 160, needDays: 2, needCrit: 4 },
-    'loop-challenge': { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'skewer', 'revenge', 'keys', 'ironbox', 'muzzle', 'saw', 'guillotine', 'hook', 'tongs', 'fire', 'scales', 'pestle'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
+    challenge: { tierBase: 2.25, rainbowMult: 0.5, wOpen: 1.5, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 16, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 20, acceptChain: true, toolRank: ['rope', 'shackles', 'skewer', 'revenge', 'collar', 'keys', 'ironbox', 'muzzle', 'saw', 'hook', 'tongs', 'guillotine', 'fire', 'axe', 'scales', 'pestle'], keep1: 1, keep2: 0.25, reserve: 3, earlyPoints: -1, wNeed: 160, needDays: 2, needCrit: 4 },
+    'loop-challenge': { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'shackles', 'skewer', 'revenge', 'collar', 'keys', 'ironbox', 'muzzle', 'saw', 'guillotine', 'hook', 'tongs', 'fire', 'axe', 'scales', 'pestle'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
   };
   const paramsFor = (st) => {
     const base = st.mode === 'challenge' ? 'challenge' : st.params.rewards ? 'rewards' : 'notools';
@@ -116,16 +117,26 @@
     if (skewer) eats[RAT] = eats[RAT].concat(RAT);
     const v = [0, 1, 2, 3, 4, 5].map((t) => P.tierBase ** t);
     const openDist = normalize(st.params.tierWeights);
+    const R = v[RAINBOW] * P.rainbowMult * (rainbowStuck(st) ? P.stuckRainbow : 1);
+    const sealed = st.cells.filter((c) => c.sealed).length;
+    // Long-Chained Shackles: what +1 tier on a random inmate is worth.
+    const board = st.cells.filter((c) => !c.sealed && c.inmate && c.inmate.tier < RAINBOW);
+    const lift = board.reduce((sum, c) => sum + (c.inmate.tier + 1 >= RAINBOW ? R : v[c.inmate.tier + 1]) - v[c.inmate.tier], 0) / Math.max(1, board.length);
+    const goal = st.objective && st.objective.id === 'walk' && !st.milestone && st.params.rewards ? T.OBJECTIVES.walk.need - st.objective.progress : 0;
     return {
       st,
       P,
       eats,
       v,
-      R: v[RAINBOW] * P.rainbowMult * (rainbowStuck(st) ? P.stuckRainbow : 1),
+      R,
       saw: has(st, 'saw'),
       muzzle: has(st, 'muzzle'),
       skewer,
-      revenge: has(st, 'revenge') && st.cells.some((c) => c.sealed),
+      collar: has(st, 'collar'),
+      revenge: has(st, 'revenge') && sealed > 0,
+      axeDoors: has(st, 'axe') ? Math.min(2, sealed) : 0,
+      shacklesLift: has(st, 'shackles') && board.length ? lift : 0,
+      goalLeft: goal,
       scratchExtra: 1 + (st.params.scratchStacksBase ? 1 : 0),
       openDist,
       openValue: openDist.reduce((sum, p, t) => sum + p * v[t], 0),
@@ -180,7 +191,7 @@
         const k = comp[t * 4 + f];
         if (!k) continue;
         comp[t * 4 + f] -= 1;
-        sum += k * bite(ctx, t, b, comp, crowd, 0);
+        sum += k * bite(ctx, t, b, comp, crowd, 0, true);
         comp[t * 4 + f] += 1;
       }
       out = sum / total;
@@ -189,13 +200,15 @@
     return out;
   }
 
-  // One bite at tier t: the meal is gone and the eater rises.
-  function bite(ctx, t, b, comp, crowd, extra) {
+  // One bite at tier t: the meal is gone and the eater rises. A chained bite
+  // (after the first) can get the Barbed Collar's +1.
+  function bite(ctx, t, b, comp, crowd, extra, chained) {
     let gain = 1 + extra;
     if (ctx.muzzle && crowd <= 3) gain += 2;
     if (ctx.skewer && b === RAT) gain += 1;
     const after = (g) => rise(ctx, Math.min(RAINBOW, t + g), comp, crowd - 1);
-    return -ctx.v[t] + (ctx.saw ? 0.75 * after(gain) + 0.25 * after(gain + 1) : after(gain));
+    const sawed = (g) => (ctx.saw ? 0.75 * after(g) + 0.25 * after(g + 1) : after(g));
+    return -ctx.v[t] + (chained && ctx.collar ? 0.2 * sawed(gain) + 0.8 * sawed(gain + 1) : sawed(gain));
   }
 
   // Expected change in value from a devour: the chosen first meal, then the
@@ -303,9 +316,19 @@
     return sum;
   }
 
-  // What swapping an inmate of this tier is worth, on average.
+  // What swapping an inmate of this tier is worth, on average. With the
+  // Gaoler's Execution Axe, a higher roll also opens 2 doors.
   function swapValue(ctx, tier) {
-    return swapDist(ctx, tier).reduce((sum, p, t) => sum + p * ctx.v[t], 0) - ctx.v[tier];
+    const dist = swapDist(ctx, tier);
+    let value = dist.reduce((sum, p, t) => sum + p * ctx.v[t], 0) - ctx.v[tier];
+    if (ctx.axeDoors) value += dist.reduce((sum, p, t) => sum + (t > tier ? p : 0), 0) * ctx.axeDoors * ctx.P.wOpen * ctx.openValue;
+    return value;
+  }
+
+  // Behind Closed Doors: the inmate in the warden's cell becomes a Supreme.
+  // For a door not yet opened, its occupant's tier follows `dist`.
+  function tricksterValue(ctx, dist) {
+    return dist.reduce((sum, p, t) => sum + p * Math.max(0, ctx.v[T.SUPREME] - ctx.v[Math.min(t, T.SUPREME)]), 0);
   }
 
   // What an inmate can do once the warden stands with it: its best devour or
@@ -384,9 +407,9 @@
           }
           return exec;
         };
-        // A door whose event kind the player can't see is either, evenly.
+        // A door whose event kind the player can't see is any of them, evenly.
         if (c.event && c.eventKnown === false) {
-          score += 0.5 * execution() + 0.5 * P.wChain;
+          score += (execution() + P.wChain + tricksterValue(ctx, ctx.openDist)) / 3;
           why = 'a special event waits behind the door';
         } else if (c.event === 'execution') {
           score += execution();
@@ -394,6 +417,9 @@
         } else if (c.event === 'chain') {
           score += P.wChain;
           why = 'a Chain reaction waits behind the door';
+        } else if (c.event === 'trickster') {
+          score += tricksterValue(ctx, ctx.openDist);
+          why = 'Behind Closed Doors waits there: whoever is inside becomes a Supreme';
         }
       } else if (c.inmate) {
         score += P.wWalk * known(c);
@@ -401,6 +427,10 @@
       } else {
         why = 'an empty cell';
       }
+      // Long-Chained Shackles: a walk of 4 or more may raise someone a tier.
+      if (ctx.shacklesLift && steps >= 4) score += 0.4 * ctx.shacklesLift;
+      // Prison Walk: each tile walked brings its tool closer.
+      if (ctx.goalLeft) score += P.wGoal * Math.min(steps, ctx.goalLeft);
       out.push({ cell: n, score, why });
     }
     return out.sort((a, b) => b.score - a.score);
@@ -754,6 +784,9 @@
     if (st.phase === 'event' && st.event) {
       if (st.event.kind === 'chain') return { type: 'event', accept: !!P.acceptChain };
       const exec = st.cells[st.event.cell].inmate;
+      if (!exec) return { type: 'event', accept: false };
+      // Behind Closed Doors: a free Supreme, unless it already is one.
+      if (st.event.kind === 'trickster') return { type: 'event', accept: exec.tier < T.SUPREME };
       const { comp } = composition(st, st.event.cell);
       return { type: 'event', accept: executionValue(ctx, exec.tier, beastIndex(exec.beast), comp) > P.execMargin };
     }
@@ -828,8 +861,8 @@
     const random = rng32(seed);
     st.rng = (random() * 4294967296) >>> 0;
     for (const c of st.cells) {
-      // An event whose kind the player can't see is either, evenly.
-      if (c.sealed && c.event && c.eventKnown === false) c.event = random() < 0.5 ? 'chain' : 'execution';
+      // An event whose kind the player can't see is any of them, evenly.
+      if (c.sealed && c.event && c.eventKnown === false) c.event = T.EVENT_IDS[Math.floor(random() * T.EVENT_IDS.length)];
       if (!c.sealed || !c.hidden || c.known >= 2) continue;
       if (c.known === 1) c.hidden.beast = BEASTS[Math.floor(random() * 4)];
       else c.hidden = null;
@@ -851,9 +884,9 @@
       return out;
     }
     if (st.phase === 'event' && st.event) {
-      const name = st.event.kind === 'chain' ? 'Chain reaction' : 'Execution';
-      out.push({ action: { type: 'event', accept: true }, label: `Accept the ${name}` });
-      out.push({ action: { type: 'event', accept: false }, label: `Skip the ${name}` });
+      const name = `${st.event.kind === 'trickster' ? '' : 'the '}${T.eventName(st.event.kind)}`;
+      out.push({ action: { type: 'event', accept: true }, label: `Accept ${name}` });
+      out.push({ action: { type: 'event', accept: false }, label: `Skip ${name}` });
       return out;
     }
     if (st.phase === 'patrol') {
@@ -1049,6 +1082,7 @@
       }
       case 'swap':
         if (here.ivory) return 'A Tusk cell: swapping it raises other inmates a tier.';
+        if (ctx.axeDoors) return `A ${T.tierName(here.inmate.tier)} inmate is worth less than a fresh roll on average, and a higher roll makes the Gaoler's Execution Axe open ${T.plural(ctx.axeDoors, 'door')}.`;
         return `A ${T.tierName(here.inmate.tier)} inmate is worth less than a fresh roll on average.`;
       case 'end': {
         if (!T.canDevourNow(st) || !T.startOptions(st).length) return 'Nothing left today is worth doing.';
@@ -1060,6 +1094,10 @@
       }
       case 'event': {
         if (st.event.kind === 'chain') return action.accept ? 'Your next walk opens every sealed door on the way.' : 'More inmates would hurt this block today.';
+        if (st.event.kind === 'trickster') {
+          const who = st.cells[st.event.cell].inmate;
+          return action.accept ? `The ${T.describe(who)} becomes a Supreme, one step from Rainbow.` : 'It is already a Supreme; accepting would only change its beast.';
+        }
         const exec = st.cells[st.event.cell].inmate;
         const victims = T.executionVictims(st, st.event.cell).length;
         return action.accept ? `The ${T.describe(exec)} removes ${T.plural(victims, 'inmate')} and rises as many tiers: it gains more than it removes.` : 'It would remove more than it gains.';
@@ -1148,7 +1186,7 @@
     if (ch1 && ch1.window && ch1.window.early && !(ch0 && ch0.window)) return { type: 'early' };
     if (before.phase === 'event') {
       if (after.phase === 'event') return null;
-      const x = recent(['skipped', 'armed', 'execution']);
+      const x = recent(['skipped', 'armed', 'execution', 'trickster']);
       return x ? { type: 'event', accept: x.type !== 'skipped' } : null;
     }
     if (before.phase === 'patrol') return after.stats.patrols > before.stats.patrols ? { type: 'patrol', cell: after.position } : null;

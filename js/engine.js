@@ -53,7 +53,7 @@
   const DEFAULT_PARAMS = {
     drillDays: 20,
     destinations: 3,
-    patrolRange: 5,
+    patrolRange: 6,
     eventTwoDoors: false,
     fewerDoorsChance: 0,
     swapsPerDay: 1,
@@ -70,7 +70,7 @@
     nestDays: 2,
     nestTier: 2,
     rewards: true,
-    startTools: 0,
+    startTools: 1,
     loopChain: true,
   };
 
@@ -101,8 +101,8 @@
     { key: 'scratchStacksBase', group: 'Markers', label: 'Scratch bonus (+2) adds to the base +1', type: 'bool' },
     { key: 'nestDays', group: 'Markers', label: 'Days before a rat nest hatches', type: 'int', min: 1, max: 10 },
     { key: 'nestTier', group: 'Markers', label: 'Rarity of a hatched Rat', type: 'tier' },
-    { key: 'rewards', group: 'Rewards', label: "First Supreme earns a tool; each Rainbow opens the Warden's Cache", type: 'bool' },
-    { key: 'startTools', group: 'Rewards', label: 'Random tools at the start of a drill', type: 'int', min: 0, max: 8 },
+    { key: 'rewards', group: 'Rewards', label: "Meeting the run's objective earns a tool; each Rainbow opens the Warden's Cache", type: 'bool' },
+    { key: 'startTools', group: 'Rewards', label: 'Random tools at the start of a drill (the live game gives 1)', type: 'int', min: 0, max: 8 },
   ];
 
   const TOOLS = {
@@ -120,8 +120,31 @@
     scales: { name: "Warden's Scales", text: 'After a swap, 80% chance to scout the highest-rarity inmate behind the locked doors: its door shows its beast and rarity.' },
     tongs: { name: 'Iron Tongs of Lust', text: 'Each morning a random Mammoth on the block gets a Tusk mark.' },
     guillotine: { name: 'Fanged Guillotine', text: 'Wolves can also devour the beasts they eat at a lower rarity than their own.' },
+    axe: { name: "Gaoler's Execution Axe", text: 'When a swap brings in a higher rarity than it replaced, 2 random sealed cells open. Those doors trigger nothing else.' },
+    shackles: { name: 'Long-Chained Shackles', text: 'When a patrol walks 4 or more cells, 40% chance that 1 random inmate on the block rises a tier.' },
+    // The card reads "When an Inmate Chain Consumes": the bites after the
+    // first, which the eater takes by itself.
+    collar: { name: "Maddened Beast's Barbed Collar", text: 'Each bite of a devour chain after the first: 80% chance of +1 extra tier.' },
   };
   const TOOL_IDS = Object.keys(TOOLS);
+
+  // Special events behind sealed doors, each equally likely.
+  const EVENTS = {
+    chain: { name: 'Chain reaction' },
+    execution: { name: 'Execution' },
+    trickster: { name: 'Behind Closed Doors' },
+  };
+  const EVENT_IDS = Object.keys(EVENTS);
+  const eventName = (id) => (EVENTS[id] ? EVENTS[id].name : 'Special event');
+
+  // Each run has one objective, drawn at the start; meeting it earns a tool
+  // when rewards are on. The live game has more objectives, and what each
+  // one pays isn't known yet, so every objective here pays a tool.
+  const OBJECTIVES = {
+    king: { name: 'King of the Caged', text: "At least 1 inmate's rarity reaches Supreme" },
+    walk: { name: 'Prison Walk', text: 'Move 18 tiles', need: 18 },
+  };
+  const OBJECTIVE_IDS = Object.keys(OBJECTIVES);
 
   const GIFTS = {
     ring: { name: 'Three-Headed Thumb Ring', text: 'Open up to 3 random sealed cells. They trigger nothing else.' },
@@ -140,7 +163,7 @@
 
   const SCENARIOS = {
     empty: { name: 'Empty prison', text: 'Day 1 with all 15 prison cells sealed. Recommended for a first run.' },
-    events: { name: 'Special events drill', text: 'Two doors on today’s route hide a Chain reaction and an Execution.' },
+    events: { name: 'Special events drill', text: 'The three doors on today’s route hide Behind Closed Doors, an Execution and a Chain reaction.' },
     ivory: { name: 'Tusk drill', text: 'Swap the inmate in a Tusk cell and four inmates rise a tier.' },
     prey: { name: 'Prey drill', text: 'A Lion and its marked prey both rise each morning for three days.' },
     scratch: { name: 'Scratch drill', text: 'Wolves devour through scratched doors for +3.' },
@@ -382,18 +405,21 @@
     return inmate;
   }
 
-  // Applies rewards for growth: the challenge's Supreme milestone, and the
-  // vault for anyone who reaches Rainbow.
+  // The run's objective is met: with rewards on, it earns a tool (pick one
+  // of three). `state.milestone` records that it's done.
+  function meetObjective(state, why) {
+    state.milestone = true;
+    const name = OBJECTIVES[state.objective.id].name;
+    const options = state.params.rewards ? shuffle(state, TOOL_IDS.filter((t) => !has(state, t))).slice(0, 3) : [];
+    if (options.length) state.pending.push({ kind: 'tool', options });
+    log(state, 'tool', `Objective met, ${name}: ${why}.${options.length ? ' Choose a tool.' : ''}`, { type: 'objective', id: state.objective.id });
+  }
+
+  // Applies rewards for growth: King of the Caged, and the vault for anyone
+  // who reaches Rainbow.
   function afterGrowth(state, inmate, events) {
     state.stats.best = Math.max(state.stats.best, inmate.tier);
-    if (state.params.rewards && !state.milestone && inmate.tier >= SUPREME) {
-      state.milestone = true;
-      const options = shuffle(state, TOOL_IDS.filter((t) => !has(state, t))).slice(0, 3);
-      if (options.length) {
-        state.pending.push({ kind: 'tool', options });
-        log(state, 'tool', `Milestone: a ${describe(inmate)}! Choose a tool.`);
-      }
-    }
+    if (state.objective.id === 'king' && !state.milestone && inmate.tier >= SUPREME) meetObjective(state, `a ${describe(inmate)}`);
     if (inmate.tier < RAINBOW) return;
     const cell = cellOf(state, inmate.id);
     if (!cell) return;
@@ -502,6 +528,8 @@
       cache: 0,
       tools: [],
       pending: [],
+      // The challenge always plays for King of the Caged; drills draw one.
+      objective: { id: mode === 'challenge' ? 'king' : pickOne(sideStream({ seed }, 'objective'), OBJECTIVE_IDS), progress: 0 },
       milestone: false,
       used: freshDay(),
       prey: [],
@@ -511,8 +539,10 @@
       challenge: null,
       result: null,
     };
-    for (const cell of state.cells) if (cell.sealed && rand(state) * 100 < params.eventChance) cell.event = rand(state) < 0.5 ? 'chain' : 'execution';
+    for (const cell of state.cells) if (cell.sealed && rand(state) * 100 < params.eventChance) cell.event = EVENT_IDS[Math.floor(rand(state) * EVENT_IDS.length)];
     log(state, 'day', `Day 1 of ${state.maxDays}.`);
+    const goal = OBJECTIVES[state.objective.id];
+    log(state, 'tool', `Objective: ${goal.name}. ${goal.text}.`);
     if (mode === 'challenge') setupChallenge(state);
     else setupDrill(state);
     return state;
@@ -546,10 +576,11 @@
       place(state, 6, 'wolf', 0);
       place(state, 13, 'lion', 2);
       place(state, 15, 'mammoth', 1);
+      hide(state, 1, 'wolf', 0, { event: 'trickster' });
       hide(state, 2, 'lion', 2, { event: 'execution', known: 1 });
       hide(state, 3, 'mammoth', 1, { event: 'chain' });
       destinations = [1, 2, 3];
-      note = 'Special events drill: cell 03 hides an Execution behind a Rare inmate, and cell 04 hides a Chain reaction. Patrol one, then accept or skip the event.';
+      note = 'Special events drill: cell 02 hides Behind Closed Doors, cell 03 hides an Execution behind a Rare inmate, and cell 04 hides a Chain reaction. Patrol one, then accept or skip the event.';
     } else if (s === 'ivory') {
       place(state, 1, 'wolf', 1);
       state.cells[1].ivory = true;
@@ -585,7 +616,7 @@
     for (const cell of state.cells) if (!cell.sealed) cell.event = null;
     if (state.params.startTools > 0) {
       state.tools = shuffle(state, TOOL_IDS).slice(0, state.params.startTools);
-      log(state, 'tool', `Starting tools: ${state.tools.map((t) => TOOLS[t].name).join(', ')}.`);
+      log(state, 'tool', `Starting ${state.tools.length === 1 ? 'tool' : 'tools'}: ${state.tools.map((t) => TOOLS[t].name).join(', ')}.`);
     }
     if (marker) state.position = 1;
     beginDay(state, []);
@@ -753,6 +784,14 @@
     return boardCells(state).filter((c) => c !== cell && eats.includes(c.inmate.beast) && (state.params.executionSameTier ? c.inmate.tier === exec.tier : c.inmate.tier < exec.tier));
   }
 
+  // Behind Closed Doors' "Scarce Code": the beasts with the fewest inmates on
+  // the block (none counts). The event picks one of them at random.
+  function scarceBeasts(state) {
+    const counts = BEASTS.map((b) => boardInmates(state).filter((i) => i.beast === b).length);
+    const low = Math.min(...counts);
+    return BEASTS.filter((_, i) => counts[i] === low);
+  }
+
   function rosterOf(state) {
     const rows = [];
     for (const c of state.cells) if (!c.sealed && c.inmate) rows.push({ beast: c.inmate.beast, tier: c.inmate.tier, where: `Cell ${cellLabel(c.n)}` });
@@ -772,6 +811,7 @@
     if (!state.destinations.includes(n)) return fail('Patrol one of today’s destinations.');
     const events = [{ type: 'move', from: state.position, to: n }];
     const cell = state.cells[n];
+    const steps = stepsBetween(state.position, n);
     state.stats.patrols += 1;
     let event = null;
     if (state.chain) {
@@ -788,14 +828,32 @@
     }
     state.position = n;
     checkPrey(state);
+    walked(state, steps, events);
     if (event && state.cells[n].inmate) {
       state.phase = 'event';
       state.event = { kind: event, cell: n };
-      log(state, 'event', `Cell ${cellLabel(n)} held a special event: ${event === 'chain' ? 'Chain reaction' : 'Execution'}. Accept or skip it.`);
+      log(state, 'event', `Cell ${cellLabel(n)} held a special event: ${eventName(event)}. Accept or skip it.`);
     } else {
       state.phase = 'manage';
     }
     return ok(events);
+  }
+
+  // After the warden's walk: the Long-Chained Shackles reward a long one, and
+  // every cell walked counts for Prison Walk.
+  function walked(state, steps, events) {
+    if (has(state, 'shackles') && steps >= 4 && rand(state) < 0.4) {
+      const pool = boardInmates(state).filter((i) => i.tier < RAINBOW);
+      if (pool.length) {
+        const who = pickOne(state, pool);
+        log(state, 'tool', `Long-Chained Shackles: a ${steps}-cell walk raises the ${describe(who)} in cell ${cellLabel(cellOf(state, who.id).n)} a tier.`, { type: 'shackles', cell: cellOf(state, who.id).n, who: snap(who) });
+        promote(state, who, 1, false, events);
+      }
+    }
+    const o = state.objective;
+    if (o.id !== 'walk' || state.milestone) return;
+    o.progress = Math.min(OBJECTIVES.walk.need, o.progress + steps);
+    if (o.progress >= OBJECTIVES.walk.need) meetObjective(state, `${OBJECTIVES.walk.need} tiles moved`);
   }
 
   function resolveEvent(state, accept) {
@@ -803,7 +861,7 @@
     if (state.pending.length) return fail('Make your pending choice first.');
     const { kind, cell: n } = state.event;
     const events = [];
-    const name = kind === 'chain' ? 'Chain reaction' : 'Execution';
+    const name = eventName(kind);
     if (!accept) {
       state.event = null;
       state.phase = 'manage';
@@ -813,6 +871,20 @@
     if (kind === 'chain') {
       state.chain = true;
       log(state, 'event', 'Chain reaction armed: your next patrol opens every sealed cell on the clockwise walk to its destination.', { type: 'armed' });
+    } else if (kind === 'trickster') {
+      const who = state.cells[n].inmate;
+      if (!who) return fail('Nobody is left in that cell for the event to change.');
+      const before = snap(who);
+      const scarce = scarceBeasts(state);
+      who.beast = pickOne(state, scarce);
+      who.tier = SUPREME;
+      checkPrey(state);
+      const why = scarce.length === 1 ? `the scarcest beast on the block` : `drawn from the ${scarce.length} scarcest beasts`;
+      log(state, 'event', `Behind Closed Doors: the ${describe(before)} in cell ${cellLabel(n)} is now a ${describe(who)} (${why}).`, { type: 'trickster', cell: n, who: before, after: snap(who) });
+      events.push({ type: 'promote', cell: n, from: before.tier, to: who.tier });
+      // The card says it triggers no other effects: no instrument reacts. The
+      // run's objective still counts the Supreme.
+      afterGrowth(state, who, events);
     } else {
       const cell = state.cells[n];
       const exec = cell.inmate;
@@ -840,8 +912,9 @@
   }
 
   // Resolves one bite without the phase checks, so gifts and chains can reuse
-  // it. Returns a record of the bite for the log.
-  function doDevour(state, from, option, events) {
+  // it. `chained` marks the bites a chain takes by itself, after the first.
+  // Returns a record of the bite for the log.
+  function doDevour(state, from, option, events, chained) {
     const eaterCell = state.cells[from];
     const mealCell = state.cells[option.cell];
     const eater = eaterCell.inmate;
@@ -864,6 +937,10 @@
     if (has(state, 'saw') && rand(state) < 0.25) {
       gain += 1;
       notes.push('Rusty Saw +1');
+    }
+    if (chained && has(state, 'collar') && rand(state) < 0.8) {
+      gain += 1;
+      notes.push('Barbed Collar +1');
     }
     const revenge = has(state, 'revenge') && rand(state) < 0.3;
     events.push({ type: 'devour', from, to: option.cell });
@@ -918,7 +995,7 @@
     for (let cell = boardCellOf(state, eaterId); cell; cell = boardCellOf(state, eaterId)) {
       const options = devourOptions(state, cell.n);
       if (!options.length) break;
-      bites.push(doDevour(state, cell.n, pickOne(state, options), events));
+      bites.push(doDevour(state, cell.n, pickOne(state, options), events, true));
       state.stats.chains += 1;
     }
     logDevour(state, at, bites);
@@ -948,6 +1025,13 @@
     state.stats.swaps += 1;
     logAt(state, at, 'swap', `Swapped out the ${describe(old)} in cell ${cellLabel(n)}. In came a ${describe(fresh)}.`, { type: 'swap', cell: n, old: snap(old), fresh: snap(fresh) });
     afterGrowth(state, fresh, events);
+    if (has(state, 'axe') && fresh.tier > old.tier) {
+      const doors = shuffle(state, state.cells.filter((c) => c.sealed)).slice(0, 2);
+      if (doors.length) {
+        log(state, 'tool', `Gaoler's Execution Axe: the swap raised the rarity, so ${doors.length === 1 ? `cell ${cellLabel(doors[0].n)} opens` : `cells ${doors.map((c) => cellLabel(c.n)).join(' and ')} open`}.`);
+        for (const c of doors) openCell(state, c, 'side', events);
+      }
+    }
     if (has(state, 'scales') && rand(state) < 0.8) scout(state);
     if (cell.ivory && boardCellOf(state, fresh.id)) {
       const pool = boardInmates(state).filter((i) => state.params.ivoryIncludesSwapped || i.id !== fresh.id);
@@ -1195,6 +1279,13 @@
       log(state, 'tool', `Took the ${TOOLS[id].name}.`, { type: 'tool', id });
       if (state.phase === 'patrol') fitDestinations(state);
     }
+    // A gift can remove the inmate a waiting event needs (the Brass Horn's
+    // bites); the event is then lost.
+    if (state.phase === 'event' && state.event && !state.cells[state.event.cell].inmate) {
+      log(state, 'event', `The ${eventName(state.event.kind)} in cell ${cellLabel(state.event.cell)} is lost: nobody is left there.`);
+      state.event = null;
+      state.phase = 'manage';
+    }
     return ok(events);
   }
 
@@ -1262,7 +1353,7 @@
     Object.assign(cell, blankCell(n));
     const beast = BEASTS.includes(spec.beast) ? spec.beast : 'mammoth';
     const tier = clamp(Math.round(Number(spec.tier)) || 0, 0, RAINBOW - 1);
-    const event = spec.event === 'chain' || spec.event === 'execution' ? spec.event : null;
+    const event = EVENTS[spec.event] ? spec.event : null;
     let what;
     if (spec.kind === 'open') {
       cell.sealed = false;
@@ -1286,7 +1377,7 @@
       cell.event = event;
       what = 'a sealed door with an unknown occupant';
     }
-    if (event && cell.sealed && !cell.nest) what += `, with a ${event === 'chain' ? 'Chain reaction' : 'Execution'} event`;
+    if (event && cell.sealed && !cell.nest) what += `, with a ${eventName(event)} event`;
     checkPrey(state);
     log(state, 'lab', `Scene editor: cell ${cellLabel(n)} is now ${what}.`);
     return ok([]);
@@ -1355,6 +1446,9 @@
       case 'scales': return 6;
       case 'tongs': return board.some((i) => i.beast === 'mammoth') ? 8 : 3;
       case 'guillotine': return board.filter((i) => i.beast === 'wolf').length * 6;
+      case 'axe': return 10;
+      case 'shackles': return 8;
+      case 'collar': return 10;
       case 'wine': return board.filter((i) => i.tier < 3).length * 4;
       case 'horn': return board.filter((i) => devourOptions(state, cellOf(state, i.id).n).length).length * 6;
       case 'brand': return board.filter((i) => !devourOptions(state, cellOf(state, i.id).n).length).length * 5;
@@ -1460,6 +1554,11 @@
         const victims = executionVictims(state, state.event.cell);
         return [{ kind: 'event', accept: victims.length > 0, text: victims.length ? `Accept: the executioner removes ${plural(victims.length, 'inmate')} and rises ${victims.length} ${victims.length === 1 ? 'tier' : 'tiers'}.` : 'Skip: there is nobody for this inmate to execute.' }];
       }
+      if (state.event.kind === 'trickster') {
+        const who = state.cells[state.event.cell].inmate;
+        const gains = who && who.tier < SUPREME;
+        return [{ kind: 'event', accept: !!gains, text: gains ? `Accept: the ${describe(who)} becomes a Supreme.` : 'Skip: it is already a Supreme, and only its beast would change.' }];
+      }
       const keepSmall = has(state, 'muzzle') && board.length <= 3;
       return [{ kind: 'event', accept: !keepSmall, text: keepSmall ? 'Skip: a chain would flood the block and switch off the Agonizing Muzzle.' : 'Accept: your next patrol opens every sealed cell on the way to its destination.' }];
     }
@@ -1551,6 +1650,10 @@
     data.rng = Number(data.rng) >>> 0;
     data.cache = Number(data.cache) || 0;
     data.position = clamp(Number(data.position) || 0, 0, CELL_COUNT - 1);
+    // Saves from before objectives played for King of the Caged.
+    const goal = data.objective && OBJECTIVES[data.objective.id] ? data.objective : { id: 'king', progress: 0 };
+    data.objective = { id: goal.id, progress: clamp(Number(goal.progress) || 0, 0, 99) };
+    data.milestone = !!data.milestone;
     delete data.chainConsume;
     return data;
   }
@@ -1564,6 +1667,7 @@
 
   const api = {
     VERSION, CELL_COUNT, OFFICE, SUPREME, RAINBOW, TIERS, BEASTS, BEAST_INFO, FOOD_CHAINS, HARD_MODE_KEYS, PRESSURE, ESCORTS, TOOLS, TOOL_IDS, GIFTS, GIFT_IDS,
+    EVENTS, EVENT_IDS, OBJECTIVES, OBJECTIVE_IDS,
     LOADOUTS, SCENARIOS, CONTRACT_SLOTS, DEFAULT_PARAMS, PARAM_FIELDS, CHALLENGE_DAYS, START_VOUCHERS,
     newGame, randomSeed, normalizeParams, serialize, deserialize,
     patrol: bounded(patrol),
@@ -1585,7 +1689,7 @@
     removeTool: bounded(removeTool),
     patrolOptions, clockwisePath, devourOptions, startOptions, gainFor, executionVictims, canEat, eatsOf, canDevourNow, canOpenEarly, canRefresh,
     linkOf, cellOf, boardInmates, currentContract, deliveryCheck, bestCargo, rosterOf, advise, limits,
-    toolText, toolName, describe, tierName, beastName, cellLabel, plural, stepsBetween,
+    toolText, toolName, eventName, describe, tierName, beastName, cellLabel, plural, stepsBetween, scarceBeasts,
   };
 
   if (typeof module === 'object' && module.exports) module.exports = api;

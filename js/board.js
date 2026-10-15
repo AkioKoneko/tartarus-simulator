@@ -75,6 +75,17 @@
   const key = (x, a) =>
     `<path d="M24 16L${x} 21" stroke="#6f7488" stroke-width="1.2"/><g transform="rotate(${a} ${x} 21)"><circle cx="${x}" cy="23.5" r="2.4" fill="none" stroke="#a3a8bd" stroke-width="1.6"/>` +
     `<rect x="${x - 0.8}" y="25.8" width="1.6" height="15" fill="#a3a8bd"/><path d="M${x + 0.8} 36h2.6v1.5h-2.6zM${x + 0.8} 38.8h1.9v1.5h-1.9z" fill="#a3a8bd"/></g>`;
+  // `n` triangular spikes around a ring, pointing out from radius r1 to r2.
+  const spikes = (cx, cy, r1, r2, n, turn, fill) => {
+    let d = '';
+    for (let i = 0; i < n; i++) {
+      const a = ((i + turn) / n) * 2 * Math.PI;
+      const w = Math.PI / n / 1.6;
+      const pt = (r, t) => `${(cx + r * Math.cos(t)).toFixed(1)} ${(cy + r * Math.sin(t)).toFixed(1)}`;
+      d += `M${pt(r1, a - w)}L${pt(r2, a)}L${pt(r1, a + w)}Z`;
+    }
+    return `<path d="${d}" fill="${fill}"/>`;
+  };
   const ratHead = (x, y, a) =>
     `<g transform="translate(${x} ${y}) rotate(${a})"><circle cx="-3.6" cy="-4.4" r="2.4" fill="#5d5b62"/><circle cx="3.6" cy="-4.4" r="2.4" fill="#5d5b62"/>` +
     '<path d="M-6 -1.5c0-3.6 2.7-5 6-5s6 1.4 6 5c0 3-3.2 6.5-6 8.5-2.8-2-6-5.5-6-8.5Z" fill="#9b99a0"/>' +
@@ -169,6 +180,30 @@
       '<path d="M10 30l2-3 1 3 2-3.5 1 3.5 2-4 1 4" fill="none" stroke="#e6e7ea" stroke-width="1"/>' +
       '<path d="M18 26c3-3 6-5 9-6M24 20l-2 4M30 17l-2 3" stroke="#9b1d22" stroke-width="2" fill="none" stroke-linecap="round"/>' +
       '<path d="M42 14l3-9" stroke="#5a2e22" stroke-width="3" stroke-linecap="round"/>'),
+    // Gaoler's Execution Axe: a long-handled axe, its broad blade bloodied.
+    axe: icon('glow-red',
+      '<path d="M11 45L32 9" stroke="#5e3a2c" stroke-width="3.6" stroke-linecap="round"/>' +
+      '<path d="M14.5 39l3 1.8M16.5 35.6l3 1.8M18.5 32.2l3 1.8" stroke="#a87a55" stroke-width="1"/>' +
+      '<path d="M29 13l6.5-10Q48.5 9 44 26L32 17.5Z" fill="#b9bcc6" stroke="#7d8089" stroke-width="1"/>' +
+      '<path d="M29.5 11.5l-5.5-2.5 2.5 6Z" fill="#7d8089"/>' +
+      '<path d="M37.5 5Q46 10.5 43 22.5" stroke="#9b1d22" stroke-width="2.6" fill="none" stroke-linecap="round"/>' +
+      '<path d="M41.5 19.5l-1.4 4.5M38 9.5l-2.2 2.6M36 15l-2 1.5" stroke="#9b1d22" stroke-width="1.5" stroke-linecap="round"/>' +
+      '<circle cx="11" cy="45" r="2" fill="#3a231a"/>'),
+    // Long-Chained Shackles: two spiked iron cuffs on a long chain.
+    shackles: icon('glow-green',
+      '<path d="M20 29C31 37 45 32 41 23S27 27 30 19" fill="none" stroke="#8d92a8" stroke-width="2.2" stroke-dasharray="2.8 1.4"/>' +
+      spikes(14, 33, 8.5, 12, 9, 0.25, '#b9bcc6') +
+      '<circle cx="14" cy="33" r="7.5" fill="none" stroke="#4d505b" stroke-width="4.2"/><circle cx="14" cy="33" r="7.5" fill="none" stroke="#9a9eaa" stroke-width="1"/>' +
+      spikes(35, 13, 7.5, 10.5, 8, 0.5, '#b9bcc6') +
+      '<circle cx="35" cy="13" r="6.5" fill="none" stroke="#4d505b" stroke-width="3.8"/><circle cx="35" cy="13" r="6.5" fill="none" stroke="#9a9eaa" stroke-width="1"/>'),
+    // Maddened Beast's Barbed Collar: a blood-red collar ringed with barbs.
+    collar: icon('glow-red',
+      spikes(24, 24, 14.5, 21.5, 14, 0, '#3a1012') +
+      spikes(24, 24, 14.5, 19, 14, 0.5, '#8c1d22') +
+      '<circle cx="24" cy="24" r="13" fill="none" stroke="#5a1418" stroke-width="5.2"/>' +
+      '<circle cx="24" cy="24" r="13" fill="none" stroke="#c0282d" stroke-width="1.6" stroke-dasharray="5 2.2"/>' +
+      spikes(24, 24, 10.6, 7.5, 10, 0.25, '#d9a3a6') +
+      '<rect x="20.5" y="34" width="7" height="5" rx="1.2" fill="#2c2c33" stroke="#8d92a8" stroke-width="1"/>'),
   };
 
   // What else marks a cell: a locked door and what's behind it, a nest, an
@@ -179,6 +214,8 @@
     event: mark('<path d="M24 4l20 20-20 20L4 24Z" fill="#3b2410" stroke="#f28c36" stroke-width="2.4"/><path d="M21.6 12h4.8l-1 15h-2.8Z" fill="#f28c36"/><circle cx="24" cy="33" r="2.7" fill="#f28c36"/>'),
     chain: mark('<rect x="6" y="15" width="22" height="13" rx="6.5" fill="none" stroke="#f28c36" stroke-width="3.6" transform="rotate(-30 17 21.5)"/><rect x="20" y="20" width="22" height="13" rx="6.5" fill="none" stroke="#f5b26b" stroke-width="3.6" transform="rotate(-30 31 26.5)"/>'),
     execution: mark('<path d="M30 6l4 4L12 44l-4-3Z" fill="#7a5130"/><path d="M27 4c7 1 13 6 15 14l-11 3c-1-5-3-8-8-10Z" fill="#c3c6cd" stroke="#7d8089" stroke-width="1"/><path d="M38 9c2.2 2.4 3.4 5.4 4 9" stroke="#e0675f" stroke-width="2" fill="none"/>'),
+    // Behind Closed Doors: a shut door with an Ultimate's red star.
+    trickster: mark('<path d="M12 44V20a12 12 0 0 1 24 0v24Z" fill="#2a2f37" stroke="#ea4f57" stroke-width="2.4"/><path d="M24 13.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.8Z" fill="#ea4f57"/><circle cx="31" cy="35" r="1.7" fill="#c9a35a"/>'),
     nest: mark('<path d="M6 34c6 7 30 7 36 0M8 30c6 8 26 8 32 0M10 38c8 5 20 5 28 0" fill="none" stroke="#8a6a3c" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="13" r="5" fill="#d9a634"/><circle cx="32" cy="13" r="5" fill="#d9a634"/><path d="M24 11c7 0 10 6 7 12-2 4-5 7-7 9-2-2-5-5-7-9-3-6 0-12 7-12Z" fill="#f1c84a"/><circle cx="20.5" cy="19" r="1.5" fill="#3b2f19"/><circle cx="27.5" cy="19" r="1.5" fill="#3b2f19"/>'),
     empty: mark('<rect x="8" y="8" width="32" height="32" rx="3" fill="none" stroke="#7a8190" stroke-width="2" stroke-dasharray="4 3.4"/>'),
     scratch: mark('<path d="M12 44V18a12 12 0 0 1 24 0v26Z" fill="#2a2f37" stroke="var(--tc)" stroke-width="2.4"/><path d="M17 20l6 18M22 17l6 18M27 18l5 15" stroke="var(--tc)" stroke-width="2.2" stroke-linecap="round"/>'),

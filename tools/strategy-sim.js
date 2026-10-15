@@ -85,7 +85,9 @@ const BASELINES = {
 };
 
 function newDrill(game, i, seedWord) {
-  const params = { rewards: !!game.rewards, loopChain: !!game.loop };
+  // Rewards on plays like the live game: a random tool to start, one for the
+  // objective and a gift per Rainbow. No tools means none at all.
+  const params = { rewards: !!game.rewards, loopChain: !!game.loop, startTools: game.rewards && !game.tool ? 1 : 0 };
   const st = T.newGame({ mode: 'drill', scenario: game.scenario || 'empty', seed: `${seedWord}-${i}`, params });
   if (game.tool) {
     st.tools = [game.tool];

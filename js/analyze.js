@@ -13,6 +13,8 @@
   const S = window.TartarusSolver;
   const B = window.TartarusBoard;
   const SHARE = window.TartarusLive || null;
+  // The event kinds the live collector (worker/) accepts.
+  const COLLECTOR_EVENTS = ['unknown', 'chain', 'execution'];
   const $ = (id) => document.getElementById(id);
   const L = (n) => T.cellLabel(n);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -93,6 +95,8 @@
       choice: { kind: 'tool', options: [] },
       windowKind: 'due',
       chainArmed: false,
+      objective: 'king',
+      walkTiles: 0,
       milestone: false,
       tools: [],
       vault: [],
@@ -111,6 +115,8 @@
     out.cells = m.cells.map((c, n) => (n === T.OFFICE ? officeCell() : Object.assign(sealedCell(), c)));
     out.dest = Array.isArray(m.dest) ? m.dest.filter((n) => Number.isInteger(n) && n !== T.OFFICE && n < T.CELL_COUNT) : [];
     if (!STEPS.includes(out.step)) out.step = 'patrol';
+    if (!T.OBJECTIVES[out.objective]) out.objective = 'king';
+    out.walkTiles = clamp(toInt(out.walkTiles, 0), 0, T.OBJECTIVES.walk.need);
     return out;
   }
 
@@ -143,7 +149,7 @@
       if (n === T.OFFICE) return cell;
       const setEvent = () => {
         if (!c.event) return;
-        cell.event = c.event === 'execution' ? 'execution' : 'chain';
+        cell.event = T.EVENTS[c.event] ? c.event : 'chain';
         if (c.event === 'unknown') cell.eventKnown = false;
       };
       if (c.kind === 'empty') cell.sealed = false;
@@ -189,7 +195,9 @@
     st.tools = T.TOOL_IDS.filter((id) => m.tools.includes(id));
     st.position = clamp(toInt(m.warden, 0), 0, T.CELL_COUNT - 1);
     st.chain = !!m.chainArmed;
-    st.milestone = !!m.milestone;
+    // The challenge always plays for King of the Caged.
+    st.objective = { id: challenge ? 'king' : m.objective, progress: m.objective === 'walk' ? clamp(toInt(m.walkTiles, 0), 0, T.OBJECTIVES.walk.need) : 0 };
+    st.milestone = !!m.milestone || (st.objective.id === 'walk' && st.objective.progress >= T.OBJECTIVES.walk.need);
     st.stats.best = Math.max(0, ...st.cells.filter((c) => c.inmate).map((c) => c.inmate.tier), st.vault.length ? T.RAINBOW : 0);
     st.used = { swap: 0, devour: 0 };
     st.destinations = [];
@@ -232,7 +240,7 @@
         const here = st.cells[st.position];
         if (!here || here.sealed || !here.inmate) problems.push("An event needs the inmate that came out of the door in the warden's cell: put the warden there and set its inmate.");
         st.phase = 'event';
-        st.event = { kind: m.eventKind === 'execution' ? 'execution' : 'chain', cell: st.position };
+        st.event = { kind: T.EVENTS[m.eventKind] ? m.eventKind : 'chain', cell: st.position };
         break;
       }
       case 'choice': {
@@ -275,6 +283,8 @@
     m.maxDays = st.mode === 'challenge' ? (prev ? prev.maxDays : T.DEFAULT_PARAMS.drillDays) : st.maxDays;
     m.warden = st.position;
     m.chainArmed = !!st.chain;
+    m.objective = st.objective ? st.objective.id : 'king';
+    m.walkTiles = st.objective ? st.objective.progress : 0;
     m.milestone = !!st.milestone;
     m.tools = st.tools.slice();
     m.vault = st.vault.map((v) => v.beast);
@@ -360,7 +370,14 @@
     const { st, problems } = buildState(model);
     showProblems(problems);
     if (problems.length) return;
-    if (SHARE) SHARE.record(model, via && Object.assign({}, via, { touched: [...via.touched] }));
+    if (SHARE) {
+      // The collector rejects event kinds it doesn't know. Until it learns
+      // Behind Closed Doors, a board with one isn't shared, and the next board
+      // starts a new run, so no shared step spans it.
+      const kinds = [...model.cells.map((c) => c.event).filter(Boolean), ...(model.step === 'event' ? [model.eventKind] : [])];
+      if (kinds.every((k) => COLLECTOR_EVENTS.includes(k))) SHARE.record(model, via && Object.assign({}, via, { touched: [...via.touched] }));
+      else SHARE.reset('manual');
+    }
     via = null;
     flags = new Set();
     applied = null;
@@ -462,7 +479,7 @@
       showProblems(problems);
       return;
     }
-    for (const c of st.cells) if (c.sealed && c.event && c.eventKnown === false) c.event = Math.random() < 0.5 ? 'chain' : 'execution';
+    for (const c of st.cells) if (c.sealed && c.event && c.eventKnown === false) c.event = T.EVENT_IDS[Math.floor(Math.random() * T.EVENT_IDS.length)];
     const before = JSON.parse(JSON.stringify(model));
     const label = labelFor(action);
     let result;
@@ -580,6 +597,7 @@
         btn('sealed:unknown', 'Locked door with an event (kind unknown)', B.MARKS.event),
         btn('sealed:chain', 'Locked door with a Chain reaction', B.MARKS.chain),
         btn('sealed:execution', 'Locked door with an Execution', B.MARKS.execution),
+        btn('sealed:trickster', 'Locked door with Behind Closed Doors', B.MARKS.trickster),
         btn('scouted', "Scouted door (Warden's Scales): set its beast and rarity in the panel below", B.MARKS.scouted),
       ]),
       row('Other', '', [btn('nest', 'Rat nest', B.MARKS.nest), btn('empty', 'Empty cell', B.MARKS.empty), btn('ivory', 'Tusk mark: toggles on the inmate here', B.MARKS.ivory)]),
@@ -623,6 +641,7 @@
       let badges = p.badges;
       if (mc.event === 'chain') badges = badges.replace('>Event<', '>Chain<');
       else if (mc.event === 'execution') badges = badges.replace('>Event<', '>Execution<');
+      else if (mc.event === 'trickster') badges = badges.replace('>Event<', '>Closed Doors<');
       if (cell.n === selected) p.cls.push('is-selected');
       if (doors.has(cell.n)) p.cls.push('is-dest');
       if (flags.has(cell.n)) p.cls.push('is-check');
@@ -727,7 +746,7 @@
     }
     // Today's doors: the cells within reach of the warden, plus any ticked.
     const ahead = [];
-    for (let i = 1; i < T.CELL_COUNT && ahead.length < 5; i++) {
+    for (let i = 1; i < T.CELL_COUNT && ahead.length < T.DEFAULT_PARAMS.patrolRange; i++) {
       const n = (model.warden + i) % T.CELL_COUNT;
       if (n !== T.OFFICE) ahead.push(n);
     }
@@ -747,7 +766,13 @@
     for (const b of $('az-tools').querySelectorAll('[data-tool]')) b.setAttribute('aria-pressed', String(model.tools.includes(b.dataset.tool)));
     $('az-rewards-wrap').hidden = challenge;
     $('az-rewards').checked = challenge || !!model.rewards;
-    $('az-milestone').checked = !!model.milestone;
+    const goal = challenge ? 'king' : model.objective;
+    $('az-objective').value = goal;
+    $('az-objective').disabled = challenge;
+    $('az-objective-text').textContent = T.OBJECTIVES[goal].text;
+    $('az-walk-wrap').hidden = goal !== 'walk';
+    if (document.activeElement !== $('az-walk')) $('az-walk').value = String(model.walkTiles);
+    $('az-milestone').checked = !!model.milestone || (goal === 'walk' && model.walkTiles >= T.OBJECTIVES.walk.need);
     // Ten slots like the game's, more if the vault holds more.
     const slots = Math.max(10, model.vault.length + (model.vault.length % 2));
     setHTML($('az-vault'), Array.from({ length: slots }, (_, i) => {
@@ -1444,7 +1469,9 @@
     // Their beasts don't show in the slots; they only matter for a bounty.
     m.vault = new Array(chromatic).fill('wolf');
     const highest = Math.max(0, ...m.cells.filter((c) => c.kind === 'inmate').map((c) => c.tier));
-    m.milestone = highest >= T.SUPREME || chromatic > 0;
+    // King of the Caged is met once a Supreme or Chromatic shows. Prison
+    // Walk's tiles aren't read, so they keep what was set.
+    if (m.objective === 'king' || m.mode === 'challenge') m.milestone = highest >= T.SUPREME || chromatic > 0;
     // The jaws marker shows on every inmate with something to eat. Cells that
     // disagree were probably misread. A washed-out portrait takes the beast
     // that makes the jaws fit.
@@ -1715,6 +1742,16 @@
     });
     $('az-milestone').addEventListener('change', (e) => {
       model.milestone = e.target.checked;
+      if (!model.milestone && model.objective === 'walk') model.walkTiles = Math.min(model.walkTiles, T.OBJECTIVES.walk.need - 1);
+      changed();
+    });
+    $('az-objective').addEventListener('change', (e) => {
+      model.objective = T.OBJECTIVES[e.target.value] ? e.target.value : 'king';
+      changed();
+    });
+    $('az-walk').addEventListener('change', (e) => {
+      model.walkTiles = clamp(toInt(e.target.value, 0), 0, T.OBJECTIVES.walk.need);
+      if (model.walkTiles >= T.OBJECTIVES.walk.need) model.milestone = true;
       changed();
     });
     $('az-vault-add').addEventListener('click', (e) => {

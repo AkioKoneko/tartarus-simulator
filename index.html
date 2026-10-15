@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261014i">
+<link rel="stylesheet" href="css/style.css?v=20261015a">
 </head>
 <body>
 <div class="app" id="app">
@@ -139,6 +139,7 @@
         <h2 class="panel-title" id="goal-title">Objective</h2>
         <p class="panel-text" id="goal-text"></p>
         <dl class="facts" id="goal-facts"></dl>
+        <div class="objective" id="goal-objective"></div>
       </section>
 
       <section class="panel" id="panel-advisor" hidden>
@@ -295,7 +296,7 @@
 
       <h3>A day on the block</h3>
       <ol class="steps">
-        <li><strong>Patrol.</strong> Each morning offers three destination cells from the next five clockwise from the warden. The office counts as one of those five steps but is never offered. They glow on the ring and appear as cards under it. A destination can be a locked cell, which opens when the warden arrives, or a cell whose inmate you already know. You can't see inside a locked cell until it opens. You must patrol before anything else.</li>
+        <li><strong>Patrol.</strong> Each morning offers three destination cells from the next six clockwise from the warden. The office counts as one of those six steps but is never offered. They glow on the ring and appear as cards under it. A destination can be a locked cell, which opens when the warden arrives, or a cell whose inmate you already know. You can't see inside a locked cell until it opens. You must patrol before anything else.</li>
         <li><strong>Devour.</strong> Once a day, after the patrol, and only the inmate in the warden's cell can start it. Double-click a highlighted target to devour it, or click it once to preview the bite and again to confirm. If the eater then has another valid target, it chains on by itself: it devours a random valid target, and keeps going while targets remain. A chain can't be stopped. The log and the recap under the ring show every bite as icons.</li>
         <li><strong>Swap.</strong> Once a day, replace the inmate in the warden's cell with a brand-new random one. It can come out stronger or weaker. No other cell can be swapped.</li>
         <li><strong>End the day.</strong> The next morning, prey marks grow, ripe nests hatch, and new destinations are drawn. A recap of the day you just finished appears under the destination cards.</li>
@@ -316,7 +317,10 @@
         <dd>Your next patrol walks clockwise from the warden to the chosen destination and opens every sealed door on the way.</dd>
         <dt class="m-event">Execution</dt>
         <dd>The inmate in the opened cell removes every inmate on the block that it can eat and that has a lower rarity. It gains one tier for each.</dd>
+        <dt class="m-event">Behind Closed Doors</dt>
+        <dd>The inmate in the opened cell becomes a Supreme of the scarcest beast on the block (none counts; a tie is settled at random). It triggers no other effects.</dd>
       </dl>
+      <p>Each special event is equally likely behind a door.</p>
 
       <h3>Markers</h3>
       <dl class="defs">
@@ -330,8 +334,9 @@
         <dd>A sealed nest hatches a Rare Rat on the morning two days after it appears. Opening the door before then destroys it.</dd>
       </dl>
 
-      <h3>Tools and the Warden's Cache</h3>
-      <p>Your first Supreme earns a tool: pick one of three, and it lasts for the rest of the run. Each Rainbow that reaches the vault opens the Warden's Cache: pick one gift, which takes effect at once. Both work in drills and in the contract challenge. In the Lab you can start drills with random tools, or switch rewards off for pure rules practice.</p>
+      <h3>Objectives, tools and the Warden's Cache</h3>
+      <p>Every drill starts with one random tool, as the live game does. Each run also has an objective, shown with the run's goal: <strong>King of the Caged</strong> (at least 1 inmate's rarity reaches Supreme) or <strong>Prison Walk</strong> (move 18 tiles: every cell the warden walks counts). Meeting it earns a tool: pick one of three, and it lasts for the rest of the run. The live game has more objectives, and what they pay isn't known yet, so every objective here pays a tool. The contract challenge always plays for King of the Caged, and its starting kit takes the place of the random tool.</p>
+      <p>Each Rainbow that reaches the vault opens the Warden's Cache: pick one gift, which takes effect at once. In the Lab you can change how many tools a drill starts with, or switch rewards off for pure rules practice.</p>
       <dl class="defs" id="hb-tools"></dl>
 
       <h3>Contract challenge</h3>
@@ -346,7 +351,7 @@
         <li><strong>Grades.</strong> Each move you make is graded against the live check of the position before it: the best move, close to the best (within the margin of error), or what it cost. The panel keeps a tally for the run.</li>
       </ul>
       <p>For the big picture before you play, read the <a href="strategy.html">strategy guide</a>. To get advice on your own board in the live game, open the <a href="analyze.html">board analyzer</a>: set every cell, your tools and contracts, and it recommends the move the same way the trainer does.</p>
-      <p>There's no AI involved: the strategy is a set of scoring rules whose weights were tuned over millions of simulated runs. Its main lessons on the single-meal chain: devour whenever you can (unless it would break a prey mark, which gives free tiers every morning), swap low-tier inmates in the warden's cell (Normal and Magic; Rare too when you have tools), accept Chain reactions, accept an Execution when it gains more than it removes, and keep opening doors. Each beast waiting at a tier covers one of the four beasts a chain's eater can re-roll into, so a tier with all four keeps any chain going. Held from day 1, the best tools were the Skewered Rat Heads, Avenger's Casket and Hangman's Noose. The Squirming Iron Box hurt the most, and the Iron Pestle came out slightly below no tool.</p>
+      <p>There's no AI involved: the strategy is a set of scoring rules whose weights were tuned over millions of simulated runs. Its main lessons on the single-meal chain: devour whenever you can (unless it would break a prey mark, which gives free tiers every morning), swap low-tier inmates in the warden's cell (Normal and Magic; Rare too when you have tools), accept Chain reactions and Behind Closed Doors, accept an Execution when it gains more than it removes, and keep opening doors. Each beast waiting at a tier covers one of the four beasts a chain's eater can re-roll into, so a tier with all four keeps any chain going. Held from day 1, the best tools were the Long-Chained Shackles, Skewered Rat Heads and Hangman's Noose. The Squirming Iron Box hurt the most, and the Iron Pestle came out slightly below no tool.</p>
       <p>In the contract challenge, the strategy sends inmates it can spare by light escort on the first two contracts, keeps 3 vouchers for the heavy contract, and gets the block ready for each contract in the last days before its deadline. Sending the most points every time passes far less often.</p>
 
       <h3>Practice values</h3>
@@ -493,6 +498,7 @@
                 <option value="none">None</option>
                 <option value="chain">Chain reaction</option>
                 <option value="execution">Execution</option>
+                <option value="trickster">Behind Closed Doors</option>
               </select>
             </div>
             </div>
@@ -618,7 +624,7 @@
     </header>
     <div class="sheet-body prose">
       <p>A free English practice tool for the Tartarus prison season of <em>Torchlight: Infinite</em>. Use it to learn the patrol ring, the food chain, rarity climbs, events and markers before you play the season.</p>
-      <p>This began as an English translation of the Chinese fan simulator <a href="https://torchlightskill.com/talos/" target="_blank" rel="noopener">塔羅斯监狱 (Talos Prison)</a> by 爱玩游戏的吉吉罗, and its board layout follows the original. The rules in this version have since been updated to match the video reveal, so it now differs heavily from the Chinese sim. Rules changed after the reveal include the warden's office in cell 01, patrol choices from the five cells ahead, no scouting, and one devour a day from the warden's cell, with chains that can't be stopped.</p>
+      <p>This began as an English translation of the Chinese fan simulator <a href="https://torchlightskill.com/talos/" target="_blank" rel="noopener">塔羅斯监狱 (Talos Prison)</a> by 爱玩游戏的吉吉罗, and its board layout follows the original. The rules in this version have since been updated to match the video reveal, so it now differs heavily from the Chinese sim. Rules changed after the reveal include the warden's office in cell 01, patrol choices from the six cells ahead, no scouting, and one devour a day from the warden's cell, with chains that can't be stopped.</p>
       <p>This English version was rebuilt independently with its own code and artwork, and the original author is not involved. No code, images or audio from that tool were copied.</p>
       <p>This English version is made by CoffeeBns: <a href="https://twitch.tv/coffeebns" target="_blank" rel="noopener">twitch.tv/coffeebns</a> and <a href="https://youtube.com/@CoffeeBns" target="_blank" rel="noopener">youtube.com/@CoffeeBns</a>.</p>
       <p>Original author: 爱玩游戏的吉吉罗 on <a href="https://v.douyin.com/okD24Xnc6wo/" target="_blank" rel="noopener">Douyin</a>, also known as 二零后游戏荒 on <a href="https://space.bilibili.com/39881994" target="_blank" rel="noopener">Bilibili</a>.</p>
@@ -630,11 +636,11 @@
   </div>
 </dialog>
 
-<script src="js/engine.js?v=20261014i"></script>
-<script src="js/board.js?v=20261014i"></script>
-<script src="js/sound.js?v=20261014i"></script>
-<script src="js/guide-data.js?v=20261014i"></script>
-<script src="js/solver.js?v=20261014i"></script>
-<script src="js/ui.js?v=20261014i"></script>
+<script src="js/engine.js?v=20261015a"></script>
+<script src="js/board.js?v=20261015a"></script>
+<script src="js/sound.js?v=20261015a"></script>
+<script src="js/guide-data.js?v=20261015a"></script>
+<script src="js/solver.js?v=20261015a"></script>
+<script src="js/ui.js?v=20261015a"></script>
 </body>
 </html>

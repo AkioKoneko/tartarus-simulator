@@ -19,7 +19,7 @@ node tools/strategy-sim.js train  --games 150000 --final 1000000   # fine-tunes 
 ```
 
 Options:
-- `--rewards on`: the first Supreme earns a tool and each Rainbow opens the Warden's Cache. The default is no tools.
+- `--rewards on`: runs start with a random tool, as live ones do, the run's objective (King of the Caged or Prison Walk) earns another, and each Rainbow opens the Warden's Cache. The default is no tools at all.
 - `--loop`: the hard mode loop food chain.
 - `--params file.json`: start from saved weights.
 - `--threads N`: how many threads to use.
@@ -29,10 +29,10 @@ Options:
 
 At every decision the strategy scores each legal move from what the player can see:
 
-- **Patrol.** It scores each destination. A locked door is worth what a new inmate is worth, plus what it could do today from the warden's cell, plus any event behind the door. A known inmate is worth its best devour or swap. A small bonus per step favors walking further.
-- **Devour.** It takes the first meal with the highest expected value. That value comes from an exact calculation of the random chain that follows, including tools.
-- **Swap.** It swaps the warden's inmate when it's at or below a tier threshold. It swaps first if the new inmate's chance to devour is worth more than today's devour.
-- **Events.** It accepts Chain reactions. It accepts an Execution when the executioner gains more than it removes.
+- **Patrol.** It scores each destination. A locked door is worth what a new inmate is worth, plus what it could do today from the warden's cell, plus any event behind the door. A known inmate is worth its best devour or swap. A small bonus per step favors walking further, and another counts tiles toward Prison Walk while it still pays a tool (`wGoal`; 0, 1 and 3 all scored 1.71 Rainbows per run on 200,000 runs, since the objective gets met anyway). With the Long-Chained Shackles, a walk of 4 or more cells adds 40% of a tier on an average inmate.
+- **Devour.** It takes the first meal with the highest expected value. That value comes from an exact calculation of the random chain that follows, including tools such as the Barbed Collar's +1 on chained bites.
+- **Swap.** It swaps the warden's inmate when it's at or below a tier threshold. It swaps first if the new inmate's chance to devour is worth more than today's devour. With the Gaoler's Execution Axe, the 2 doors a higher roll opens count toward the swap's value.
+- **Events.** It accepts Chain reactions, and Behind Closed Doors unless the inmate is already a Supreme. It accepts an Execution when the executioner gains more than it removes. A door whose event kind isn't known counts as each kind a third of the time.
 - **Tools and gifts.** Tools follow a ranking measured by the lab. Gifts are scored on the spot.
 
 The in-game Trainer shows this strategy's pick right away. It then plays each candidate move out hundreds of times with the strategy, re-rolling everything the player can't see each time. It keeps the strategy's pick unless the playouts find a clearly better move. Each move the player makes is graded against those playouts.
@@ -47,7 +47,7 @@ The strategy has four tuned profiles, chosen by the run's settings: drills with 
 node tools/strategy-sim.js guide --chain single --no-tune --games 100000 --side 100000 --habit-games 100000 --compare 100000
 ```
 
-The latest run (2026-10-13) took 3,800,000 runs in 3.7 minutes. Its full numbers are in `results/guide-data-single.json`.
+The latest run (2026-10-15) took 4,100,000 runs in 4.5 minutes. Its full numbers are in `results/guide-data-single.json`.
 
 **Two-meal chain data, kept separately.** If live turns out to use the Chinese sim's two-meal chain, its data is ready:
 - `results/guide-data-two.json`: the same measurements, from `guide --chain two`.
@@ -100,6 +100,48 @@ The tuning ran `ctune` at 100,000 runs per test for 2 rounds: 16.3 million runs 
 The two-meal chain's challenge profile had a one-round tune (5.2 million runs, 7.5 minutes). It passes 97.2% with 59.3 points on fresh prisons. On that chain, richer cargo on contract 2 pays (`keep2` 0.25).
 
 ## Results
+
+### New live rules, re-measured (2026-10-15)
+
+Live play showed more of the season, and the simulator now follows it:
+- **Patrols reach six cells** ahead of the warden instead of five.
+- **Every run starts with a random instrument.**
+- **Objectives.** Each run has one: King of the Caged (an inmate reaches Supreme, the old first-Supreme reward) or Prison Walk (move 18 tiles). What live objectives pay isn't known yet, so each pays an instrument here. The challenge keeps King of the Caged.
+- **A third event, Behind Closed Doors.** The inmate in the opened cell becomes a Supreme of the scarcest beast on the block. The three events are equally likely.
+- **Three more instruments**, for 16 in all: the Gaoler's Execution Axe, Long-Chained Shackles and Maddened Beast's Barbed Collar.
+
+`guide --no-tune` re-measured both chains at 100,000 runs per measurement: 4,100,000 runs per chain, in 4.5 minutes (single-meal) and 5.1 minutes (two-meal). "Rewards on" now means a random instrument to start, one for the objective and a gift per Rainbow; "no tools" means none at all.
+
+**Each instrument held from day 1** (no other rewards), sorted by the single-meal chain. Baselines with no instrument: 0.495 single-meal and 0.923 two-meal, up from 0.269 and 0.664 under the old rules.
+
+| Instrument | Single-meal | Change | Two-meal | Change |
+| --- | --- | --- | --- | --- |
+| Long-Chained Shackles | 1.433 | +0.938 | 1.847 | +0.924 |
+| Skewered Rat Heads | 1.296 | +0.801 | 1.631 | +0.708 |
+| Hangman's Noose | 1.276 | +0.780 | 1.977 | +1.054 |
+| Avenger's Casket | 1.243 | +0.747 | 1.841 | +0.918 |
+| Maddened Beast's Barbed Collar | 1.004 | +0.509 | 1.633 | +0.710 |
+| Rusty Saw | 0.901 | +0.406 | 1.478 | +0.555 |
+| Fanged Guillotine | 0.832 | +0.337 | 1.217 | +0.294 |
+| Iron Tongs of Lust | 0.829 | +0.334 | 1.214 | +0.291 |
+| Sorting Hook | 0.770 | +0.275 | 1.329 | +0.406 |
+| Lost Ring of Keys | 0.597 | +0.101 | 1.220 | +0.297 |
+| Raging Beast's Agonizing Muzzle | 0.595 | +0.100 | 1.167 | +0.244 |
+| Gaoler's Execution Axe | 0.590 | +0.095 | 1.158 | +0.236 |
+| Searing Branding Iron | 0.519 | +0.024 | 1.026 | +0.103 |
+| Warden's Scales | 0.495 | +0.000 | 0.924 | +0.001 |
+| Iron Pestle | 0.481 | **−0.015** | 0.916 | **−0.006** |
+| Squirming Iron Box | 0.252 | **−0.243** | 0.661 | **−0.262** |
+
+The Long-Chained Shackles are the strongest instrument on the single-meal chain and second on the two-meal one. With six cells in reach, nearly every morning offers a walk of 4 or more, and each such walk has a 40% chance to raise an inmate. The Barbed Collar ranks fifth on both chains. The Gaoler's Execution Axe fires only when a swap rolls a higher rarity, so it adds little. (The Scales' exact tie with no instrument is chance: in 3,000 paired runs they scouted about 30,000 times and changed 1,321 results.)
+
+**Rewards on**: 1.815 single-meal (was 0.648) and 2.564 two-meal (was 1.261). On the single-meal chain 81% of runs vault a Rainbow, the first around day 11.
+
+**Warden's Cache**, always the same gift: single-meal Crimson Vintage 1.757, Brand of Original Sin 1.633, Three-Headed Thumb Ring 1.625, Brass Horn of Strife 1.520; two-meal Crimson Vintage 2.477, Three-Headed Thumb Ring 2.331, Brand of Original Sin 2.154, Brass Horn of Strife 2.133. Judging each gift on the spot (1.815 and 2.564) beats all of them.
+
+**Contract challenge** (`cguide`: 2,000,000 runs plus 300,000 per variant, 6.5 million runs in 8.3 minutes). The trained strategy passes 93.9% with 52.1 points (was 94.5% and 52.3). Putting the Long-Chained Shackles second in the challenge's instrument order, after Hangman's Noose, raised the pass rate from 93.3% to 93.8% on 300,000 runs (96.5% to 96.6% on the two-meal chain), so both challenge profiles rank it there, with the Barbed Collar fifth. Starts: Supply 94.4%, Lean 90.5%, Rat-breeding 96.7%. Runs that still fail: 4.6% never reach a Supreme or Rainbow by day 12, and 1.6% ship the heavy contract but miss both early ones.
+
+The solver's instrument rankings (`toolRank` in PROFILES) follow these orders.
 
 ### Instruments, re-measured (2026-10-13)
 
@@ -244,7 +286,7 @@ Five labeled board screenshots, also resized to stand in for other resolutions a
 | Scaled 0.8× | 100% | 100% | 100% | 100% | 80% | 80% | 80% | 100% |
 | Scaled 0.6× | 97% | 100% | 100% | 100% | 20% | 40% | 80% | 98% |
 
-- **Instruments.** The 80% is one screenshot where a tooltip covers the panel. Only three instruments have panel icons so far (Squirming Iron Box, Raging Beast's Agonizing Muzzle and Lost Ring of Keys). The others are matched against their reward-card art, which hasn't been tested on the panel yet.
+- **Instruments.** The 80% is one screenshot where a tooltip covers the panel. Only three instruments have panel icons so far (Squirming Iron Box, Raging Beast's Agonizing Muzzle and Lost Ring of Keys). The others are matched against their reward-card art, which hasn't been tested on the panel yet. The Gaoler's Execution Axe, Long-Chained Shackles and Maddened Beast's Barbed Collar take their card art from a screenshot of the instrument offer (2026-10-15); adding them left every score above unchanged.
 - **Small screenshots.** At 0.6× the door and day digits are only a few pixels tall, so they're often misread there.
 - **Chromatic prisoners.** No labeled screenshot has one yet, so the slot count is untested beyond reading 0.
 - **Objectives** aren't read yet.

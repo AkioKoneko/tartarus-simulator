@@ -40,6 +40,9 @@ const TOOLS = {
   muzzle: { name: "Raging Beast's Agonizing Muzzle", sim: 'muzzle', card: ['chrome_ZjcmxiWWmC.png', 830, 190, 140, 150] },
   saw: { name: 'Rusty Saw', sim: 'saw', card: ['chrome_ZjcmxiWWmC.png', 1305, 240, 140, 150] },
   ironbox: { name: 'Squirming Iron Box: Colossal Rat', sim: 'ironbox', card: null },
+  axe: { name: "Gaoler's Execution Axe", sim: 'axe', card: ['cards_2026-10-15_axe_shackles_collar.png', 222, 180, 118, 175] },
+  shackles: { name: 'Long-Chained Shackles', sim: 'shackles', card: ['cards_2026-10-15_axe_shackles_collar.png', 670, 235, 153, 150] },
+  collar: { name: "Maddened Beast's Barbed Collar", sim: 'collar', card: ['cards_2026-10-15_axe_shackles_collar.png', 1150, 235, 150, 165] },
 };
 
 const cache = new Map();

@@ -15,7 +15,7 @@
   // The published single-file build sets this; its viewer cannot download files.
   const EMBEDDED = !!window.TARTARUS_EMBEDDED;
 
-  const KEYS = { save: 'tartarus-sim:save:v2', prefs: 'tartarus-sim:prefs:v1', params: 'tartarus-sim:params:v3' };
+  const KEYS = { save: 'tartarus-sim:save:v2', prefs: 'tartarus-sim:prefs:v1', params: 'tartarus-sim:params:v4' };
   const HISTORY_LIMIT = 40;
   const DEFAULT_PREFS = { advisor: false, quick: false, motion: true, sound: true, volume: 60, immersive: false };
 
@@ -64,13 +64,21 @@
   const cargo = { cells: new Set(), vault: new Set(), escort: 'light' };
   const cellEls = [];
 
-  // Practice values. Values saved before the single-meal food chain became the
-  // default keep everything except the food chain.
+  // Practice values. Older saved values keep everything except what the live
+  // game has since shown: v3 values take the six-cell patrol and the random
+  // starting tool, and v2 values also take the single-meal food chain.
   function loadLabParams() {
     const saved = store.get(KEYS.params);
     if (saved) return T.normalizeParams(saved);
-    const old = store.get('tartarus-sim:params:v2');
-    if (old && typeof old === 'object') delete old.loopChain;
+    let old = store.get('tartarus-sim:params:v3');
+    if (!old) {
+      old = store.get('tartarus-sim:params:v2');
+      if (old && typeof old === 'object') delete old.loopChain;
+    }
+    if (old && typeof old === 'object') {
+      delete old.patrolRange;
+      delete old.startTools;
+    }
     return T.normalizeParams(old);
   }
 
@@ -487,7 +495,7 @@
     ];
     const cells = spec.map((s, n) => Object.assign(base(n), s));
     const sample = { day: 9, position: 6, cells, prey: [{ lion: 2, prey: 12, rounds: 2 }] };
-    // Three of the five cells just ahead of the warden, as on a real morning.
+    // Three of the six cells just ahead of the warden, as on a real morning.
     const dests = new Set([8, 9, 10]);
     const html = cells
       .map((cell) => {
@@ -499,7 +507,7 @@
       })
       .join('');
     $('sample-board').classList.add('is-patrolling');
-    $('sample-board').innerHTML = `${html}<div class="board-center"><div class="decision"><div class="decision-text"><p class="decision-title">Patrol: pick a destination</p><p class="decision-detail">Day 9. The glowing cells are today's destinations, all within five steps clockwise of the warden. Open a locked door, or walk to an inmate you already know.</p></div></div></div>`;
+    $('sample-board').innerHTML = `${html}<div class="board-center"><div class="decision"><div class="decision-text"><p class="decision-title">Patrol: pick a destination</p><p class="decision-detail">Day 9. The glowing cells are today's destinations, all within six steps clockwise of the warden. Open a locked door, or walk to an inmate you already know.</p></div></div></div>`;
   }
 
   // ---------- Rendering: decision panel ----------
@@ -522,8 +530,8 @@
     }
     if (st.pending.length) {
       const kind = st.pending[0].kind;
-      const title = kind === 'gift' ? "Warden's Cache" : kind === 'refit' ? 'Refit' : 'Milestone';
-      const detail = kind === 'gift' ? 'A Rainbow reached the vault. Pick one gift; it takes effect at once.' : kind === 'refit' ? 'Delivery complete. Pick a tool for the rest of the run.' : 'Your first Supreme earns a tool for the rest of the run.';
+      const title = kind === 'gift' ? "Warden's Cache" : kind === 'refit' ? 'Refit' : 'Objective met';
+      const detail = kind === 'gift' ? 'A Rainbow reached the vault. Pick one gift; it takes effect at once.' : kind === 'refit' ? 'Delivery complete. Pick a tool for the rest of the run.' : `${T.OBJECTIVES[st.objective.id].name} is complete. Pick a tool for the rest of the run.`;
       setDecision(title, detail, [['Choose', openChoice, 'primary']], true);
       return;
     }
@@ -579,6 +587,16 @@
       ], true);
       return;
     }
+    if (kind === 'trickster') {
+      const who = st.cells[n].inmate;
+      const scarce = T.scarceBeasts(st).map(T.beastName);
+      const into = scarce.length === 1 ? `a Supreme ${scarce[0]}, the scarcest beast on the block` : `a Supreme ${scarce.join(' or ')} (the scarcest beasts on the block, one at random)`;
+      setDecision('Behind Closed Doors', `Accept to turn the ${T.describe(who)} in cell ${L(n)} into ${into}. It triggers no other effects.`, [
+        ['Accept', () => run((s) => T.resolveEvent(s, true)), 'primary'],
+        ['Skip', () => run((s) => T.resolveEvent(s, false))],
+      ], true);
+      return;
+    }
     const exec = st.cells[n].inmate;
     const victims = T.executionVictims(st, n);
     const rule = st.params.executionSameTier ? 'same-rarity' : 'lower-rarity';
@@ -613,6 +631,9 @@
       else parts.push('The occupant stays unknown until the door opens.');
       if (c.sealed && c.event && !st.chain) parts.push('A special event waits behind this door.');
       if (st.tools.includes('keys') && c.sealed && !st.chain) parts.push('Lost Ring of Keys: 80% chance the neighbors open too.');
+      const steps = T.stepsBetween(st.position, p.cell);
+      if (st.tools.includes('shackles') && steps >= 4) parts.push(`Long-Chained Shackles: a ${steps}-cell walk, so 40% chance a random inmate rises a tier.`);
+      if (st.objective.id === 'walk' && !st.milestone) parts.push(`Prison Walk: ${Math.min(T.OBJECTIVES.walk.need, st.objective.progress + steps)}/${T.OBJECTIVES.walk.need} tiles after this walk.`);
       const actions = [[c.sealed || st.chain ? 'Open door' : 'Walk here', () => run((s) => T.patrol(s, p.cell), { select: p.cell }), 'primary']];
       actions.push(['Cancel', cancel]);
       setDecision(`Patrol to cell ${L(p.cell)}?`, parts.join(' '), actions, true);
@@ -634,6 +655,7 @@
       if (notes.length) extras.push(`Bonus: ${notes.join(', ')}.`);
       extras.push('This is today’s devour. Afterwards the eater chains on by itself into random valid targets. Click the target again to devour.');
       if (saw) extras.push('Rusty Saw may add +1.');
+      if (st.tools.includes('collar')) extras.push('Barbed Collar: each bite after this one has an 80% chance of +1.');
       if (revenge) extras.push("Avenger's Casket may open a new meal.");
       if (T.linkOf(st, eater.id) && to < T.RAINBOW) extras.push('If its beast changes, its prey mark ends.');
       const outcome = to === T.RAINBOW ? 'reaches Rainbow and leaves for the vault' : `rises to ${T.tierName(to)}, then its beast re-rolls`;
@@ -652,6 +674,7 @@
       }
       const parts = [`A brand-new random inmate replaces the ${T.describe(cell.inmate)}. It can come out stronger or weaker.`];
       if (st.tools.includes('rope')) parts.push("Hangman's Noose: never Normal or Magic.");
+      if (st.tools.includes('axe')) parts.push(`Gaoler's Execution Axe: if it comes out above ${T.tierName(cell.inmate.tier)}, 2 random sealed cells open.`);
       if (cell.ivory) parts.push(`Tusk cell: ${T.plural(st.params.ivoryCount, 'inmate')} then gain a tier.`);
       setDecision(`Swap cell ${L(p.cell)}?`, parts.join(' '), [
         ['Swap', () => run((s) => T.swap(s, p.cell)), 'primary'],
@@ -842,6 +865,9 @@
       else if (x.type === 'walk') out.push(item(`Walked to ${L(x.cell)}`, x.who ? tok(x.who, { cell: x.cell }) : ''));
       else if (x.type === 'sweep') out.push(item(`Chain walk ${L(x.from)} to ${L(x.cell)}`, ''));
       else if (x.type === 'armed') out.push(item('Chain reaction armed', ''));
+      else if (x.type === 'trickster') out.push(item('Behind Closed Doors', `${tok(x.who, { cell: x.cell })}<span class="then">›</span>${tok(x.after, { cell: x.cell })}`));
+      else if (x.type === 'shackles') out.push(item('Shackles +1', tok(x.who, { cell: x.cell })));
+      else if (x.type === 'objective') out.push(item('Objective met', `<span class="recap-note">${esc(T.OBJECTIVES[x.id].name)}</span>`));
       else if (x.type === 'skipped') out.push(item(`Skipped ${x.name}`, ''));
       else if (x.type === 'execution') {
         const took = x.victims.length ? `<span class="fang">${FANGS}<b>×${x.victims.length}</b></span>${x.victims.map((v) => tok(v, { eaten: true })).join('')}` : '<span class="recap-note">no one</span>';
@@ -865,6 +891,7 @@
   function renderGoal() {
     const st = ui.state;
     const board = T.boardInmates(st);
+    renderObjective(st);
     if (st.mode === 'challenge') {
       const ch = st.challenge;
       $('goal-title').textContent = 'Contract challenge';
@@ -884,6 +911,17 @@
       ['Best now', board.length || st.vault.length ? T.tierName(best) : '—', true],
       ['On block', board.length],
     ]);
+  }
+
+  // The run's objective, as the live game shows it, with its progress.
+  function renderObjective(st) {
+    const o = st.objective;
+    const def = T.OBJECTIVES[o.id];
+    const done = st.milestone;
+    const status = done ? 'Done' : o.id === 'walk' ? `${o.progress}/${def.need}` : 'Not yet';
+    const reward = !st.params.rewards ? 'Rewards are off for this drill.' : done ? 'Its tool is earned.' : 'Meeting it earns a tool.';
+    const bar = o.id === 'walk' ? `<span class="objective-bar${done ? ' is-done' : ''}"><span style="width:${Math.round((100 * o.progress) / def.need)}%"></span></span>` : '';
+    setHTML($('goal-objective'), `<p class="objective-head"><span class="objective-tag">Objective</span><span class="objective-name">${esc(def.name)}</span><span class="objective-status${done ? ' is-done' : ''}">${esc(status)}</span></p><p class="objective-text">${esc(def.text)}. ${esc(reward)}</p>${bar}`);
   }
 
   function renderVault() {
@@ -911,7 +949,7 @@
     if (!st.tools.length) {
       let empty;
       if (st.mode === 'challenge') empty = 'No tools yet. Your first Supreme and each of your first two deliveries earn one.';
-      else if (st.params.rewards) empty = 'No tools yet. Your first Supreme earns one. The Lab can add more, or start drills with random tools.';
+      else if (st.params.rewards) empty = 'No tools yet. Meeting the objective earns one. The Lab can add more, or start drills with random tools.';
       else empty = 'Rewards are off for this drill. Add tools in the Lab to test them.';
       list.innerHTML = `<li class="tool-text">${empty}</li>`;
       return;
@@ -1011,6 +1049,7 @@
     early: 'Contracts: the heavy contract is needed to pass, and delivering it early ends the run.',
     chain: 'Training: accepting Chain reactions vaulted more Rainbows than skipping them.',
     execution: 'Training: accept an Execution only when it gains more than it removes.',
+    trickster: 'Behind Closed Doors makes a Supreme for free: accept it unless the inmate already is one.',
     gift: 'Training: picking the gift that fits the board beat always taking the same one.',
     window: 'Contracts: on the first two, send inmates you can spare by light escort, and keep 3 vouchers for the heavy contract. Sending the most points every time passed far less often.',
     heavy: 'Contracts: the heavy contract ends the run, so it takes the most points your vouchers can escort.',
@@ -1038,7 +1077,7 @@
     if (st.challenge && st.phase !== 'event') return nextContractLesson(st);
     if (st.phase === 'event' && st.event) {
       if (st.event.kind === 'chain') return (vs('skipChain', 'Training: skipping Chain reactions cost Rainbows') || LESSONS.chain) + (g ? '.' : '');
-      return LESSONS.execution;
+      return st.event.kind === 'trickster' ? LESSONS.trickster : LESSONS.execution;
     }
     if (st.phase === 'patrol') return action && action.type === 'early' ? LESSONS.early : LESSONS.patrol;
     if (!action) return '';
@@ -1754,8 +1793,9 @@
       closeDialog('dlg-choice');
       return;
     }
+    const goal = T.OBJECTIVES[st.objective.id].name;
     const copy = {
-      tool: ['Milestone', 'Choose a tool', 'Your first Supreme earns one tool for the rest of the run.'],
+      tool: ['Objective met', 'Choose a tool', `${goal} is complete. Take one tool for the rest of the run.`],
       gift: ["Warden's Cache", 'Choose a gift', 'A Rainbow reached the vault. Pick one gift; it takes effect at once.'],
       refit: ['Refit', 'Choose a tool', 'Delivery complete. Take one tool for the rest of the run.'],
     }[choice.kind];
