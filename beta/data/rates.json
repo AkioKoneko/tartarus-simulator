@@ -1,22 +1,22 @@
 {
   "about": "Live odds measured from boards shared by the board analyzer, next to the values the simulator uses (js/engine.js DEFAULT_PARAMS). Made by tools/live-data.js.",
   "counted": "only what players set or confirmed against their game",
-  "boards": 425,
-  "runs": 34,
-  "steps": 391,
-  "latest": "2026-10-14",
-  "leftOut": 249,
+  "boards": 480,
+  "runs": 48,
+  "steps": 432,
+  "latest": "2026-10-15",
+  "leftOut": 255,
   "doors": {
     "about": "What a patrol finds behind a sealed door (and nests). Simulator: tierWeights and beastWeights.",
     "tiers": {
-      "n": 11,
+      "n": 12,
       "rows": [
         {
           "name": "Normal",
           "count": 7,
-          "share": 0.6363636363636364,
-          "low": 0.35379677689163724,
-          "high": 0.8483377638586862,
+          "share": 0.5833333333333334,
+          "low": 0.3195073356553728,
+          "high": 0.8067425380947535,
           "sim": 0.52,
           "fits": null
         },
@@ -24,26 +24,26 @@
           "name": "Magic",
           "count": 0,
           "share": 0,
-          "low": 2.7755575615628914e-17,
-          "high": 0.2588400172488141,
+          "low": 0,
+          "high": 0.2425007574992425,
           "sim": 0.27,
           "fits": null
         },
         {
           "name": "Rare",
-          "count": 3,
-          "share": 0.2727272727272727,
-          "low": 0.09745880573921467,
-          "high": 0.5656502930102463,
+          "count": 4,
+          "share": 0.3333333333333333,
+          "low": 0.13811783989736134,
+          "high": 0.609382412602386,
           "sim": 0.15,
           "fits": null
         },
         {
           "name": "Legendary",
           "count": 1,
-          "share": 0.09090909090909091,
-          "low": 0.01623175226282597,
-          "high": 0.3773646254862038,
+          "share": 0.08333333333333333,
+          "low": 0.014864709450773478,
+          "high": 0.35388592179859524,
           "sim": 0.06,
           "fits": null
         },
@@ -51,8 +51,8 @@
           "name": "Supreme",
           "count": 0,
           "share": 0,
-          "low": 2.7755575615628914e-17,
-          "high": 0.2588400172488141,
+          "low": 0,
+          "high": 0.2425007574992425,
           "sim": 0,
           "fits": null
         },
@@ -60,8 +60,8 @@
           "name": "Rainbow",
           "count": 0,
           "share": 0,
-          "low": 2.7755575615628914e-17,
-          "high": 0.2588400172488141,
+          "low": 0,
+          "high": 0.2425007574992425,
           "sim": 0,
           "fits": null
         }
@@ -70,41 +70,41 @@
       "verdict": "too few yet"
     },
     "beasts": {
-      "n": 11,
+      "n": 12,
       "rows": [
         {
           "name": "Mammoth",
           "count": 1,
-          "share": 0.09090909090909091,
-          "low": 0.01623175226282597,
-          "high": 0.3773646254862038,
+          "share": 0.08333333333333333,
+          "low": 0.014864709450773478,
+          "high": 0.35388592179859524,
           "sim": 0.25,
           "fits": null
         },
         {
           "name": "Lion",
           "count": 4,
-          "share": 0.36363636363636365,
-          "low": 0.15166223614131383,
-          "high": 0.6462032231083628,
+          "share": 0.3333333333333333,
+          "low": 0.13811783989736134,
+          "high": 0.609382412602386,
           "sim": 0.25,
           "fits": null
         },
         {
           "name": "Wolf",
           "count": 2,
-          "share": 0.18181818181818182,
-          "low": 0.05136660067100063,
-          "high": 0.4769861375782448,
+          "share": 0.16666666666666666,
+          "low": 0.04696414761482223,
+          "high": 0.44803635738467273,
           "sim": 0.25,
           "fits": null
         },
         {
           "name": "Rat",
-          "count": 4,
-          "share": 0.36363636363636365,
-          "low": 0.15166223614131383,
-          "high": 0.6462032231083628,
+          "count": 5,
+          "share": 0.4166666666666667,
+          "low": 0.19325746190524656,
+          "high": 0.6804926643446272,
           "sim": 0.25,
           "fits": null
         }
@@ -116,32 +116,32 @@
   "swaps": {
     "about": "Who comes in when the warden's inmate is swapped, without Hangman's Rope or a Burning Stake roll. The simulator uses the same odds as doors.",
     "tiers": {
-      "n": 14,
+      "n": 15,
       "rows": [
         {
           "name": "Normal",
-          "count": 10,
-          "share": 0.7142857142857143,
-          "low": 0.4535045882751561,
-          "high": 0.882788120898909,
+          "count": 11,
+          "share": 0.7333333333333333,
+          "low": 0.4804911034231324,
+          "high": 0.8910272389681718,
           "sim": 0.52,
           "fits": null
         },
         {
           "name": "Magic",
           "count": 3,
-          "share": 0.21428571428571427,
-          "low": 0.0757124833691637,
-          "high": 0.4758972377320828,
+          "share": 0.2,
+          "low": 0.07047420643610414,
+          "high": 0.4518593533465045,
           "sim": 0.27,
           "fits": null
         },
         {
           "name": "Rare",
           "count": 1,
-          "share": 0.07142857142857142,
-          "low": 0.012721886112291636,
-          "high": 0.3146926955395781,
+          "share": 0.06666666666666667,
+          "low": 0.011866588606194856,
+          "high": 0.2981707755242399,
           "sim": 0.15,
           "fits": null
         },
@@ -150,7 +150,7 @@
           "count": 0,
           "share": 0,
           "low": 0,
-          "high": 0.21531701192718142,
+          "high": 0.20388926630434784,
           "sim": 0.06,
           "fits": null
         },
@@ -159,7 +159,7 @@
           "count": 0,
           "share": 0,
           "low": 0,
-          "high": 0.21531701192718142,
+          "high": 0.20388926630434784,
           "sim": 0,
           "fits": null
         },
@@ -168,7 +168,7 @@
           "count": 0,
           "share": 0,
           "low": 0,
-          "high": 0.21531701192718142,
+          "high": 0.20388926630434784,
           "sim": 0,
           "fits": null
         }
@@ -177,41 +177,41 @@
       "verdict": "too few yet"
     },
     "beasts": {
-      "n": 14,
+      "n": 15,
       "rows": [
         {
           "name": "Mammoth",
           "count": 3,
-          "share": 0.21428571428571427,
-          "low": 0.0757124833691637,
-          "high": 0.4758972377320828,
+          "share": 0.2,
+          "low": 0.07047420643610414,
+          "high": 0.4518593533465045,
           "sim": 0.25,
           "fits": null
         },
         {
           "name": "Lion",
-          "count": 5,
-          "share": 0.35714285714285715,
-          "low": 0.16344490737202735,
-          "high": 0.6123599531785959,
+          "count": 6,
+          "share": 0.4,
+          "low": 0.19824228082594664,
+          "high": 0.642535572434923,
           "sim": 0.25,
           "fits": null
         },
         {
           "name": "Wolf",
           "count": 2,
-          "share": 0.14285714285714285,
-          "low": 0.040093073737921175,
-          "high": 0.39941907763863693,
+          "share": 0.13333333333333333,
+          "low": 0.0373604698913593,
+          "high": 0.3788249920651624,
           "sim": 0.25,
           "fits": null
         },
         {
           "name": "Rat",
           "count": 4,
-          "share": 0.2857142857142857,
-          "low": 0.11721187910109099,
-          "high": 0.5464954117248438,
+          "share": 0.26666666666666666,
+          "low": 0.1089727610318281,
+          "high": 0.5195088965768675,
           "sim": 0.25,
           "fits": null
         }
@@ -293,7 +293,7 @@
       "verdict": "too few yet"
     },
     "withoutKeyRing": {
-      "n": 70,
+      "n": 72,
       "opened": 0,
       "about": "Side doors that opened without the Lost Key Ring. The simulator says this never happens."
     }
@@ -357,11 +357,11 @@
   "events": {
     "about": "Special events behind doors. Simulator: eventChance per sealed cell at the start, then a 50/50 Chain reaction or Execution.",
     "dayOneDoorsWithEvents": {
-      "n": 264,
-      "count": 5,
-      "share": 0.01893939393939394,
-      "low": 0.008116118452440698,
-      "high": 0.043562186934026526,
+      "n": 390,
+      "count": 6,
+      "share": 0.015384615384615385,
+      "low": 0.007069388031836956,
+      "high": 0.03315388954981008,
       "sim": 0.18,
       "verdict": "differs from the simulator"
     },
