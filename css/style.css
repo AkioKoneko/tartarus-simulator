@@ -205,13 +205,16 @@ a {
 
 /* ---------- Title screen ---------- */
 
+/* The copy and, under it, the credits fill the first column. The sample
+   board spans both rows of the second. */
 .title {
   min-height: 100%;
   max-width: 1320px;
   margin: 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  gap: clamp(24px, 4vw, 64px);
+  gap: 24px clamp(24px, 4vw, 64px);
+  align-content: center;
   align-items: center;
   padding-block: clamp(24px, 6vh, 64px);
   padding-inline: clamp(16px, 4vw, 64px);
@@ -248,7 +251,7 @@ a {
 
 .source-note {
   max-width: 560px;
-  margin: -6px 0 22px;
+  margin: 0;
   padding: 10px 12px;
   border: 1px solid var(--iron);
   border-radius: var(--radius);
@@ -256,11 +259,6 @@ a {
   color: var(--ash);
   font-size: 14px;
   text-wrap: pretty;
-}
-
-/* The maker credit sits just above the translation note. */
-.source-note.made-by {
-  margin-bottom: 10px;
 }
 
 .source-note strong {
@@ -369,14 +367,21 @@ a.menu-item {
   margin-top: 18px;
 }
 
+/* The credits and the disclaimer close the title screen. */
+.title-credits {
+  display: grid;
+  gap: 10px;
+}
+
 .fineprint {
   max-width: 62ch;
-  margin: 18px 0 0;
+  margin: 4px 0 0;
   font-size: 12.5px;
   color: var(--ash);
 }
 
 .title-art {
+  grid-row: span 2;
   margin: 0;
   display: grid;
   gap: 12px;
@@ -2945,6 +2950,11 @@ textarea {
 @media (max-width: 960px) {
   .title {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* One column: the copy, the sample board, then the credits. */
+  .title-art {
+    grid-row: auto;
   }
 
   .route {
