@@ -99,6 +99,15 @@ The two-meal chain's challenge profile had a one-round tune (5.2 million runs, 7
 
 The Chinese sim's two-meal food chain (Mammoth also eats Wolf, Lion also eats Rat) was confirmed not to be in the live game on 2026-10-15, so it was removed from the simulator and the lab. The older sections below still show the two-meal numbers measured at the time; their files are in the git history.
 
+### The Ravenous Chains and the Scapegoat's Guillotine (2026-10-16)
+
+Two more instruments, measured alone and in pairs on 4 threads (no instrument 0.633):
+
+- **Ferocious Beast's Ravenous Chains** (from the user's screenshot of the card): each morning the highest-rarity inmate removes the inmates in the cells on either side of it on the ring, with a 40% chance of +1 tier for each one removed. 1.369 alone, 5th of 25. Best with the Severed Iron Maiden (2.76). With the Squirming Iron Box it makes 2.04, 1.00 beyond their parts: the box's nests keep feeding the chains.
+- **Scapegoat's Guillotine** (report 12): when a swap has 2 or more other inmates on the block, 2 random ones are removed and the new inmate comes in above the rarity it replaced. 1.810 alone, 2nd of 25. Holding it, the strategy swaps up to Supreme, weighing the guaranteed rise against what the 2 removed inmates are worth on average. With the Maiden it makes 5.29 (+2.14 beyond their parts).
+  - When the rarity weights reach no higher than the old inmate (a Supreme), the newcomer comes in one tier above, so a swapped Supreme becomes Chromatic. That is a reading of "guarantee that the Inmate's rarity is increased", and much of the Guillotine's value rests on it.
+- **Contract challenge:** the Guillotine ranks after the Maiden, and the Chains after the Long-Chained Shackles.
+
 ### The Severed Iron Maiden and the Barbed Whip (2026-10-16)
 
 Two more instruments from players' reports (#9 to #11), measured alone and in pairs on 4 threads (no instrument 0.633):

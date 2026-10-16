@@ -142,6 +142,17 @@
     // and "+1 additional Rarity Tier" (the rest of the card was cut off),
     // read like the Rusty Saw: the eater, on each bite.
     whip: { name: 'Barbed Whip', text: 'Each morning offers 1 destination fewer. Each bite of a devour has a 35% chance of +1 extra tier.' },
+    // From the user's screenshot of its card (2026-10-16): "At the start of
+    // each day: Removes Inmates on both sides of the Inmate with the highest
+    // rarity; for each Inmate removed, there is a 40% chance to grant that
+    // Inmate +1 Rarity Tier". Read as the cells either side on the ring, the
+    // removed inmates leaving their cells as a meal does.
+    ravenous: { name: "Ferocious Beast's Ravenous Chains", text: 'Each morning the highest-rarity inmate removes the inmates on both sides of it, with a 40% chance of +1 tier for each one removed.' },
+    // A player's report (#12, 2026-10-16), the card: "There are at least 2
+    // other Inmates on the field when replacing: Randomly removes 2 other
+    // Inmates to guarantee that the Inmate's rarity is increased after
+    // replacing".
+    scapegoat: { name: "Scapegoat's Guillotine", text: 'When a swap has 2 or more other inmates on the block, 2 random ones are removed and the new inmate comes in above the rarity it replaced.' },
   };
   const TOOL_IDS = Object.keys(TOOLS);
 
@@ -812,7 +823,31 @@
         events.push({ type: 'nest', cell: cell.n });
       }
     }
+    if (has(state, 'ravenous')) ravenousChains(state, events);
     rollDestinations(state);
+  }
+
+  // Ferocious Beast's Ravenous Chains, each morning: the highest-rarity
+  // inmate (one at random among equals) removes the inmates in the cells on
+  // either side of it on the ring, and may rise a tier for each.
+  function ravenousChains(state, events) {
+    const board = boardCells(state);
+    if (!board.length) return;
+    const top = Math.max(...board.map((c) => c.inmate.tier));
+    const cell = pickOne(state, board.filter((c) => c.inmate.tier === top));
+    const eater = cell.inmate;
+    const sides = [(cell.n + CELL_COUNT - 1) % CELL_COUNT, (cell.n + 1) % CELL_COUNT].map((k) => state.cells[k]).filter((c) => !c.sealed && c.inmate);
+    if (!sides.length) return;
+    const gone = sides.map((c) => `the ${describe(c.inmate)} in ${cellLabel(c.n)}`);
+    let rises = 0;
+    for (const side of sides) {
+      emptyCell(state, side);
+      events.push({ type: 'removed', cell: side.n });
+      if (rand(state) < 0.4) rises += 1;
+    }
+    checkPrey(state);
+    log(state, 'tool', `Ferocious Beast's Ravenous Chains: the ${describe(eater)} in cell ${cellLabel(cell.n)} removes ${gone.join(' and ')}${rises ? ` and rises ${plural(rises, 'tier')}` : ''}.`, { type: 'ravenous', cell: cell.n, removed: sides.map((c) => c.n), rises });
+    if (rises) promote(state, eater, rises, false, events);
   }
 
   // ---------- Queries ----------
@@ -1272,7 +1307,27 @@
     const at = state.log.length;
     cell.inmate = null;
     checkPrey(state);
-    const fresh = rollInmate(state, weights);
+    // Scapegoat's Guillotine: with 2 or more others on the block, 2 of them
+    // go, and the newcomer comes in above the rarity it replaces (a tier
+    // above when the rarity weights reach no higher).
+    let above = false;
+    if (has(state, 'scapegoat')) {
+      const others = boardCells(state);
+      if (others.length >= 2) {
+        const victims = shuffle(state, others).slice(0, 2);
+        const names = victims.map((c) => `the ${describe(c.inmate)} in ${cellLabel(c.n)}`);
+        for (const v of victims) {
+          emptyCell(state, v);
+          events.push({ type: 'removed', cell: v.n });
+        }
+        checkPrey(state);
+        log(state, 'tool', `Scapegoat's Guillotine: ${names.join(' and ')} go, so the swap comes in above ${TIERS[old.tier]}.`, { type: 'scapegoat', cell: n, removed: victims.map((c) => c.n) });
+        above = true;
+      }
+    }
+    const higher = weights.map((w, t) => (t > old.tier ? w : 0));
+    const fresh = rollInmate(state, above && higher.some((w) => w > 0) ? higher : weights);
+    if (above && fresh.tier <= old.tier) fresh.tier = Math.min(RAINBOW, old.tier + 1);
     if (has(state, 'pestle')) fresh.beast = old.beast;
     cell.inmate = fresh;
     state.used.swap += 1;
@@ -1744,6 +1799,8 @@
       case 'shortchain': return 10;
       case 'maiden': return 10;
       case 'whip': return 8;
+      case 'ravenous': return 8;
+      case 'scapegoat': return board.length >= 3 ? 10 : 4;
       case 'wine': return board.filter((i) => i.tier < 3).length * 4;
       case 'horn': return board.filter((i) => devourOptions(state, cellOf(state, i.id).n).length).length * 6;
       case 'brand': return board.filter((i) => !devourOptions(state, cellOf(state, i.id).n).length).length * 5;

@@ -11,6 +11,12 @@
       "delta": 1.3317
     },
     {
+      "id": "scapegoat",
+      "name": "Scapegoat's Guillotine",
+      "value": 1.8061,
+      "delta": 1.1791
+    },
+    {
       "id": "blacklist",
       "name": "Executioner's Blacklist",
       "value": 1.5452,
@@ -21,6 +27,12 @@
       "name": "Long-Chained Shackles",
       "value": 1.4627,
       "delta": 0.8357
+    },
+    {
+      "id": "ravenous",
+      "name": "Ferocious Beast's Ravenous Chains",
+      "value": 1.3635,
+      "delta": 0.7365
     },
     {
       "id": "rope",
@@ -1553,5 +1565,9 @@
     },
     "totalRuns": 1700000,
     "minutes": 8.2
-  }
+  },
+  "toolsAdded": [
+    "ravenous",
+    "scapegoat"
+  ]
 }

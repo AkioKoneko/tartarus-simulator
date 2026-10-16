@@ -253,6 +253,23 @@
       '<path d="M30 28.5l7.5 12" stroke="#3a2a22" stroke-width="4.2" stroke-linecap="round"/>' +
       '<path d="M31.5 31l5 8" stroke="#6e5244" stroke-width="1" stroke-linecap="round"/>' +
       '<circle cx="38.2" cy="41.6" r="2.4" fill="#2c2c33" stroke="#8d92a8" stroke-width="1"/>'),
+    // Ferocious Beast's Ravenous Chains: a grey chain coiled into a ring,
+    // barbed in red, ending in a hook.
+    ravenous: icon('glow-red',
+      spikes(23, 20, 10.5, 13.5, 18, 0.5, '#c0282d') +
+      '<circle cx="23" cy="20" r="10.5" fill="none" stroke="#4d505b" stroke-width="3.6" stroke-dasharray="3.2 1.4"/>' +
+      '<circle cx="23" cy="20" r="10.5" fill="none" stroke="#a3a8bd" stroke-width="1" stroke-dasharray="3.2 1.4"/>' +
+      '<circle cx="24.5" cy="19" r="6.5" fill="none" stroke="#6b6d78" stroke-width="2.4" stroke-dasharray="2.6 1.2"/>' +
+      '<path d="M31 28c3 4 4 8 1.5 11.5" fill="none" stroke="#8d92a8" stroke-width="2.4" stroke-dasharray="2.6 1.2"/>' +
+      '<path d="M33 40c-2 3.4-6.4 3.4-8 0" fill="none" stroke="#b9bcc6" stroke-width="2.2" stroke-linecap="round"/>'),
+    // Scapegoat's Guillotine: a wooden frame over a bloodied steel blade.
+    scapegoat: icon('glow-teal',
+      '<rect x="13" y="5" width="22" height="5" rx="1" fill="#6e4a32" stroke="#3a2a22" stroke-width="1"/>' +
+      '<rect x="15" y="9" width="4" height="12" fill="#5e3a2c"/><rect x="29" y="9" width="4" height="12" fill="#5e3a2c"/>' +
+      '<path d="M15 12h18" stroke="#8d92a8" stroke-width="1.6"/><circle cx="24" cy="7.5" r="1.4" fill="#2c2c33"/>' +
+      '<path d="M11 19h26l-2.5 22h-21Z" fill="#9a9eaa" stroke="#5d606c" stroke-width="1.2"/>' +
+      '<path d="M11.5 23.5h25" stroke="#c9ccd4" stroke-width="1"/>' +
+      '<path d="M17 27c3 1 5 4 3.5 8M27 26c2 2.5 1.5 6 4 9M23 31c.5 2 0 4-1 5.5" stroke="#9b1d22" stroke-width="2" fill="none" stroke-linecap="round"/>'),
     // Maddened Beast's Barbed Collar: a blood-red collar ringed with barbs.
     collar: icon('glow-red',
       spikes(24, 24, 14.5, 21.5, 14, 0, '#3a1012') +
