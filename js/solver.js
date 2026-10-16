@@ -578,7 +578,7 @@
         // Executioner's Blacklist: opening this door leaves 5 or fewer locked,
         // so 2 random inmates rise a tier.
         if (ctx.blacklist && ctx.sealed - 1 <= 5) score += 2 * ctx.lift;
-        why = need > 0 ? `a new inmate, who may help meet "${ctx.need.contract.name}"` : 'a new inmate, who may devour today';
+        why = need > 0 ? `a new inmate, who may help meet "${ctx.need.contract.name}"` : 'a new inmate, who may consume today';
         const worth = eventWorth(ctx, board.comp);
         const pool = st.eventPool || T.EVENT_POOL;
         const anyEvent = () => pool.reduce((sum, id) => sum + worth[id](), 0) / pool.length;
@@ -1194,7 +1194,7 @@
     for (const o of T.startOptions(st)) {
       const target = st.cells[o.cell];
       const meal = o.scratch ? `the scratched door` : `the ${T.describe(target.inmate)}`;
-      out.push({ action: { type: 'devour', to: o.cell }, label: `Devour ${meal} in ${T.cellLabel(o.cell)}` });
+      out.push({ action: { type: 'devour', to: o.cell }, label: `Consume ${meal} in ${T.cellLabel(o.cell)}` });
     }
     if (canSwapNow(st) && here && !here.sealed && here.inmate) {
       out.push({ action: { type: 'swap' }, label: `Swap the ${T.describe(here.inmate)} in ${T.cellLabel(here.n)}` });
@@ -1381,7 +1381,7 @@
         return action.choice === 'bestow' ? 'A random inmate rises a tier now, which beats a couple of new event doors.' : 'The block is thin, so new event doors are worth more than raising it.';
       case 'swap': {
         // A day has a swap or a devour, not both.
-        const over = T.startOptions(st).length ? ' That beats today’s best devour, and a day has one or the other.' : '';
+        const over = T.startOptions(st).length ? ' That beats today’s best consume, and a day has one or the other.' : '';
         const maiden = maidenBonus(ctx, here.inmate.tier);
         const odds = `${(100 * maiden.chance).toFixed(0)}% of the time`;
         if (here.ivory) return `A Tusk cell: swapping it raises other inmates a tier${maiden.chance > 0 ? `, and the Severed Iron Maiden adds 3 tiers to the new inmate ${odds}` : ''}.${over}`;
@@ -1395,8 +1395,8 @@
         // A devour is skipped only when it costs more than it gains: nearly
         // always because it would end a prey mark.
         const marked = here && here.inmate && T.linkOf(st, here.inmate.id) ? here.inmate : T.startOptions(st).map((o) => st.cells[o.cell].inmate).find((m) => m && T.linkOf(st, m.id));
-        if (marked) return 'Skip today’s devour: it would end a prey mark, and the free tier each morning is worth more than one bite.';
-        return 'Every devour here would cost more than it gains today.';
+        if (marked) return 'Skip today’s consume: it would end a prey mark, and the free tier each morning is worth more than one bite.';
+        return 'Every consume here would cost more than it gains today.';
       }
       case 'event': {
         if (st.event.kind === 'chain') return action.accept ? 'Your next walk opens every sealed door on the way.' : 'More inmates would hurt this block today.';

@@ -25,6 +25,7 @@
   let rules = []; // [{ kind, re, settle, rank }]
   let watch = null; // log lines worth showing while finding triggers
   let burst = null; // matched lines waiting for the animations to settle
+  let pace = 1; // settle times are scaled by this: the game's Speed-up runs its animations faster
   let tail = null; // { post(message), stop() }
   let track = null;
   let imageCapture = null;
@@ -239,6 +240,9 @@
       burst = null;
       return;
     }
+    // A "speed" line (the game's Speed-up button) takes no picture: the page
+    // hears it as a hit, and sets the pace.
+    if (rule.kind === 'speed') return;
     // Lines in a burst become one frame, once the log has been quiet for the
     // longest settle time among them.
     if (!burst) burst = { kind: rule.kind, rank: rule.rank, settle: 0, hits: [], timer: 0 };
@@ -246,7 +250,7 @@
       burst.kind = rule.kind;
       burst.rank = rule.rank;
     }
-    burst.settle = Math.max(burst.settle, rule.settle);
+    burst.settle = Math.max(burst.settle, Math.max(250, rule.settle * pace));
     if (burst.hits.length < 40) burst.hits.push({ kind: hit.kind, at: hit.at, text: hit.text });
     clearTimeout(burst.timer);
     burst.timer = setTimeout(fire, burst.settle);
@@ -531,6 +535,13 @@
     return rules.length;
   }
 
+  // The game's Speed-up: its animations take about 0.4 of the time, so the
+  // waits before pictures shrink to match.
+  function setPace(factor) {
+    pace = Math.min(1, Math.max(0.2, Number(factor) || 1));
+    return pace;
+  }
+
   function setWatch(pattern) {
     try {
       watch = pattern ? new RegExp(pattern, 'i') : null;
@@ -567,6 +578,7 @@
     stopWindow,
     setRules,
     setWatch,
+    setPace,
     captureNow,
     grab,
   };

@@ -108,25 +108,25 @@
   ];
 
   const TOOLS = {
-    revenge: { name: "Avenger's Casket", text: 'After a devour, 30% chance to open a sealed cell holding a meal for the eater at its new rarity. That door triggers nothing else.' },
-    muzzle: { name: "Raging Beast's Agonizing Muzzle", text: 'When 4 or fewer inmates are on the block after the meal, a devour gains +2 extra tiers.' },
-    saw: { name: 'Rusty Saw', text: 'After a devour, 25% chance of +1 extra tier.' },
+    revenge: { name: "Avenger's Casket", text: 'After a consume, 30% chance to open a sealed cell holding a meal for the eater at its new rarity. That door triggers nothing else.' },
+    muzzle: { name: "Raging Beast's Agonizing Muzzle", text: 'When 4 or fewer inmates are on the block after the meal, a consume gains +2 extra tiers.' },
+    saw: { name: 'Rusty Saw', text: 'After a consume, 25% chance of +1 extra tier.' },
     keys: { name: 'Lost Ring of Keys', text: 'When a patrol opens a door, 80% chance to also open the cells on both sides. Those doors trigger nothing else.' },
     rope: { name: "Hangman's Noose", text: 'Swapped-in inmates are never Normal or Magic.' },
     // Once translated as the Burning Stake, with other rules; the live card reads as below.
     fire: { name: 'Searing Branding Iron', text: 'When a patrol opens a door, 35% chance to copy the inmate behind it into 1 random unopened cell, which opens holding the copy. That door triggers nothing else.' },
     ironbox: { name: 'Squirming Iron Box', text: 'Each morning a sealed cell becomes a rat nest. It hatches a Rare Rat two days later.' },
-    skewer: { name: 'Skewered Rat Heads', text: "Rats can devour Rats of the same rarity, and a Rat's devour gains +1 extra tier." },
+    skewer: { name: 'Skewered Rat Heads', text: "Rats can consume Rats of the same rarity, and a Rat's consume gains +1 extra tier." },
     hook: { name: 'Sorting Hook', text: 'Cells that open never hold a Normal inmate.' },
     pestle: { name: 'Iron Pestle', text: 'A swapped-in inmate keeps the beast of the one it replaced; only its rarity is re-rolled.' },
     scales: { name: "Warden's Scales", text: 'After a swap, 80% chance to scout the highest-rarity inmate behind the locked doors: its door shows its beast and rarity.' },
     tongs: { name: 'Iron Tongs of Lust', text: 'Each morning a random Mammoth on the block gets a Tusk mark.' },
-    guillotine: { name: 'Fanged Guillotine', text: 'Wolves can also devour the beasts they eat at a lower rarity than their own.' },
+    guillotine: { name: 'Fanged Guillotine', text: 'Wolves can also consume the beasts they eat at a lower rarity than their own.' },
     axe: { name: "Gaoler's Execution Axe", text: 'When a swap brings in a higher rarity than it replaced, 2 random sealed cells open. Those doors trigger nothing else.' },
     shackles: { name: 'Long-Chained Shackles', text: 'When a patrol walks 4 or more cells, 40% chance that 1 random inmate on the block rises a tier.' },
     // The card reads "When an Inmate Chain Consumes": the bites after the
     // first, which the eater takes by itself.
-    collar: { name: "Maddened Beast's Barbed Collar", text: 'Each bite of a devour chain after the first: 80% chance of +1 extra tier.' },
+    collar: { name: "Maddened Beast's Barbed Collar", text: 'Each bite of a consume chain after the first: 80% chance of +1 extra tier.' },
     forged: { name: 'Forged Key', text: 'Each morning offers 1 destination fewer. When a patrol opens a door, 50% chance to open 1 more random sealed cell. That door triggers nothing else.' },
     // The card: "There is a 25% chance to trigger after opening: +1 Rarity
     // Tier to the current Inmate", read as the inmate in the cell the warden
@@ -135,7 +135,7 @@
     // The card: "There is a 40% chance to trigger after the Inmate is
     // Consumed: the cell occupied by this Inmate is immediately opened (does
     // not trigger other effects)" (a player's report, 2026-10-16).
-    cage: { name: 'Crowded Beastcage', text: 'After an inmate is devoured, 40% chance its cell opens again at once with a new inmate. That door triggers nothing else.' },
+    cage: { name: 'Crowded Beastcage', text: 'After an inmate is consumed, 40% chance its cell opens again at once with a new inmate. That door triggers nothing else.' },
     // From the user's "Select a Torture Instrument" screenshot (2026-10-16):
     // "When there are no more than 5 unopened cells, after opening: +1 Rarity
     // Tier to 2 random Inmates", and "There is a 50% chance to trigger when
@@ -152,7 +152,7 @@
     // destination option; there is a 35% chance to trigger after Consuming",
     // and "+1 additional Rarity Tier" (the rest of the card was cut off),
     // read like the Rusty Saw: the eater, on each bite.
-    whip: { name: 'Barbed Whip', text: 'Each morning offers 1 destination fewer. Each bite of a devour has a 35% chance of +1 extra tier.' },
+    whip: { name: 'Barbed Whip', text: 'Each morning offers 1 destination fewer. Each bite of a consume has a 35% chance of +1 extra tier.' },
     // From the user's screenshot of its card (2026-10-16): "At the start of
     // each day: Removes Inmates on both sides of the Inmate with the highest
     // rarity; for each Inmate removed, there is a 40% chance to grant that
@@ -225,7 +225,7 @@
 
   const GIFTS = {
     ring: { name: 'Three-Headed Thumb Ring', text: 'Open up to 3 random sealed cells. They trigger nothing else.' },
-    horn: { name: 'Brass Horn of Strife', text: 'Every inmate with a target devours one at random, in turn.' },
+    horn: { name: 'Brass Horn of Strife', text: 'Every inmate with a target consumes one at random, in turn.' },
     wine: { name: 'Crimson Vintage', text: 'Every inmate below Legendary rises one tier.' },
     brand: { name: 'Brand of Original Sin', text: 'Up to 4 inmates with no meal change beast so they have a same-rarity target.' },
   };
@@ -243,7 +243,7 @@
     events: { name: 'Special events drill', text: 'The three doors on today’s route hide an Execution, a Chain reaction, and Behind Closed Doors or Ravenous Appetite.' },
     ivory: { name: 'Tusk drill', text: 'Swap the inmate in a Tusk cell and four inmates rise a tier.' },
     prey: { name: 'Prey drill', text: 'A Lion and its marked prey both rise each morning for three days.' },
-    scratch: { name: 'Scratch drill', text: 'Wolves devour through scratched doors for +3.' },
+    scratch: { name: 'Scratch drill', text: 'Wolves consume through scratched doors for +3.' },
     nest: { name: 'Rat nest drill', text: 'Leave a nest sealed for two days to hatch a Rare Rat.' },
   };
 
@@ -616,7 +616,7 @@
   function guard(state, need) {
     if (state.phase === 'ended') return fail('This run is over. Start a new run to keep playing.');
     if (state.pending.length) return fail('Make your pending choice first.');
-    if (state.chaining) return fail('The devour chain must go on: pick its next meal first.');
+    if (state.chaining) return fail('The consume chain must go on: pick its next meal first.');
     if (state.phase === 'office') return fail('Choose Instigate or Bestow first.');
     if (state.challenge && state.challenge.window) return fail('Finish the delivery window first.');
     if (state.phase === 'event') return fail('Decide on the special event first.');
@@ -735,14 +735,14 @@
       place(state, 9, 'mammoth', 1);
       place(state, 13, 'rat', 1);
       state.prey.push({ lion: lion.id, prey: wolf.id, preyBeast: 'wolf', rounds: state.params.preyRounds, next: 2 });
-      note = `Prey drill: the Lion in cell 02 has marked the Wolf in cell 03. Each morning both rise a tier, for ${plural(state.params.preyRounds, 'morning')}. The Lion stands in the warden's cell, so it could devour its prey today, but that re-rolls its beast and ends the mark.`;
+      note = `Prey drill: the Lion in cell 02 has marked the Wolf in cell 03. Each morning both rise a tier, for ${plural(state.params.preyRounds, 'morning')}. The Lion stands in the warden's cell, so it could consume its prey today, but that re-rolls its beast and ends the mark.`;
     } else if (s === 'scratch') {
       place(state, 1, 'wolf', 1);
       hide(state, 2, 'mammoth', 1, { scratch: true, known: 1 });
       place(state, 8, 'wolf', 2);
       hide(state, 9, 'lion', 2, { scratch: true, known: 1 });
       place(state, 14, 'rat', 0);
-      note = 'Scratch drill: a scratched door shows the rarity inside. A Wolf can devour a same-rarity inmate through it, whatever its beast, and gains +3.';
+      note = 'Scratch drill: a scratched door shows the rarity inside. A Wolf can consume a same-rarity inmate through it, whatever its beast, and gains +3.';
     } else if (s === 'nest') {
       place(state, 1, 'lion', 2);
       hide(state, 2, 'rat', 0, { nest: { due: 1 + state.params.nestDays } });
@@ -1023,7 +1023,7 @@
     } else if (n === OFFICE) {
       log(state, 'patrol', "Walked to the warden's office: Instigate or Bestow.", { type: 'walk', cell: n, who: null });
     } else if (cell.inmate) {
-      log(state, 'patrol', `Walked to cell ${cellLabel(n)}. Its ${describe(cell.inmate)} can start today's devour.`, { type: 'walk', cell: n, who: snap(cell.inmate) });
+      log(state, 'patrol', `Walked to cell ${cellLabel(n)}. Its ${describe(cell.inmate)} can start today's consume.`, { type: 'walk', cell: n, who: snap(cell.inmate) });
     } else {
       log(state, 'patrol', `Walked to empty cell ${cellLabel(n)}.`, { type: 'walk', cell: n, who: null });
     }
@@ -1299,10 +1299,10 @@
     let text;
     if (bites.length === 1) {
       const outcome = last.after.tier < RAINBOW ? ` and is now a ${beastName(last.after.beast)}` : '';
-      text = `The ${describe(first.eater)} in cell ${cellLabel(first.from)} devoured the ${first.scratch ? 'scratched-door ' : ''}${describe(first.meal)} in cell ${cellLabel(first.cell)}. It rose to ${tierName(last.after.tier)}${outcome}${first.notes.length ? ` (${first.notes.join(', ')})` : ''}.`;
+      text = `The ${describe(first.eater)} in cell ${cellLabel(first.from)} consumed the ${first.scratch ? 'scratched-door ' : ''}${describe(first.meal)} in cell ${cellLabel(first.cell)}. It rose to ${tierName(last.after.tier)}${outcome}${first.notes.length ? ` (${first.notes.join(', ')})` : ''}.`;
     } else {
       const steps = bites.map((b) => `${describe(b.eater)} ate ${b.scratch ? 'the scratched-door ' : ''}${describe(b.meal)} (${cellLabel(b.cell)})${b.notes.length ? ` [${b.notes.join(', ')}]` : ''}`);
-      text = `Devour chain, ${bites.length} bites, from cell ${cellLabel(first.from)}: ${steps.join('; then ')}.${end || ` It ended as a ${describe(last.after)}.`}`;
+      text = `Consume chain, ${bites.length} bites, from cell ${cellLabel(first.from)}: ${steps.join('; then ')}.${end || ` It ended as a ${describe(last.after)}.`}`;
     }
     logAt(state, at, 'devour', text, { type: 'devour', from: first.from, bites });
   }
@@ -1310,11 +1310,11 @@
   function devour(state, from, to) {
     const blocked = guard(state, 'manage');
     if (blocked) return blocked;
-    if (state.used.swap > 0 && !state.used.devourAfterSwap) return fail('You swapped today, and a day has a swap or a devour, not both. End the day.');
-    if (!canDevourNow(state)) return fail('Today’s devour is used. End the day for another.');
-    if (from !== state.position) return fail(`Only the inmate in the warden's cell (${cellLabel(state.position)}) can start a devour.`);
+    if (state.used.swap > 0 && !state.used.devourAfterSwap) return fail('You swapped today, and a day has a swap or a consume, not both. End the day.');
+    if (!canDevourNow(state)) return fail('Today’s consume is used. End the day for another.');
+    if (from !== state.position) return fail(`Only the inmate in the warden's cell (${cellLabel(state.position)}) can start a consume.`);
     const option = devourOptions(state, from).find((o) => o.cell === to);
-    if (!option) return fail('That inmate cannot devour that target.');
+    if (!option) return fail('That inmate cannot consume that target.');
     const events = [];
     state.used.devour += 1;
     state.chaining = { eater: state.cells[from].inmate.id, at: state.log.length, bites: [] };
@@ -1348,7 +1348,7 @@
 
   // The player's pick of the chain's next meal.
   function chainBite(state, to) {
-    if (!state.chaining) return fail('No devour chain is waiting for a meal.');
+    if (!state.chaining) return fail('No consume chain is waiting for a meal.');
     if (state.pending.length) return fail('Make your pending choice first.');
     const cell = boardCellOf(state, state.chaining.eater);
     const option = cell ? devourOptions(state, cell.n).find((o) => o.cell === to) : null;
@@ -1367,7 +1367,7 @@
     if (n !== state.position) return fail(`Only the inmate in the warden's cell (${cellLabel(state.position)}) can be swapped.`);
     const cell = state.cells[n];
     if (!cell || cell.sealed || !cell.inmate) return fail('The warden’s cell has no inmate to swap.');
-    if (state.used.devour > 0) return fail('You devoured today, and a day has a devour or a swap, not both. End the day.');
+    if (state.used.devour > 0) return fail('You consumed today, and a day has a consume or a swap, not both. End the day.');
     if (state.used.swap >= state.params.swapsPerDay) return fail('No swaps left today.');
     if (state.used.noSwap) return fail('Your game offers no Replace today.');
     const weights = state.params.tierWeights.slice();
@@ -2018,7 +2018,7 @@
           // Walking to a known inmate makes it the one that devours today.
           const best = devourOptions(state, n).map((o) => devourTip(state, n, o, 'devour')).sort((a, b) => b.score - a.score)[0];
           score = best ? 10 + best.score : has(state, 'muzzle') && board.length <= 5 ? 8 : 2;
-          why = best ? `its ${describe(c.inmate)} can then devour (${best.short})` : `its ${describe(c.inmate)} has no target from there`;
+          why = best ? `its ${describe(c.inmate)} can then consume (${best.short})` : `its ${describe(c.inmate)} has no target from there`;
         } else if (!c.sealed) {
           score = 1;
           why = 'an empty cell';

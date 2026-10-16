@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261016e">
+<link rel="stylesheet" href="css/style.css?v=20261016f">
 <style>
   /* A long read in the simulator's look, like the strategy guide. */
   .guide {
@@ -356,6 +356,7 @@
       <p class="az-auto-note" id="az-auto-note" aria-live="polite"></p>
       <div class="az-auto-options">
         <label class="toggle"><input type="checkbox" id="az-auto-read"><span><strong>Read each picture into the board</strong><small>The advice refreshes after every move. Cells it's unsure of are marked Check: fix anything wrong in the analyzer and press Recheck.</small></span></label>
+        <label class="toggle"><input type="checkbox" id="az-auto-speed"><span><strong>Speed-up is on in the game</strong><small>With the game’s Speed-up (top right of the prison) on, its animations are quicker, so pictures come sooner. Pressing Speed-up in the game flips this by itself.</small></span></label>
       </div>
       <ol class="az-auto-caps" id="az-auto-caps" aria-live="polite"></ol>
       <details class="az-auto-dev">
@@ -454,8 +455,8 @@
   </section>
 </main>
 
-<script src="js/capture.js?v=20261016e"></script>
-<script src="js/follow.js?v=20261016e"></script>
+<script src="js/capture.js?v=20261016f"></script>
+<script src="js/follow.js?v=20261016f"></script>
 <script>
 (function () {
   'use strict';

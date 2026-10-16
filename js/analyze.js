@@ -513,6 +513,7 @@
     }
     const options = S.candidates(st).length;
     const rollouts = clamp(Math.round(PLAYOUT_BUDGET / Math.max(1, options)), 400, 1600);
+    solver.target = rollouts;
     startCheck(solver.id, st, rollouts);
     render();
     if (quiet !== true) $('az-results').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -559,6 +560,12 @@
   }
 
   const fresh = () => !!solver.st && solver.key === modelKey();
+  // Whether the advice is final: the live check has finished, or there's
+  // nothing to compare. Until then no move is advised, so the advice never
+  // changes its mind a moment after it's shown.
+  const settled = () => !!solver.result && (solver.result.done || solver.result.options.length <= 1);
+  // How far the live check has got, 0 to 1.
+  const progress = () => (solver.result && solver.target ? Math.min(1, solver.result.rounds / solver.target) : 0);
 
   // The strategy's instant pick, unless the live check finds a clearly better
   // move (by more than its paired margin), so the advice doesn't flicker.
@@ -763,7 +770,7 @@
 
   function renderBoard() {
     const { st } = buildState(model);
-    const rec = fresh() ? recommendation() : null;
+    const rec = fresh() && settled() ? recommendation() : null;
     const a = rec ? rec.action : null;
     const best = new Set();
     if (a && a.type === 'patrol') best.add(a.cell);
@@ -804,10 +811,14 @@
   }
 
   function renderCourt() {
-    const rec = fresh() ? recommendation() : null;
+    const working = fresh() && !settled();
+    const rec = fresh() && settled() ? recommendation() : null;
     let title;
     let detail;
-    if (rec) {
+    if (working) {
+      title = 'Working it out…';
+      detail = `Playing out every move: ${Math.round(100 * progress())}%`;
+    } else if (rec) {
       title = rec.label;
       detail = rec.option ? expectText(solver.result.goal, rec.option, solver.st) : 'Checking with playouts…';
     } else {
@@ -1032,10 +1043,11 @@
     const st = solver.st;
     const stale = !fresh();
     box.classList.toggle('is-stale', stale);
-    const rec = recommendation();
+    const working = !settled();
+    const rec = working ? null : recommendation();
     const r = solver.result;
     const goal = r ? r.goal : st.mode === 'challenge' ? 'contract' : 'rainbows';
-    $('az-res-move').textContent = rec ? rec.label : 'Nothing to decide here.';
+    $('az-res-move').textContent = working ? 'Working it out…' : rec ? rec.label : 'Nothing to decide here.';
     $('az-do').hidden = !rec || stale;
     $('az-do').textContent = rec && rec.action.type === 'end' ? 'End the day here' : 'Do it here';
     $('az-next').hidden = !rec || stale;
@@ -1049,8 +1061,9 @@
       ? 'The board changed since this check. Recheck for advice on the board as it is now.'
       : `Read from your screenshot${flags.size ? `, with ${T.plural(flags.size, 'cell')} marked Check` : ''}.${unsureTools()} If anything on the board doesn’t match your game, fix it, then Recheck.`;
     let body = '';
+    if (working) body += `<p class="trainer-source">Playing out every move from your board: ${Math.round(100 * progress())}%. The advice shows when it's done, so it won't change.</p>`;
     if (rec) {
-      body += `<p class="trainer-source">${esc(rec.live ? `Checked by ${rec.rounds.toLocaleString()} playouts per option` : 'Instant pick from training · checking…')}</p>`;
+      body += `<p class="trainer-source">${esc(rec.live ? `Checked by ${rec.rounds.toLocaleString()} playouts per option` : 'Instant pick from training')}</p>`;
       if (rec.why) body += `<p class="trainer-why">${esc(rec.why)}</p>`;
       if (rec.option) body += `<p class="trainer-why">${esc(expectText(goal, rec.option, st))}</p>`;
       if (rec.action.type === 'devour') {
@@ -1122,7 +1135,7 @@
   function afterText(action) {
     switch (action.type) {
       case 'patrol': return 'In your game, walk there. Then set the cell to what the door reveals (or press Do it here and fix it), and ask again.';
-      case 'devour': return 'In your game, start the devour on that target. Then update the cells the chain changed, and ask again.';
+      case 'devour': return 'In your game, start the consume on that target. Then update the cells the chain changed, and ask again.';
       case 'swap': return 'In your game, swap the warden’s inmate. Then set the warden’s cell to what came in, and ask again.';
       case 'end': return 'In your game, end the day. Then mark the new day’s doors, and ask again.';
       case 'event': return 'Then update what changed, and ask again.';
@@ -1683,12 +1696,27 @@
   }
 
   // The Warden's Treasure, opened by a Chromatic prisoner (Follow my game
-  // knows it from the log): the gift to take, on the board as it is.
-  // Nothing is read from the picture: every gift is on offer.
-  function useTreasure() {
+  // knows it from the log): the gift to take, on the last board known.
+  // Nothing is read from the picture: every gift is on offer. after is
+  // what led to it, from the log: right after a swap, the newcomer was a
+  // Rainbow, so it's in the vault and its cell locked again; after a
+  // consume, today's consume is used.
+  function useTreasure(after) {
     undo.push({ model: JSON.parse(JSON.stringify(model)), selected, shot });
     if (undo.length > 30) undo.shift();
     reader.undoable = true;
+    let how = '';
+    const w = model.cells[model.warden];
+    if (after === 'swap' && w && w.kind === 'inmate') {
+      model.cells[model.warden] = T.DEFAULT_PARAMS.reusableCells ? sealedCell() : { kind: 'empty' };
+      model.vault = [...model.vault, w.beast];
+      model.swapUsed = true;
+      model.consumeOffered = true;
+      how = ` It came from your Replace in cell ${L(model.warden)}: the newcomer was a Rainbow, now in the vault, and the cell locked again.`;
+    } else if (after === 'consume') {
+      model.devourUsed = true;
+      how = ' It came from your consume: the next picture shows the board after it.';
+    }
     model.step = 'choice';
     model.choice = { kind: 'gift', options: [], rerolls: 0 };
     applied = null;
@@ -1696,7 +1724,7 @@
     changed();
     renderScan();
     const asked = ask(true);
-    toast(`The Warden’s Treasure is open. ${asked ? 'Which gift to take is below.' : 'The board needs fixing before the advice.'}`, asked ? 'ok' : 'bad');
+    toast(`The Warden’s Treasure is open.${how} ${asked ? 'Which gift to take is below.' : 'The board needs fixing before the advice.'}`, asked ? 'ok' : 'bad');
     return asked;
   }
 
@@ -1746,7 +1774,7 @@
         else m.cells[n] = { kind: 'empty' };
         if (c.kind !== 'locked') checks.add(n);
       });
-      notes.push('A devour’s meal pick darkens the board, so its rarities were guessed: check the marked cells, or load the board from before the devour first.');
+      notes.push('A consume’s meal pick darkens the board, so its rarities were guessed: check the marked cells, or load the board from before the consume first.');
     }
     m.warden = warden;
     const was = base.cells[warden];
@@ -1979,7 +2007,7 @@
       const nests = m.cells.filter((c) => c.kind === 'nest').length;
       list.push(`<li><b>Board</b> ${T.plural(inmates, 'inmate')}, ${T.plural(locked, 'locked cell')}${events ? `, ${T.plural(events, 'event')}` : ''}${nests ? `, ${T.plural(nests, 'rat nest')}` : ''}</li>`);
       list.push(`<li><b>Warden</b> ${r.warden ? (r.warden.cell === T.OFFICE ? 'in the office' : `cell ${L(r.warden.cell)}`) : 'not found'}</li>`);
-      list.push(`<li><b>Today</b> ${rd.chain ? `${m.step === 'chain' ? 'a devour chain picks its next meal' : 'the day’s devour picks its meal'}: cell ${rd.chain.map(L).join(' or ')}` : m.step === 'patrol' ? `choose a door: ${m.dest.map(L).join(', ')}` : r.decision ? `your decision: ${[r.decision.replace && 'Replace', r.decision.consume && 'Consume', 'End'].filter(Boolean).join(', ')}` : 'no door cards, so after the patrol'}</li>`);
+      list.push(`<li><b>Today</b> ${rd.chain ? `${m.step === 'chain' ? 'a consume chain picks its next meal' : 'the day’s consume picks its meal'}: cell ${rd.chain.map(L).join(' or ')}` : m.step === 'patrol' ? `choose a door: ${m.dest.map(L).join(', ')}` : r.decision ? `your decision: ${[r.decision.replace && 'Replace', r.decision.consume && 'Consume', 'End'].filter(Boolean).join(', ')}` : 'no door cards, so after the patrol'}</li>`);
       list.push(`<li><b>Riot</b> ${r.days ? `${T.plural(r.days.days, 'day')} away, so day ${m.day} of ${m.mode === 'challenge' ? T.CHALLENGE_DAYS : m.maxDays}` : 'not read'}</li>`);
       list.push(`<li><b>Instruments</b> ${rd.tools.length ? rd.tools.map((t) => esc(t.name || t.id) + (t.sim ? '' : ' (not simulated)')).join(', ') : 'none'}</li>`);
       list.push(`<li><b>Chromatic</b> ${T.plural(rd.chromatic, 'prisoner')}${r.chromatic ? '' : ' (panel not found)'}</li>`);
@@ -2473,10 +2501,10 @@
       usePick: (read, fresh) => usePick(read, fresh),
       readObjective: (bitmap) => readObjective(bitmap),
       useObjective: (read) => useObjective(read),
-      useTreasure: () => useTreasure(),
+      useTreasure: (after) => useTreasure(after),
       useReading: () => useScan(),
       ask: () => ask(true),
-      recommendation: () => (fresh() ? recommendation() : null),
+      recommendation: () => (fresh() && settled() ? recommendation() : null),
       day: () => model.day,
       toast,
     };

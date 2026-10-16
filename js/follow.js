@@ -42,6 +42,8 @@
     'skip | S16BoardNewDayPop Run | 0',
     "# The Warden's Treasure, which a Chromatic prisoner opens:",
     'treasure | S16BoardColoredPop Run | 1500',
+    "# The game's Speed-up button: no picture, it flips 'Speed-up is on' here:",
+    'speed | Btn_S16Board_Top_Speed | 0',
   ].join('\n');
   // The prison's own events, for working out more triggers: its buttons,
   // sounds and screens, without the lines that repeat them.
@@ -50,6 +52,23 @@
   // Defaults from earlier versions. Saved settings that are just one of
   // these give way to the defaults above.
   const RETIRED = [
+    [
+      '# kind | pattern | settle ms  (one trigger a line; # starts a note)',
+      '# Tartarus Prison is S16 in the log. A run\'s objective, when it shows one:',
+      'objective | S16BoardTaskPop Run | 1500',
+      '# The pick of 3 instruments, and after a re-roll:',
+      'instruments | S16BoardRelicPop Run | 1500',
+      'instruments | Btn_S16Board_RelicPop_Reroll | 2000',
+      '# Each day, once its banner closes, and after a move, once its cards come up:',
+      'board | \\[S16LastDay\\] check cur=\\d+ max=[1-9] | 1500',
+      'board | UI_S16_Card_Up | 1500',
+      '# After an action in the cell, once it plays out; unless the day ends,',
+      "# as a new day's banner drops a picture still waiting (skip):",
+      'board | Btn_S16Board_ActionCell | 2000',
+      'skip | S16BoardNewDayPop Run | 0',
+      "# The Warden's Treasure, which a Chromatic prisoner opens:",
+      'treasure | S16BoardColoredPop Run | 1500',
+    ].join('\n'),
     [
       '# kind | pattern | settle ms  (one trigger a line; # starts a note)',
       '# Tartarus Prison is S16 in the log. A run\'s objective, when it shows one:',
@@ -132,8 +151,8 @@
   // player's agreement) is written only by the agreement at the bottom.
   // Triggers and the watch pattern are saved only when changed from the
   // defaults, so new defaults reach everyone who didn't change them.
-  const OWN = ['rules', 'watch', 'read'];
-  const DEFAULTS = { rules: DEFAULT_RULES, watch: DEFAULT_WATCH, read: true };
+  const OWN = ['rules', 'watch', 'read', 'speed'];
+  const DEFAULTS = { rules: DEFAULT_RULES, watch: DEFAULT_WATCH, read: true, speed: false };
   const saved = load();
   for (const k of ['rules', 'watch']) if (RETIRED.includes(saved[k])) delete saved[k];
   const prefs = Object.assign({}, DEFAULTS, saved);
@@ -141,7 +160,7 @@
     try {
       const all = load();
       for (const k of OWN) {
-        if (k !== 'read' && prefs[k] === DEFAULTS[k]) delete all[k];
+        if (k !== 'read' && k !== 'speed' && prefs[k] === DEFAULTS[k]) delete all[k];
         else all[k] = prefs[k];
       }
       localStorage.setItem(KEY, JSON.stringify(all));
@@ -203,6 +222,20 @@
   const captures = []; // newest first: { id, time, kind, hits, frame, why, thumb, full, sent, read, state, asked, note }
   let lastPicture = null; // { at, kind, ok, why }, for the analyzer's status line
   let triggerCount = 0; // triggers in use, for the same
+  // The player's last action in a cell, by the log's clock: a consume plays
+  // its red screen as the card is clicked; a swap doesn't. A Warden's
+  // Treasure that opens just after says which one led to it.
+  const stampMs = (at) => {
+    const m = /(\d+)\.(\d+)\.(\d+)-(\d+)\.(\d+)\.(\d+):(\d+)/.exec(at || '');
+    return m ? Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6], +m[7]) : 0;
+  };
+  let lastAction = 0;
+  let lastEat = 0;
+  function treasureAfter(hits) {
+    const pop = stampMs((hits.find((h) => h.kind === 'treasure') || {}).at);
+    if (!pop || !lastAction || pop < lastAction || pop - lastAction > 6000) return '';
+    return lastEat >= lastAction - 500 ? 'consume' : 'swap';
+  }
 
   // This page's status, for the analyzer to show (js/auto.js).
   function tell() {
@@ -321,7 +354,9 @@
           // fresh: the offer that starts a run comes with the day-0 line;
           // one that comes later (an objective's reward) doesn't.
           const fresh = c.hits.some((h) => /check cur=0\b/.test(h.text || ''));
-          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, fresh, blob });
+          // after: for the Warden's Treasure, the action that led to it.
+          const after = c.kind === 'treasure' ? treasureAfter(c.hits) : '';
+          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, fresh, after, blob });
           c.sent = true;
         }
       }
@@ -357,6 +392,8 @@
   };
   C.on('status', () => soon(renderStatus));
   C.on('seen', (s) => {
+    if (/Btn_S16Board_ActionCell/.test(s.line)) lastAction = stampMs(s.at);
+    if (/Eating_red_screen/.test(s.line)) lastEat = stampMs(s.at);
     seen.unshift(s);
     seen.length = Math.min(seen.length, 200);
     soon(renderSeen);
@@ -403,6 +440,23 @@
   $('az-auto-rules').value = prefs.rules;
   $('az-auto-watch').value = prefs.watch;
   $('az-auto-read').checked = prefs.read;
+  // The game's Speed-up: animations take about 0.4 of the time, so pictures
+  // come sooner. The game doesn't log whether it's on, only each press of
+  // its button, so this switch is set once and each press flips it.
+  const PACE = 0.45;
+  const setSpeed = (on) => {
+    prefs.speed = !!on;
+    $('az-auto-speed').checked = prefs.speed;
+    C.setPace(prefs.speed ? PACE : 1);
+    save();
+  };
+  setSpeed(prefs.speed);
+  $('az-auto-speed').addEventListener('change', (e) => setSpeed(e.target.checked));
+  C.on('hit', (h) => {
+    if (h.kind !== 'speed') return;
+    setSpeed(!prefs.speed);
+    $('az-auto-note').textContent = `Speed-up was pressed in the game: pictures now come ${prefs.speed ? 'sooner' : 'at the usual pace'}. If that's wrong, flip “Speed-up is on in the game”.`;
+  });
   // The built-in triggers always apply, and lines saved here are added to
   // them: a list saved before a trigger was built in can't leave it out.
   const applyRules = () => {

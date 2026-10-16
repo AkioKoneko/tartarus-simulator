@@ -58,7 +58,7 @@
       // the advice is on the board as it is.
       answer({ read: { ok: true, treasure: true } });
       if (mine !== newest) return;
-      const asked = A.useTreasure();
+      const asked = A.useTreasure(m.after);
       answer({ state: 'used', asked });
       return;
     }
