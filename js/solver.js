@@ -133,6 +133,11 @@
     const eats = BEASTS.map((b) => chain[b].map(beastIndex));
     const skewer = has(st, 'skewer');
     if (skewer) eats[RAT] = eats[RAT].concat(RAT);
+    // From Legendary up (params.doubleEatTier), Mammoths and Lions also eat
+    // their second meal (an engine cached from before has none).
+    const second = T.SECOND_MEAL || {};
+    const eatsHigh = eats.map((list, b) => list.concat((second[BEASTS[b]] || []).map(beastIndex)));
+    const doubleFrom = Number.isFinite(st.params.doubleEatTier) ? st.params.doubleEatTier : T.SECOND_MEAL ? 3 : RAINBOW;
     const v = [0, 1, 2, 3, 4, 5].map((t) => P.tierBase ** t);
     const openDist = normalize(st.params.tierWeights);
     const R = v[RAINBOW] * P.rainbowMult * (rainbowStuck(st) ? P.stuckRainbow : 1);
@@ -145,6 +150,8 @@
       st,
       P,
       eats,
+      // What each beast eats at tier t.
+      eatsAt: (t) => (t >= doubleFrom ? eatsHigh : eats),
       v,
       R,
       saw: has(st, 'saw'),
@@ -209,7 +216,7 @@
     for (let b = 0; b < 4; b++) {
       if (ctx.revenge) {
         // Avenger's Casket: 30% of the time a meal for the new form appears.
-        const foods = ctx.eats[b];
+        const foods = ctx.eatsAt(t)[b];
         let spawned = 0;
         for (const f of foods) {
           comp[t * 4 + f] += 1;
@@ -233,7 +240,7 @@
     const hit = ctx.memo.get(key);
     if (hit !== undefined) return hit;
     let out = -Infinity;
-    for (const f of ctx.eats[b]) {
+    for (const f of ctx.eatsAt(t)[b]) {
       if (!comp[t * 4 + f]) continue;
       comp[t * 4 + f] -= 1;
       out = Math.max(out, bite(ctx, t, b, comp, crowd, 0, true));
@@ -276,7 +283,7 @@
   // The best first meal for an eater of this tier and beast, by expected value.
   function bestMeal(ctx, tier, beast, comp, crowd) {
     let best = { value: -Infinity, meal: -1 };
-    for (const f of ctx.eats[beast]) {
+    for (const f of ctx.eatsAt(tier)[beast]) {
       if (!comp[tier * 4 + f]) continue;
       const value = devourDelta(ctx, tier, beast, f, false, comp, crowd);
       if (value > best.value) best = { value, meal: f };
@@ -315,7 +322,7 @@
       if (memo.has(key)) return memo.get(key);
       // The player picks the meal with the best odds (then more bites).
       let out = null;
-      for (const f of ctx.eats[b]) {
+      for (const f of ctx.eatsAt(t)[b]) {
         if (!comp[t * 4 + f]) continue;
         comp[t * 4 + f] -= 1;
         const [pf, nf] = fromTier(t + 1);
@@ -339,7 +346,7 @@
     let value = 0;
     for (let t = 0; t < RAINBOW; t++) {
       let fed = 0;
-      for (let b = 0; b < 4; b++) if (ctx.eats[b].some((f) => comp[t * 4 + f] > 0)) fed += 1;
+      for (let b = 0; b < 4; b++) if (ctx.eatsAt(t)[b].some((f) => comp[t * 4 + f] > 0)) fed += 1;
       value += (fed / 4) * ctx.v[t];
     }
     return value;

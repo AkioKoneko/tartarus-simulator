@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261016c">
+<link rel="stylesheet" href="css/style.css?v=20261016d">
 </head>
 <body>
 <div class="app" id="app">
@@ -197,7 +197,7 @@
             <circle cx="50" cy="148" r="20"></circle><text x="50" y="156">R</text><text class="chain-name" x="50" y="190">Rat</text>
           </g>
         </svg>
-        <p class="panel-note" id="chain-note">Each beast has one meal. Arrows point from eater to meal. Both must share a rarity. A devour raises the eater one tier, then re-rolls its beast.</p>
+        <p class="panel-note" id="chain-note">Each beast has one meal, and from Legendary up Mammoths also eat Wolves and Lions also eat Rats. Arrows point from eater to meal. Both must share a rarity. A devour raises the eater one tier, then re-rolls its beast.</p>
         <ol class="ladder" aria-label="Rarity ladder">
           <li class="t0">Normal</li><li class="t1">Magic</li><li class="t2">Rare</li><li class="t3">Legendary</li><li class="t4">Supreme</li><li class="t5">Rainbow</li>
         </ol>
@@ -295,7 +295,7 @@
       <p>When an inmate is devoured or sent off, its cell seals again. The next time that door opens, someone new is inside.</p>
 
       <h3>The food chain</h3>
-      <p>Each beast has one meal, and both sides must share a rarity: Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, and Rat eats Mammoth. No beast eats its own kind unless you hold the Skewered Rat Heads, which lets Rats eat Rats. This is the live game's chain. (The Chinese sim used a two-meal chain, which the live game doesn't have.)</p>
+      <p>Each beast has one meal, and both sides must share a rarity: Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, and Rat eats Mammoth. From Legendary up, Mammoths also eat Wolves and Lions also eat Rats, as live screenshots show. No beast eats its own kind unless you hold the Skewered Rat Heads, which lets Rats eat Rats. (The Chinese sim gave Mammoths and Lions their second meal at every rarity; the live game does only from Legendary up.)</p>
 
       <h3>Rarity</h3>
       <p>Normal, Magic, Rare, Legendary, Supreme, Rainbow. A devour raises the eater one tier, then re-rolls its beast, so check its new matchups before the next meal. An inmate that reaches Rainbow leaves its cell for the vault and opens the Warden's Treasure. You can keep raising more Rainbows for the rest of the run.</p>
@@ -644,12 +644,12 @@
   </div>
 </dialog>
 
-<script src="js/engine.js?v=20261016c"></script>
-<script src="js/board.js?v=20261016c"></script>
-<script src="js/sound.js?v=20261016c"></script>
-<script src="js/guide-data.js?v=20261016c"></script>
-<script src="js/tool-combos.js?v=20261016c"></script>
-<script src="js/solver.js?v=20261016c"></script>
-<script src="js/ui.js?v=20261016c"></script>
+<script src="js/engine.js?v=20261016d"></script>
+<script src="js/board.js?v=20261016d"></script>
+<script src="js/sound.js?v=20261016d"></script>
+<script src="js/guide-data.js?v=20261016d"></script>
+<script src="js/tool-combos.js?v=20261016d"></script>
+<script src="js/solver.js?v=20261016d"></script>
+<script src="js/ui.js?v=20261016d"></script>
 </body>
 </html>

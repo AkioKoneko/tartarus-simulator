@@ -31,10 +31,19 @@
     rat: { name: 'Rat' },
   };
 
-  // Who eats whom: each beast has exactly one meal, in a loop. (The Chinese
-  // sim's two-meal chain was confirmed not to be in the live game.)
+  // Who eats whom: each beast has one meal, in a loop. From Legendary up
+  // (params.doubleEatTier), Mammoths also eat Wolves and Lions also eat
+  // Rats, the Chinese sim's second meals: seen live three times on
+  // 2026-10-16, each with a Legendary eater offered both kinds, while lower
+  // eaters have shown only the one meal. Without a tier (executions), the
+  // one meal.
   const FOOD_CHAIN = { mammoth: ['lion'], lion: ['wolf'], wolf: ['rat'], rat: ['mammoth'] };
-  const eatsOf = (state, beast) => FOOD_CHAIN[beast] || [];
+  const SECOND_MEAL = { mammoth: ['wolf'], lion: ['rat'] };
+  const eatsOf = (state, beast, tier) => {
+    const first = FOOD_CHAIN[beast] || [];
+    const from = state && state.params && Number.isFinite(state.params.doubleEatTier) ? state.params.doubleEatTier : DEFAULT_PARAMS.doubleEatTier;
+    return Number.isFinite(tier) && tier >= from && SECOND_MEAL[beast] ? first.concat(SECOND_MEAL[beast]) : first;
+  };
 
   // Convoy pressure each inmate adds to an escort, by tier.
   const PRESSURE = [2, 4, 8, 16, 32, 65];
@@ -56,6 +65,7 @@
     reusableCells: true,
     tierWeights: [52, 27, 15, 6, 0],
     beastWeights: [25, 25, 25, 25],
+    doubleEatTier: 3,
     eventChance: 5,
     executionSameTier: false,
     executionRerolls: false,
@@ -82,6 +92,7 @@
     { key: 'reusableCells', group: 'Pace', label: 'Emptied cells seal again and can be reopened', type: 'bool' },
     { key: 'tierWeights', group: 'Odds', label: 'Rarity weights for new inmates', type: 'list', names: TIERS.slice(0, 5) },
     { key: 'beastWeights', group: 'Odds', label: 'Beast weights for new inmates', type: 'list', names: ['Mammoth', 'Lion', 'Wolf', 'Rat'] },
+    { key: 'doubleEatTier', group: 'Odds', label: 'From this rarity up, Mammoths also eat Wolves and Lions also eat Rats (0 Normal, 1 Magic, 2 Rare, 3 Legendary, 4 Supreme; 5: never)', type: 'int', min: 0, max: 5 },
     { key: 'eventChance', group: 'Special events', label: 'Chance a sealed cell hides a special event, seen once the warden walks past it (%)', type: 'int', min: 0, max: 100 },
     { key: 'eventTwoDoors', group: 'Special events', label: 'A morning whose doors include an event offers only 2 doors', type: 'bool' },
     { key: 'executionSameTier', group: 'Special events', label: 'Execution takes same-rarity prey (off: lower rarity only)', type: 'bool' },
@@ -431,7 +442,7 @@
   function canEat(state, eater, meal) {
     if (!eater || !meal || eater.id === meal.id || eater.tier >= RAINBOW) return false;
     if (eater.tier !== meal.tier) return eater.tier > meal.tier && eater.beast === 'wolf' && has(state, 'guillotine') && eatsOf(state, 'wolf').includes(meal.beast);
-    return eatsOf(state, eater.beast).includes(meal.beast) || (eater.beast === 'rat' && meal.beast === 'rat' && has(state, 'skewer'));
+    return eatsOf(state, eater.beast, eater.tier).includes(meal.beast) || (eater.beast === 'rat' && meal.beast === 'rat' && has(state, 'skewer'));
   }
 
   // One devour a day, started by the inmate in the warden's cell; it then
@@ -1264,7 +1275,7 @@
       const sealed = state.cells.filter((c) => c.sealed);
       if (sealed.length) {
         const target = pickOne(state, sealed);
-        const food = pickOne(state, eatsOf(state, eater.beast));
+        const food = pickOne(state, eatsOf(state, eater.beast, eater.tier));
         log(state, 'tool', `Avenger's Casket: cell ${cellLabel(target.n)} opens with a meal for the ${describe(eater)}.`);
         openCell(state, target, 'side', events, { beast: food, tier: eater.tier });
       }
@@ -2107,7 +2118,7 @@
   };
 
   const api = {
-    VERSION, CELL_COUNT, OFFICE, SUPREME, RAINBOW, TIERS, BEASTS, BEAST_INFO, FOOD_CHAIN, PRESSURE, ESCORTS, TOOLS, TOOL_IDS, GIFTS, GIFT_IDS,
+    VERSION, CELL_COUNT, OFFICE, SUPREME, RAINBOW, TIERS, BEASTS, BEAST_INFO, FOOD_CHAIN, SECOND_MEAL, PRESSURE, ESCORTS, TOOLS, TOOL_IDS, GIFTS, GIFT_IDS,
     EVENTS, EVENT_IDS, EVENT_POOL, APPETITE_TRIES, APPETITE_ODDS, INSTIGATE_EVENTS, CROW_CELLS, FREEDOM_CELLS, OBJECTIVES, OBJECTIVE_IDS,
     LOADOUTS, SCENARIOS, CONTRACT_SLOTS, DEFAULT_PARAMS, PARAM_FIELDS, CHALLENGE_DAYS, START_VOUCHERS,
     newGame, randomSeed, normalizeParams, serialize, deserialize,

@@ -783,7 +783,8 @@
       return;
     }
     const inmate = cell.inmate;
-    const eats = T.eatsOf(st, inmate.beast).map(T.beastName);
+    // From Legendary up, Mammoths and Lions also eat their second meal.
+    const eats = T.eatsOf(st, inmate.beast, inmate.tier).map(T.beastName);
     if (inmate.beast === 'rat' && st.tools.includes('skewer')) eats.push('Rat');
     const parts = [`Eats ${eats.join(' and ')} of the same rarity.`];
     if (inmate.beast === 'wolf') parts.push('Can also devour through scratched doors.');
