@@ -16,6 +16,7 @@
   const T = root.Tartarus || (typeof require === 'function' ? require('./engine.js') : null);
   const { BEASTS, RAINBOW } = T;
   const RAT = BEASTS.indexOf('rat');
+  const LION = BEASTS.indexOf('lion');
   // The day's swap is still open: a day has a devour or a swap, not both.
   // (An engine cached from before that rule has no canSwapNow.)
   const canSwapNow = (st) => (T.canSwapNow ? T.canSwapNow(st) : st.used.swap < st.params.swapsPerDay);
@@ -46,7 +47,7 @@
     maidenSwapTier: 3, // holding the Severed Iron Maiden, swap up to this tier (Legendary measured best)
     execMargin: 0, // accept an Execution worth more than this
     acceptChain: true, // accept Chain reactions
-    toolRank: ['maiden', 'coin', 'scapegoat', 'blacklist', 'shackles', 'ravenous', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'stake', 'whip', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'], // measured: each tool held from day 1
+    toolRank: ['crown', 'maiden', 'coin', 'scapegoat', 'blacklist', 'shackles', 'ravenous', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'stake', 'whip', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'], // measured: each tool held from day 1
     toolSets: true, // pick instruments by the measured sets (js/tool-combos.js) when there are any
     office: null, // always 'bestow' or 'instigate' at the office (only to measure the habit)
     giftRank: null, // null scores the gifts on the spot; or a fixed order
@@ -68,10 +69,10 @@
   // tools/results/ (train-report.json: the drill profiles were retrained on
   // 2026-10-15).
   const PROFILES = {
-    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['maiden', 'coin', 'scapegoat', 'blacklist', 'shackles', 'ravenous', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'stake', 'whip', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
-    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['maiden', 'coin', 'scapegoat', 'blacklist', 'shackles', 'ravenous', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'stake', 'whip', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
+    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['crown', 'maiden', 'coin', 'scapegoat', 'blacklist', 'shackles', 'ravenous', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'stake', 'whip', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
+    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['crown', 'maiden', 'coin', 'scapegoat', 'blacklist', 'shackles', 'ravenous', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'stake', 'whip', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
     // The contract challenge, tuned on passing first and then points.
-    challenge: { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'maiden', 'scapegoat', 'coin', 'shackles', 'ravenous', 'skewer', 'revenge', 'blacklist', 'collar', 'keys', 'cage', 'ironbox', 'muzzle', 'saw', 'whip', 'stake', 'guillotine', 'hook', 'tongs', 'dogtag', 'fire', 'axe', 'scales', 'pestle', 'shortchain', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
+    challenge: { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'crown', 'maiden', 'scapegoat', 'coin', 'shackles', 'ravenous', 'skewer', 'revenge', 'blacklist', 'collar', 'keys', 'cage', 'ironbox', 'muzzle', 'saw', 'whip', 'stake', 'guillotine', 'hook', 'tongs', 'dogtag', 'fire', 'axe', 'scales', 'pestle', 'shortchain', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
   };
   const paramsFor = (st) => PROFILES[st.mode === 'challenge' ? 'challenge' : st.params.rewards ? 'rewards' : 'notools'];
 
@@ -134,10 +135,13 @@
     const eats = BEASTS.map((b) => chain[b].map(beastIndex));
     const skewer = has(st, 'skewer');
     if (skewer) eats[RAT] = eats[RAT].concat(RAT);
+    // The Iron Crown of the Prison King: a Lion eats any beast.
+    const crown = has(st, 'crown');
+    if (crown) eats[LION] = [0, 1, 2, 3];
     // From Legendary up (params.doubleEatTier), Mammoths and Lions also eat
     // their second meal (an engine cached from before has none).
     const second = T.SECOND_MEAL || {};
-    const eatsHigh = eats.map((list, b) => list.concat((second[BEASTS[b]] || []).map(beastIndex)));
+    const eatsHigh = eats.map((list, b) => [...new Set(list.concat((second[BEASTS[b]] || []).map(beastIndex)))]);
     const doubleFrom = Number.isFinite(st.params.doubleEatTier) ? st.params.doubleEatTier : T.SECOND_MEAL ? 3 : RAINBOW;
     const v = [0, 1, 2, 3, 4, 5].map((t) => P.tierBase ** t);
     const openDist = normalize(st.params.tierWeights);
@@ -159,6 +163,7 @@
       whip: has(st, 'whip'),
       muzzle: has(st, 'muzzle'),
       skewer,
+      crown,
       collar: has(st, 'collar'),
       revenge: has(st, 'revenge') && sealed > 0,
       axeDoors: has(st, 'axe') ? Math.min(2, sealed) : 0,
@@ -262,6 +267,7 @@
     let gain = 1 + extra;
     if (ctx.muzzle && crowd - 1 <= 4) gain += 2;
     if (ctx.skewer && b === RAT) gain += 1;
+    if (ctx.crown && b === LION) gain += 2;
     const after = (g) => rise(ctx, Math.min(RAINBOW, t + g), comp, crowd - 1);
     // The Rusty Saw (25%) and the Barbed Whip (35%) each may add +1.
     const s = ctx.saw ? 0.25 : 0;

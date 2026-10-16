@@ -99,6 +99,10 @@ The two-meal chain's challenge profile had a one-round tune (5.2 million runs, 7
 
 The Chinese sim's two-meal food chain (Mammoth also eats Wolf, Lion also eats Rat) was confirmed not to be in the live game on 2026-10-15, so it was removed from the simulator and the lab. The older sections below still show the two-meal numbers measured at the time; their files are in the git history.
 
+### The Iron Crown of the Prison King (2026-10-16)
+
+Report 20, the card: "Iron Crown of the Prison King: Berserk Lion. Condition: When Berserk Lion Consumes. Effect: Berserk Lion can Consume any Inmate of the same rarity. +2 additional Rarity Tiers after consuming". Read like the Skewered Rat Heads, whose card names the Colossal Rat: every Lion can consume any inmate of its own rarity, and each of its bites gains +2 extra tiers, +3 in all. A Lion that re-rolls into another beast loses it until it's a Lion again. A quick check of 300 runs without other instruments gave 2.55 Rainbows a run against 0.77 without it, well above the Severed Iron Maiden, so the strategy ranks it first until it's measured properly.
+
 ### The Burning Stake and Kin's Coin of Fate (2026-10-16)
 
 Measured alone and in pairs on 4 threads (no instrument 0.633):

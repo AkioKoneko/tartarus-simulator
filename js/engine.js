@@ -182,6 +182,12 @@
     // remaining matching Inmates to grant them +2 Rarity Tiers". Matching is
     // the same beast and rarity (the user, from the game's own link).
     coin: { name: "Kin's Coin of Fate", text: 'Each morning, when two or more inmates share a beast and rarity, 60% chance that one of them is removed and another like it gains +2 tiers.' },
+    // A player's report (#20, 2026-10-16), the card: "Iron Crown of the
+    // Prison King: Berserk Lion. Condition: When Berserk Lion Consumes.
+    // Effect: Berserk Lion can Consume any Inmate of the same rarity. +2
+    // additional Rarity Tiers after consuming". Read like the Skewered Rat
+    // Heads, whose card names the Colossal Rat: every Lion, on each bite.
+    crown: { name: 'Iron Crown of the Prison King', text: "Lions can consume any inmate of the same rarity, and a Lion's consume gains +2 extra tiers." },
   };
   const TOOL_IDS = Object.keys(TOOLS);
 
@@ -448,7 +454,7 @@
   function canEat(state, eater, meal) {
     if (!eater || !meal || eater.id === meal.id || eater.tier >= RAINBOW) return false;
     if (eater.tier !== meal.tier) return eater.tier > meal.tier && eater.beast === 'wolf' && has(state, 'guillotine') && eatsOf(state, 'wolf').includes(meal.beast);
-    return eatsOf(state, eater.beast, eater.tier).includes(meal.beast) || (eater.beast === 'rat' && meal.beast === 'rat' && has(state, 'skewer'));
+    return eatsOf(state, eater.beast, eater.tier).includes(meal.beast) || (eater.beast === 'rat' && meal.beast === 'rat' && has(state, 'skewer')) || (eater.beast === 'lion' && has(state, 'crown'));
   }
 
   // One devour a day, started by the inmate in the warden's cell; it then
@@ -968,6 +974,10 @@
       gain += 1;
       notes.push('Skewered Rat Heads +1');
     }
+    if (has(state, 'crown') && eater && eater.beast === 'lion') {
+      gain += 2;
+      notes.push('Iron Crown +2');
+    }
     return { gain, notes, saw: has(state, 'saw'), revenge: has(state, 'revenge') };
   }
 
@@ -1245,6 +1255,7 @@
     const bite = { from, cell: option.cell, scratch: !!option.scratch, eater: snap(eater), meal: snap(meal) };
     countObjective(state, 'consume', 'consumes');
     const wasRat = eater.beast === 'rat';
+    const wasLion = eater.beast === 'lion';
     emptyCell(state, mealCell);
     // The Muzzle counts the block after the meal is gone.
     const crowd = boardCells(state).length;
@@ -1258,6 +1269,10 @@
     if (has(state, 'skewer') && wasRat) {
       gain += 1;
       notes.push('Skewered Rat Heads +1');
+    }
+    if (has(state, 'crown') && wasLion) {
+      gain += 2;
+      notes.push('Iron Crown +2');
     }
     if (has(state, 'saw') && rand(state) < 0.25) {
       gain += 1;
@@ -1881,6 +1896,7 @@
     switch (id) {
       case 'muzzle': return small ? 30 : 8;
       case 'skewer': return board.filter((i) => i.beast === 'rat').length * 8;
+      case 'crown': return 12 + board.filter((i) => i.beast === 'lion').length * 6;
       case 'ironbox': return state.maxDays - state.day >= state.params.nestDays ? 18 : 0;
       case 'keys':
       case 'ring': return (board.length < 4 ? 20 : 5) - (has(state, 'muzzle') && small ? 12 : 0);

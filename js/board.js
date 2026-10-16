@@ -287,6 +287,13 @@
       '<path d="M17 31c1.5-2 3.5-2 5 0" fill="none" stroke="#9a98a0" stroke-width="1.4" stroke-linecap="round"/>' +
       '<path d="M26.5 29c1.5 2.5 4 2.5 5.5 0" fill="none" stroke="#1d1b20" stroke-width="1.4" stroke-linecap="round"/>' +
       '<path d="M24 8l-2 6 3 5-3 6 2 5-2 6 2 4" fill="none" stroke="#1d1b20" stroke-width="1.4"/>'),
+    // Iron Crown of the Prison King: a spiked iron crown set with red stones.
+    crown: icon('glow-orange',
+      '<path d="M8 35L6 13l8.5 9.5L19 9l5 11 5-11 4.5 13.5L42 13l-2 22Z" fill="#6b6e7a" stroke="#2a2b31" stroke-width="1.3" stroke-linejoin="round"/>' +
+      '<path d="M10 31.5L8.6 17M24 22v8M38 31.5L39.4 17" stroke="#9a9eaa" stroke-width="1" fill="none"/>' +
+      '<circle cx="6" cy="13" r="1.8" fill="#9a9eaa"/><circle cx="19" cy="9" r="1.8" fill="#9a9eaa"/><circle cx="29" cy="9" r="1.8" fill="#9a9eaa"/><circle cx="42" cy="13" r="1.8" fill="#9a9eaa"/>' +
+      '<rect x="7.5" y="34" width="33" height="7" rx="1.2" fill="#4a4c57" stroke="#2a2b31" stroke-width="1.3"/>' +
+      '<circle cx="15" cy="37.5" r="1.9" fill="#c0282d"/><circle cx="24" cy="37.5" r="2.2" fill="#e0453a"/><circle cx="33" cy="37.5" r="1.9" fill="#c0282d"/>'),
     // Maddened Beast's Barbed Collar: a blood-red collar ringed with barbs.
     collar: icon('glow-red',
       spikes(24, 24, 14.5, 21.5, 14, 0, '#3a1012') +
