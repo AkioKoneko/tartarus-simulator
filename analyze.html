@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261015d">
+<link rel="stylesheet" href="css/style.css?v=20261015e">
 </head>
 <body>
 <main class="analyzer" id="analyzer">
@@ -103,6 +103,7 @@
           <div class="az-prompts" id="az-step" role="group" aria-label="What your game is asking">
             <button type="button" data-v="patrol">Select a Destination</button>
             <button type="button" data-v="manage">Make Your Decision</button>
+            <button type="button" data-v="office">Instigate or Bestow</button>
             <button type="button" data-v="chain">Pick a meal</button>
             <button type="button" data-v="event">Special event</button>
             <button type="button" data-v="choice">Instrument or gift</button>
@@ -115,7 +116,9 @@
           <div class="az-stepbox az-used" data-step="manage choice">
             <label class="toggle"><input type="checkbox" id="az-swapped"><span><strong>Replace used today</strong><small>Only the warden's inmate can be swapped, once a day.</small></span></label>
             <label class="toggle"><input type="checkbox" id="az-devoured"><span><strong>Devour used today</strong><small>Only the warden's inmate can devour, once a day.</small></span></label>
-            <p class="field-note">With the warden in the office, your game asks Instigate or Bestow instead.</p>
+          </div>
+          <div class="az-stepbox" data-step="office">
+            <p class="field-note">Pick this only while your game shows the Instigate and Bestow buttons. The warden stands in the office (cell 01), and the analyzer ranks the two. Once you've taken one, the buttons are gone: paste your next screenshot, or go back to Make Your Decision.</p>
           </div>
           <div class="az-stepbox" data-step="chain">
             <p class="field-note">The inmate in the warden's cell is chaining and must eat again, and your game asks which meal. Set the board as it is now: the analyzer ranks each meal it can take.</p>
@@ -254,13 +257,6 @@
             <button type="button" data-v="challenge">Contract challenge</button>
           </div>
         </fieldset>
-        <fieldset class="field">
-          <legend>Food chain</legend>
-          <div class="az-seg" id="az-chain">
-            <button type="button" data-v="single">Single meal</button>
-            <button type="button" data-v="two">Two meals</button>
-          </div>
-        </fieldset>
         <div class="az-row">
           <label class="field" id="az-days-wrap"><span class="field-label">Run length (days)</span><input type="number" id="az-days" min="5" max="60" step="1"></label>
           <p class="field" id="az-days-fixed" hidden><span class="field-label">Run length</span><span class="az-fixed">12 days</span></p>
@@ -298,14 +294,14 @@
   </footer>
 </main>
 
-<script src="js/engine.js?v=20261015d"></script>
-<script src="js/board.js?v=20261015d"></script>
-<script src="js/tool-combos.js?v=20261015d"></script>
-<script src="js/solver.js?v=20261015d"></script>
-<script src="js/live.js?v=20261015d"></script>
-<script src="js/report.js?v=20261015d"></script>
-<script src="js/capture.js?v=20261015d"></script>
-<script src="js/analyze.js?v=20261015d"></script>
-<script src="js/auto.js?v=20261015d"></script>
+<script src="js/engine.js?v=20261015e"></script>
+<script src="js/board.js?v=20261015e"></script>
+<script src="js/tool-combos.js?v=20261015e"></script>
+<script src="js/solver.js?v=20261015e"></script>
+<script src="js/live.js?v=20261015e"></script>
+<script src="js/report.js?v=20261015e"></script>
+<script src="js/capture.js?v=20261015e"></script>
+<script src="js/analyze.js?v=20261015e"></script>
+<script src="js/auto.js?v=20261015e"></script>
 </body>
 </html>

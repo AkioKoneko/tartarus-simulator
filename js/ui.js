@@ -15,7 +15,7 @@
   // The published single-file build sets this; its viewer cannot download files.
   const EMBEDDED = !!window.TARTARUS_EMBEDDED;
 
-  const KEYS = { save: 'tartarus-sim:save:v2', prefs: 'tartarus-sim:prefs:v1', params: 'tartarus-sim:params:v4' };
+  const KEYS = { save: 'tartarus-sim:save:v2', prefs: 'tartarus-sim:prefs:v1', params: 'tartarus-sim:params:v5' };
   const HISTORY_LIMIT = 40;
   const DEFAULT_PREFS = { advisor: false, quick: false, motion: true, sound: true, volume: 60, immersive: false };
 
@@ -65,17 +65,15 @@
   const cellEls = [];
 
   // Practice values. Older saved values keep everything except what the live
-  // game has since shown: v3 values take the six-cell patrol and the random
-  // starting tool, and v2 values also take the single-meal food chain.
+  // game has since shown: three doors every morning (unless an instrument or
+  // event takes one away), the six-cell patrol, and a pick of three
+  // instruments to start.
   function loadLabParams() {
     const saved = store.get(KEYS.params);
     if (saved) return T.normalizeParams(saved);
-    let old = store.get('tartarus-sim:params:v3');
-    const drop = ['patrolRange', 'startTools'];
-    if (!old) {
-      old = store.get('tartarus-sim:params:v2');
-      drop.push('loopChain');
-    }
+    let old = store.get('tartarus-sim:params:v4') || store.get('tartarus-sim:params:v3');
+    const drop = ['destinations', 'fewerDoorsChance', 'eventTwoDoors', 'patrolRange', 'startTools'];
+    if (!old) old = store.get('tartarus-sim:params:v2');
     if (old && typeof old === 'object') for (const key of drop) delete old[key];
     return T.normalizeParams(old);
   }
@@ -273,13 +271,6 @@
   // Targets open to today's devour, which only the warden's cell can start.
   function devoursAvailable(st) {
     return T.startOptions(st).length;
-  }
-
-  // Short labels for any rules that differ from the default.
-  function hardModeLabels(st) {
-    const labels = [];
-    if (!st.params.loopChain) labels.push('Two-meal chain');
-    return labels;
   }
 
   function askEndDay() {
@@ -542,8 +533,9 @@
     }
     if (st.pending.length) {
       const kind = st.pending[0].kind;
-      const title = kind === 'gift' ? "Warden's Treasure" : kind === 'refit' ? 'Refit' : 'Objective met';
-      const detail = kind === 'gift' ? 'A Rainbow reached the vault. Pick one gift; it takes effect at once.' : kind === 'refit' ? 'Delivery complete. Pick a tool for the rest of the run.' : `${T.OBJECTIVES[st.objective.id].name} is complete. Pick a tool for the rest of the run.`;
+      const start = !!st.pending[0].start;
+      const title = kind === 'gift' ? "Warden's Treasure" : kind === 'refit' ? 'Refit' : start ? 'Starting instrument' : 'Objective met';
+      const detail = kind === 'gift' ? 'A Rainbow reached the vault. Pick one gift; it takes effect at once.' : kind === 'refit' ? 'Delivery complete. Pick a tool for the rest of the run.' : start ? 'The run begins: pick one of three instruments to keep for the whole run.' : `${T.OBJECTIVES[st.objective.id].name} is complete. Pick a tool for the rest of the run.`;
       setDecision(title, detail, [['Choose', openChoice, 'primary']], true);
       return;
     }
@@ -813,14 +805,7 @@
 
   function renderTop() {
     const st = ui.state;
-    const hard = hardModeLabels(st);
-    $('mode-chip').textContent = `${modeName(st)}${hard.length ? ` · ${hard.join(', ')}` : ''} · ${st.seed}`;
-    const chain = $('chain-svg');
-    chain.classList.toggle('is-loop', !!st.params.loopChain);
-    $('chain-desc').textContent = st.params.loopChain
-      ? 'Single-meal food chain: Mammoth eats Lion. Lion eats Wolf. Wolf eats Rat. Rat eats Mammoth.'
-      : 'Two-meal food chain: Mammoth eats Lion and Wolf. Lion eats Wolf and Rat. Wolf eats Rat. Rat eats Mammoth.';
-    $('chain-note').textContent = `${st.params.loopChain ? 'Each beast has one meal. ' : 'The Chinese sim\u2019s chain: Mammoth and Lion have two meals. '}Arrows point from eater to meal. Both must share a rarity. A devour raises the eater one tier, then re-rolls its beast.`;
+    $('mode-chip').textContent = `${modeName(st)} · ${st.seed}`;
     $('day-num').textContent = String(st.day).padStart(2, '0');
     $('day-of').textContent = `/ ${st.maxDays}`;
     const pill = $('phase-pill');
@@ -1022,7 +1007,7 @@
     if (!st.tools.length) {
       let empty;
       if (st.mode === 'challenge') empty = 'No tools yet. Meeting the objective and each of your first two deliveries earn one.';
-      else if (st.params.rewards) empty = 'No tools yet. Meeting the objective earns one. The Lab can add more, or start drills with random tools.';
+      else if (st.params.rewards) empty = 'No tools yet. Meeting the objective earns one. The Lab can add more, or change the starting picks.';
       else empty = 'Rewards are off for this drill. Add tools in the Lab to test them.';
       list.innerHTML = `<li class="tool-text">${empty}</li>`;
       return;
@@ -1142,7 +1127,7 @@
 
   function guideFor(st) {
     const g = window.TARTARUS_GUIDE;
-    return g && (g.chain === 'single') === !!st.params.loopChain ? g : null;
+    return g || null;
   }
 
   function lessonFor(st, action) {
@@ -1156,7 +1141,8 @@
     if (st.pending.length) {
       if (st.pending[0].kind === 'gift') return LESSONS.gift;
       const names = window.TartarusSolver.paramsFor(st).toolRank.map((id) => T.toolName(id));
-      return `Training ranking for this food chain: ${names.join(', ')}.`;
+      if (st.challenge) return `Training ranking for the challenge: ${names.join(', ')}.`;
+      return `Training: take the instrument that adds the most to the ones you hold, measured over millions of runs with each pair and set. On its own, the order is ${names.join(', ')}.`;
     }
     if (st.challenge && st.challenge.window) return challengeLesson(st) || (st.challenge.deliveries.length >= 2 ? LESSONS.heavy : LESSONS.window);
     if (st.challenge && st.phase !== 'event') return nextContractLesson(st);
@@ -1706,8 +1692,6 @@
       .map(([key, k]) => `<label class="option"><input type="radio" name="loadout" value="${key}"${key === loadout ? ' checked' : ''}><strong>${esc(k.name)} · ${esc(k.level)}</strong><small>${esc(k.text)}</small></label>`)
       .join('');
     $('new-seed').value = T.randomSeed();
-    $('new-chain-single').checked = !!ui.labParams.loopChain;
-    $('new-chain-two').checked = !ui.labParams.loopChain;
     syncNewMode();
     $('new-replace').hidden = !(ui.state && ui.state.phase !== 'ended');
     openDialog('dlg-new');
@@ -1882,7 +1866,9 @@
     }
     const goal = T.OBJECTIVES[st.objective.id].name;
     const copy = {
-      tool: ['Objective met', 'Choose a tool', `${goal} is complete. Take one tool for the rest of the run.`],
+      tool: choice.start
+        ? ['Starting instrument', 'Choose an instrument', 'Your run begins with one of these three instruments. It lasts the whole run.']
+        : ['Objective met', 'Choose a tool', `${goal} is complete. Take one tool for the rest of the run.`],
       gift: ["Warden's Treasure", 'Choose a gift', 'A Rainbow reached the vault. Pick one gift; it takes effect at once.'],
       refit: ['Refit', 'Choose a tool', 'Delivery complete. Take one tool for the rest of the run.'],
     }[choice.kind];
@@ -1977,8 +1963,7 @@
     const st = ui.state;
     if (!st || !st.result) return;
     const r = st.result;
-    const hard = hardModeLabels(st);
-    $('results-eyebrow').textContent = `${modeName(st)}${hard.length ? ` · ${hard.join(', ')}` : ''} · seed ${st.seed}`;
+    $('results-eyebrow').textContent = `${modeName(st)} · seed ${st.seed}`;
     const verdict = $('results-verdict');
     const ch = st.challenge;
     if (ch && ch.result) {
@@ -2030,8 +2015,7 @@
   function summaryText() {
     const st = ui.state;
     const r = st.result;
-    const hard = hardModeLabels(st);
-    const lines = [`Tartarus Simulator · ${modeName(st)}${hard.length ? ` · ${hard.join(', ')}` : ''} · seed ${st.seed}`, `Day ${r.day} of ${st.maxDays}${r.early ? ' (closed early)' : ''}`];
+    const lines = [`Tartarus Simulator · ${modeName(st)} · seed ${st.seed}`, `Day ${r.day} of ${st.maxDays}${r.early ? ' (closed early)' : ''}`];
     const ch = st.challenge;
     if (ch && ch.result) {
       lines.push(`${ch.result.passed ? 'Passed' : 'Failed'} · ${T.plural(ch.result.completed, 'contract')} delivered · score ${ch.result.score} · ${T.plural(ch.result.vouchers, 'voucher')} left`);
@@ -2317,9 +2301,6 @@
     $('form-new').addEventListener('submit', (e) => {
       e.preventDefault();
       const data = new FormData(e.target);
-      // The food chain is remembered for the next run too.
-      ui.labParams = T.normalizeParams(Object.assign({}, ui.labParams, { loopChain: data.get('chain') !== 'two' }));
-      store.set(KEYS.params, ui.labParams);
       closeDialog('dlg-new');
       startRun({ mode: data.get('mode'), scenario: data.get('scenario'), loadout: data.get('loadout'), seed: $('new-seed').value });
     });

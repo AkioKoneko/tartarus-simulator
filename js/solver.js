@@ -54,23 +54,17 @@
     needCrit: 2, // ...and weighted this much more when the contract is a must (the other early one was missed)
   };
 
-  // Tuned weights for each kind of run: tool rewards on or off, on the
-  // two-meal chain or the default single-meal loop. The solver picks by the
-  // run's settings. From tools/results/ (train-report.json: the single-meal
-  // profiles were retrained on 2026-10-15; the two-meal ones are older).
+  // Tuned weights for each kind of run: drills with tool rewards on or off,
+  // and the contract challenge. The solver picks by the run's settings. From
+  // tools/results/ (train-report.json: the drill profiles were retrained on
+  // 2026-10-15).
   const PROFILES = {
-    rewards: { tierBase: 3, rainbowMult: 1, wOpen: 2.5, wNow: 1.5, wWalk: 1, wStep: 1, wChain: 8, wStair: 0.5, swapMaxTier: 2, minDevour: 0, execMargin: 10, acceptChain: true, toolRank: ['muzzle', 'rope', 'shackles', 'revenge', 'skewer', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'keys', 'axe', 'fire', 'scales', 'pestle', 'forged', 'ironbox'] },
-    notools: { tierBase: 2.5, rainbowMult: 2, wOpen: 1.875, wNow: 1, wWalk: 1, wStep: 1, wChain: 16, wStair: 0.25, swapMaxTier: 1, minDevour: 0, execMargin: 0, acceptChain: true, toolRank: ['muzzle', 'rope', 'shackles', 'revenge', 'skewer', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'keys', 'axe', 'fire', 'scales', 'pestle', 'forged', 'ironbox'] },
-    'loop-rewards': { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'keys', 'scales', 'pestle', 'axe', 'fire', 'forged', 'ironbox'] },
-    'loop-notools': { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'keys', 'scales', 'pestle', 'axe', 'fire', 'forged', 'ironbox'] },
+    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'keys', 'scales', 'pestle', 'axe', 'fire', 'forged', 'ironbox'] },
+    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'keys', 'scales', 'pestle', 'axe', 'fire', 'forged', 'ironbox'] },
     // The contract challenge, tuned on passing first and then points.
-    challenge: { tierBase: 2.25, rainbowMult: 0.5, wOpen: 1.5, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 16, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 20, acceptChain: true, toolRank: ['rope', 'shackles', 'skewer', 'revenge', 'collar', 'keys', 'ironbox', 'muzzle', 'saw', 'hook', 'tongs', 'guillotine', 'fire', 'axe', 'scales', 'pestle', 'forged'], keep1: 1, keep2: 0.25, reserve: 3, earlyPoints: -1, wNeed: 160, needDays: 2, needCrit: 4 },
-    'loop-challenge': { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'shackles', 'skewer', 'revenge', 'collar', 'keys', 'ironbox', 'muzzle', 'saw', 'guillotine', 'hook', 'tongs', 'fire', 'axe', 'scales', 'pestle', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
+    challenge: { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'shackles', 'skewer', 'revenge', 'collar', 'keys', 'ironbox', 'muzzle', 'saw', 'guillotine', 'hook', 'tongs', 'fire', 'axe', 'scales', 'pestle', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
   };
-  const paramsFor = (st) => {
-    const base = st.mode === 'challenge' ? 'challenge' : st.params.rewards ? 'rewards' : 'notools';
-    return (st.params.loopChain && PROFILES[`loop-${base}`]) || PROFILES[base];
-  };
+  const paramsFor = (st) => PROFILES[st.mode === 'challenge' ? 'challenge' : st.params.rewards ? 'rewards' : 'notools'];
 
   const withDefaults = (p) => Object.assign({}, DEFAULTS, p || {});
 
@@ -127,7 +121,7 @@
   // Everything a decision needs, computed once per position.
   function context(st, params) {
     const P = withDefaults(params);
-    const chain = T.FOOD_CHAINS[st.params.loopChain ? 'loop' : 'standard'];
+    const chain = T.FOOD_CHAIN;
     const eats = BEASTS.map((b) => chain[b].map(beastIndex));
     const skewer = has(st, 'skewer');
     if (skewer) eats[RAT] = eats[RAT].concat(RAT);
@@ -392,7 +386,7 @@
   // Value of an Execution by an inmate of this tier and beast.
   function executionValue(ctx, tier, beast, comp) {
     const same = ctx.st.params.executionSameTier;
-    const prey = T.FOOD_CHAINS[ctx.st.params.loopChain ? 'loop' : 'standard'][BEASTS[beast]].map(beastIndex);
+    const prey = T.FOOD_CHAIN[BEASTS[beast]].map(beastIndex);
     let count = 0;
     let lost = 0;
     for (let t = 0; t <= (same ? tier : tier - 1); t++) {
@@ -870,7 +864,7 @@
   // measured subsets. Null when there's no data for these instruments, and
   // in the contract challenge, which plays for points with its own ranking.
   function toolGains(st, options) {
-    const data = st.mode !== 'challenge' && COMBOS && COMBOS[st.params.loopChain ? 'single' : 'two'];
+    const data = st.mode !== 'challenge' && COMBOS && COMBOS.single;
     if (!data || !options.every((id) => data.ids.includes(id))) return null;
     if (!data.largest) data.largest = Math.max(...Object.keys(data.v).map((k) => k.length));
     const key = (ids) => ids.map((id) => String.fromCharCode(97 + data.ids.indexOf(id))).sort().join('');

@@ -35,8 +35,8 @@
   const SAVE_KEY = 'tartarus-sim:save:v2';
   const PLAYOUT_BUDGET = 9600; // playouts per check, shared across the options
   const LIVE_MIN = 150; // playouts per option before the live check can lead
-  const STEPS = ['patrol', 'manage', 'chain', 'event', 'choice', 'window'];
-  const STEP_NAMES = { patrol: 'Which door to patrol', manage: 'After the patrol', event: 'A special event', choice: 'A tool or gift', window: 'A delivery' };
+  const STEPS = ['patrol', 'manage', 'office', 'chain', 'event', 'choice', 'window'];
+  const STEP_NAMES = { patrol: 'Which door to patrol', manage: 'After the patrol', office: 'Instigate or Bestow', chain: 'A meal to pick', event: 'A special event', choice: 'A tool or gift', window: 'A delivery' };
   const BEAST_KEYS = { m: 'mammoth', l: 'lion', w: 'wolf', r: 'rat' };
   const TOP_TIER = T.SUPREME; // Rainbows leave for the vault, so cells hold Normal to Supreme
 
@@ -84,6 +84,7 @@
     return {
       v: 1,
       mode: 'drill',
+      // The game has one food chain. Shared boards still say which.
       chain: 'single',
       rewards: true,
       day: 1,
@@ -120,6 +121,7 @@
     if (!STEPS.includes(out.step)) out.step = 'patrol';
     if (!T.OBJECTIVES[out.objective]) out.objective = 'other';
     out.walkTiles = clamp(toInt(out.walkTiles, 0), 0, T.OBJECTIVES.walk.need);
+    out.chain = 'single';
     return out;
   }
 
@@ -139,8 +141,7 @@
   function buildState(m) {
     const problems = [];
     const challenge = m.mode === 'challenge';
-    const loopChain = m.chain !== 'two';
-    const params = challenge ? { loopChain } : { loopChain, rewards: !!m.rewards, drillDays: clamp(toInt(m.maxDays, 20), 5, 60) };
+    const params = challenge ? {} : { rewards: !!m.rewards, drillDays: clamp(toInt(m.maxDays, 20), 5, 60) };
     const st = T.newGame({ mode: challenge ? 'challenge' : 'drill', params, seed: 'ANALYZER', loadout: 'supply' });
     st.rng = (Math.random() * 4294967296) >>> 0;
     st.log = [];
@@ -286,10 +287,17 @@
         if (T.chainOptions(st).length < 2) problems.push("Your game asks for a meal only when the chaining inmate has 2 or more to choose from. Check the board: it can't find 2 meals for it.");
         break;
       }
+      case 'office': {
+        // Only when the game shows the Instigate and Bestow buttons. Standing
+        // in the office isn't enough: the run starts there without them, and
+        // they're gone once one is taken.
+        usedToday();
+        if (st.position !== T.OFFICE) problems.push('Instigate and Bestow come with the warden in the office: put the warden in cell 01.');
+        st.phase = 'office';
+        break;
+      }
       default:
         usedToday();
-        // With the warden in the office, the decision is Instigate or Bestow.
-        if (st.position === T.OFFICE) st.phase = 'office';
     }
     return { st, problems };
   }
@@ -299,7 +307,6 @@
   function modelFrom(st, prev) {
     const m = blankModel();
     m.mode = st.mode === 'challenge' ? 'challenge' : 'drill';
-    m.chain = st.params.loopChain ? 'single' : 'two';
     m.rewards = !!st.params.rewards;
     m.day = st.day;
     m.maxDays = st.mode === 'challenge' ? (prev ? prev.maxDays : T.DEFAULT_PARAMS.drillDays) : st.maxDays;
@@ -339,6 +346,8 @@
       m.step = 'event';
       m.eventKind = st.event.kind;
     } else if (st.chaining) m.step = 'chain';
+    // The simulator offers Instigate or Bestow on walking into the office, but
+    // the analyzer waits for the player (or a screenshot) to say the game does.
     else m.step = st.phase === 'patrol' ? 'patrol' : 'manage';
     m.dest = st.phase === 'patrol' ? st.destinations.slice() : [];
     m.devourUsed = st.used.devour > 0;
@@ -543,7 +552,7 @@
     if (undo.length > 30) undo.shift();
     model = modelFrom(st, before);
     flags = new Set(model.cells.map((c, n) => (cellSig(c) !== cellSig(before.cells[n]) ? n : -1)).filter((n) => n >= 0));
-    applied = { label, changed: [...flags], newDay: model.day !== before.day, doors: model.step === 'patrol' ? model.dest.slice() : [], ended: !!model.ended, step: model.step, more, toNextDay: !!toNextDay };
+    applied = { label, changed: [...flags], newDay: model.day !== before.day, doors: model.step === 'patrol' ? model.dest.slice() : [], ended: !!model.ended, step: model.step, office: st.phase === 'office', more, toNextDay: !!toNextDay };
     const filled = [...flags].map((n) => `c${n}`);
     if (applied.newDay && model.step === 'patrol') filled.push('dest');
     if (model.step === 'event') filled.push('event');
@@ -773,7 +782,6 @@
   function renderSettings() {
     const challenge = model.mode === 'challenge';
     pressGroup('az-mode', model.mode);
-    pressGroup('az-chain', model.chain);
     const maxDays = challenge ? T.CHALLENGE_DAYS : clamp(toInt(model.maxDays, 20), 5, 60);
     // The game counts down: "N day(s) until Riot" on day maxDays - N.
     const riot = $('az-riot');
@@ -901,7 +909,7 @@
     for (const [key, li] of old) if (!keep.has(key)) li.remove();
   }
 
-  const actionKey = (a) => [a.type, a.cell, a.to, a.id, a.accept, (a.cells || []).slice().sort((x, y) => x - y).join('.'), (a.vaultIds || []).slice().sort((x, y) => x - y).join('.'), a.escort].join('|');
+  const actionKey = (a) => [a.type, a.cell, a.to, a.id, a.accept, a.choice, (a.cells || []).slice().sort((x, y) => x - y).join('.'), (a.vaultIds || []).slice().sort((x, y) => x - y).join('.'), a.escort].join('|');
 
   function renderResults() {
     const box = $('az-results');
@@ -997,6 +1005,7 @@
       case 'swap': return 'In your game, swap the warden’s inmate. Then set the warden’s cell to what came in, and ask again.';
       case 'end': return 'In your game, end the day. Then mark the new day’s doors, and ask again.';
       case 'event': return 'Then update what changed, and ask again.';
+      case 'office': return 'In your game, press it. Then paste a screenshot of what changed (or set it here under Make Your Decision), and ask again.';
       case 'choose': return 'Take it in your game, then ask again.';
       case 'deliver': return 'Load exactly these inmates in your game’s delivery window, with that escort.';
       default: return 'Then update the board, and ask again.';
@@ -1016,6 +1025,7 @@
       if (applied.step === 'window') html += '<p class="trainer-why">A delivery window opened: the contract is due.</p>';
       if (applied.step === 'choice') html += '<p class="trainer-why">A tool or gift is on offer: set the options your game shows.</p>';
       if (applied.step === 'event') html += "<p class=\"trainer-why\">The door held a special event: check its kind in your game.</p>";
+      if (applied.office) html += '<p class="trainer-why">The warden is in the office. If your game shows the Instigate and Bestow buttons, pick “Instigate or Bestow” above, or paste a screenshot of them. Otherwise carry on with “Make Your Decision”.</p>';
       html += '<p class="trainer-lesson">Then press “What should I do?” for the next move.</p>';
     }
     const unchecked = via && !applied.ended ? via.filled.filter((k) => !via.touched.has(k)).length : 0;
@@ -1714,11 +1724,6 @@
       if (v !== 'challenge' && model.step === 'window') model.step = 'manage';
       changed();
     });
-    segment('az-chain', (v) => {
-      model.chain = v;
-      cleanPrey();
-      changed();
-    });
     $('az-riot').addEventListener('change', (e) => {
       const max = model.mode === 'challenge' ? T.CHALLENGE_DAYS : clamp(toInt(model.maxDays, 20), 5, 60);
       model.day = clamp(max - toInt(e.target.value, max - model.day), 1, max);
@@ -1731,6 +1736,8 @@
     });
     segment('az-step', (v) => {
       model.step = v;
+      // The buttons only show with the warden in the office.
+      if (v === 'office') model.warden = T.OFFICE;
       changed();
     });
     $('az-doors').addEventListener('click', (e) => {
@@ -1971,7 +1978,7 @@
     if (window.TartarusReport) {
       TartarusReport.setup({
         app: 'analyze-20261014a',
-        context: () => ({ page: 'analyze', day: model.day, step: model.step, chain: model.chain }),
+        context: () => ({ page: 'analyze', day: model.day, step: model.step }),
       });
     }
     $('az-toast-actions').addEventListener('click', (e) => {

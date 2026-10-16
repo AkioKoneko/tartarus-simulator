@@ -31,14 +31,10 @@
     rat: { name: 'Rat' },
   };
 
-  // Who eats whom. The single-meal loop is the default, since it's what the
-  // live game appears to use: each beast has exactly one meal. The two-meal
-  // chain from the Chinese sim ("standard" here) has six relations.
-  const FOOD_CHAINS = {
-    standard: { mammoth: ['lion', 'wolf'], lion: ['wolf', 'rat'], wolf: ['rat'], rat: ['mammoth'] },
-    loop: { mammoth: ['lion'], lion: ['wolf'], wolf: ['rat'], rat: ['mammoth'] },
-  };
-  const eatsOf = (state, beast) => FOOD_CHAINS[state.params.loopChain ? 'loop' : 'standard'][beast] || [];
+  // Who eats whom: each beast has exactly one meal, in a loop. (The Chinese
+  // sim's two-meal chain was confirmed not to be in the live game.)
+  const FOOD_CHAIN = { mammoth: ['lion'], lion: ['wolf'], wolf: ['rat'], rat: ['mammoth'] };
+  const eatsOf = (state, beast) => FOOD_CHAIN[beast] || [];
 
   // Convoy pressure each inmate adds to an escort, by tier.
   const PRESSURE = [2, 4, 8, 16, 32, 65];
@@ -71,11 +67,7 @@
     nestTier: 2,
     rewards: true,
     startTools: 1,
-    loopChain: true,
   };
-
-  // Rule switches the challenge takes from the New Run screen, though its other values are fixed.
-  const HARD_MODE_KEYS = ['loopChain'];
 
   // The contract challenge always plays with these values.
   const CHALLENGE_PARAMS = Object.assign({}, DEFAULT_PARAMS, { executionSameTier: true, executionRerolls: true, rewards: true, startTools: 0 });
@@ -88,7 +80,6 @@
     { key: 'fewerDoorsChance', group: 'Pace', label: 'Chance a morning offers one door fewer (%)', type: 'int', min: 0, max: 100 },
     { key: 'swapsPerDay', group: 'Pace', label: 'Swaps per day', type: 'int', min: 0, max: 16 },
     { key: 'reusableCells', group: 'Pace', label: 'Emptied cells seal again and can be reopened', type: 'bool' },
-    { key: 'loopChain', group: 'Food chain', label: "Single-meal food chain: Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth (off: the Chinese sim's two-meal chain)", type: 'bool' },
     { key: 'tierWeights', group: 'Odds', label: 'Rarity weights for new inmates', type: 'list', names: TIERS.slice(0, 5) },
     { key: 'beastWeights', group: 'Odds', label: 'Beast weights for new inmates', type: 'list', names: ['Mammoth', 'Lion', 'Wolf', 'Rat'] },
     { key: 'eventChance', group: 'Special events', label: 'Chance a sealed cell hides a special event, seen once the warden walks past it (%)', type: 'int', min: 0, max: 100 },
@@ -102,7 +93,7 @@
     { key: 'nestDays', group: 'Markers', label: 'Days before a rat nest hatches', type: 'int', min: 1, max: 10 },
     { key: 'nestTier', group: 'Markers', label: 'Rarity of a hatched Rat', type: 'tier' },
     { key: 'rewards', group: 'Rewards', label: "Meeting the run's objective earns a tool; each Rainbow opens the Warden's Treasure", type: 'bool' },
-    { key: 'startTools', group: 'Rewards', label: 'Random tools at the start of a drill (the live game gives 1)', type: 'int', min: 0, max: 8 },
+    { key: 'startTools', group: 'Rewards', label: 'Starting instrument picks, each from 3 random ones (the live game gives 1)', type: 'int', min: 0, max: 5 },
   ];
 
   const TOOLS = {
@@ -312,11 +303,9 @@
     return p;
   }
 
-  // Fixed challenge values, plus whichever rule switches were chosen.
-  function challengeParams(input) {
-    const p = JSON.parse(JSON.stringify(CHALLENGE_PARAMS));
-    for (const key of HARD_MODE_KEYS) p[key] = input && key in input ? !!input[key] : DEFAULT_PARAMS[key];
-    return p;
+  // The challenge's values are fixed.
+  function challengeParams() {
+    return JSON.parse(JSON.stringify(CHALLENGE_PARAMS));
   }
 
   // ---------- State helpers ----------
@@ -665,15 +654,22 @@
       note = `Rat nest drill: the nest in cell 03 hatches a ${tierName(state.params.nestTier)} Rat on the morning of day ${1 + state.params.nestDays}. Patrolling it before then destroys it.`;
     }
     for (const cell of state.cells) if (!cell.sealed) cell.event = null;
-    if (state.params.startTools > 0) {
-      state.tools = shuffle(state, TOOL_IDS).slice(0, state.params.startTools);
-      log(state, 'tool', `Starting ${state.tools.length === 1 ? 'tool' : 'tools'}: ${state.tools.map((t) => TOOLS[t].name).join(', ')}.`);
-    }
+    offerStartTools(state);
     if (marker) state.position = 1;
     beginDay(state, []);
     if (destinations) state.destinations = destinations;
     if (marker) state.phase = 'manage';
     log(state, 'drill', note);
+  }
+
+  // As in the live game, a run starts with a pick of 3 random instruments.
+  // More starting picks (a Lab value) each offer 3 others.
+  function offerStartTools(state) {
+    const picks = Math.min(state.params.startTools, Math.floor(TOOL_IDS.length / 3));
+    if (picks <= 0) return;
+    const order = shuffle(sideStream(state, 'start-tools'), TOOL_IDS.filter((t) => !has(state, t)));
+    for (let i = 0; i < picks; i++) state.pending.push({ kind: 'tool', options: order.slice(3 * i, 3 * i + 3), start: true });
+    log(state, 'tool', picks === 1 ? 'Choose a starting instrument.' : `Choose ${picks} starting instruments, one at a time.`);
   }
 
   function setupChallenge(state) {
@@ -1891,7 +1887,7 @@
   };
 
   const api = {
-    VERSION, CELL_COUNT, OFFICE, SUPREME, RAINBOW, TIERS, BEASTS, BEAST_INFO, FOOD_CHAINS, HARD_MODE_KEYS, PRESSURE, ESCORTS, TOOLS, TOOL_IDS, GIFTS, GIFT_IDS,
+    VERSION, CELL_COUNT, OFFICE, SUPREME, RAINBOW, TIERS, BEASTS, BEAST_INFO, FOOD_CHAIN, PRESSURE, ESCORTS, TOOLS, TOOL_IDS, GIFTS, GIFT_IDS,
     EVENTS, EVENT_IDS, EVENT_POOL, APPETITE_TRIES, APPETITE_ODDS, INSTIGATE_EVENTS, CROW_CELLS, FREEDOM_CELLS, OBJECTIVES, OBJECTIVE_IDS,
     LOADOUTS, SCENARIOS, CONTRACT_SLOTS, DEFAULT_PARAMS, PARAM_FIELDS, CHALLENGE_DAYS, START_VOUCHERS,
     newGame, randomSeed, normalizeParams, serialize, deserialize,

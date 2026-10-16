@@ -2176,10 +2176,6 @@ a.menu-item {
   fill: var(--iron-hi);
 }
 
-.chain.is-loop .chain-extra {
-  display: none;
-}
-
 .chain-nodes circle {
   fill: var(--slab-hi);
   stroke: var(--bone);

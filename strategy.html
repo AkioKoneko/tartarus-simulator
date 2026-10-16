@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Tartarus Strategy Guide</title>
-<meta name="description" content="A rough Tartarus prison strategy to learn before you play, from millions of simulated runs on the single-meal food chain.">
+<meta name="description" content="A rough Tartarus prison strategy to learn before you play, from millions of simulated runs.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 18'%3E%3Crect width='16' height='18' rx='3' fill='%230f1216'/%3E%3Cpath d='M6 1h4v2H6z' fill='%23eadfc5'/%3E%3Cpath d='M4 4h8l-1 10H5z' fill='%23eadfc5'/%3E%3Cpath d='M5 15h6v2H5z' fill='%23eadfc5'/%3E%3Cpath d='M8 6.5c1.4 1.6 1.6 3 0 4.6-1.6-1.6-1.4-3 0-4.6Z' fill='%23f28c36'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261015d">
+<link rel="stylesheet" href="css/style.css?v=20261015e">
 <style>
   /* The strategy guide: a long read in the simulator's own look. */
   .guide {
@@ -436,7 +436,7 @@
   <a class="guide-back" href="./">← Back to the simulator</a>
   <p class="eyebrow">Tartarus Simulator · Strategy guide</p>
   <h1>How to vault Rainbows</h1>
-  <p class="lede">A rough strategy to learn before your first run, for the single-meal food chain the live game appears to use. It comes from <span data-g="totalRuns"></span> simulated 20-day drills, played by a rules-based strategy tuned for this chain.</p>
+  <p class="lede">A rough strategy to learn before your first run. It comes from <span data-g="totalRuns"></span> simulated 20-day drills, played by a rules-based strategy tuned for the season's rules.</p>
 
   <div class="stats">
     <div class="stat"><b data-g="rainbows"></b><span>Rainbows per run with this strategy, <span data-g="ratio"></span>× a simple player's <span data-g="simpleRewards"></span></span></div>
@@ -444,7 +444,7 @@
     <div class="stat"><b data-g="chainShare"></b><span>of Rainbows come from devour chains</span></div>
     <div class="stat"><b>Day <span data-g="firstDay"></span></b><span>when the first Rainbow usually lands</span></div>
   </div>
-  <p class="note basis">Data basis: the single-meal food chain (Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth), in the default drill: a random tool to start, another for meeting the run's objective (King of the Caged or Prison Walk), and a Warden's Treasure gift per Rainbow. The headline numbers come from <span data-g="headlineRuns"></span> runs, with margins under ±<span data-g="ci"></span>. Generated <span data-g="generated"></span>.</p>
+  <p class="note basis">Data basis: the default drill, with a pick of 3 random instruments to start, another pick for meeting the run's objective (King of the Caged or Prison Walk), and a Warden's Treasure gift per Rainbow. The headline numbers come from <span data-g="headlineRuns"></span> runs, with margins under ±<span data-g="ci"></span>. Generated <span data-g="generated"></span>.</p>
   <p class="jump" id="jump-challenge" hidden>Playing the contract challenge? <a href="#challenge">Jump to the convoy rules</a>: what to send, and how to pass.</p>
 
   <section class="guide-section">
@@ -477,7 +477,7 @@
 
   <section class="guide-section">
     <h2>Chains: how many beasts you need</h2>
-    <p>After every bite the eater rises a tier and re-rolls into a random beast. The chain continues if that new beast has something to eat at its new tier. With the single-meal chain each beast eats exactly one other: a Mammoth needs a Lion, a Lion needs a Wolf, a Wolf needs a Rat, and a Rat needs a Mammoth. So each beast waiting at a tier covers one of the four possible re-rolls.</p>
+    <p>After every bite the eater rises a tier and re-rolls into a random beast. The chain continues if that new beast has something to eat at its new tier. Each beast eats exactly one other: a Mammoth needs a Lion, a Lion needs a Wolf, a Wolf needs a Rat, and a Rat needs a Mammoth. So each beast waiting at a tier covers one of the four possible re-rolls.</p>
     <h3>Chance the chain finds its next meal at a tier</h3>
     <div class="sets" id="sets"></div>
 
@@ -533,7 +533,7 @@
 
   <section class="guide-section" id="pairs-section" hidden>
     <h2>Instrument pairs</h2>
-    <p>A run starts with one instrument, and meeting the objective offers three more. What the second is worth depends on the first, so take the one that adds the most to what you hold. For each starting instrument, its three best partners: what the partner adds, then Rainbows per run holding both from day 1, with no other rewards.</p>
+    <p>A run starts with a pick of three instruments, and meeting the objective offers three more. What the second is worth depends on the first, so take the one that adds the most to what you hold. For each starting instrument, its three best partners: what the partner adds, then Rainbows per run holding both from day 1, with no other rewards.</p>
     <div class="table-wrap">
       <table>
         <thead><tr><th>You hold</th><th>Best second</th><th>Next</th><th>Then</th></tr></thead>
@@ -573,7 +573,7 @@
       <div class="stat"><b data-c="full"></b><span>of runs deliver all three contracts</span></div>
       <div class="stat"><b data-c="naivePass"></b><span>pass when every convoy just sends the most points</span></div>
     </div>
-    <p class="note basis">Data basis: <span data-c="runs"></span> simulated challenge runs on the single-meal food chain, split evenly across the three starts, played by a strategy tuned for the challenge. It plays for passing first, then points: 1% of pass chance counts as 10 points. Each variant below ran <span data-c="habitRuns"></span> runs. Generated <span data-c="generated"></span>.</p>
+    <p class="note basis">Data basis: <span data-c="runs"></span> simulated challenge runs, split evenly across the three starts, played by a strategy tuned for the challenge. It plays for passing first, then points: 1% of pass chance counts as 10 points. Each variant below ran <span data-c="habitRuns"></span> runs. Generated <span data-c="generated"></span>.</p>
 
     <h3>Convoy rules</h3>
     <ol class="rules">
@@ -618,11 +618,6 @@
   </section>
 
   <section class="guide-section">
-    <h2>If live uses the two-meal chain</h2>
-    <p>The Chinese sim uses a two-meal chain, where Mammoth also eats Wolf and Lion also eats Rat. Chains break much less often there: the same kind of strategy makes <span data-g="otherNotools"></span> Rainbows per run with no tools and <span data-g="otherRewards"></span> with tools, against <span data-g="fullCompare"></span> and <span data-g="rainbows"></span> here. The habits above still hold. For a guaranteed next bite on that chain, a tier needs a Rat, a Mammoth, and a Lion or Wolf. The New Run screen can switch to it if you want to practice both.</p>
-  </section>
-
-  <section class="guide-section">
     <div class="cta">
       <h2>Practice it</h2>
       <p>Start a Rules drill and press <strong>Trainer</strong> in the top bar. It recommends a move for every decision and marks it on the board. It checks the move with hundreds of live playouts from your exact position, and grades each move you make, so you can see where your play differs from these numbers.</p>
@@ -636,13 +631,13 @@
 
   <footer class="method">
     <p>This English version and guide are made by <strong>CoffeeBns</strong>: <a href="https://twitch.tv/coffeebns" target="_blank" rel="noopener">twitch.tv/coffeebns</a> and <a href="https://youtube.com/@CoffeeBns" target="_blank" rel="noopener">youtube.com/@CoffeeBns</a>.</p>
-    <p><strong>How these numbers were made.</strong> Every run used the simulator's own rules engine. A rules-based strategy played them, making each choice from what a player can see. There's no AI involved: it's a set of scoring rules whose weights were tuned for this food chain by trying each value and keeping whichever vaulted more Rainbows. This data set took <span data-g="totalRuns"></span> runs and <span data-g="minutes"></span> minutes. The rules follow the season's video reveal and what players have since seen live. Odds and limits are practice values and may differ from the live game: new inmates roll 52% Normal, 27% Magic, 15% Rare and 6% Legendary, 5% of sealed cells hide an event, every kind equally likely, which shows only once the warden walks past, and you get one devour and one swap a day over a 20-day drill. The full tables are in the <a href="https://github.com/blahdot3h/tartarus-simulator/tree/main/tools" target="_blank" rel="noopener">strategy lab's notes</a>.</p>
+    <p><strong>How these numbers were made.</strong> Every run used the simulator's own rules engine. A rules-based strategy played them, making each choice from what a player can see. There's no AI involved: it's a set of scoring rules whose weights were tuned for these rules by trying each value and keeping whichever vaulted more Rainbows. This data set took <span data-g="totalRuns"></span> runs and <span data-g="minutes"></span> minutes. The rules follow the season's video reveal and what players have since seen live. Odds and limits are practice values and may differ from the live game: new inmates roll 52% Normal, 27% Magic, 15% Rare and 6% Legendary, 5% of sealed cells hide an event, every kind equally likely, which shows only once the warden walks past, and you get one devour and one swap a day over a 20-day drill. The full tables are in the <a href="https://github.com/blahdot3h/tartarus-simulator/tree/main/tools" target="_blank" rel="noopener">strategy lab's notes</a>.</p>
   </footer>
 </main>
 
-<script src="js/guide-data.js?v=20261015d"></script>
-<script src="js/tool-combos.js?v=20261015d"></script>
-<script src="js/board.js?v=20261015d"></script>
+<script src="js/guide-data.js?v=20261015e"></script>
+<script src="js/tool-combos.js?v=20261015e"></script>
+<script src="js/board.js?v=20261015e"></script>
 <script>
   // Fills the guide from js/guide-data.js, generated by
   // node tools/strategy-sim.js guide.
@@ -718,25 +713,15 @@
       doors: Math.round(H.doorsPerRun),
       swaps: Math.round(H.swapsPerRun),
       devours: Math.round(H.devoursPerRun),
-      otherNotools: two(G.otherChain.notools),
-      otherRewards: two(G.otherChain.rewards),
     };
     for (const el of document.querySelectorAll('[data-g]')) el.textContent = V[el.dataset.g] !== undefined ? V[el.dataset.g] : '?';
 
-    // Beast sets and the share of re-rolls that find food. On the single-meal
-    // chain only the number of different beasts matters, so it shows one card
-    // per count; on the two-meal chain each set differs.
+    // Beast sets and the share of re-rolls that find food. Each beast has one
+    // meal, so only the number of different beasts matters: one card per count.
     const names = { Mammoth: 'mammoth', Lion: 'lion', Wolf: 'wolf', Rat: 'rat' };
     const card = (beasts, odds, label) => `<div class="set${odds === 1 ? ' is-full' : ''}"><div class="set-icons">${beasts.map((b) => `<span class="tok t2" title="${b}">${PORTRAITS[names[b]]}</span>`).join('')}</div><div class="set-odds">${Math.round(100 * odds)}%</div><div class="set-name">${esc(label)}</div></div>`;
     const counted = ['All four beasts', 'Any three beasts', 'Any two beasts', 'Any one beast'];
-    document.getElementById('sets').innerHTML = G.chain === 'single'
-      ? [4, 3, 2, 1].map((k, i) => card(['Mammoth', 'Lion', 'Wolf', 'Rat'].slice(0, k), k / 4, counted[i])).join('')
-      : G.coverage
-        .slice()
-        .sort((a, b) => b.continues - a.continues || a.size - b.size)
-        .filter((r) => r.size < 4)
-        .map((r) => card(r.beasts.split(' + '), r.continues, r.beasts))
-        .join('');
+    document.getElementById('sets').innerHTML = [4, 3, 2, 1].map((k, i) => card(['Mammoth', 'Lion', 'Wolf', 'Rat'].slice(0, k), k / 4, counted[i])).join('');
 
     // Chain to Rainbow odds by eater tier, from the runs' devours.
     const stairRows = [];
@@ -763,8 +748,8 @@
     const toolRows = [...tools.map((t) => ({ label: t.name, value: t.value, sub: `${t.delta >= 0 ? '+' : '−'}${two(Math.abs(t.delta))}`, key: t === tools[0] || t === tools[1], bad: t.delta < 0 })), { label: 'No tool', value: G.toolBase }].sort((a, b) => b.value - a.value);
     bars('tools', toolRows, Math.max(...toolRows.map((r) => r.value)) * 1.05, two);
     // Instrument pairs, from node tools/strategy-sim.js combos
-    // (js/tool-combos.js), for the guide's food chain.
-    const combos = window.TARTARUS_COMBOS && window.TARTARUS_COMBOS[G.chain];
+    // (js/tool-combos.js).
+    const combos = window.TARTARUS_COMBOS && window.TARTARUS_COMBOS.single;
     if (combos && combos.sizes && combos.sizes[2]) {
       const nameOf = Object.fromEntries(tools.map((t) => [t.id, t.name]));
       const key = (ids) => ids.map((id) => String.fromCharCode(97 + combos.ids.indexOf(id))).sort().join('');

@@ -15,14 +15,13 @@ node tools/strategy-sim.js tools  --games 200000             # each tool held fr
 node tools/strategy-sim.js gifts  --games 200000             # Warden's Treasure choices
 node tools/strategy-sim.js chains --games 200000             # chain odds by beasts per tier
 node tools/strategy-sim.js report --games 1000000            # the whole study, saved to tools/results/
-node tools/strategy-sim.js train  --games 150000 --final 1000000   # fine-tunes every profile the Trainer uses (--only single or two)
+node tools/strategy-sim.js train  --games 150000 --final 1000000   # fine-tunes the drill profiles the Trainer uses (--only rewards or notools)
 node tools/strategy-sim.js combos --minutes 60               # every set of up to 4 instruments, each to ±0.01; run again to carry on
-node tools/strategy-sim.js variants --rewards on --loop --variants ";toolSets=false"   # the drill profile against changed weights, same prisons
+node tools/strategy-sim.js variants --rewards on --variants ";toolSets=false"   # the drill profile against changed weights, same prisons
 ```
 
 Options:
-- `--rewards on`: runs start with a random tool, as live ones do, the run's objective (King of the Caged or Prison Walk) earns another, and each Rainbow opens the Warden's Treasure. The default is no tools at all.
-- `--loop`: the hard mode loop food chain.
+- `--rewards on`: runs start with a pick of 3 random instruments, as live ones do, the run's objective (King of the Caged or Prison Walk) earns another, and each Rainbow opens the Warden's Treasure. The default is no tools at all.
 - `--params file.json`: start from saved weights.
 - `--threads N`: how many threads to use.
 - `--seed WORD`: a different set of prisons.
@@ -40,23 +39,17 @@ At every decision the strategy scores each legal move from what the player can s
 
 The in-game Trainer shows this strategy's pick right away. It then plays each candidate move out hundreds of times with the strategy, re-rolling everything the player can't see each time. It keeps the strategy's pick unless the playouts find a clearly better move. Each move the player makes is graded against those playouts.
 
-The strategy has four tuned profiles, chosen by the run's settings: drills with rewards on (the default), drills with no tools, and the same two with the hard mode loop chain. `train` refines all four on a finer grid around their current weights. It then scores the old and new weights on a separate set of 1,000,000 fresh prisons, so the before/after comparison is fair.
+The strategy has three tuned profiles, chosen by the run's settings: drills with rewards on (the default), drills with no tools, and the contract challenge. `train` refines the two drill profiles on a finer grid around their current weights, re-centered each round. It then scores the old and new weights on a separate set of 1,000,000 fresh prisons, so the before/after comparison is fair.
 
 ## The strategy guide's data
 
-`strategy.html` reads `js/guide-data.js`, which the `guide` mode generates. The data is based on the **single-meal food chain** (Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth), since that's what the live game appears to use, and it's the simulator's default. `guide` tunes the strategy for the chain (unless `--no-tune`), ranks tools and gifts, measures each habit, and plays the headline. 100,000 runs per measurement keep every margin under ±0.01 Rainbows, which is the target:
+`strategy.html` reads `js/guide-data.js`, which the `guide` mode generates. It plays the live game's food chain, where each beast has one meal (Mammoth eats Lion, Lion eats Wolf, Wolf eats Rat, Rat eats Mammoth). `guide` tunes the strategy (unless `--no-tune`), ranks tools and gifts, measures each habit, and plays the headline. 100,000 runs per measurement keep every margin under ±0.01 Rainbows, which is the target:
 
 ```
-node tools/strategy-sim.js guide --chain single --no-tune --games 100000 --side 100000 --habit-games 100000 --compare 100000
+node tools/strategy-sim.js guide --no-tune --games 100000 --side 100000 --habit-games 100000 --compare 100000
 ```
 
-The latest run (2026-10-15, evening) took 4,400,000 runs in 4.8 minutes. Its full numbers are in `results/guide-data-single.json`.
-
-**Two-meal chain data, kept separately.** If live turns out to use the Chinese sim's two-meal chain, its data is ready:
-- `results/guide-data-two.json`: the same measurements, from `guide --chain two`.
-- `results/two-meal/`: the original million-run study, the training report, and the strategy guide page as it was built on that chain.
-
-To switch the page's data to it, run `guide --chain two --no-tune --publish`. Then update the few sentences in `strategy.html` that name the food chain.
+The latest run (2026-10-15, evening, with the starting pick of 3 instruments) took 4,200,000 runs in 5.9 minutes. Its full numbers are in `results/guide-data.json`.
 
 ## The contract challenge
 
@@ -64,7 +57,7 @@ Three modes play full 12-day contract challenges, split evenly across the three 
 
 ```
 node tools/strategy-sim.js challenge --games 300000 --variants ";reserve=1;keep1=0,keep2=0"   # compare habits against the challenge profile
-node tools/strategy-sim.js ctune     --games 100000 --rounds 2    # tune the challenge profile (--chain two for the two-meal chain)
+node tools/strategy-sim.js ctune     --games 100000 --rounds 2    # tune the challenge profile
 node tools/strategy-sim.js cguide    --games 2000000              # the strategy guide's challenge data
 ```
 
@@ -104,6 +97,8 @@ The two-meal chain's challenge profile had a one-round tune (5.2 million runs, 7
 
 ## Results
 
+The Chinese sim's two-meal food chain (Mammoth also eats Wolf, Lion also eats Rat) was confirmed not to be in the live game on 2026-10-15, so it was removed from the simulator and the lab. The older sections below still show the two-meal numbers measured at the time; their files are in the git history.
+
 ### The office, steered chains and six more events; retrained (2026-10-15, evening)
 
 More live play filled in the season:
@@ -114,7 +109,7 @@ More live play filled in the season:
 - **The Forged Key**, a 17th instrument: one destination fewer each morning, and a patrol that opens a door has a 50% chance to open another. The **Muzzle** now counts the block after the meal (4 or fewer).
 - **Objectives are random in the contract challenge too**, and King of the Caged is never assumed.
 
-**Training.** `train --only single --games 200000` fine-tuned both single-meal drill profiles, 2 rounds each, with two new weights in the grid: Instigate's share of an event's worth (`wInstigate`) and a Crow Whispers door (`wCrow`). It took 27,600,000 runs in 35.9 minutes. On 1,000,000 fresh prisons:
+**Training.** `train --games 200000` fine-tuned both drill profiles, 2 rounds each, with two new weights in the grid: Instigate's share of an event's worth (`wInstigate`) and a Crow Whispers door (`wCrow`). It took 27,600,000 runs in 35.9 minutes. On 1,000,000 fresh prisons:
 
 | Profile | Before | After | Runs with a Rainbow |
 | --- | --- | --- | --- |
@@ -125,7 +120,7 @@ More live play filled in the season:
 - **The office.** Instigate's weight has a sharp best value at 0.5. At 0.25 the Trainer mostly bestows, and at 1 it mostly instigates, and both cost 4–6%. Picking by the board, it bestowed about 1.7 times and instigated about 1.2 times per run.
 - Both profiles put less weight on each step walked (`wStep` 1 → 0.5) and more on a vaulted Rainbow (`rainbowMult`). With rewards on, the Trainer now also swaps Legendaries (`swapMaxTier` 3), though that barely differs from stopping at Rare.
 
-**Instrument sets.** What a second instrument is worth depends on the first, so `combos` measures every set of up to 4 instruments held from day 1, with no other rewards, on the same prisons (seed `COMBO`: game *i* is the same prison for every set). Each set runs until its own 95% margin is under ±0.01 Rainbows per run, the guide's target. Sets with more instruments spread more and need more runs, so they come in stages: singles and pairs first, then sets of 3 and 4 to a coarse ±0.03, then refined to ±0.01. The file `results/tool-combos-single.json` keeps each set's run count and sums, so a later run carries on where the last one stopped. `js/tool-combos.js` holds the values for the Trainer and the guide.
+**Instrument sets.** What a second instrument is worth depends on the first, so `combos` measures every set of up to 4 instruments held from day 1, with no other rewards, on the same prisons (seed `COMBO`: game *i* is the same prison for every set). Each set runs until its own 95% margin is under ±0.01 Rainbows per run, the guide's target. Sets with more instruments spread more and need more runs, so they come in stages: singles and pairs first, then sets of 3 and 4 to a coarse ±0.03, then refined to ±0.01. The file `results/tool-combos.json` keeps each set's run count and sums, so a later run carries on where the last one stopped. `js/tool-combos.js` holds the values for the Trainer and the guide.
 
 Singles and pairs: 5,165,948 runs in 5.7 minutes, every set within ±0.010. With no instrument 0.761.
 
@@ -134,14 +129,14 @@ Singles and pairs: 5,165,948 runs in 5.7 minutes, every set within ±0.010. With
 - **Clashes:** Iron Box with Noose −0.53, Muzzle with Lost Ring of Keys −0.53 (the Ring's extra doors keep the block above the Muzzle's 4), Iron Box with Muzzle −0.51.
 - **The best second instrument differs from the single ranking for 9 of the 17 starting ones.** For example, holding Rat Heads the Iron Box adds 2.30 and the Noose 1.35, and holding the Noose the Muzzle adds 2.16 and the Shackles 1.40.
 
-The Trainer now takes the offered instrument that adds the most to the ones held, from these sets (`toolSets`; past 4 held it averages over the measured subsets). The contract challenge keeps its own ranking, since it plays for points. On 1,000,000 drills with rewards on (`variants --rewards on --loop --seed AB --variants ";toolSets=false"`), that made **1.998** Rainbows per run against 1.938 with the single ranking: +0.059, or 3.1%, on the same prisons.
+The Trainer now takes the offered instrument that adds the most to the ones held, from these sets (`toolSets`; past 4 held it averages over the measured subsets). The contract challenge keeps its own ranking, since it plays for points. On 1,000,000 drills with rewards on (`variants --rewards on --seed AB --variants ";toolSets=false"`), that made **1.998** Rainbows per run against 1.938 with the single ranking: +0.059, or 3.1%, on the same prisons.
 
 Sets of 3 and 4 (the same night, 71,157,462 runs in 90 minutes; 76,323,410 with the pairs): all 680 sets of 3 within ±0.01; all 2,380 sets of 4 within ±0.03, and 481 of them refined to ±0.01. Finishing the sets of 4 to ±0.01 needs about 83 million more runs (around 2 to 3 hours); `combos --minutes N` carries on.
 
 - **Best sets of 3:** Iron Box, Avenger's Casket and Rat Heads 5.32; Iron Box, Rusty Saw and Rat Heads 5.03; Muzzle, Noose and Rat Heads 5.03; Muzzle, Noose and Shackles 5.02.
 - **Best set of 4:** Iron Box, Muzzle, Noose and Rat Heads, 7.82 (±0.03). The Muzzle and the Iron Box clash as a pair, but they're the best two to add to Noose and Rat Heads, so sets can't be judged by adding up pairs. That's why the Trainer reads the measured set itself.
 
-**The guide's data** (`guide --no-tune` at 100,000 runs per measurement: 4,400,000 runs in 4.8 minutes). Rewards on: **1.998** Rainbows per run, 83.5% of runs vault one, the first around day 12. With no tools: 0.759.
+**The guide's data** (`guide --no-tune` at 100,000 runs per measurement). Rewards on: **2.472** Rainbows per run, 91.3% of runs vault one, the first around day 11. With no tools: 0.759. That's after the starting instrument became a pick of 3, as in the live game (the guide's re-run, 4,200,000 runs in 5.9 minutes). With a free random one it was 1.998.
 
 - **Each instrument held from day 1:** Hangman's Noose 1.767, Long-Chained Shackles 1.674, Agonizing Muzzle 1.605, Skewered Rat Heads 1.482, Avenger's Casket 1.429, Rusty Saw 1.163, Barbed Collar 1.159, Sorting Hook 1.104, Fanged Guillotine 1.082, Iron Tongs of Lust 0.978, Lost Ring of Keys 0.797, Warden's Scales 0.781. Worse than none: Iron Pestle 0.739, Gaoler's Execution Axe 0.730, Searing Branding Iron 0.723, Forged Key 0.533 (the lost destination each morning costs more than its extra doors give) and Squirming Iron Box 0.353.
 - **The office:** always choosing Bestow makes 0.566 and always choosing Instigate 0.659, against 0.759 for picking by the board.
@@ -299,7 +294,7 @@ The chance a chain reaches Rainbow is the product over the tiers it still has to
 
 Chains produced 68% of all Rainbows. With rewards on, 64% of devours were a single bite, 26% two bites, 8% three, 1.8% four and 0.4% five.
 
-The full numbers are in `results/report.json`. The tuned weights are in `results/tuned-notools.json` and `results/tuned-rewards.json`, and `js/solver.js` uses them.
+The full numbers were in `results/report.json`, removed with the two-meal chain (see the git history). The tuned weights are in `results/tuned-notools.json` and `results/tuned-rewards.json`, and `js/solver.js` uses them.
 
 # Screenshot reader
 

@@ -6,14 +6,14 @@
  * every CPU core. Game i always uses seed "<seed>-i", so each strategy faces
  * the same prisons and the comparisons are fair.
  *
- *   node tools/strategy-sim.js tune   [--games 40000] [--rounds 3] [--rewards off|on] [--loop]
- *   node tools/strategy-sim.js eval   [--games 1000000] [--rewards off|on] [--loop] [--params file.json] [--only solver]
+ *   node tools/strategy-sim.js tune   [--games 40000] [--rounds 3] [--rewards off|on]
+ *   node tools/strategy-sim.js eval   [--games 1000000] [--rewards off|on] [--params file.json] [--only solver]
  *   node tools/strategy-sim.js tools  [--games 200000]
  *   node tools/strategy-sim.js gifts  [--games 200000]
  *   node tools/strategy-sim.js chains [--games 200000]
  *   node tools/strategy-sim.js report [--games 1000000]   (everything, written to tools/results)
  *   node tools/strategy-sim.js train  [--games 150000] [--final 1000000]   (fine-tunes every profile the solver uses)
- *   node tools/strategy-sim.js guide  [--games 2000000] [--chain single|two] [--no-tune] [--publish]   (the data behind strategy.html)
+ *   node tools/strategy-sim.js guide  [--games 2000000] [--no-tune]   (the data behind strategy.html)
  *
  *   Options: --threads N (default: cores - 1), --seed WORD, --params file.json
  */
@@ -89,7 +89,7 @@ const BASELINES = {
 function newDrill(game, i, seedWord) {
   // Rewards on plays like the live game: a random tool to start, one for the
   // objective and a gift per Rainbow. No tools means none at all.
-  const params = { rewards: !!game.rewards, loopChain: !!game.loop, startTools: game.rewards && !game.tool && !game.tools ? 1 : 0 };
+  const params = { rewards: !!game.rewards, startTools: game.rewards && !game.tool && !game.tools ? 1 : 0 };
   const st = T.newGame({ mode: 'drill', scenario: game.scenario || 'empty', seed: `${seedWord}-${i}`, params });
   // Tools held from day 1: one (game.tool) or a set (game.tools).
   if (game.tool) st.tools = [game.tool];
@@ -103,7 +103,7 @@ function newDrill(game, i, seedWord) {
 function stairKey(st, eaterCell) {
   const eater = st.cells[eaterCell].inmate;
   const { comp } = S.composition(st, eaterCell);
-  const chain = T.FOOD_CHAINS[st.params.loopChain ? 'loop' : 'standard'];
+  const chain = T.FOOD_CHAIN;
   const eats = T.BEASTS.map((b) => chain[b].map((x) => T.BEASTS.indexOf(x)));
   let key = `${eater.tier}:`;
   for (let t = eater.tier + 1; t < T.RAINBOW; t++) {
@@ -185,7 +185,7 @@ const LOADOUT_IDS = Object.keys(T.LOADOUTS);
 
 function newChallenge(game, i, seedWord) {
   const loadouts = game.loadout && game.loadout !== 'all' ? [game.loadout] : LOADOUT_IDS;
-  return T.newGame({ mode: 'challenge', loadout: loadouts[i % loadouts.length], seed: `${seedWord}-${i}`, params: { loopChain: game.loop !== false } });
+  return T.newGame({ mode: 'challenge', loadout: loadouts[i % loadouts.length], seed: `${seedWord}-${i}` });
 }
 
 function emptyChallengeStats() {
@@ -545,11 +545,10 @@ const CHALLENGE_START = { keep1: 1, keep2: 1, reserve: 3, earlyPoints: -1, wNeed
 
 async function challengeTune(games) {
   const t0 = Date.now();
-  const loop = opt('chain', 'single') !== 'two';
-  const game = { challenge: true, loop, loadout: 'all' };
-  const start = Object.assign({}, S.DEFAULTS, S.PROFILES[loop ? 'loop-rewards' : 'rewards'], CHALLENGE_START, loadParams() || {});
+  const game = { challenge: true, loadout: 'all' };
+  const start = Object.assign({}, S.DEFAULTS, S.PROFILES.rewards, CHALLENGE_START, loadParams() || {});
   const tuned = await tune(game, games, Number(opt('rounds', 2)), start, CHALLENGE_GRID);
-  const name = loop ? 'loop-challenge' : 'challenge';
+  const name = 'challenge';
   save(`tuned-${name}.json`, tuned.params);
   // Old and new on a fresh set of prisons.
   const finalGames = Number(opt('final', 600000));
@@ -562,20 +561,17 @@ async function challengeTune(games) {
 
 // The challenge data behind strategy.html: the tuned strategy measured on a
 // fresh set of prisons, then one habit changed at a time. Adds a `challenge`
-// part to the guide data (tools/results/guide-data-*.json and, for the
-// default single-meal chain, js/guide-data.js).
+// part to the guide data (tools/results/guide-data.json and js/guide-data.js).
 async function challengeGuide(games) {
   const t0 = Date.now();
   const start = GAMES_PLAYED;
-  const loop = opt('chain', 'single') !== 'two';
-  const name = loop ? 'single' : 'two';
-  const game = { challenge: true, loop, loadout: 'all' };
+  const game = { challenge: true, loadout: 'all' };
   const seed = 'CGUIDE';
   const habitGames = Number(opt('habit-games', 300000));
-  const tuned = Object.assign({}, S.DEFAULTS, S.PROFILES[loop ? 'loop-challenge' : 'challenge']);
-  const drill = Object.assign({}, S.DEFAULTS, S.PROFILES[loop ? 'loop-rewards' : 'rewards']);
+  const tuned = Object.assign({}, S.DEFAULTS, S.PROFILES.challenge);
+  const drill = Object.assign({}, S.DEFAULTS, S.PROFILES.rewards);
   const convoy = ['keep1', 'keep2', 'reserve', 'earlyPoints', 'stuckRainbow', 'wNeed', 'needDays', 'needCrit', 'minLeft'];
-  const out = { chain: name, generated: new Date().toISOString().slice(0, 10), seed, headlineRuns: games, habitRuns: habitGames };
+  const out = { generated: new Date().toISOString().slice(0, 10), seed, headlineRuns: games, habitRuns: habitGames };
 
   console.log(`\n== challenge headline: ${games.toLocaleString()} runs ==`);
   const head = await run('solver', tuned, game, games, { seed });
@@ -616,16 +612,14 @@ async function challengeGuide(games) {
   out.params = tuned;
   out.totalRuns = GAMES_PLAYED - start;
   out.minutes = +((Date.now() - t0) / 60000).toFixed(1);
-  // Merge into the guide data for this chain.
-  const file = path.join(RESULTS, `guide-data-${name}.json`);
-  const data = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : { chain: name };
+  // Merge into the guide data.
+  const file = path.join(RESULTS, 'guide-data.json');
+  const data = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
   data.challenge = out;
-  save(`guide-data-${name}.json`, data);
-  save(`challenge-data-${name}.json`, out);
-  if (loop || opt('publish', false)) {
-    fs.writeFileSync(path.join(__dirname, '..', 'js', 'guide-data.js'), `/* Generated by tools/strategy-sim.js guide and cguide. Do not edit by hand. */\nwindow.TARTARUS_GUIDE = ${JSON.stringify(data)};\n`);
-  }
-  console.log(`\n${out.totalRuns.toLocaleString()} challenge runs in ${out.minutes} minutes; saved tools/results/challenge-data-${name}.json${loop || opt('publish', false) ? ' and js/guide-data.js' : ''}`);
+  save('guide-data.json', data);
+  save('challenge-data.json', out);
+  fs.writeFileSync(path.join(__dirname, '..', 'js', 'guide-data.js'), `/* Generated by tools/strategy-sim.js guide and cguide. Do not edit by hand. */\nwindow.TARTARUS_GUIDE = ${JSON.stringify(data)};\n`);
+  console.log(`\n${out.totalRuns.toLocaleString()} challenge runs in ${out.minutes} minutes; saved tools/results/challenge-data.json and js/guide-data.js`);
 }
 
 // Training: fine-tunes every profile the solver uses, then scores the old
@@ -633,15 +627,12 @@ async function challengeGuide(games) {
 async function train(games) {
   const t0 = Date.now();
   const finalGames = Number(opt('final', 1000000));
-  // The single-meal chain is the default, so it gets the most runs. --only
-  // single or two trains one chain's profiles.
+  // --only rewards or notools trains one of them.
   const only = opt('only', 'all');
   const variants = [
-    { name: 'loop-rewards', profile: 'loop-rewards', game: { rewards: true, loop: true }, games, rounds: 2 },
-    { name: 'loop-notools', profile: 'loop-notools', game: { rewards: false, loop: true }, games, rounds: 2 },
-    { name: 'rewards', profile: 'rewards', game: { rewards: true }, games: Math.round(games / 2), rounds: 1 },
-    { name: 'notools', profile: 'notools', game: { rewards: false }, games: Math.round(games / 2), rounds: 1 },
-  ].filter((v) => only === 'all' || (only === 'single') === v.name.startsWith('loop-'));
+    { name: 'rewards', profile: 'rewards', game: { rewards: true }, games, rounds: 2 },
+    { name: 'notools', profile: 'notools', game: { rewards: false }, games, rounds: 2 },
+  ].filter((v) => only === 'all' || only === v.name);
   const out = { when: new Date().toISOString(), threads: THREADS, gamesPerTest: games, finalGames, variants: {} };
   for (const v of variants) {
     console.log(`
@@ -669,31 +660,29 @@ trained on ${GAMES_PLAYED.toLocaleString()} simulated runs in ${(out.seconds / 6
 // its 95% margin is under `--margin` Rainbows per run (0.01 by default).
 // Sets of 3 and 4 vary more, so they need more runs: they first get a coarse
 // margin (`--coarse`, 0.03) so every set has a value early, and are then
-// refined. Saves tools/results/tool-combos-<chain>.json as it goes; stop it
-// any time (`--minutes` stops it cleanly) and run it again to carry on.
-// Writes js/tool-combos.js, which the strategy uses to pick instruments by
-// what's already held.
+// refined. Saves tools/results/tool-combos.json as it goes; stop it any time
+// (`--minutes` stops it cleanly) and run it again to carry on. Writes
+// js/tool-combos.js, which the strategy uses to pick instruments by what's
+// already held.
 async function combos() {
   const t0 = Date.now();
   const start = GAMES_PLAYED;
-  const loop = opt('chain', 'single') !== 'two';
-  const name = loop ? 'single' : 'two';
   const max = Number(opt('max', 4));
   const margin = Number(opt('margin', 0.01));
   const coarse = Number(opt('coarse', 0.03));
   const limit = Number(opt('minutes', 0)) * 60000 || Infinity;
   const PILOT = 4000;
-  const params = Object.assign({}, S.DEFAULTS, S.PROFILES[loop ? 'loop-notools' : 'notools']);
-  const game = { rewards: false, loop };
+  const params = Object.assign({}, S.DEFAULTS, S.PROFILES.notools);
+  const game = { rewards: false };
   const ids = T.TOOL_IDS;
-  const file = path.join(RESULTS, `tool-combos-${name}.json`);
+  const file = path.join(RESULTS, 'tool-combos.json');
   // Carry on from an earlier run if it played the same way.
   let out = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
   if (out && (out.seed !== 'COMBO' || JSON.stringify(out.ids) !== JSON.stringify(ids) || JSON.stringify(out.params) !== JSON.stringify(params) || !out.sets[''])) {
     console.log('The saved sets were played with other weights or instruments: starting over.');
     out = null;
   }
-  if (!out) out = { chain: name, seed: 'COMBO', ids, params, sets: {} };
+  if (!out) out = { seed: 'COMBO', ids, params, sets: {} };
   out.margin = margin;
   const priorRuns = out.totalRuns || 0;
   const keyOf = (set) => set.slice().sort().join('|');
@@ -715,7 +704,7 @@ async function combos() {
     save(path.basename(file), out);
     saved = Date.now();
   };
-  console.log(`\n== ${name} chain: ${(sets.length - 1).toLocaleString()} instrument sets of up to ${max}, each to ±${margin} ==`);
+  console.log(`\n== ${(sets.length - 1).toLocaleString()} instrument sets of up to ${max}, each to ±${margin} ==`);
   const stages = [
     { sizes: [0, 1, 2], target: margin },
     { sizes: [3, 4], target: coarse },
@@ -772,13 +761,14 @@ async function combos() {
   console.log(`\n${(GAMES_PLAYED - start).toLocaleString()} runs in ${((Date.now() - t0) / 60000).toFixed(1)} minutes${stopped ? ' (stopped at the time limit; run again to carry on)' : ''}; saved tools/results/${path.basename(file)} and js/tool-combos.js`);
 }
 
-// js/tool-combos.js: each chain's measured sets, keyed by the instruments'
-// letters (a for the first in TOOL_IDS) in order, values to 3 decimals.
+// js/tool-combos.js: the measured sets, keyed by the instruments' letters
+// (a for the first in TOOL_IDS) in order, values to 3 decimals. The data sits
+// under `single`, the name the solver and the guide read it by.
 function writeCombosJs() {
   const data = {};
-  for (const name of ['single', 'two']) {
-    const file = path.join(RESULTS, `tool-combos-${name}.json`);
-    if (!fs.existsSync(file)) continue;
+  {
+    const file = path.join(RESULTS, 'tool-combos.json');
+    if (!fs.existsSync(file)) return;
     const c = JSON.parse(fs.readFileSync(file, 'utf8'));
     const letter = (id) => String.fromCharCode(97 + c.ids.indexOf(id));
     const v = {};
@@ -792,8 +782,8 @@ function writeCombosJs() {
       s.runs += r.n;
       s.margin = +Math.max(s.margin, r.ci).toFixed(4);
     }
-    if (!c.sets[''] || !c.sets[''].n) continue;
-    data[name] = { generated: c.generated, ids: c.ids, base: +c.sets[''].v.toFixed(3), sizes, v };
+    if (!c.sets[''] || !c.sets[''].n) return;
+    data.single = { generated: c.generated, ids: c.ids, base: +c.sets[''].v.toFixed(3), sizes, v };
   }
   fs.writeFileSync(path.join(__dirname, '..', 'js', 'tool-combos.js'), `/* Generated by tools/strategy-sim.js combos: Rainbows per run with each set of instruments held from day 1. Do not edit by hand. */\n(function (root) {\n  root.TARTARUS_COMBOS = ${JSON.stringify(data)};\n  if (typeof module === 'object' && module.exports) module.exports = root.TARTARUS_COMBOS;\n})(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);\n`);
 }
@@ -802,27 +792,24 @@ function writeCombosJs() {
 
 // The data behind strategy.html, for one food chain. Tunes the strategy for
 // that chain (skip with --no-tune), ranks tools and gifts with it, then
-// measures everything the guide shows. Writes tools/results/guide-data-*.json
-// and, for the default single-meal chain, js/guide-data.js for the page.
+// measures everything the guide shows. Writes tools/results/guide-data.json
+// and js/guide-data.js for the page.
 async function guide(games) {
   const t0 = Date.now();
   const start = GAMES_PLAYED;
-  const loop = opt('chain', 'single') !== 'two';
-  const name = loop ? 'single' : 'two';
-  const notools = { rewards: false, loop };
-  const rewards = { rewards: true, loop };
+  const notools = { rewards: false };
+  const rewards = { rewards: true };
   const seed = 'GUIDE';
   const tuneGames = Number(opt('tune-games', 50000));
   const rounds = Number(opt('rounds', 2));
   const side = Number(opt('side', 500000));
   const habitGames = Number(opt('habit-games', 200000));
-  const prefix = loop ? 'loop-' : '';
-  let pNotools = Object.assign({}, S.DEFAULTS, S.PROFILES[`${prefix}notools`]);
-  let pRewards = Object.assign({}, S.DEFAULTS, S.PROFILES[`${prefix}rewards`]);
-  const out = { chain: name, generated: new Date().toISOString().slice(0, 10), headlineRuns: games, seed };
+  let pNotools = Object.assign({}, S.DEFAULTS, S.PROFILES.notools);
+  let pRewards = Object.assign({}, S.DEFAULTS, S.PROFILES.rewards);
+  const out = { generated: new Date().toISOString().slice(0, 10), headlineRuns: games, seed };
 
   if (!opt('no-tune', false)) {
-    console.log(`\n== ${name} chain: tune with no tools (${tuneGames.toLocaleString()} runs per test) ==`);
+    console.log(`\n== tune with no tools (${tuneGames.toLocaleString()} runs per test) ==`);
     pNotools = (await tune(notools, tuneGames, rounds, pNotools)).params;
   }
 
@@ -841,7 +828,7 @@ async function guide(games) {
   pRewards.toolRank = toolRank;
 
   if (!opt('no-tune', false)) {
-    console.log(`\n== ${name} chain: tune with rewards on ==`);
+    console.log('\n== tune with rewards on ==');
     pRewards = (await tune(rewards, tuneGames, rounds, pRewards)).params;
     pRewards.toolRank = toolRank;
   }
@@ -909,38 +896,29 @@ async function guide(games) {
   out.sideRuns = side;
   out.compareRuns = compareGames;
 
-  // The other food chain, for comparison.
-  const other = { rewards: true, loop: !loop };
-  const otherPrefix = loop ? '' : 'loop-';
-  out.otherChain = {
-    chain: loop ? 'two' : 'single',
-    notools: +mean(await run('solver', S.PROFILES[`${otherPrefix}notools`], { rewards: false, loop: !loop }, compareGames, { seed })).toFixed(4),
-    rewards: +mean(await run('solver', S.PROFILES[`${otherPrefix}rewards`], other, compareGames, { seed })).toFixed(4),
-  };
 
-  out.coverage = coverageTable(loop).map((r) => ({ beasts: r.beasts, size: r.size, continues: r.continues }));
+  out.coverage = coverageTable().map((r) => ({ beasts: r.beasts, size: r.size, continues: r.continues }));
   out.params = { notools: pNotools, rewards: pRewards };
   out.totalRuns = GAMES_PLAYED - start;
   out.minutes = +((Date.now() - t0) / 60000).toFixed(1);
   // Keep the challenge study (cguide mode) that shares this file.
-  const prevFile = path.join(RESULTS, `guide-data-${name}.json`);
+  const prevFile = path.join(RESULTS, 'guide-data.json');
   if (fs.existsSync(prevFile)) {
     const prev = JSON.parse(fs.readFileSync(prevFile, 'utf8'));
     if (prev.challenge) out.challenge = prev.challenge;
   }
-  save(`guide-data-${name}.json`, out);
-  save(`tuned-${prefix}notools.json`, pNotools);
-  save(`tuned-${prefix}rewards.json`, pRewards);
-  // The page reads js/guide-data.js. The single-meal chain is the default;
-  // --publish makes any chain's data the page's data.
-  if (loop || opt('publish', false)) {
+  save('guide-data.json', out);
+  save('tuned-notools.json', pNotools);
+  save('tuned-rewards.json', pRewards);
+  // The page reads js/guide-data.js.
+  {
     fs.writeFileSync(path.join(__dirname, '..', 'js', 'guide-data.js'), `/* Generated by tools/strategy-sim.js guide on ${out.generated}. Do not edit by hand. */\nwindow.TARTARUS_GUIDE = ${JSON.stringify(out)};\n`);
   }
-  console.log(`\n${out.totalRuns.toLocaleString()} runs in ${out.minutes} minutes; saved tools/results/guide-data-${name}.json${loop || opt('publish', false) ? ' and js/guide-data.js' : ''}`);
+  console.log(`\n${out.totalRuns.toLocaleString()} runs in ${out.minutes} minutes; saved tools/results/guide-data.json and js/guide-data.js`);
 }
 
-function coverageTable(loop) {
-  const chain = T.FOOD_CHAINS[loop ? 'loop' : 'standard'];
+function coverageTable() {
+  const chain = T.FOOD_CHAIN;
   const rows = [];
   for (let mask = 1; mask < 16; mask++) {
     const present = T.BEASTS.filter((_, i) => mask & (1 << i));
@@ -960,12 +938,12 @@ function save(name, data) {
 async function main() {
   const t0 = Date.now();
   const games = Number(opt('games', mode === 'tune' ? 40000 : 200000));
-  const game = { rewards: opt('rewards', 'off') === 'on', loop: !!opt('loop', false) };
-  console.log(`${mode}: ${games.toLocaleString()} games per test on ${THREADS} threads, seed ${SEED}${game.rewards ? ', rewards on' : ', no tools'}${game.loop ? ', loop chain' : ''}`);
+  const game = { rewards: opt('rewards', 'off') === 'on' };
+  console.log(`${mode}: ${games.toLocaleString()} games per test on ${THREADS} threads, seed ${SEED}${game.rewards ? ', rewards on' : ', no tools'}`);
 
   if (mode === 'tune') {
     const { params, stats } = await tune(game, games, Number(opt('rounds', 3)), loadParams());
-    const name = `tuned-${game.rewards ? 'rewards' : 'notools'}${game.loop ? '-loop' : ''}.json`;
+    const name = `tuned-${game.rewards ? 'rewards' : 'notools'}.json`;
     save(name, params);
     console.log(`\nbest: ${fmt(stats)}\n${JSON.stringify(params)}\nsaved tools/results/${name}`);
   } else if (mode === 'eval') {
@@ -998,9 +976,9 @@ async function main() {
     }
   } else if (mode === 'chains') {
     console.log('\nChance a chain finds its next meal, by the beasts waiting at that tier:');
-    for (const loop of [false, true]) {
-      console.log(loop ? '\nLoop food chain (hard mode):' : '\nStandard food chain:');
-      for (const r of coverageTable(loop)) console.log(`  ${pct(r.continues).padStart(6)}  ${r.beasts}`);
+    {
+      console.log('\nShare of re-rolls that find food, by the beasts on the block:');
+      for (const r of coverageTable()) console.log(`  ${pct(r.continues).padStart(6)}  ${r.beasts}`);
     }
     const stats = await run('solver', loadParams(), game, games, { stairs: true });
     console.log(`\nSimulated with the strategy: ${fmt(stats)}`);
@@ -1026,7 +1004,7 @@ async function main() {
   } else if (mode === 'variants') {
     // Drills with the profile the run's settings pick (or --params), and
     // variants of it on the same prisons, e.g. --variants ";toolSets=false".
-    const profile = `${game.loop ? 'loop-' : ''}${game.rewards ? 'rewards' : 'notools'}`;
+    const profile = game.rewards ? 'rewards' : 'notools';
     const base = loadParams() || Object.assign({}, S.DEFAULTS, S.PROFILES[profile]);
     let first = null;
     for (const variant of String(opt('variants', '')).split(';').map((v) => v.trim())) {
@@ -1040,11 +1018,10 @@ async function main() {
       console.log(`[${variant || profile}] ${fmt(stats)}${stats === first ? '' : `  (${mean(stats) - mean(first) >= 0 ? '+' : ''}${(mean(stats) - mean(first)).toFixed(4)})`}`);
     }
   } else if (mode === 'challenge') {
-    const loop = opt('chain', 'single') !== 'two';
-    const cgame = { challenge: true, loop, loadout: opt('loadout', 'all') };
+    const cgame = { challenge: true, loadout: opt('loadout', 'all') };
     // Variants separated by ";", each a list of key=value changes to the
     // challenge's profile, e.g. --variants "reserve=3;reserve=3,keep1=0.5".
-    const base = loadParams() || Object.assign({}, S.DEFAULTS, S.PROFILES[loop ? 'loop-challenge' : 'challenge']);
+    const base = loadParams() || Object.assign({}, S.DEFAULTS, S.PROFILES.challenge);
     const variants = String(opt('variants', '')).split(';').map((v) => v.trim());
     for (const variant of variants) {
       const change = {};
@@ -1123,20 +1100,13 @@ async function report(games) {
   console.log(`retuned ${out.rewards.retuned.rainbowsPerRun} ± ${out.rewards.retuned.ci95}`);
 
   console.log('\n== 6. Chains ==');
-  out.coverage = { standard: coverageTable(false), loop: coverageTable(true) };
+  out.coverage = coverageTable();
   const chainStats = await run('solver', tunedRewards.params, rewards, games, { stairs: true });
   out.chains = describe(chainStats);
   out.stairs = Object.entries(chainStats.stairs)
     .filter(([, v]) => v.n >= 500)
     .map(([k, v]) => ({ key: k, n: v.n, rainbow: +(v.rainbow / v.n).toFixed(4), bites: +(v.bites / v.n).toFixed(3) }))
     .sort((a, b) => b.rainbow - a.rainbow);
-
-  console.log('\n== 7. Hard mode loop chain ==');
-  out.loop = {
-    notools: describe(await run('solver', tuned.params, { rewards: false, loop: true }, games)),
-    rewards: describe(await run('solver', tunedRewards.params, { rewards: true, loop: true }, games)),
-  };
-  console.log(`loop, no tools ${out.loop.notools.rainbowsPerRun}; rewards ${out.loop.rewards.rainbowsPerRun}`);
 
   save('report.json', out);
   console.log('\nsaved tools/results/report.json');
