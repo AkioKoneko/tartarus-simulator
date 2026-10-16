@@ -723,6 +723,92 @@
     return best;
   }
 
+  // The board placed by its cell numbers, for screens where the frame match
+  // fails: a devour's meal pick darkens the board and wraps meals in big
+  // fangs, but leaves the numbers lit. Every short number in the picture
+  // that reads as a cell's is a candidate. Each pair of different cells
+  // gives a placement (an image point is s * reference + t), and the one
+  // that most cells agree with wins, refined by least squares.
+  function locateByLabels(img, gray, ref) {
+    const unit = { s: 1, tx: 0, ty: 0 };
+    // Where each cell's number sits for the board at s = 1, t = 0 (as
+    // tools/scan-build.js reads them).
+    const spot = RING.map(([u, v], n) => {
+      if (n === 0) return null;
+      const [x, y] = at(unit, u, v);
+      const k = scaleAt(unit, u, v);
+      const off = v === 0 ? [0, -88] : v === 3 ? [0, 22] : u === 5 ? [63, -38] : [-62, -39];
+      return [x + off[0] * k, y + off[1] * k];
+    });
+    const cell = at(unit, 1, 0)[0] - at(unit, 0, 0)[0];
+    const sharp = blur(gray, img.width, img.height, 1);
+    const allowed = [];
+    for (let v = 2; v <= 16; v++) allowed.push(v);
+    const seen = [];
+    for (const line of textLines(img, 0, 0, img.width - 1, img.height - 1, { minH: 6, maxH: 40 })) {
+      for (const p of line.pieces) {
+        if (p.words.length !== 1 || !p.words[0].glyphs.length || p.words[0].glyphs.length > 2) continue;
+        const read = readNumber(sharp, img.width, img.height, p.words[0], line.h, ref.digits, allowed);
+        if (read && read.score > 0.7) seen.push({ n: read.value - 1, x: (p.x0 + p.x1) / 2, y: (p.y0 + p.y1) / 2 });
+      }
+    }
+    let best = null;
+    for (let i = 0; i < seen.length; i++) {
+      for (let j = i + 1; j < seen.length; j++) {
+        const a = seen[i];
+        const b = seen[j];
+        if (a.n === b.n) continue;
+        const dr = Math.hypot(spot[b.n][0] - spot[a.n][0], spot[b.n][1] - spot[a.n][1]);
+        if (dr < cell * 0.9) continue;
+        const s = Math.hypot(b.x - a.x, b.y - a.y) / dr;
+        if (s < 0.2 || s > 6) continue;
+        const tx = a.x - s * spot[a.n][0];
+        const ty = a.y - s * spot[a.n][1];
+        const inl = seen.filter((c) => Math.hypot(s * spot[c.n][0] + tx - c.x, s * spot[c.n][1] + ty - c.y) < 0.18 * cell * s);
+        const cells = new Set(inl.map((c) => c.n)).size;
+        if (!best || cells > best.cells) best = { s, cells, inl };
+      }
+    }
+    if (!best || best.cells < 5) return null;
+    const m = best.inl.length;
+    const rx = best.inl.reduce((t, c) => t + spot[c.n][0], 0) / m;
+    const ry = best.inl.reduce((t, c) => t + spot[c.n][1], 0) / m;
+    const px = best.inl.reduce((t, c) => t + c.x, 0) / m;
+    const py = best.inl.reduce((t, c) => t + c.y, 0) / m;
+    let num = 0;
+    let den = 0;
+    for (const c of best.inl) {
+      num += (spot[c.n][0] - rx) * (c.x - px) + (spot[c.n][1] - ry) * (c.y - py);
+      den += (spot[c.n][0] - rx) ** 2 + (spot[c.n][1] - ry) ** 2;
+    }
+    const s = den > 0 ? num / den : best.s;
+    return { s, tx: px - s * rx, ty: py - s * ry, score: Math.min(1, best.cells / 15), cells: best.cells, byLabels: true };
+  }
+
+  // ---------- A devour's meal pick ----------
+
+  // "Select an Inmate to Consume": a red banner under the board, and each
+  // inmate the eater can take wrapped in big red fangs, which rise well
+  // above its portrait (an inmate's own jaws marker is small). Null on any
+  // other screen. The warden's cell holds the eater.
+  const isBannerRed = (h, s, v) => (h < 16 || h > 340) && s > 0.45 && v > 0.4;
+  function readChainScreen(img, loc, cells, warden) {
+    let banner = 0;
+    for (let v = 3.9; v <= 5.01; v += 0.15) {
+      const [x0, y0] = at(loc, 1, v);
+      const [x1, y1] = at(loc, 4, v + 0.15);
+      banner = Math.max(banner, colorShare(img, Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1), isBannerRed));
+    }
+    if (banner < 0.2) return null;
+    const targets = [];
+    for (const c of cells) {
+      if (c.n === 0 || (warden && c.n === warden.cell)) continue;
+      const k = c.k;
+      if (colorShare(img, c.x - 40 * k, c.y - 80 * k, c.x + 40 * k, c.y - 50 * k, isBannerRed) > 0.15) targets.push(c.n);
+    }
+    return targets.length ? { banner, targets } : null;
+  }
+
   // ---------- Panels around the board ----------
 
   // Today's doors: the "Go to Cell N" texts on the cards under the board.
@@ -1112,9 +1198,17 @@
   function scan(img, ref) {
     const t0 = Date.now();
     const gray = grayOf(img);
-    const loc = locateBoard(img, gray, ref);
+    let loc = locateBoard(img, gray, ref);
+    // Real boards match their frame at 0.81 or more at every size tested;
+    // instrument picks, popups and other screens stay near 0.5 or under. A
+    // darkened board (a devour's meal pick) also matches weakly, but its
+    // cell numbers stay lit, so it's placed by them instead.
+    if (!loc || loc.score < 0.65) {
+      const byLabels = locateByLabels(img, gray, ref);
+      if (byLabels && byLabels.cells >= 8) loc = byLabels;
+    }
     const notes = [];
-    if (!loc || loc.score < 0.32) return { ok: false, reason: 'No Tartarus prison board found in this picture.', loc, ms: Date.now() - t0 };
+    if (!loc || (!loc.byLabels && loc.score < 0.65)) return { ok: false, reason: 'No Tartarus prison board found in this picture.', loc, ms: Date.now() - t0 };
     const sharp = blur(gray, img.width, img.height, 1);
     const cells = [];
     for (let n = 0; n < 16; n++) cells.push(readCell(img, sharp, loc, n, ref));
@@ -1125,11 +1219,12 @@
     const tools = readTools(img, loc, ref);
     const chromatic = readChromatic(img, loc);
     const objective = objectiveBox(img, loc, tools);
+    const chain = readChainScreen(img, loc, cells, warden);
     if (!warden) notes.push('The warden’s arrow was not found.');
-    return { ok: true, loc, cells, warden, doors, days, tools, chromatic, objective, notes, ms: Date.now() - t0 };
+    return { ok: true, loc, cells, warden, doors, days, tools, chromatic, objective, chain, notes, ms: Date.now() - t0 };
   }
 
-  const api = { scan, locateBoard, readCell, findWarden, findToolIcons, readDoors, readDays, doorCards, dayNumber, prefixVector, textLines, glyphVector, faceVector, artFeature, similarity, hsv, blobs, at, gridOf, scaleAt, grayOf, blur, RING, H0, ARROW, FACE, GLYPH };
+  const api = { scan, locateBoard, readCell, findWarden, findToolIcons, readDoors, readDays, doorCards, dayNumber, prefixVector, textLines, glyphVector, faceVector, artFeature, similarity, hsv, blobs, at, gridOf, scaleAt, grayOf, blur, RING, H0, ARROW, FACE, GLYPH, locateByLabels, readChainScreen };
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.TartarusScan = api;
 })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);

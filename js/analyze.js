@@ -1483,7 +1483,73 @@
 
   // The board the reading describes, built on the current settings (goal,
   // food chain, run length, contracts), plus the cells to check.
+  // A devour's meal pick ("Select an Inmate to Consume"). The game darkens
+  // all but the eater and its meals there, so rarities can't be read: the
+  // board is the turn before (the one loaded here), with what this picture
+  // does show. The eater in the warden's cell as it is now, the cells eaten
+  // so far (they lock again), and the meals on offer, which share the
+  // eater's rarity. With nothing eaten yet and the eater unchanged, it's the
+  // day's devour being aimed, not a chain.
+  function chainToModel(r, base) {
+    const m = JSON.parse(JSON.stringify(base));
+    const checks = new Set();
+    const notes = [];
+    const warden = r.warden ? r.warden.cell : base.warden;
+    // The turn before: the same warden after the patrol, or the patrol that
+    // brought the warden here.
+    const after = base.warden === warden && (base.step === 'manage' || base.step === 'chain');
+    const walked = base.step === 'patrol' && (base.dest || []).includes(warden);
+    if (!after && !walked) {
+      // Nothing to build on: the board as read, its darkened rarities marked.
+      r.cells.forEach((c, n) => {
+        if (n === T.OFFICE || n === warden) return;
+        if (c.kind === 'locked') m.cells[n] = { kind: 'sealed', event: null };
+        else if (c.kind === 'inmate') m.cells[n] = { kind: 'inmate', beast: c.beast, tier: clamp(c.tier, 0, TOP_TIER), ivory: false, prey: null };
+        else m.cells[n] = { kind: 'empty' };
+        if (c.kind !== 'locked') checks.add(n);
+      });
+      notes.push('A devour’s meal pick darkens the board, so its rarities were guessed: check the marked cells, or load the board from before the devour first.');
+    }
+    m.warden = warden;
+    const was = base.cells[warden];
+    const eater = r.cells[warden];
+    if (eater && eater.kind === 'inmate') m.cells[warden] = { kind: 'inmate', beast: eater.beast, tier: clamp(eater.tier, 0, TOP_TIER), ivory: !!(was && was.ivory), prey: was && was.kind === 'inmate' ? was.prey : null };
+    else {
+      checks.add(warden);
+      notes.push('The eater in the warden’s cell wasn’t read: set it as it is now.');
+    }
+    const tier = m.cells[warden].kind === 'inmate' ? m.cells[warden].tier : 0;
+    // Cells the chain has eaten show a padlock again.
+    let eaten = 0;
+    if (after || walked) {
+      r.cells.forEach((c, n) => {
+        if (n === T.OFFICE || n === warden || c.kind !== 'locked' || m.cells[n].kind !== 'inmate') return;
+        m.cells[n] = { kind: 'sealed', event: null };
+        eaten += 1;
+      });
+    }
+    // The meals on offer: the board before keeps its inmate when it fits;
+    // otherwise the beast read here, at the eater's rarity. A scratched door
+    // stays a door.
+    for (const n of r.chain.targets) {
+      const c = m.cells[n];
+      if (c.kind === 'scratch') continue;
+      if (c.kind === 'inmate' && c.tier <= tier && (!r.cells[n].beast || c.beast === r.cells[n].beast)) continue;
+      m.cells[n] = { kind: 'inmate', beast: r.cells[n].beast || (c.kind === 'inmate' ? c.beast : 'mammoth'), tier, ivory: c.kind === 'inmate' ? !!c.ivory : false, prey: null };
+      checks.add(n);
+    }
+    const unchanged = walked || (was && was.kind === 'inmate' && eater && eater.kind === 'inmate' && was.beast === eater.beast && was.tier === eater.tier);
+    m.step = eaten === 0 && unchanged ? 'manage' : 'chain';
+    m.devourUsed = m.step === 'chain';
+    if (m.step === 'manage') m.swapUsed = false;
+    m.dest = [];
+    m.chainArmed = false;
+    const tools = (m.tools || []).map((id) => ({ id, sim: id, name: T.toolName(id), conf: 1 }));
+    return { model: m, checks, notes, chromatic: (m.vault || []).length, tools, unsim: [], chain: r.chain.targets };
+  }
+
   function scanToModel(r, base) {
+    if (r.chain) return chainToModel(r, base);
     const m = JSON.parse(JSON.stringify(base));
     const checks = new Set();
     const notes = [];
@@ -1584,7 +1650,7 @@
       const nests = m.cells.filter((c) => c.kind === 'nest').length;
       list.push(`<li><b>Board</b> ${T.plural(inmates, 'inmate')}, ${T.plural(locked, 'locked cell')}${events ? `, ${T.plural(events, 'event')}` : ''}${nests ? `, ${T.plural(nests, 'rat nest')}` : ''}</li>`);
       list.push(`<li><b>Warden</b> ${r.warden ? (r.warden.cell === T.OFFICE ? 'in the office' : `cell ${L(r.warden.cell)}`) : 'not found'}</li>`);
-      list.push(`<li><b>Today</b> ${m.step === 'patrol' ? `choose a door: ${m.dest.map(L).join(', ')}` : 'no door cards, so after the patrol'}</li>`);
+      list.push(`<li><b>Today</b> ${rd.chain ? `${m.step === 'chain' ? 'a devour chain picks its next meal' : 'the day’s devour picks its meal'}: cell ${rd.chain.map(L).join(' or ')}` : m.step === 'patrol' ? `choose a door: ${m.dest.map(L).join(', ')}` : 'no door cards, so after the patrol'}</li>`);
       list.push(`<li><b>Riot</b> ${r.days ? `${T.plural(r.days.days, 'day')} away, so day ${m.day} of ${m.mode === 'challenge' ? T.CHALLENGE_DAYS : m.maxDays}` : 'not read'}</li>`);
       list.push(`<li><b>Instruments</b> ${rd.tools.length ? rd.tools.map((t) => esc(t.name || t.id) + (t.sim ? '' : ' (not simulated)')).join(', ') : 'none'}</li>`);
       list.push(`<li><b>Chromatic</b> ${T.plural(rd.chromatic, 'prisoner')}${r.chromatic ? '' : ' (panel not found)'}</li>`);
