@@ -135,14 +135,20 @@
     const eats = BEASTS.map((b) => chain[b].map(beastIndex));
     const skewer = has(st, 'skewer');
     if (skewer) eats[RAT] = eats[RAT].concat(RAT);
+    // What each beast counters: under Cage Fight it can eat those at a
+    // lower rarity too (the Crown's other beasts only at its own).
+    const counters = eats.map((list) => list.slice());
     // The Iron Crown of the Prison King: a Lion eats any beast.
     const crown = has(st, 'crown');
     if (crown) eats[LION] = [0, 1, 2, 3];
     // From Legendary up (params.doubleEatTier), Mammoths and Lions also eat
     // their second meal (an engine cached from before has none).
     const second = T.SECOND_MEAL || {};
-    const eatsHigh = eats.map((list, b) => [...new Set(list.concat((second[BEASTS[b]] || []).map(beastIndex)))]);
-    const doubleFrom = Number.isFinite(st.params.doubleEatTier) ? st.params.doubleEatTier : T.SECOND_MEAL ? 3 : RAINBOW;
+    const withSecond = (diet) => diet.map((list, b) => [...new Set(list.concat((second[BEASTS[b]] || []).map(beastIndex)))]);
+    const eatsHigh = withSecond(eats);
+    const countersHigh = withSecond(counters);
+    // Under Cage Fight, both meals at every rarity.
+    const doubleFrom = T.cageFight && T.cageFight(st) ? 0 : Number.isFinite(st.params.doubleEatTier) ? st.params.doubleEatTier : T.SECOND_MEAL ? 3 : RAINBOW;
     const v = [0, 1, 2, 3, 4, 5].map((t) => P.tierBase ** t);
     const openDist = normalize(st.params.tierWeights);
     const R = v[RAINBOW] * P.rainbowMult * (rainbowStuck(st) ? P.stuckRainbow : 1);
@@ -155,8 +161,11 @@
       st,
       P,
       eats,
-      // What each beast eats at tier t.
+      // What each beast eats at tier t, and what it counters there.
       eatsAt: (t) => (t >= doubleFrom ? eatsHigh : eats),
+      countersAt: (t) => (t >= doubleFrom ? countersHigh : counters),
+      // Cage Fight: lower-rarity meals, and the eater keeps its beast.
+      fight: T.cageFight ? T.cageFight(st) : false,
       v,
       R,
       saw: has(st, 'saw'),
@@ -217,11 +226,13 @@
   }
 
   // Value from here on for an eater that just reached tier t: its beast
-  // re-rolls, then it chains into a random valid meal if it has one.
-  function rise(ctx, t, comp, crowd) {
+  // re-rolls (under Cage Fight it stays `keep`), then it chains into the
+  // best valid meal if it has one.
+  function rise(ctx, t, comp, crowd, keep) {
     if (t >= RAINBOW) return ctx.R;
+    const beasts = keep >= 0 ? [keep] : [0, 1, 2, 3];
     let sum = 0;
-    for (let b = 0; b < 4; b++) {
+    for (const b of beasts) {
       if (ctx.revenge) {
         // Avenger's Casket: 30% of the time a meal for the new form appears.
         const foods = ctx.eatsAt(t)[b];
@@ -236,7 +247,7 @@
         sum += feed(ctx, t, b, comp, crowd);
       }
     }
-    return sum / 4;
+    return sum / beasts.length;
   }
 
   // An eater of beast b at tier t takes the best meal it has. With none, the
@@ -244,15 +255,18 @@
   // stops when no meal is worth eating (stopMargin).
   function feed(ctx, t, b, comp, crowd) {
     let key = `${t}${b}${ctx.muzzle ? `m${crowd}` : ''}`;
-    for (let i = t * 4; i < 20; i++) key += String.fromCharCode(48 + comp[i]);
+    for (let i = ctx.fight ? 0 : t * 4; i < 20; i++) key += String.fromCharCode(48 + comp[i]);
     const hit = ctx.memo.get(key);
     if (hit !== undefined) return hit;
     let out = -Infinity;
-    for (const f of ctx.eatsAt(t)[b]) {
-      if (!comp[t * 4 + f]) continue;
-      comp[t * 4 + f] -= 1;
-      out = Math.max(out, bite(ctx, t, b, comp, crowd, 0, true));
-      comp[t * 4 + f] += 1;
+    // Under Cage Fight, countered meals of a lower rarity too.
+    for (let mt = ctx.fight ? 0 : t; mt <= t; mt++) {
+      for (const f of (mt < t ? ctx.countersAt(t) : ctx.eatsAt(t))[b]) {
+        if (!comp[mt * 4 + f]) continue;
+        comp[mt * 4 + f] -= 1;
+        out = Math.max(out, bite(ctx, t, b, comp, crowd, 0, true, mt));
+        comp[mt * 4 + f] += 1;
+      }
     }
     if (out === -Infinity || (ctx.chainStop && out - ctx.v[t] < ctx.P.stopMargin)) out = ctx.v[t];
     ctx.memo.set(key, out);
@@ -263,28 +277,28 @@
   // (after the first) can get the Barbed Collar's +1.
   // `crowd` counts the block before the bite, meal included; the Muzzle
   // counts it after.
-  function bite(ctx, t, b, comp, crowd, extra, chained) {
+  function bite(ctx, t, b, comp, crowd, extra, chained, mealTier = t) {
     let gain = 1 + extra;
     if (ctx.muzzle && crowd - 1 <= 4) gain += 2;
     if (ctx.skewer && b === RAT) gain += 1;
     if (ctx.crown && b === LION) gain += 2;
-    const after = (g) => rise(ctx, Math.min(RAINBOW, t + g), comp, crowd - 1);
+    const after = (g) => rise(ctx, Math.min(RAINBOW, t + g), comp, crowd - 1, ctx.fight ? b : -1);
     // The Rusty Saw (25%) and the Barbed Whip (35%) each may add +1.
     const s = ctx.saw ? 0.25 : 0;
     const w = ctx.whip ? 0.35 : 0;
     const sawed = (g) => (s || w ? (1 - s) * (1 - w) * after(g) + (s + w - 2 * s * w) * after(g + 1) + s * w * after(g + 2) : after(g));
-    return -ctx.v[t] + (chained && ctx.collar ? 0.2 * sawed(gain) + 0.8 * sawed(gain + 1) : sawed(gain));
+    return -ctx.v[mealTier] + (chained && ctx.collar ? 0.2 * sawed(gain) + 0.8 * sawed(gain + 1) : sawed(gain));
   }
 
   // Expected change in value from a bite: the chosen meal, then the rest of
   // the chain. `chained` marks a bite inside a chain, after the first.
   // `comp` leaves out the eater and still holds the meal.
-  function devourDelta(ctx, tier, beast, meal, scratch, comp, crowd, chained) {
-    const i = tier * 4 + meal;
+  function devourDelta(ctx, tier, beast, meal, scratch, comp, crowd, chained, mealTier = tier) {
+    const i = mealTier * 4 + meal;
     if (!scratch) comp[i] -= 1;
     // A meal behind a scratched door isn't on the block, so the block doesn't
     // shrink when it's eaten.
-    const value = bite(ctx, tier, beast, comp, scratch ? crowd + 1 : crowd, scratch ? ctx.scratchExtra : 0, chained) - ctx.v[tier];
+    const value = bite(ctx, tier, beast, comp, scratch ? crowd + 1 : crowd, scratch ? ctx.scratchExtra : 0, chained, mealTier) - ctx.v[tier];
     if (!scratch) comp[i] += 1;
     return value;
   }
@@ -292,10 +306,12 @@
   // The best first meal for an eater of this tier and beast, by expected value.
   function bestMeal(ctx, tier, beast, comp, crowd) {
     let best = { value: -Infinity, meal: -1 };
-    for (const f of ctx.eatsAt(tier)[beast]) {
-      if (!comp[tier * 4 + f]) continue;
-      const value = devourDelta(ctx, tier, beast, f, false, comp, crowd);
-      if (value > best.value) best = { value, meal: f };
+    for (let mt = ctx.fight ? 0 : tier; mt <= tier; mt++) {
+      for (const f of (mt < tier ? ctx.countersAt(tier) : ctx.eatsAt(tier))[beast]) {
+        if (!comp[mt * 4 + f]) continue;
+        const value = devourDelta(ctx, tier, beast, f, false, comp, crowd, false, mt);
+        if (value > best.value) best = { value, meal: f };
+      }
     }
     return best;
   }
@@ -313,37 +329,41 @@
     const { comp } = composition(st, from);
     if (!target.sealed) comp[meal.tier * 4 + beastIndex(meal.beast)] -= 1;
     const memo = new Map();
-    // Returns [P(reach Rainbow), expected further bites] from tier t, beast re-rolling.
-    const fromTier = (t) => {
+    // Returns [P(reach Rainbow), expected further bites] from tier t, beast
+    // re-rolling (under Cage Fight, staying `keep`).
+    const fromTier = (t, keep) => {
       if (t >= RAINBOW) return [1, 0];
+      const beasts = keep >= 0 ? [keep] : [0, 1, 2, 3];
       let p = 0;
       let n = 0;
-      for (let b = 0; b < 4; b++) {
+      for (const b of beasts) {
         const [pb, nb] = eat(t, b);
-        p += pb / 4;
-        n += nb / 4;
+        p += pb / beasts.length;
+        n += nb / beasts.length;
       }
       return [p, n];
     };
     const eat = (t, b) => {
       let key = `${t}${b}`;
-      for (let i = t * 4; i < 20; i++) key += String.fromCharCode(48 + comp[i]);
+      for (let i = ctx.fight ? 0 : t * 4; i < 20; i++) key += String.fromCharCode(48 + comp[i]);
       if (memo.has(key)) return memo.get(key);
       // The player picks the meal with the best odds (then more bites).
       let out = null;
-      for (const f of ctx.eatsAt(t)[b]) {
-        if (!comp[t * 4 + f]) continue;
-        comp[t * 4 + f] -= 1;
-        const [pf, nf] = fromTier(t + 1);
-        comp[t * 4 + f] += 1;
-        if (!out || pf > out[0] + 1e-12 || (Math.abs(pf - out[0]) <= 1e-12 && nf + 1 > out[1])) out = [pf, nf + 1];
+      for (let mt = ctx.fight ? 0 : t; mt <= t; mt++) {
+        for (const f of (mt < t ? ctx.countersAt(t) : ctx.eatsAt(t))[b]) {
+          if (!comp[mt * 4 + f]) continue;
+          comp[mt * 4 + f] -= 1;
+          const [pf, nf] = fromTier(t + 1, ctx.fight ? b : -1);
+          comp[mt * 4 + f] += 1;
+          if (!out || pf > out[0] + 1e-12 || (Math.abs(pf - out[0]) <= 1e-12 && nf + 1 > out[1])) out = [pf, nf + 1];
+        }
       }
       out = out || [0, 0];
       memo.set(key, out);
       return out;
     };
     const gain = target.sealed && target.scratch ? 1 + ctx.scratchExtra : 1;
-    const [p, n] = fromTier(Math.min(RAINBOW, eater.tier + gain));
+    const [p, n] = fromTier(Math.min(RAINBOW, eater.tier + gain), ctx.fight ? beastIndex(eater.beast) : -1);
     return { rainbow: p, bites: 1 + n };
   }
 
@@ -681,7 +701,7 @@
         // Crowded Beastcage: 40% of the time the meal's cell opens again with
         // someone new (the chain after the first bite isn't counted).
         const cage = ctx.cage ? ctx.P.wCage * 0.4 * ctx.P.wOpen * ctx.openValue : 0;
-        return { cell: o.cell, score: devourDelta(ctx, tier, beast, beastIndex(meal.beast), !!o.scratch, comp, crowd, chained) - loss + stairLoss + need + cage };
+        return { cell: o.cell, score: devourDelta(ctx, tier, beast, beastIndex(meal.beast), !!o.scratch, comp, crowd, chained, o.scratch ? tier : meal.tier) - loss + stairLoss + need + cage };
       })
       .sort((a, b) => b.score - a.score);
   }

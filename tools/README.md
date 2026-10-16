@@ -99,6 +99,10 @@ The two-meal chain's challenge profile had a one-round tune (5.2 million runs, 7
 
 The Chinese sim's two-meal food chain (Mammoth also eats Wolf, Lion also eats Rat) was confirmed not to be in the live game on 2026-10-15, so it was removed from the simulator and the lab. The older sections below still show the two-meal numbers measured at the time; their files are in the git history.
 
+### Cage Fight (2026-10-16)
+
+The user's screenshot of a new objective: "Cage Fight. Inmates can Consume lower-rarity countered Inmates; Consuming does not randomly change their Codes". From the user: an inmate can eat any inmate it counters at its own rarity or lower. Only Mammoths and Lions eat two kinds (Mammoths: Lions and Wolves; Lions: Wolves and Rats), at any rarity; Wolves eat only Rats, and Rats only Mammoths. "Codes" are beasts, so the eater keeps its beast. The analyzer can set it as the run's objective (`cagefight`, with no tool to earn), and the strategy's chain math follows it (lower-rarity meals, no re-roll). Simulated runs don't draw it. A quick check of 200 runs with no instruments: 3.07 Rainbows a run against 0.82 without it.
+
 ### Second meals and the game's Cancel, measured again (2026-10-16)
 
 From Legendary up, Mammoths also eat Wolves and Lions also eat Rats (fbbc8ba), and a consume chain can be stopped at any bite (4fb3ecd). Everything was measured again on 4 threads:

@@ -707,8 +707,8 @@
       if (st.tools.includes('whip')) extras.push('Barbed Whip: 35% chance of +1.');
       if (st.tools.includes('collar')) extras.push('Barbed Collar: each bite after this one has an 80% chance of +1.');
       if (revenge) extras.push("Avenger's Casket may open a new meal.");
-      if (T.linkOf(st, eater.id) && to < T.RAINBOW) extras.push('If its beast changes, its prey mark ends.');
-      const outcome = to === T.RAINBOW ? 'reaches Rainbow and leaves for the vault' : `rises to ${T.tierName(to)}, then its beast re-rolls`;
+      if (T.linkOf(st, eater.id) && to < T.RAINBOW && !(T.cageFight && T.cageFight(st))) extras.push('If its beast changes, its prey mark ends.');
+      const outcome = to === T.RAINBOW ? 'reaches Rainbow and leaves for the vault' : T.cageFight && T.cageFight(st) ? `rises to ${T.tierName(to)} and stays a ${T.beastName(eater.beast)} (Cage Fight)` : `rises to ${T.tierName(to)}, then its beast re-rolls`;
       setDecision(`Consume, +${gain}?`, `The ${T.describe(eater)} in cell ${L(p.from)} eats ${meal} in cell ${L(p.to)}. It ${outcome}. ${extras.join(' ')}`.trim(), [
         ['Consume', () => run((s) => T.devour(s, p.from, p.to)), 'primary'],
         ['Cancel', back],
@@ -732,7 +732,7 @@
       if (st.tools.includes('saw')) extras.push('Rusty Saw may add +1.');
       if (st.tools.includes('whip')) extras.push('Barbed Whip: 35% chance of +1.');
       if (st.tools.includes('collar')) extras.push('Barbed Collar: 80% chance of +1.');
-      const outcome = to === T.RAINBOW ? 'reaches Rainbow and leaves for the vault' : `rises to ${T.tierName(to)}, then its beast re-rolls`;
+      const outcome = to === T.RAINBOW ? 'reaches Rainbow and leaves for the vault' : T.cageFight && T.cageFight(st) ? `rises to ${T.tierName(to)} and stays a ${T.beastName(eater.beast)} (Cage Fight)` : `rises to ${T.tierName(to)}, then its beast re-rolls`;
       setDecision(`Next bite, +${gain}?`, `The ${T.describe(eater)} eats ${meal} in cell ${L(p.to)}. It ${outcome}. ${extras.join(' ')}`.trim(), [
         ['Eat it', () => run((s) => T.chainBite(s, p.to), { select: st.position }), 'primary'],
         ...(T.canStopChain && T.canStopChain(st) ? [['Stop the chain', () => run((s) => T.stopChain(s), { select: st.position })]] : []),

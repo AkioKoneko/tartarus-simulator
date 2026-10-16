@@ -39,9 +39,14 @@
   // one meal.
   const FOOD_CHAIN = { mammoth: ['lion'], lion: ['wolf'], wolf: ['rat'], rat: ['mammoth'] };
   const SECOND_MEAL = { mammoth: ['wolf'], lion: ['rat'] };
+  // Cage Fight, the run's objective: an inmate can consume the beasts it
+  // counters (both meals, at any rarity: the user saw a Rare Mammoth eat
+  // Wolves) at its own rarity or lower, and consuming never re-rolls its
+  // beast.
+  const cageFight = (state) => !!state && !!state.objective && state.objective.id === 'cagefight';
   const eatsOf = (state, beast, tier) => {
     const first = FOOD_CHAIN[beast] || [];
-    const from = state && state.params && Number.isFinite(state.params.doubleEatTier) ? state.params.doubleEatTier : DEFAULT_PARAMS.doubleEatTier;
+    const from = cageFight(state) ? 0 : state && state.params && Number.isFinite(state.params.doubleEatTier) ? state.params.doubleEatTier : DEFAULT_PARAMS.doubleEatTier;
     return Number.isFinite(tier) && tier >= from && SECOND_MEAL[beast] ? first.concat(SECOND_MEAL[beast]) : first;
   };
 
@@ -234,6 +239,13 @@
     consume: { name: 'Survival of the Fittest', text: 'Consume 4 times', need: 4, unit: 'Consumes', drawn: false },
     incident: { name: 'Undercurrents', text: 'Trigger a Prison Incident 2 times', need: 2, unit: 'Prison Incidents', drawn: false },
     other: { name: 'Another objective', text: 'Not in the simulator yet, so no tool is assumed for it', drawn: false },
+    // The user's screenshot (2026-10-16): "Cage Fight. Inmates can Consume
+    // lower-rarity countered Inmates; Consuming does not randomly change
+    // their Codes". Countered: the beasts an inmate eats, at its rarity or
+    // lower (the user), with both meals at any rarity (a Rare Mammoth ate
+    // Wolves). Codes: beasts, as in Behind Closed Doors' "Scarce Code". A
+    // rule for the run, with nothing to meet, so no tool.
+    cagefight: { name: 'Cage Fight', text: 'Inmates can consume the beasts they counter (Mammoths: Lions and Wolves; Lions: Wolves and Rats; Wolves: Rats; Rats: Mammoths) at their own rarity or lower, and consuming never changes their beast', drawn: false, rule: true },
   };
   const OBJECTIVE_IDS = Object.keys(OBJECTIVES).filter((id) => OBJECTIVES[id].drawn !== false);
 
@@ -455,8 +467,13 @@
 
   function canEat(state, eater, meal) {
     if (!eater || !meal || eater.id === meal.id || eater.tier >= RAINBOW) return false;
-    if (eater.tier !== meal.tier) return eater.tier > meal.tier && eater.beast === 'wolf' && has(state, 'guillotine') && eatsOf(state, 'wolf').includes(meal.beast);
-    return eatsOf(state, eater.beast, eater.tier).includes(meal.beast) || (eater.beast === 'rat' && meal.beast === 'rat' && has(state, 'skewer')) || (eater.beast === 'lion' && has(state, 'crown'));
+    // The beasts this eater counters: its meals in the food chain.
+    const counters = eatsOf(state, eater.beast, eater.tier).includes(meal.beast) || (eater.beast === 'rat' && meal.beast === 'rat' && has(state, 'skewer'));
+    if (eater.tier !== meal.tier) {
+      if (meal.tier < eater.tier && counters && cageFight(state)) return true;
+      return eater.tier > meal.tier && eater.beast === 'wolf' && has(state, 'guillotine') && eatsOf(state, 'wolf').includes(meal.beast);
+    }
+    return counters || (eater.beast === 'lion' && has(state, 'crown'));
   }
 
   // One devour a day, started by the inmate in the warden's cell; it then
@@ -1290,7 +1307,7 @@
     }
     const revenge = has(state, 'revenge') && rand(state) < 0.3;
     events.push({ type: 'devour', from, to: option.cell });
-    promote(state, eater, gain, true, events);
+    promote(state, eater, gain, !cageFight(state), events);
     state.stats.devours += 1;
     Object.assign(bite, { gain, notes, after: snap(eater) });
     checkPrey(state);
@@ -2191,7 +2208,7 @@
     moveWarden: bounded(moveWarden),
     addTool: bounded(addTool),
     removeTool: bounded(removeTool),
-    patrolOptions, clockwisePath, devourOptions, startOptions, chainOptions, canStopChain, gainFor, executionVictims, canEat, eatsOf, canDevourNow, canSwapNow, canOpenEarly, canRefresh, canReroll,
+    patrolOptions, clockwisePath, devourOptions, startOptions, chainOptions, canStopChain, cageFight, gainFor, executionVictims, canEat, eatsOf, canDevourNow, canSwapNow, canOpenEarly, canRefresh, canReroll,
     linkOf, cellOf, boardInmates, currentContract, deliveryCheck, bestCargo, rosterOf, advise, limits,
     toolText, toolName, eventName, describe, tierName, beastName, cellLabel, plural, stepsBetween, scarceBeasts, lowestInmates,
   };
