@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261016zj">
+<link rel="stylesheet" href="css/style.css?v=20261016zk">
 <style>
   /* A long read in the simulator's look, like the strategy guide. */
   .guide {
@@ -435,7 +435,7 @@
 
   <section class="guide-section" id="desktop">
     <h2>In the desktop app</h2>
-    <p>Tartarus Overlay is a Windows app that runs Follow my game for you and shows the advice in a small card over the game, so one monitor is enough. It opens this site's own pages (this page and the board analyzer) inside the app, so everything above still holds there, with the differences below. Its code is in the site's repository, under <code>desktop/</code>, and each part is shown here the same way.</p>
+    <p>Tartarus Overlay is a Windows app that runs Follow my game for you and shows the advice in a small card over the game, so one monitor is enough. It opens this site's own pages (this page and the board analyzer) inside the app, so everything above still holds there, with the differences below. Its code is in the site's repository, under <code>desktop/</code>, and each part is shown here the same way. <a href="https://github.com/blahdot3h/tartarus-simulator/releases/latest" target="_blank" rel="noopener">Download it</a> (Windows; it isn't code-signed yet, so Windows may ask you to confirm: More info, then Run anyway).</p>
 
     <h3>It finds the log itself</h3>
     <p>You don't drag the log in. The app looks where the game writes it: in each Steam library that has the game (from Steam's own list of its libraries), and in the game launcher's default folder. It takes the newest <code>UE_game.log</code> there, or one you choose from its tray menu. Only this page can read it, and only its size and the bytes it asks for. The follower above still reads only the new lines.</p>
@@ -485,8 +485,8 @@
   </section>
 </main>
 
-<script src="js/capture.js?v=20261016zj"></script>
-<script src="js/follow.js?v=20261016zj"></script>
+<script src="js/capture.js?v=20261016zk"></script>
+<script src="js/follow.js?v=20261016zk"></script>
 <script>
 (function () {
   'use strict';

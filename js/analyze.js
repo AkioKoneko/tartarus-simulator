@@ -2864,6 +2864,8 @@
       day: () => model.day,
       toast,
     };
+    // In the desktop app, the link to download it has no use.
+    if (window.TartarusDesktop && $('az-desktop-app')) $('az-desktop-app').hidden = true;
     // Reports of something new carry where the player was, nothing more.
     // The deployed collector turns away a report whose step it doesn't know
     // (a chain's pick), so that one goes without its step.
