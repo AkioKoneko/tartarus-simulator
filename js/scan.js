@@ -1372,6 +1372,9 @@
     let end = false;
     // Seven-letter labels: "Replace", or "Consume" (judged by its card below).
     const labels = [];
+    // Single words, by their letters: the office's "Instigate" (9) and
+    // "Bestow" (6).
+    const single = [];
     // The row's title, by its words' letter counts: "Make Your Decision"
     // [4, 4, 8], or the Sewer Ratway's "Select an Objective" [6, 2, 9]
     // (a stray mark can lead).
@@ -1384,6 +1387,7 @@
         for (const p of line.pieces) {
           const n = p.words.reduce((a, w) => a + w.glyphs.length, 0);
           const span = (p.x1 - p.x0) / Math.max(1, line.h);
+          if (p.words.length === 1 && n >= 5 && n <= 10) single.push({ n, span, x0: p.x0, x1: p.x1, mid: line.mid, h: line.h });
           if (n >= 14 && n <= 20 && span > 7 && span < 15) {
             const words = p.words.map((w) => w.glyphs.length);
             if (near(words, [6, 2, 9]) && !near(words, [4, 4, 8])) pickCell = true;
@@ -1431,10 +1435,15 @@
       l.red = redBy(l);
       if (l.red < 0.01) replace = true;
     }
+    // The office: "Instigate" with "Bestow" to its right on the same line,
+    // neither on the Consume card's red (its jaws can read as a long word).
+    const office = single.some((a) => a.n >= 8 && a.n <= 10 && a.span > 4.3 && a.span < 6.5 && redBy(a) < 0.01
+      && single.some((b) => b.n >= 5 && b.n <= 6 && b.span > 3.3 && b.span < 5.5 && b.x0 > a.x1 && Math.abs(b.mid - a.mid) < a.h / 2 && redBy(b) < 0.01));
     // The Sewer Ratway: the player picks any cell, with no cards.
     if (pickCell && !title) return { ratway: true, replace: false, consume: false, end: false, title: false };
     // Without its title, a stray short word isn't a row of cards.
     if (!title) return null;
+    if (office) return { office: true, replace: false, consume: false, end: false, title };
     return { replace, consume, end, title, red: Math.round(1000 * red) / 1000 };
   }
 
