@@ -241,6 +241,19 @@
           .filter((n) => Number.isInteger(n) && n >= 0 && n < T.CELL_COUNT && n !== st.position)
           .sort((a, b) => T.stepsBetween(st.position, a) - T.stepsBetween(st.position, b));
         if (!st.destinations.length) problems.push("Mark today's doors: tick them under “Which door to patrol”, or select a cell and press Today's door.");
+        // Doors are always among the cells just ahead of the warden, clockwise.
+        // One outside them means the warden (or the door) is in the wrong
+        // cell, and the advice would send the warden most of the way round.
+        const range = st.params.patrolRange;
+        const reach = (w, n) => T.stepsBetween(w, n) >= 1 && T.stepsBetween(w, n) <= range;
+        const doors = [...new Set(m.dest)].filter((n) => Number.isInteger(n) && n >= 0 && n < T.CELL_COUNT);
+        const outside = doors.filter((n) => !reach(st.position, n));
+        if (outside.length) {
+          const fits = [];
+          for (let w = 0; w < T.CELL_COUNT; w++) if (doors.every((n) => reach(w, n))) fits.push(L(w));
+          const where = fits.length > 1 ? `${fits.slice(0, -1).join(', ')} or ${fits[fits.length - 1]}` : fits[0];
+          problems.push(`Doors are always among the ${range} cells clockwise ahead of the warden, and ${outside.length === 1 ? `cell ${L(outside[0])} isn't` : `cells ${outside.map(L).join(' and ')} aren't`}: the warden is set in cell ${L(st.position)}. ${fits.length ? `Check the warden's cell: with these doors it's in cell ${where}.` : "No single cell has all these doors in reach, so check the doors too."}`);
+        }
         break;
       }
       case 'event': {

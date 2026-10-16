@@ -494,13 +494,17 @@
     let fresh = null;
     const freshNow = () => (fresh === null ? (fresh = freshValue(ctx, tagged(ctx, ctx.openDist), board.comp, board.crowd + 1, swapLeft)) : fresh);
     const out = [];
+    const range = Math.min(st.params.patrolRange || T.DEFAULT_PARAMS.patrolRange, T.CELL_COUNT - 1);
     for (const n of T.patrolOptions(st)) {
       const c = st.cells[n];
-      const steps = T.stepsBetween(st.position, n);
+      // A door out of the warden's reach (a typed board with the warden in
+      // the wrong cell) has no walk to count: one just behind the warden
+      // would otherwise score as a walk most of the way round.
+      const steps = T.stepsBetween(st.position, n) <= range ? T.stepsBetween(st.position, n) : 0;
       let score = P.wStep * steps;
       let why;
       if (st.chain) {
-        const path = T.clockwisePath(st, n);
+        const path = steps ? T.clockwisePath(st, n) : [n];
         const sealed = path.filter((k) => st.cells[k].sealed).length;
         score += P.wOpen * (sealed - (c.sealed ? 1 : 0)) * ctx.openValue + (c.sealed ? freshNow() : c.inmate ? P.wWalk * known(c) : 0);
         why = `the chain opens ${T.plural(sealed, 'door')} on the way`;
@@ -545,7 +549,7 @@
       // Long-Chained Shackles: a walk of 4 or more may raise someone a tier.
       if (ctx.shacklesLift && steps >= 4) score += 0.4 * ctx.shacklesLift;
       // Short-Chained Shackles: a walk of 3 or fewer may open another door.
-      if (ctx.shortchain && steps <= 3 && ctx.sealed > (c.sealed ? 1 : 0)) score += P.wShort * 0.5 * P.wOpen * ctx.openValue;
+      if (ctx.shortchain && steps >= 1 && steps <= 3 && ctx.sealed > (c.sealed ? 1 : 0)) score += P.wShort * 0.5 * P.wOpen * ctx.openValue;
       // Prison Walk: each tile walked brings its tool closer.
       if (ctx.goalLeft) score += P.wGoal * Math.min(steps, ctx.goalLeft);
       out.push({ cell: n, score, why });
