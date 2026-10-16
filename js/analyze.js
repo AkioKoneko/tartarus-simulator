@@ -285,7 +285,11 @@
         const reach = (w, n) => T.stepsBetween(w, n) >= 1 && T.stepsBetween(w, n) <= range;
         const doors = [...new Set(m.dest)].filter((n) => Number.isInteger(n) && n >= 0 && n < T.CELL_COUNT);
         const outside = doors.filter((n) => !reach(st.position, n));
-        if (outside.length) {
+        // The game's tutorial run scripts its doors: the warden in 05 with
+        // doors 06, 08 and 14, seen on dozens of players' boards (report 34).
+        // No other run has shown a door past the six cells ahead.
+        const tutorial = st.position === 4 && doors.length === 3 && [5, 7, 13].every((n) => doors.includes(n));
+        if (outside.length && !tutorial) {
           const fits = [];
           for (let w = 0; w < T.CELL_COUNT; w++) if (doors.every((n) => reach(w, n))) fits.push(L(w));
           const where = fits.length > 1 ? `${fits.slice(0, -1).join(', ')} or ${fits[fits.length - 1]}` : fits[0];
