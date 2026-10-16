@@ -16,21 +16,103 @@
   const KEY = 'tartarus-sim:auto:v1';
   const CHANNEL = 'tartarus-follow';
   const KEEP = 12; // pictures listed
-  const RANK = { board: 1, brushstroke: 2, open: 3, startover: 4, chest: 5, finish: 6, manual: 7 };
+  const RANK = { board: 1, instruments: 2, brushstroke: 2, open: 3, startover: 4, chest: 5, finish: 6, manual: 7 };
   // #region default-triggers
-  // The prison's log lines aren't known until the season starts. Until
-  // then the defaults are the Frozen Canvas's, which test the whole path.
+  // The prison is "S16" in the game's log. A run starts with a pick of 3
+  // instruments, which the game logs as it opens. Then each day starts with
+  // a "new day" banner; when it closes, the game writes the day's number
+  // (out of 20) and lights the cells you can go to. A picture 1.5 seconds
+  // after either shows the screen settled, while you choose. The results
+  // screen at the end writes the day line too, with max=0, and is left out.
   const DEFAULT_RULES = [
     '# kind | pattern | settle ms  (one trigger a line; # starts a note)',
-    "# The prison's lines go here at launch. For now, the Frozen Canvas's:",
-    'board | S8_HZXY_DrawPaper_Pigment_Puzzle | 900',
-    'board | S8SnowField Anim_Fangzhi | 900',
-    'brushstroke | S8_HZXY_DrawPaper_Brushwork$ | 900',
-    'startover | S8_HZXY_DrawPaper_TearUp | 1200',
-    'finish | S8_HZXY_DrawPaper_Draw_Finish | 1500',
+    '# Tartarus Prison is S16 in the log. A run\'s objective, when it shows one:',
+    'objective | S16BoardTaskPop Run | 1500',
+    '# The pick of 3 instruments, and after a re-roll:',
+    'instruments | S16BoardRelicPop Run | 1500',
+    'instruments | Btn_S16Board_RelicPop_Reroll | 2000',
+    '# Each day, once its banner closes, and after a move, once its cards come up:',
+    'board | \\[S16LastDay\\] check cur=\\d+ max=[1-9] | 1500',
+    'board | UI_S16_Card_Up | 1500',
+    '# After an action in the cell, once it plays out; unless the day ends,',
+    "# as a new day's banner drops a picture still waiting (skip):",
+    'board | Btn_S16Board_ActionCell | 2000',
+    'skip | S16BoardNewDayPop Run | 0',
+    "# The Warden's Treasure, which a Chromatic prisoner opens:",
+    'treasure | S16BoardColoredPop Run | 1500',
   ].join('\n');
-  const DEFAULT_WATCH = '^(?!.*Appear_Gen)(?=.*(S\\d+_|Anim_\\w+ Start|AudioEnum|requested row))';
+  // The prison's own events, for working out more triggers: its buttons,
+  // sounds and screens, without the lines that repeat them.
+  const DEFAULT_WATCH = '^(?!.*(LogDataTable|AssetLoad@|PageStack@|PageBase@|PageView@|CardMotion|CardPose|BGM_))(?=.*S16)';
   // #endregion
+  // Defaults from earlier versions. Saved settings that are just one of
+  // these give way to the defaults above.
+  const RETIRED = [
+    [
+      '# kind | pattern | settle ms  (one trigger a line; # starts a note)',
+      '# Tartarus Prison is S16 in the log. A run\'s objective, when it shows one:',
+      'objective | S16BoardTaskPop Run | 1500',
+      '# The pick of 3 instruments, and after a re-roll:',
+      'instruments | S16BoardRelicPop Run | 1500',
+      'instruments | Btn_S16Board_RelicPop_Reroll | 2000',
+      '# Each day, once its banner closes, and after a move, once its cards come up:',
+      'board | \\[S16LastDay\\] check cur=\\d+ max=[1-9] | 1500',
+      'board | UI_S16_Card_Up | 1500',
+      "# The Warden's Treasure, which a Chromatic prisoner opens:",
+      'treasure | S16BoardColoredPop Run | 1500',
+    ].join('\n'),
+    [
+      '# kind | pattern | settle ms  (one trigger a line; # starts a note)',
+      '# Tartarus Prison is S16 in the log. A run\'s objective, when it shows one:',
+      'objective | S16BoardTaskPop Run | 1500',
+      '# The pick of 3 instruments, and after a re-roll:',
+      'instruments | S16BoardRelicPop Run | 1500',
+      'instruments | Btn_S16Board_RelicPop_Reroll | 2000',
+      '# Each day, once its banner closes, and after a move, once its cards come up:',
+      'board | \\[S16LastDay\\] check cur=\\d+ max=[1-9] | 1500',
+      'board | UI_S16_Card_Up | 1500',
+    ].join('\n'),
+    [
+      '# kind | pattern | settle ms  (one trigger a line; # starts a note)',
+      '# Tartarus Prison is S16 in the log. A run\'s objective, when it shows one:',
+      'objective | S16BoardTaskPop Run | 1500',
+      '# The pick of 3 instruments, and after a re-roll:',
+      'instruments | S16BoardRelicPop Run | 1500',
+      'instruments | Btn_S16Board_RelicPop_Reroll | 2000',
+      '# Each day, once its banner closes:',
+      'board | \\[S16LastDay\\] check cur=\\d+ max=[1-9] | 1500',
+    ].join('\n'),
+    [
+      '# kind | pattern | settle ms  (one trigger a line; # starts a note)',
+      '# Tartarus Prison is S16 in the log. The pick of 3 instruments, and after a re-roll:',
+      'instruments | S16BoardRelicPop Run | 1500',
+      'instruments | Btn_S16Board_RelicPop_Reroll | 2000',
+      '# Each day, once its banner closes:',
+      'board | \\[S16LastDay\\] check cur=\\d+ max=[1-9] | 1500',
+    ].join('\n'),
+    [
+      '# kind | pattern | settle ms  (one trigger a line; # starts a note)',
+      '# Tartarus Prison is S16 in the log. The pick of 3 instruments:',
+      'instruments | S16BoardRelicPop Run | 1500',
+      '# Each day, once its banner closes:',
+      'board | \\[S16LastDay\\] check cur=\\d+ max=[1-9] | 1500',
+    ].join('\n'),
+    [
+      '# kind | pattern | settle ms  (one trigger a line; # starts a note)',
+      '# A new day in Tartarus Prison (S16 in the log), once its banner closes:',
+      'board | \\[S16LastDay\\] check cur=\\d+ | 1500',
+    ].join('\n'),
+    [
+      '# kind | pattern | settle ms  (one trigger a line; # starts a note)',
+      "# The prison's lines go here at launch. For now, the Frozen Canvas's:",
+      'board | S8_HZXY_DrawPaper_Pigment_Puzzle | 900',
+      'board | S8SnowField Anim_Fangzhi | 900',
+      'brushstroke | S8_HZXY_DrawPaper_Brushwork$ | 900',
+      'startover | S8_HZXY_DrawPaper_TearUp | 1200',
+      'finish | S8_HZXY_DrawPaper_Draw_Finish | 1500',
+    ].join('\n'),
+    '^(?!.*Appear_Gen)(?=.*(S\\d+_|Anim_\\w+ Start|AudioEnum|requested row))',
+  ];
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -46,12 +128,20 @@
   }
   // The panel saves only its own settings. Whether Follow my game is on (the
   // player's agreement) is written only by the agreement at the bottom.
-  const OWN = ['rules', 'watch', 'read', 'accept', 'ask'];
-  const prefs = Object.assign({ rules: DEFAULT_RULES, watch: DEFAULT_WATCH, read: true, accept: false, ask: true }, load());
+  // Triggers and the watch pattern are saved only when changed from the
+  // defaults, so new defaults reach everyone who didn't change them.
+  const OWN = ['rules', 'watch', 'read'];
+  const DEFAULTS = { rules: DEFAULT_RULES, watch: DEFAULT_WATCH, read: true };
+  const saved = load();
+  for (const k of ['rules', 'watch']) if (RETIRED.includes(saved[k])) delete saved[k];
+  const prefs = Object.assign({}, DEFAULTS, saved);
   const save = () => {
     try {
       const all = load();
-      for (const k of OWN) all[k] = prefs[k];
+      for (const k of OWN) {
+        if (k !== 'read' && prefs[k] === DEFAULTS[k]) delete all[k];
+        else all[k] = prefs[k];
+      }
       localStorage.setItem(KEY, JSON.stringify(all));
     } catch (e) {
       // Private windows can refuse; settings last until the tab closes.
@@ -109,19 +199,30 @@
   // ---------- The panel ----------
 
   const captures = []; // newest first: { id, time, kind, hits, frame, why, thumb, full, sent, read, state, asked, note }
+  let lastPicture = null; // { at, kind, ok, why }, for the analyzer's status line
+
+  // This page's status, for the analyzer to show (js/auto.js).
+  function tell() {
+    if (!channel) return;
+    const st = C.state;
+    channel.postMessage({ type: 'status', from: me, log: st.log, file: st.file, window: st.window, last: lastPicture });
+  }
   const seen = []; // newest first: { at, line, kind }
   let nextId = 1;
+  let resumable = true; // whether the log from last time may still open
 
   function renderStatus(s) {
     const st = s || C.state;
     const log = st.log === 'on'
       ? `Following ${esc(st.file || 'the log')}: ${st.lines.toLocaleString()} new lines, ${st.hits.toLocaleString()} triggers`
       : st.log === 'starting' ? 'Opening the log…'
-        : st.log === 'error' ? `The log can’t be read right now (${esc(st.error)}). Retrying…`
-          : st.file ? `Not following ${esc(st.file)} yet.` : 'Not connected.';
+        : st.log === 'gone' ? `${esc(st.file || 'The log')} isn’t there any more: it was deleted or moved. It’s followed again as soon as the game writes a new one, or drag it here again.`
+          : st.log === 'error' ? `The log can’t be read right now (${esc(st.error)}). Retrying…`
+            : st.file ? `Not following ${esc(st.file)} yet.` : 'Not connected.';
     $('az-auto-log-state').innerHTML = log;
     $('az-auto-win-state').textContent = st.window === 'on' ? `Sharing the game window${st.windowSize ? ` (${st.windowSize})` : ''}: ${st.frames} pictures taken.` : 'Not sharing.';
-    $('az-auto-log').textContent = st.log === 'on' || st.log === 'starting' ? 'Stop following' : st.file ? `Follow ${st.file} again` : 'Connect the game log';
+    $('az-auto-log').textContent = st.log === 'on' || st.log === 'starting' ? 'Stop following'
+      : st.log === 'off' && st.file && resumable ? `Follow ${st.file} again` : 'Or choose the file';
     $('az-auto-win').textContent = st.window === 'on' ? 'Stop sharing' : 'Share the game window';
     $('az-auto-note').textContent = st.note || '';
   }
@@ -137,8 +238,11 @@
     if (!c.read) return 'Sent to the analyzer, reading…';
     if (c.read.skipped) return 'Skipped: a newer picture came in.';
     if (!c.read.ok) return `Not read: ${c.read.reason}`;
-    const how = { waiting: ', waiting for you to use it in the analyzer', used: ', loaded', skipped: ', skipped', replaced: ', replaced by a newer picture' }[c.state] || '';
-    return `Read day ${c.read.day}${c.read.unsure ? `, ${c.read.unsure} to check` : ''} in ${(c.read.ms / 1000).toFixed(1)} s${how}${c.asked ? ', asked' : ''}.`;
+    if (c.read.objective) return `The run’s objective: ${c.read.name}, set on the analyzer.`;
+    if (c.read.treasure) return `The Warden’s Treasure: ${c.asked ? 'which gift to take is on the analyzer.' : 'set on the analyzer.'}`;
+    if (c.read.pick) return `Read the instrument offer: ${c.read.names.join(', ')}${c.read.unsure ? `, ${c.read.unsure} to check` : ''}${c.read.reroll ? ', a re-roll left' : ''}${c.state === 'used' ? ', loaded as a fresh run' : ''}${c.asked ? ', advice given' : ''}.`;
+    const how = c.state === 'used' ? ', loaded' : '';
+    return `Read day ${c.read.day}${c.read.unsure ? `, ${c.read.unsure} to check` : ''} in ${(c.read.ms / 1000).toFixed(1)} s${how}${c.asked ? ', advice given' : ''}.`;
   }
 
   function renderCaptures() {
@@ -188,6 +292,8 @@
   // only this site's own pages in this browser. Nothing is uploaded.
   async function onFrame(f) {
     const c = { id: nextId++, time: f.time, kind: f.kind, hits: f.hits || [], frame: !!f.frame, why: f.why || '', thumb: '', full: '', sent: false, read: null, state: '', asked: false, note: '' };
+    lastPicture = { at: Date.now(), kind: c.kind, ok: c.frame, why: c.why };
+    tell();
     captures.unshift(c);
     for (const old of captures.splice(KEEP)) {
       if (old.thumb) URL.revokeObjectURL(old.thumb);
@@ -209,7 +315,10 @@
         const blob = await png(f.frame);
         if (!blob) c.note = 'Not read: the picture couldn’t be prepared.';
         else {
-          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, blob, accept: prefs.accept, ask: prefs.ask });
+          // fresh: the offer that starts a run comes with the day-0 line;
+          // one that comes later (an objective's reward) doesn't.
+          const fresh = c.hits.some((h) => /check cur=0\b/.test(h.text || ''));
+          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, fresh, blob });
           c.sent = true;
         }
       }
@@ -232,11 +341,22 @@
 
   // ---------- Wiring ----------
 
-  C.on('status', renderStatus);
+  // The log can bring hundreds of lines at once: the panel is drawn again at
+  // most five times a second, not once a line.
+  const due = new Set();
+  const soon = (draw) => {
+    if (due.has(draw)) return;
+    due.add(draw);
+    setTimeout(() => {
+      due.delete(draw);
+      draw();
+    }, 200);
+  };
+  C.on('status', () => soon(renderStatus));
   C.on('seen', (s) => {
     seen.unshift(s);
     seen.length = Math.min(seen.length, 200);
-    renderSeen();
+    soon(renderSeen);
   });
   C.on('frame', (f) => onFrame(f).catch((e) => console.error(e)));
 
@@ -246,10 +366,17 @@
       if (m.type === 'here' && m.id) {
         analyzers.set(m.id, { seen: Date.now(), focusedAt: m.focusedAt || 0 });
         renderAnalyzer();
+        tell();
       } else if (m.type === 'bye') {
         analyzers.delete(m.id);
         renderAnalyzer();
       } else if (m.type === 'read' && m.to === me) onAnswer(m);
+      else if (m.type === 'capture' && m.id) {
+        // The analyzer's Take a picture now: the same as the button here,
+        // and the picture goes to the analyzer that asked.
+        analyzers.set(m.id, { seen: Date.now(), focusedAt: Date.now() });
+        C.captureNow('manual');
+      }
     };
     // Ask now and then which analyzer tabs are still open.
     const ask = () => {
@@ -260,13 +387,19 @@
     };
     ask();
     setInterval(ask, 30000);
+    // The analyzer shows whether Follow my game is running, from what this
+    // page says of itself: whether it follows the log and shares the
+    // window, and its last picture (when, of what, and whether one was
+    // taken). Never the picture or the log's lines.
+    C.on('status', () => soon(tell));
+    setInterval(tell, 10000);
+    window.addEventListener('pagehide', () => channel.postMessage({ type: 'status', from: me, closed: true }));
+    tell();
   }
 
   $('az-auto-rules').value = prefs.rules;
   $('az-auto-watch').value = prefs.watch;
   $('az-auto-read').checked = prefs.read;
-  $('az-auto-accept').checked = prefs.accept;
-  $('az-auto-ask').checked = prefs.ask;
   const applyRules = () => {
     const n = C.setRules(parseRules(prefs.rules));
     $('az-auto-rules-note').textContent = `${n} ${n === 1 ? 'trigger' : 'triggers'} in use.`;
@@ -290,21 +423,63 @@
     save();
     $('az-auto-watch-note').textContent = C.setWatch(prefs.watch) ? '' : 'That pattern isn’t valid.';
   });
-  for (const id of ['read', 'accept', 'ask']) {
-    $(`az-auto-${id}`).addEventListener('change', (e) => {
-      prefs[id] = e.target.checked;
-      save();
-    });
-  }
+  $('az-auto-read').addEventListener('change', (e) => {
+    prefs.read = e.target.checked;
+    save();
+  });
   $('az-auto-log').addEventListener('click', async () => {
     const st = C.state;
     try {
       if (st.log === 'on' || st.log === 'starting') C.stopLog();
-      else if (st.file && (await C.resumeLog(true)) === 'on') return;
-      else await C.connectLog();
+      else if (st.log === 'off' && st.file && resumable) {
+        if ((await C.resumeLog(true)) === 'on') return;
+        // The browser wouldn't open it again. Dragging it in always works,
+        // and the file picker may not (Program Files).
+        resumable = false;
+        renderStatus();
+        $('az-auto-note').textContent = `The browser didn’t open ${st.file} again. Drag it onto the box once more.`;
+      } else await C.connectLog();
     } catch (e) {
-      if (e && e.name !== 'AbortError') $('az-auto-note').textContent = e.message || String(e);
+      // The browser doesn't say when it refused a file under Program Files:
+      // the picker just ends, as if cancelled.
+      $('az-auto-note').textContent = e && e.name === 'AbortError'
+        ? 'No file chosen. If the browser said the folder “contains system files”, drag UE_game.log onto the box instead: that works there too.'
+        : (e && e.message) || String(e);
     }
+  });
+
+  // Dropping a file anywhere on this page connects it as the log, and the
+  // box in step 1 lights up while one is dragged over the page. Without
+  // this, the browser would open the dropped file in place of this page.
+  const dropBox = $('az-auto-drop');
+  const hasFile = (e) => !!e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+  // The browser repeats dragover while a file is over the page, so the box
+  // goes dark a second after they stop (a drag cancelled with Esc, say).
+  let dark = 0;
+  const light = (on) => {
+    clearTimeout(dark);
+    dropBox.classList.toggle('is-over', on);
+    if (on) dark = setTimeout(() => light(false), 1000);
+  };
+  document.addEventListener('dragover', (e) => {
+    if (!hasFile(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    light(true);
+  });
+  document.addEventListener('dragleave', (e) => {
+    if (hasFile(e) && !e.relatedTarget) light(false); // left the window
+  });
+  document.addEventListener('drop', (e) => {
+    if (!hasFile(e)) return;
+    e.preventDefault();
+    light(false);
+    $('az-auto-note').textContent = '';
+    C.dropLog(e.dataTransfer).then(() => {
+      resumable = true;
+    }, (err) => {
+      $('az-auto-note').textContent = (err && err.message) || String(err);
+    });
   });
   $('az-auto-win').addEventListener('click', async () => {
     try {
@@ -334,5 +509,5 @@
   renderCaptures();
   renderAnalyzer();
   // The log picked last time: the browser asks again before reading it.
-  C.resumeLog(false).then(renderStatus).catch(() => {});
+  C.resumeLog(false).then(() => renderStatus()).catch(() => {});
 })();

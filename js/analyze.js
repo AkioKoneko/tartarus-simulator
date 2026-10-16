@@ -16,6 +16,8 @@
   // The event kinds and steps the live collector (worker/) accepts.
   const COLLECTOR_EVENTS = ['unknown', 'chain', 'execution'];
   const COLLECTOR_STEPS = ['patrol', 'manage', 'event', 'choice', 'window'];
+  // The moves "Do it here" can record that the deployed collector knows.
+  const COLLECTOR_ACTIONS = ['patrol', 'devour', 'swap', 'end', 'event', 'choose', 'deliver', 'skip', 'close', 'early'];
   const $ = (id) => document.getElementById(id);
   const L = (n) => T.cellLabel(n);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -32,6 +34,15 @@
   })();
 
   const KEY = 'tartarus-sim:analyzer:v1';
+  // Whether a screenshot opens after it's read. Off (the default), it's
+  // read into the board and stays hidden until the player opens it.
+  const SHOTS_KEY = 'tartarus-sim:analyzer:show-screenshots';
+  let showShots = false;
+  try {
+    showShots = localStorage.getItem(SHOTS_KEY) === '1';
+  } catch (e) {
+    // Without storage, screenshots stay hidden.
+  }
   const SAVE_KEY = 'tartarus-sim:save:v2';
   const PLAYOUT_BUDGET = 9600; // playouts per check, shared across the options
   const LIVE_MIN = 150; // playouts per option before the live check can lead
@@ -94,8 +105,12 @@
       dest: [],
       devourUsed: false,
       swapUsed: false,
+      // The game offers a consume after today's swap (it shows the button,
+      // or Follow my game saw it in the log): only then is one advised.
+      consumeOffered: false,
       eventKind: 'chain',
-      choice: { kind: 'tool', options: [] },
+      // rerolls: a pet's re-rolls left on an instrument offer.
+      choice: { kind: 'tool', options: [], rerolls: 0 },
       windowKind: 'due',
       chainArmed: false,
       // Until the player sets it, no objective's tool is assumed.
@@ -116,11 +131,13 @@
     const out = Object.assign(base, m);
     out.ch = Object.assign(blankModel().ch, m.ch || {});
     out.choice = Object.assign(blankModel().choice, m.choice || {});
+    out.choice.rerolls = clamp(toInt(out.choice.rerolls, 0), 0, 9);
     out.cells = m.cells.map((c, n) => (n === T.OFFICE ? officeCell() : Object.assign(sealedCell(), c)));
     out.dest = Array.isArray(m.dest) ? m.dest.filter((n) => Number.isInteger(n) && n >= 0 && n < T.CELL_COUNT) : [];
     if (!STEPS.includes(out.step)) out.step = 'patrol';
     if (!T.OBJECTIVES[out.objective]) out.objective = 'other';
-    out.walkTiles = clamp(toInt(out.walkTiles, 0), 0, T.OBJECTIVES.walk.need);
+    // Progress on an objective counted to a number (tiles, consumes, ...).
+    out.walkTiles = clamp(toInt(out.walkTiles, 0), 0, T.OBJECTIVES[out.objective].need || 0);
     out.chain = 'single';
     return out;
   }
@@ -203,8 +220,9 @@
     st.tools = T.TOOL_IDS.filter((id) => m.tools.includes(id));
     st.position = clamp(toInt(m.warden, 0), 0, T.CELL_COUNT - 1);
     st.chain = !!m.chainArmed;
-    st.objective = { id: m.objective, progress: m.objective === 'walk' ? clamp(toInt(m.walkTiles, 0), 0, T.OBJECTIVES.walk.need) : 0 };
-    st.milestone = !!m.milestone || (st.objective.id === 'walk' && st.objective.progress >= T.OBJECTIVES.walk.need);
+    const need = (T.OBJECTIVES[m.objective] && T.OBJECTIVES[m.objective].need) || 0;
+    st.objective = { id: m.objective, progress: need ? clamp(toInt(m.walkTiles, 0), 0, need) : 0 };
+    st.milestone = !!m.milestone || (need > 0 && st.objective.progress >= need);
     st.stats.best = Math.max(0, ...st.cells.filter((c) => c.inmate).map((c) => c.inmate.tier), st.vault.length ? T.RAINBOW : 0);
     st.used = { swap: 0, devour: 0 };
     st.destinations = [];
@@ -232,7 +250,7 @@
     }
 
     const usedToday = () => {
-      st.used = { swap: m.swapUsed ? 1 : 0, devour: m.devourUsed ? 1 : 0 };
+      st.used = { swap: m.swapUsed ? 1 : 0, devour: m.devourUsed ? 1 : 0, devourAfterSwap: !!m.consumeOffered };
     };
     switch (m.step) {
       case 'patrol': {
@@ -269,7 +287,7 @@
         const options = kind === 'gift' ? T.GIFT_IDS.slice() : [...new Set(m.choice.options)].filter((id) => T.TOOLS[id] && !st.tools.includes(id));
         if (!options.length) problems.push('Pick the tools on offer.');
         if (kind === 'refit' && !challenge) problems.push('Refits only follow contract deliveries. Pick the contract challenge, or another kind of offer.');
-        st.pending = [{ kind, options, slot: challenge ? Math.max(0, st.challenge.deliveries.length - 1) : 0, refreshed: false }];
+        st.pending = [{ kind, options, slot: challenge ? Math.max(0, st.challenge.deliveries.length - 1) : 0, refreshed: false, rerolls: kind === 'tool' ? m.choice.rerolls || 0 : 0 }];
         break;
       }
       case 'window': {
@@ -351,7 +369,7 @@
     const ch = st.challenge;
     if (st.pending.length) {
       m.step = 'choice';
-      m.choice = { kind: st.pending[0].kind, options: st.pending[0].options.slice() };
+      m.choice = { kind: st.pending[0].kind, options: st.pending[0].options.slice(), rerolls: st.pending[0].rerolls || 0 };
     } else if (ch && ch.window) {
       m.step = 'window';
       m.windowKind = ch.window.early ? 'early' : 'due';
@@ -365,6 +383,7 @@
     m.dest = st.phase === 'patrol' ? st.destinations.slice() : [];
     m.devourUsed = st.used.devour > 0;
     m.swapUsed = st.used.swap > 0;
+    m.consumeOffered = !!st.used.devourAfterSwap;
     if (ch) {
       m.ch.vouchers = ch.vouchers;
       m.ch.contracts = ch.contracts.map((c) => c.id);
@@ -392,12 +411,42 @@
   let via = saved && saved.via && Array.isArray(saved.via.filled) ? Object.assign({}, saved.via, { touched: new Set(saved.via.touched || []) }) : null;
   // Cells still to check survive a reload too.
   if (via) flags = new Set(via.filled.filter((k) => /^c\d+$/.test(k) && !via.touched.has(k)).map((k) => Number(k.slice(1))));
+  // The board came from a screenshot (or a Follow my game picture) and was
+  // checked straight away. The reader can get something wrong, so its Check
+  // marks stay after the advice, for the player to fix and recheck.
+  let shot = !!(saved && saved.shot);
+  // That board is shared only once the player moves on (the next picture, a
+  // move played here, another board), so a board they fixed is shared as
+  // fixed, not as a misreading followed by a step that never happened.
+  let held = null;
+  // Instruments on that screenshot the reader wasn't sure of, to check too.
+  let shotTools = [];
+  // An instrument read below this is shown as one to check. On the labeled
+  // boards, correct reads are 1.00 at their own size and drop to about 0.56
+  // when the screenshot is resized.
+  const TOOL_SURE = 0.9;
   const undo = [];
   const modelKey = () => JSON.stringify(model);
 
   function save() {
-    store.set(KEY, { model, selected, via: via && Object.assign({}, via, { touched: [...via.touched] }) });
+    store.set(KEY, { model, selected, shot, via: via && Object.assign({}, via, { touched: [...via.touched] }) });
   }
+
+  function shareHeld() {
+    if (held && SHARE) SHARE.record(held.board, held.via);
+    held = null;
+  }
+
+  // The player moves on from a screenshot's board.
+  function leaveShot() {
+    shareHeld();
+    shot = false;
+    shotTools = [];
+  }
+
+  // "the Rusty Saw" or "the Rusty Saw and the Forged Key", for the notes
+  // after a screenshot.
+  const unsureTools = () => (shotTools.length ? ` The reader wasn’t sure of ${shotTools.map((n) => `the ${n}`).join(' and ')}: check your instruments too.` : '');
 
   function changed() {
     save();
@@ -412,23 +461,40 @@
 
   const solver = { worker: null, failed: false, id: 0, st: null, key: '', instant: null, result: null };
 
-  function ask(quiet) {
+  // fresh: a new run's instrument offer (usePick). The last run's board is
+  // done with, and this one, not seen yet, isn't shared: the next board
+  // starts a new run.
+  function ask(quiet, fresh) {
     const { st, problems } = buildState(model);
     showProblems(problems);
-    if (problems.length) return;
-    if (SHARE) {
+    if (problems.length) return false;
+    if (SHARE && (fresh || (model.runStart && model.step === 'choice'))) {
+      shareHeld();
+      SHARE.reset('manual');
+    } else if (SHARE) {
       // The collector rejects what it doesn't know yet: the newer event
-      // kinds, the office as a door, a chain's pick and doors that show a
-      // rarity without a scratch. Until it learns
+      // kinds, the office as a door, a chain's pick, doors that show a
+      // rarity without a scratch, and moves it can't record (a re-roll, the
+      // office's choice, a chain's pick). Until it learns
       // them, such a board isn't shared, and the next board starts a new
       // run, so no shared step spans it.
       const kinds = [...model.cells.map((c) => c.event).filter(Boolean), ...(model.step === 'event' ? [model.eventKind] : [])];
-      const known = kinds.every((k) => COLLECTOR_EVENTS.includes(k)) && !model.dest.includes(T.OFFICE) && COLLECTOR_STEPS.includes(model.step) && !model.cells.some((c) => c.kind === 'revealed');
-      if (known) SHARE.record(model, via && Object.assign({}, via, { touched: [...via.touched] }));
-      else SHARE.reset('manual');
+      const how = via && Object.assign({}, via, { touched: [...via.touched] });
+      const known = kinds.every((k) => COLLECTOR_EVENTS.includes(k)) && !model.dest.includes(T.OFFICE) && COLLECTOR_STEPS.includes(model.step) && !model.cells.some((c) => c.kind === 'revealed') && !(how && how.action && !COLLECTOR_ACTIONS.includes(how.action.type));
+      if (!known) {
+        held = null;
+        SHARE.reset('manual');
+      } else if (shot) held = { board: JSON.parse(JSON.stringify(model)), via: how };
+      else {
+        shareHeld();
+        SHARE.record(model, how);
+      }
     }
-    via = null;
-    flags = new Set();
+    // A screenshot's board keeps its Check marks through a recheck.
+    if (!shot) {
+      via = null;
+      flags = new Set();
+    }
     applied = null;
     solver.id += 1;
     solver.st = st;
@@ -444,6 +510,7 @@
     startCheck(solver.id, st, rollouts);
     render();
     if (quiet !== true) $('az-results').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    return true;
   }
 
   function startCheck(id, st, rollouts) {
@@ -561,8 +628,9 @@
         more += 1;
       }
     }
-    undo.push({ model: before, selected });
+    undo.push({ model: before, selected, shot });
     if (undo.length > 30) undo.shift();
+    leaveShot();
     model = modelFrom(st, before);
     flags = new Set(model.cells.map((c, n) => (cellSig(c) !== cellSig(before.cells[n]) ? n : -1)).filter((n) => n >= 0));
     applied = { label, changed: [...flags], newDay: model.day !== before.day, doors: model.step === 'patrol' ? model.dest.slice() : [], ended: !!model.ended, step: model.step, office: st.phase === 'office', more, toNextDay: !!toNextDay };
@@ -590,8 +658,12 @@
   function undoMove() {
     const last = undo.pop();
     if (!last) return;
+    reader.undoable = false;
     model = last.model;
     selected = last.selected;
+    // An undone screenshot was never right, so it isn't shared.
+    held = null;
+    shot = !!last.shot;
     flags = new Set();
     applied = null;
     via = null;
@@ -821,6 +893,8 @@
       .join(''));
     $('az-devoured').checked = !!model.devourUsed;
     $('az-swapped').checked = !!model.swapUsed;
+    $('az-consume-offered').checked = !!model.consumeOffered;
+    $('az-consume-offered-wrap').hidden = !model.swapUsed;
     pressGroup('az-event-kind', model.eventKind);
     pressGroup('az-choice-kind', model.choice.kind);
     renderOffer();
@@ -829,14 +903,33 @@
     $('az-window-note').textContent = !next ? '' : model.windowKind === 'early' ? 'From day 9, once the first two contracts are settled. Delivering it ends the run.' : `"${next.name}": ${next.needs.join(', ').toLowerCase()}.`;
     $('az-armed').checked = !!model.chainArmed;
     for (const b of $('az-tools').querySelectorAll('[data-tool]')) b.setAttribute('aria-pressed', String(model.tools.includes(b.dataset.tool)));
+    // The run's instruments first, in the order they were gained, then the
+    // rest; the list scrolls back to the top when its order changes.
+    const toolBox = $('az-tools');
+    const held = model.tools.filter((id) => T.TOOLS[id]);
+    const order = held.concat(T.TOOL_IDS.filter((id) => !held.includes(id)));
+    if (toolBox.dataset.order !== order.join(',')) {
+      for (const id of order) {
+        const el = toolBox.querySelector(`[data-tool="${id}"]`);
+        if (el) toolBox.appendChild(el);
+        if (id === held[held.length - 1]) toolBox.appendChild($('az-tools-rest'));
+      }
+      $('az-tools-rest').hidden = !held.length;
+      toolBox.dataset.order = order.join(',');
+      toolBox.scrollTop = 0;
+    }
     $('az-rewards-wrap').hidden = challenge;
     $('az-rewards').checked = challenge || !!model.rewards;
     const goal = model.objective;
     $('az-objective').value = goal;
     $('az-objective-text').textContent = T.OBJECTIVES[goal].text;
-    $('az-walk-wrap').hidden = goal !== 'walk';
+    const goalNeed = T.OBJECTIVES[goal].need || 0;
+    $('az-walk-wrap').hidden = !goalNeed;
+    $('az-walk-unit').textContent = T.OBJECTIVES[goal].unit || 'Progress';
+    $('az-walk-need').textContent = `/${goalNeed}`;
+    $('az-walk').max = String(goalNeed);
     if (document.activeElement !== $('az-walk')) $('az-walk').value = String(model.walkTiles);
-    $('az-milestone').checked = !!model.milestone || (goal === 'walk' && model.walkTiles >= T.OBJECTIVES.walk.need);
+    $('az-milestone').checked = !!model.milestone || (goalNeed > 0 && model.walkTiles >= goalNeed);
     // Ten slots like the game's, more if the vault holds more.
     const slots = Math.max(10, model.vault.length + (model.vault.length % 2));
     setHTML($('az-vault'), Array.from({ length: slots }, (_, i) => {
@@ -871,7 +964,9 @@
     const picks = [0, 1, 2].map((i) => model.choice.options[i] || '');
     $('az-offer').innerHTML = picks
       .map((value, i) => `<label class="field"><span class="field-label">Option ${i + 1}</span><select data-offer="${i}"><option value="">None</option>${free.map((id) => `<option value="${id}"${id === value ? ' selected' : ''}>${esc(T.toolName(id))}</option>`).join('')}</select></label>`)
-      .join('');
+      .join('') +
+      // A pet's re-roll: the game shows "Re-roll" with the attempts left.
+      (kind === 'tool' ? `<label class="field"><span class="field-label">Re-rolls left</span><input type="number" id="az-rerolls" min="0" max="9" step="1" value="${model.choice.rerolls || 0}"></label>` : '');
   }
 
   function nextContract() {
@@ -939,8 +1034,14 @@
     $('az-do').textContent = rec && rec.action.type === 'end' ? 'End the day here' : 'Do it here';
     $('az-next').hidden = !rec || stale;
     $('az-undo').hidden = !undo.length;
+    // After a screenshot, or once the board has changed: fix it and recheck.
+    $('az-res-shot').hidden = !shot && !stale;
+    $('az-fix').hidden = !shot;
+    $('az-recheck').classList.toggle('btn-primary', stale);
+    $('az-res-shot-text').textContent = stale
+      ? 'The board changed since this check. Recheck for advice on the board as it is now.'
+      : `Read from your screenshot${flags.size ? `, with ${T.plural(flags.size, 'cell')} marked Check` : ''}.${unsureTools()} If anything on the board doesn’t match your game, fix it, then Recheck.`;
     let body = '';
-    if (stale) body += '<p class="trainer-verdict">The board changed since this check. Ask again for advice on the new board.</p>';
     if (rec) {
       body += `<p class="trainer-source">${esc(rec.live ? `Checked by ${rec.rounds.toLocaleString()} playouts per option` : 'Instant pick from training · checking…')}</p>`;
       if (rec.why) body += `<p class="trainer-why">${esc(rec.why)}</p>`;
@@ -1187,6 +1288,7 @@
     renderBoard();
     renderEditor();
     renderApplied();
+    renderResults();
   }
 
   // Everything the dice filled in after "Do it here" is right.
@@ -1197,6 +1299,7 @@
     renderBoard();
     renderEditor();
     renderApplied();
+    renderResults();
   }
 
   function setKind(kind) {
@@ -1254,6 +1357,7 @@
     }
     try {
       const st = T.deserialize(data);
+      leaveShot();
       model = modelFrom(st, null);
       flags = new Set();
       applied = null;
@@ -1296,7 +1400,7 @@
 
   // ---------- Reading a screenshot ----------
 
-  const reader = { worker: null, failed: false, id: 0, pending: null, image: null, result: null, reading: null, ms: 0 };
+  const reader = { worker: null, failed: false, id: 0, pending: null, image: null, result: null, reading: null, ms: 0, picks: new Map(), pickId: 0 };
   const SHORT_TIER = ['Normal', 'Magic', 'Rare', 'Legend.', 'Supreme'];
 
   // A notice pinned to the window while a screenshot is read, so a paste
@@ -1311,43 +1415,6 @@
     $('az-toast-actions').innerHTML = (actions || []).map((a) => `<button type="button" class="btn${a.primary ? ' btn-primary' : ''}" data-toast="${a.id}">${esc(a.label)}</button>`).join('');
     box.hidden = false;
     if (kind !== 'busy' && !sticky) toastTimer = setTimeout(() => (box.hidden = true), actions && actions.length ? 15000 : 6000);
-  }
-
-  // Follow my game asks before a reading becomes the board: what's run when
-  // the player uses it (from the prompt or the reading's own button), or
-  // skips it.
-  let accepted = null;
-  let skipped = null;
-
-  // What a reading would change on the board, in a line, for that prompt.
-  function readingChanges(rd) {
-    const m = rd.model;
-    const parts = [m.day !== model.day ? `day ${model.day} → ${m.day}` : `day ${m.day}`];
-    if (m.warden !== model.warden) parts.push(`warden to ${m.warden === T.OFFICE ? 'the office' : L(m.warden)}`);
-    const changed = m.cells.map((c, n) => (cellSig(c) !== cellSig(model.cells[n]) ? n : -1)).filter((n) => n >= 0);
-    parts.push(changed.length ? `${T.plural(changed.length, 'cell')} changed: ${changed.slice(0, 6).map((n) => `${L(n)} ${cellShort(m.cells[n])}`).join(', ')}${changed.length > 6 ? '…' : ''}` : 'no cells changed');
-    if (m.step === 'patrol' && m.dest.length) parts.push(`doors ${m.dest.map(L).join(', ')}`);
-    const tools = m.tools.filter((t) => !model.tools.includes(t));
-    if (tools.length) parts.push(`new instrument${tools.length === 1 ? '' : 's'}: ${tools.map((t) => T.toolName(t)).join(', ')}`);
-    if (m.vault.length !== model.vault.length) parts.push(T.plural(m.vault.length, 'Chromatic prisoner'));
-    if (rd.checks.size) parts.push(`${rd.checks.size} to check`);
-    return parts.join(' · ');
-  }
-
-  function offerReading(onUse, onSkip) {
-    const rd = reader.reading;
-    if (!rd) return false;
-    accepted = onUse || null;
-    skipped = onSkip || null;
-    toast(`From your game: ${readingChanges(rd)}. Use it as your board?`, 'ok', [{ id: 'use', label: 'Use this board', primary: true }, { id: 'review', label: 'Review it first' }, { id: 'skip', label: 'Skip' }], true);
-    return true;
-  }
-
-  function skipReading(why) {
-    const s = skipped;
-    accepted = null;
-    skipped = null;
-    if (s) s(why || 'skipped');
   }
 
   function scanStatus(text, bad) {
@@ -1393,8 +1460,9 @@
 
   function runScan(imageData, opts) {
     const o = opts || {};
-    // A newer reading replaces one still waiting for an answer.
-    if (accepted || skipped) skipReading('replaced');
+    // Follow my game's pictures come every step: their screenshot stays
+    // folded away, so the board doesn't move down each time.
+    reader.folded = !showShots;
     reader.id += 1;
     const id = reader.id;
     const t0 = performance.now();
@@ -1414,7 +1482,7 @@
       }
       reader.result = result;
       reader.reading = result.ok ? scanToModel(result, model) : null;
-      scanStatus(result.ok ? `Read in ${(reader.ms / 1000).toFixed(1)} s. Check it below, then use it.` : `${result.reason} Try a screenshot of the prison screen, with the whole board in view.`, !result.ok);
+      scanStatus(result.ok ? `Read in ${(reader.ms / 1000).toFixed(1)} s.` : `${result.reason} Try a screenshot of the prison screen, with the whole board in view.`, !result.ok);
       if (o.onRead) o.onRead(result.ok ? { ok: true, day: reader.reading.model.day, unsure: reader.reading.checks.size, ms: reader.ms } : { ok: false, reason: result.reason, ms: reader.ms });
       if (o.quiet) {
         renderScan();
@@ -1422,19 +1490,38 @@
       }
       if (!result.ok) toast(`${result.reason} Try a screenshot of the prison screen, with the whole board in view.`, 'bad');
       else {
-        const m = reader.reading.model;
-        const max = m.mode === 'challenge' ? T.CHALLENGE_DAYS : m.maxDays;
+        // The reading becomes the board at once, and the advice follows. If
+        // the reader got something wrong, the player fixes it and rechecks.
         const unsure = reader.reading.checks.size;
-        toast(`Read your board: day ${m.day} of ${max}${unsure ? `, ${T.plural(unsure, 'cell')} to check` : ''}. Load it as your new board?`, 'ok', [{ id: 'use', label: 'Use this board', primary: true }, { id: 'review', label: 'Review it first' }]);
+        useScan(true);
+        if (ask()) toast(`Loaded day ${model.day} from your screenshot${unsure ? `, with ${T.plural(unsure, 'cell')} marked Check` : ''}.${unsureTools()} The advice is below. If the board doesn’t match your game, fix it and press Recheck.`, 'ok');
+        else toast(`Loaded day ${model.day} from your screenshot, but the board needs fixing before the advice: see the notes under “What should I do?”.`, 'bad');
       }
       renderScan();
     };
     // The worker outlives this call, so it answers whichever reading is newest.
     reader.pending = { imageData, id, done };
+    readerWorker();
+    if (reader.worker) {
+      const copy = imageData.data.slice().buffer;
+      reader.worker.postMessage({ id, width: imageData.width, height: imageData.height, buffer: copy }, [copy]);
+    } else scanHere(imageData, id, done);
+  }
+
+  // The reader's worker, started the first time it's needed. Readings of
+  // the instrument pick answer through reader.picks, boards through
+  // reader.pending.
+  function readerWorker() {
     if (!reader.worker && !reader.failed) {
       try {
         reader.worker = new Worker(`js/scan-worker.js${SCRIPT_QUERY}`);
         reader.worker.onmessage = (e) => {
+          if (e.data.kind === 'pick' || e.data.kind === 'objective') {
+            const answer = reader.picks.get(e.data.id);
+            reader.picks.delete(e.data.id);
+            if (answer) answer(e.data.result, e.data.error);
+            return;
+          }
           const p = reader.pending;
           if (p && e.data.id === p.id) p.done(e.data.result, e.data.error);
         };
@@ -1443,21 +1530,19 @@
           reader.worker = null;
           const p = reader.pending;
           if (p) scanHere(p.imageData, p.id, p.done);
+          for (const [, answer] of reader.picks) answer(null, 'the reader stopped');
+          reader.picks.clear();
         };
       } catch (e) {
         reader.failed = true;
         reader.worker = null;
       }
     }
-    if (reader.worker) {
-      const copy = imageData.data.slice().buffer;
-      reader.worker.postMessage({ id, width: imageData.width, height: imageData.height, buffer: copy }, [copy]);
-    } else scanHere(imageData, id, done);
+    return reader.worker;
   }
 
-  // Without workers (a page opened from disk), reads on the page itself,
-  // loading the reader the first time.
-  function scanHere(imageData, id, done) {
+  // Loads the reader's scripts onto the page, for when there's no worker.
+  function loadReader(withPick) {
     const load = (src) => new Promise((resolve, reject) => {
       const s = document.createElement('script');
       s.src = `${src}${SCRIPT_QUERY}`;
@@ -1465,12 +1550,157 @@
       s.onerror = reject;
       document.head.appendChild(s);
     });
-    const ready = window.TartarusScan && window.TARTARUS_SCAN ? Promise.resolve() : load('js/scan.js').then(() => load('js/scan-data.js'));
+    return (window.TartarusScan ? Promise.resolve() : load('js/scan.js'))
+      .then(() => (window.TARTARUS_SCAN ? null : load('js/scan-data.js')))
+      .then(() => (!withPick || window.TARTARUS_PICK ? null : load('js/pick-data.js')));
+  }
+
+  // The instrument pick at the start of a run ("Select a Torture
+  // Instrument"), from Follow my game: which three instruments are offered,
+  // left to right, and whether a re-roll is left. Not a board: nothing here
+  // touches the board until usePick.
+  // The objective popup at the start of a run: which objective it is, from
+  // its title. It becomes the board's objective, and stays for the run
+  // whose instrument offer comes next.
+  let runObjective = null;
+  function readObjective(source) {
+    const scale = Math.min(1, 2600 / source.width);
+    const w = Math.round(source.width * scale);
+    const h = Math.round(source.height * scale);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(source, 0, 0, w, h);
+    const imageData = ctx.getImageData(0, 0, w, h);
+    return new Promise((resolve) => {
+      const done = (result, error) => resolve(error || !result || !result.id ? { ok: false, objective: true, reason: error || 'the objective wasn’t one the simulator knows' } : { ok: true, objective: true, id: result.id, name: T.OBJECTIVES[result.id].name });
+      reader.pickId += 1;
+      const id = `objective${reader.pickId}`;
+      if (readerWorker()) {
+        reader.picks.set(id, done);
+        const copy = imageData.data.slice().buffer;
+        reader.worker.postMessage({ id, kind: 'objective', width: w, height: h, buffer: copy }, [copy]);
+        return;
+      }
+      loadReader(false)
+        .then(() => done(window.TartarusScan.readObjectiveTitle(imageData)))
+        .catch((e) => done(null, (e && e.message) || 'the screenshot reader could not load'));
+    });
+  }
+
+  function useObjective(read) {
+    if (!read || !read.ok || !T.OBJECTIVES[read.id]) return false;
+    runObjective = read.id;
+    model.objective = read.id;
+    model.walkTiles = 0;
+    model.milestone = false;
+    changed();
+    toast(`This run’s objective: ${read.name}. It’s set under Objective.`, 'ok');
+    return true;
+  }
+
+  function readPick(source) {
+    const scale = Math.min(1, 2600 / source.width);
+    const w = Math.round(source.width * scale);
+    const h = Math.round(source.height * scale);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(source, 0, 0, w, h);
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const t0 = performance.now();
+    return new Promise((resolve) => {
+      const done = (result, error) => {
+        const ms = Math.round(performance.now() - t0);
+        if (error || !result) return resolve({ ok: false, pick: true, reason: error || 'no result', ms });
+        if (!result.ok) return resolve({ ok: false, pick: true, reason: result.reason, ms });
+        const cards = result.cards.map((c) => ({ sim: c.sim, name: T.toolName(c.sim), conf: c.conf, alts: c.alts }));
+        resolve({ ok: true, pick: true, cards, names: cards.map((c) => c.name), unsure: cards.filter((c) => c.conf < 0.5).length, reroll: !!result.reroll, ms });
+      };
+      reader.pickId += 1;
+      const id = `pick${reader.pickId}`;
+      if (readerWorker()) {
+        reader.picks.set(id, done);
+        const copy = imageData.data.slice().buffer;
+        reader.worker.postMessage({ id, kind: 'pick', width: w, height: h, buffer: copy }, [copy]);
+        return;
+      }
+      loadReader(true)
+        .then(() => done(window.TartarusScan.scanPick(imageData, window.TARTARUS_SCAN, window.TARTARUS_PICK)))
+        .catch((e) => done(null, (e && e.message) || 'the screenshot reader could not load'));
+    });
+  }
+
+  // An instrument offer. A fresh run's (fresh, the default): the board
+  // behind the offer isn't known yet, so it starts blank, with the
+  // player's settings kept. One mid-run (an objective's reward): on the
+  // board as it is. Either way the offer is set as the step, and the advice
+  // says which to take, or to re-roll. Cards the reader wasn't sure of are
+  // named for checking.
+  function usePick(read, fresh) {
+    if (!read || !read.ok) return false;
+    const start = fresh !== false;
+    reader.undoable = true;
+    undo.push({ model: JSON.parse(JSON.stringify(model)), selected, shot });
+    if (undo.length > 30) undo.shift();
+    if (start) {
+      // runStart: this blank board is a run's opening offer, never shared,
+      // even on a Recheck after fixing a card.
+      // The run's objective: its popup came just before, or this is a
+      // re-roll of the run's opening offer, which keeps what was set.
+      const again = model.runStart && model.step === 'choice';
+      const keep = { mode: model.mode, rewards: model.rewards, maxDays: model.maxDays, runStart: true, objective: runObjective || (again ? model.objective : 'other'), walkTiles: again ? model.walkTiles : 0 };
+      runObjective = null;
+      model = normalize(Object.assign(blankModel(), keep));
+      shot = false;
+      flags = new Set();
+      via = null;
+      selected = model.warden;
+    }
+    model.step = 'choice';
+    model.choice = { kind: 'tool', options: read.cards.map((c) => c.sim), rerolls: read.reroll ? 1 : 0 };
+    applied = null;
+    solver.st = null;
+    reader.folded = true;
+    renderScan();
+    scanStatus('');
+    changed();
+    const unsure = read.cards.filter((c) => c.conf < 0.5);
+    const check = unsure.length ? ` Check ${unsure.map((c) => `the ${['left', 'middle', 'right'][read.cards.indexOf(c)]} one (read as ${c.name})`).join(' and ')}: if it's wrong, change it under “A tool or gift” and press Recheck.` : '';
+    const asked = ask(true, start);
+    toast(`${start ? 'A fresh run: the instrument offer is' : 'An instrument offer:'} ${read.names.join(', ')}${read.reroll ? ', with a re-roll left' : ''}. ${asked ? 'Which to take is below.' : 'It needs fixing before the advice.'}${check}`, unsure.length ? 'bad' : 'ok');
+    return asked;
+  }
+
+  // The Warden's Treasure, opened by a Chromatic prisoner (Follow my game
+  // knows it from the log): the gift to take, on the board as it is.
+  // Nothing is read from the picture: every gift is on offer.
+  function useTreasure() {
+    undo.push({ model: JSON.parse(JSON.stringify(model)), selected, shot });
+    if (undo.length > 30) undo.shift();
+    reader.undoable = true;
+    model.step = 'choice';
+    model.choice = { kind: 'gift', options: [], rerolls: 0 };
+    applied = null;
+    solver.st = null;
+    changed();
+    renderScan();
+    const asked = ask(true);
+    toast(`The Warden’s Treasure is open. ${asked ? 'Which gift to take is below.' : 'The board needs fixing before the advice.'}`, asked ? 'ok' : 'bad');
+    return asked;
+  }
+
+  // Without workers (a page opened from disk), reads on the page itself,
+  // loading the reader the first time.
+  function scanHere(imageData, id, done) {
+    const ready = loadReader(true);
     ready
       .then(() => {
         setTimeout(() => {
           try {
-            const result = window.TartarusScan.scan(imageData, window.TARTARUS_SCAN);
+            const result = window.TartarusScan.scan(imageData, window.TartarusScan.withPanelIcons(window.TARTARUS_SCAN, window.TARTARUS_PICK));
             if (result.tools && result.tools.tools) for (const t of result.tools.tools) Object.assign(t, window.TARTARUS_SCAN.toolNames[t.id] || {});
             done(result);
           } catch (e) {
@@ -1548,6 +1778,56 @@
     return { model: m, checks, notes, chromatic: (m.vault || []).length, tools, unsim: [], chain: r.chain.targets };
   }
 
+  // A run's instruments, from what's known of the run and what a screenshot
+  // shows. Instruments are only ever added, from an offer, so once the run
+  // is known (instruments held, or an offer seen), only an offer the
+  // analyzer saw can add one: the instrument read on it, or failing that,
+  // the one the analyzer advised. Icons alone never add one, as two can look
+  // alike (a tooltip can cover them, too). Without anything known of the
+  // run, only icons the reader is sure of count. A screenshot from an
+  // earlier day than the board before starts afresh.
+  function runTools(read, base, m, notes) {
+    const sameRun = !(m.day < base.day);
+    const known = sameRun ? (base.tools || []).filter((id) => T.TOOLS[id]) : [];
+    const offer = sameRun && base.step === 'choice' && base.choice && base.choice.kind === 'tool' ? base.choice.options.filter((id) => T.TOOLS[id]) : [];
+    const out = known.map((id) => ({ id, sim: id, name: T.toolName(id), conf: 1, kept: true }));
+    const has = (id) => out.some((t) => t.sim === id);
+    const slots = read.length;
+    // The reader sure of every icon, and as many as known or more: the panel
+    // shows what's held, and corrects what was remembered (an instrument
+    // misread before, or one gained without an offer the analyzer saw).
+    const sure = slots > 0 && slots >= known.length && read.every((t) => t.sim && t.conf >= TOOL_SURE);
+    if (sure) {
+      const ids = [...new Set(read.map((t) => t.sim))];
+      const wrong = known.filter((id) => !ids.includes(id));
+      if (wrong.length) notes.push(`Your instruments read clearly as ${ids.map((id) => T.toolName(id)).join(', ')}, so ${wrong.map((id) => T.toolName(id)).join(', ')} ${wrong.length === 1 ? 'was' : 'were'} taken off.`);
+      return ids.map((id) => ({ id, sim: id, name: T.toolName(id), conf: 1 }));
+    }
+    if (sameRun && (known.length || offer.length || base.runStart)) {
+      if (offer.length && slots > known.length && !offer.some(has)) {
+        const seen = read.filter((t) => offer.includes(t.sim)).sort((a, b) => b.conf - a.conf)[0];
+        // The advice given on that offer: the board before is the offer, so
+        // the analyzer's current recommendation is for it.
+        const rec = base === model && fresh() ? recommendation() : null;
+        const advised = rec && rec.action && rec.action.type === 'choose' && offer.includes(rec.action.id) ? rec.action.id : null;
+        const take = seen ? seen.sim : advised;
+        if (take) {
+          out.push({ id: take, sim: take, name: T.toolName(take), conf: 1, kept: true });
+          if (!seen) notes.push(`Took it you chose ${T.toolName(take)}, as advised. If you took another, change it under Torture Instrument.`);
+        } else notes.push(`Your instruments show one more than before, from the offer of ${offer.map((id) => T.toolName(id)).join(', ')}: set which you took under Torture Instrument.`);
+      } else if (slots > out.length) {
+        notes.push(`Your instruments show ${slots}, and the analyzer knows ${out.length}. An instrument gained without an offer it saw isn't added from its icon: add it under Torture Instrument.`);
+      }
+      const ignored = read.filter((t) => t.sim && !has(t.sim));
+      if (known.length && ignored.length) notes.push(`Kept your instruments from earlier in this run (${known.map((id) => T.toolName(id)).join(', ')}).`);
+      return out;
+    }
+    for (const t of read) if (t.sim && !has(t.sim) && t.conf >= TOOL_SURE) out.push(t);
+    const unsure = read.filter((t) => t.sim && t.conf < TOOL_SURE);
+    if (unsure.length) notes.push(`${T.plural(unsure.length, 'instrument')} on your panel couldn’t be told apart for sure, so they’re left out: set them under Torture Instrument.`);
+    return out;
+  }
+
   function scanToModel(r, base) {
     if (r.chain) return chainToModel(r, base);
     const m = JSON.parse(JSON.stringify(base));
@@ -1593,11 +1873,22 @@
       m.swapUsed = false;
     }
     m.chainArmed = false;
-    const tools = r.tools && r.tools.tools ? r.tools.tools : [];
-    m.tools = [...new Set(tools.map((t) => t.sim).filter(Boolean))];
-    const unsim = tools.filter((t) => !t.sim);
+    // The cards under “Make Your Decision” are what the game allows now: a
+    // swap only with a Replace card, a consume only with a Consume card. A
+    // Consume card with no Replace card is a consume on offer, even after
+    // today's swap.
+    m.consumeOffered = false;
+    if (r.decision) {
+      m.swapUsed = !r.decision.replace;
+      m.devourUsed = !r.decision.consume;
+      m.consumeOffered = !!r.decision.consume && !r.decision.replace;
+    }
+    const read = r.tools && r.tools.tools ? r.tools.tools : [];
+    const unsim = read.filter((t) => !t.sim);
     if (unsim.length) notes.push(`Not in the simulator yet, so left out: ${unsim.map((t) => t.name).join(', ')}.`);
-    if (tools.some((t) => t.conf < 0.5)) notes.push('Some instruments were hard to tell apart: check them under Tools.');
+    const tools = runTools(read, base, m, notes);
+    m.tools = tools.map((t) => t.sim);
+    if (tools.some((t) => t.conf < TOOL_SURE)) notes.push('Some instruments were hard to tell apart: check them under Torture Instrument.');
     const chromatic = r.chromatic ? r.chromatic.count : 0;
     // Their beasts don't show in the slots; they only matter for a bounty.
     m.vault = new Array(chromatic).fill('wolf');
@@ -1630,14 +1921,17 @@
         odd += 1;
       }
     });
-    if (odd) notes.push(`${T.plural(odd, 'inmate')}’s jaws marker doesn’t fit what was read: check ${odd === 1 ? 'it' : 'them'} and the inmates around.`);
+    if (odd) notes.push(odd === 1 ? '1 inmate’s jaws marker doesn’t fit what was read: check it and the inmates around.' : `${odd} inmates’ jaws markers don’t fit what was read: check them and the inmates around.`);
     return { model: m, checks, notes, chromatic, tools, unsim };
   }
 
   function renderScan() {
     const box = $('az-scan-result');
     const r = reader.result;
-    box.hidden = !r || !reader.image;
+    box.hidden = !r || !reader.image || reader.folded;
+    $('az-scan-show').hidden = !(r && reader.image && reader.folded);
+    // A loaded picture can be taken back, if it was read wrong.
+    $('az-scan-back').hidden = !(reader.undoable && undo.length);
     if (box.hidden) return;
     drawScan();
     const rd = reader.reading;
@@ -1650,7 +1944,7 @@
       const nests = m.cells.filter((c) => c.kind === 'nest').length;
       list.push(`<li><b>Board</b> ${T.plural(inmates, 'inmate')}, ${T.plural(locked, 'locked cell')}${events ? `, ${T.plural(events, 'event')}` : ''}${nests ? `, ${T.plural(nests, 'rat nest')}` : ''}</li>`);
       list.push(`<li><b>Warden</b> ${r.warden ? (r.warden.cell === T.OFFICE ? 'in the office' : `cell ${L(r.warden.cell)}`) : 'not found'}</li>`);
-      list.push(`<li><b>Today</b> ${rd.chain ? `${m.step === 'chain' ? 'a devour chain picks its next meal' : 'the day’s devour picks its meal'}: cell ${rd.chain.map(L).join(' or ')}` : m.step === 'patrol' ? `choose a door: ${m.dest.map(L).join(', ')}` : 'no door cards, so after the patrol'}</li>`);
+      list.push(`<li><b>Today</b> ${rd.chain ? `${m.step === 'chain' ? 'a devour chain picks its next meal' : 'the day’s devour picks its meal'}: cell ${rd.chain.map(L).join(' or ')}` : m.step === 'patrol' ? `choose a door: ${m.dest.map(L).join(', ')}` : r.decision ? `your decision: ${[r.decision.replace && 'Replace', r.decision.consume && 'Consume', 'End'].filter(Boolean).join(', ')}` : 'no door cards, so after the patrol'}</li>`);
       list.push(`<li><b>Riot</b> ${r.days ? `${T.plural(r.days.days, 'day')} away, so day ${m.day} of ${m.mode === 'challenge' ? T.CHALLENGE_DAYS : m.maxDays}` : 'not read'}</li>`);
       list.push(`<li><b>Instruments</b> ${rd.tools.length ? rd.tools.map((t) => esc(t.name || t.id) + (t.sim ? '' : ' (not simulated)')).join(', ') : 'none'}</li>`);
       list.push(`<li><b>Chromatic</b> ${T.plural(rd.chromatic, 'prisoner')}${r.chromatic ? '' : ' (panel not found)'}</li>`);
@@ -1658,7 +1952,6 @@
       for (const note of rd.notes) list.push(`<li class="is-note">${esc(note)}</li>`);
     }
     $('az-scan-summary').innerHTML = list.join('');
-    $('az-scan-use').hidden = !r.ok;
     // The objective, cut from the screenshot.
     const obj = r.ok && r.objective ? r.objective : null;
     $('az-scan-objective').hidden = !obj;
@@ -1735,28 +2028,36 @@
     ctx.setLineDash([]);
   }
 
-  function useScan(quiet) {
+  // Loads the reading as the board. The caller then asks what to do.
+  function useScan() {
     const rd = reader.reading;
     if (!rd) return;
-    undo.push({ model: JSON.parse(JSON.stringify(model)), selected });
+    undo.push({ model: JSON.parse(JSON.stringify(model)), selected, shot });
+    if (undo.length > 30) undo.shift();
+    leaveShot();
     model = normalize(rd.model);
+    reader.undoable = true;
+    shot = true;
+    shotTools = [...new Set(rd.tools.filter((t) => t.sim && t.conf < TOOL_SURE).map((t) => T.toolName(t.sim)))];
     flags = new Set(rd.checks);
     applied = null;
     via = { scan: true, filled: [...rd.checks].map((n) => `c${n}`), touched: new Set() };
     if (SHARE) SHARE.markManual();
     solver.st = null;
     selected = rd.checks.size ? Math.min(...rd.checks) : model.warden;
-    reader.result = null;
-    renderScan();
+    // The screenshot stays in view, with what was read drawn on it, to
+    // compare with the board.
     changed();
-    scanStatus(rd.checks.size ? `Board filled in. Check the ${T.plural(rd.checks.size, 'cell')} marked Check, then ask what to do.` : 'Board filled in. Look it over, then ask what to do.');
-    const after = accepted;
-    accepted = null;
-    skipped = null;
-    if (after) after();
-    if (quiet === true) return;
-    toast(rd.checks.size ? `Loaded day ${model.day}. Check the ${T.plural(rd.checks.size, 'cell')} marked Check, then ask what to do.` : `Loaded day ${model.day}. Ask what to do when it looks right.`, 'ok');
+    scanStatus(rd.checks.size ? `Loaded as your board, with ${T.plural(rd.checks.size, 'cell')} marked Check.` : 'Loaded as your board.');
+    renderScan();
+  }
+
+  // After a screenshot: to the board, at the first cell marked Check (or
+  // the warden's), for the player to set what the reader got wrong.
+  function fixBoard() {
+    select(flags.size ? Math.min(...flags) : model.warden);
     $('az-board').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    if (cellEls[selected]) cellEls[selected].btn.focus({ preventScroll: true });
   }
 
   // ---------- Wiring ----------
@@ -1774,7 +2075,7 @@
     $('az-beasts').innerHTML = T.BEASTS.map((b) => `<button type="button" class="az-beast" data-v="${b}">${B.PORTRAITS[b]}<span>${esc(T.beastName(b))}</span></button>`).join('');
     $('az-tiers').innerHTML = T.TIERS.slice(0, TOP_TIER + 1).map((name, t) => `<button type="button" class="az-tier t${t}" data-v="${t}">${esc(name)}</button>`).join('');
     // The instruments: every one the simulator knows, clicked on and off.
-    $('az-tools').innerHTML = T.TOOL_IDS.map((id) => `<button type="button" class="az-instrument" data-tool="${id}" aria-pressed="false" title="${esc(`${T.toolName(id)}: ${T.toolText(id)}`)}">${B.INSTRUMENTS[id] || ''}<span>${esc(T.toolName(id))}</span></button>`).join('');
+    $('az-tools').innerHTML = T.TOOL_IDS.map((id) => `<button type="button" class="az-instrument" data-tool="${id}" aria-pressed="false" title="${esc(`${T.toolName(id)}: ${T.toolText(id)}`)}">${B.INSTRUMENTS[id] || ''}<span>${esc(T.toolName(id))}</span></button>`).join('') + '<p class="az-tools-rest" id="az-tools-rest" hidden>Others</p>';
     $('az-vault-add').innerHTML = `<span class="field-label">Add</span>${T.BEASTS.map((b) => `<button type="button" class="az-ico t5" data-vault-add="${b}" title="Add a Chromatic ${esc(T.beastName(b))}" aria-label="Add a Chromatic ${esc(T.beastName(b))}">${B.PORTRAITS[b]}</button>`).join('')}`;
 
     segment('az-kind', (v) => setKind(v));
@@ -1831,23 +2132,33 @@
       model.swapUsed = e.target.checked;
       changed();
     });
+    $('az-consume-offered').addEventListener('change', (e) => {
+      model.consumeOffered = e.target.checked;
+      changed();
+    });
     segment('az-event-kind', (v) => {
       model.eventKind = v;
       touch('event');
       changed();
     });
     segment('az-choice-kind', (v) => {
-      model.choice = { kind: v, options: model.choice.options };
+      model.choice = Object.assign({}, model.choice, { kind: v });
       touch('choice');
       changed();
     });
     $('az-offer').addEventListener('change', (e) => {
+      if (e.target.id === 'az-rerolls') {
+        model.choice = Object.assign({}, model.choice, { rerolls: clamp(toInt(e.target.value, 0), 0, 9) });
+        touch('choice');
+        changed();
+        return;
+      }
       const sel = e.target.closest('[data-offer]');
       if (!sel) return;
       const options = [0, 1, 2].map((i) => model.choice.options[i] || '');
       options[Number(sel.dataset.offer)] = sel.value;
       touch('choice');
-      model.choice = { kind: model.choice.kind, options: options.filter(Boolean) };
+      model.choice = Object.assign({}, model.choice, { options: options.filter(Boolean) });
       changed();
     });
     segment('az-window-kind', (v) => {
@@ -1863,7 +2174,7 @@
       if (!b) return;
       const id = b.dataset.tool;
       model.tools = model.tools.includes(id) ? model.tools.filter((t) => t !== id) : [...model.tools, id];
-      model.choice = { kind: model.choice.kind, options: model.choice.options.filter((t) => !model.tools.includes(t)) };
+      model.choice = Object.assign({}, model.choice, { options: model.choice.options.filter((t) => !model.tools.includes(t)) });
       changed();
     });
     $('az-rewards').addEventListener('change', (e) => {
@@ -1872,16 +2183,19 @@
     });
     $('az-milestone').addEventListener('change', (e) => {
       model.milestone = e.target.checked;
-      if (!model.milestone && model.objective === 'walk') model.walkTiles = Math.min(model.walkTiles, T.OBJECTIVES.walk.need - 1);
+      const n = T.OBJECTIVES[model.objective].need || 0;
+      if (!model.milestone && n) model.walkTiles = Math.min(model.walkTiles, n - 1);
       changed();
     });
     $('az-objective').addEventListener('change', (e) => {
       model.objective = T.OBJECTIVES[e.target.value] ? e.target.value : 'king';
+      model.walkTiles = clamp(model.walkTiles, 0, T.OBJECTIVES[model.objective].need || 0);
       changed();
     });
     $('az-walk').addEventListener('change', (e) => {
-      model.walkTiles = clamp(toInt(e.target.value, 0), 0, T.OBJECTIVES.walk.need);
-      if (model.walkTiles >= T.OBJECTIVES.walk.need) model.milestone = true;
+      const n = T.OBJECTIVES[model.objective].need || 0;
+      model.walkTiles = clamp(toInt(e.target.value, 0), 0, n);
+      if (n && model.walkTiles >= n) model.milestone = true;
       changed();
     });
     $('az-vault-add').addEventListener('click', (e) => {
@@ -1974,6 +2288,7 @@
     if (SHARE) SHARE.onChange(renderShare);
     $('az-load-run').addEventListener('click', loadRun);
     $('az-example').addEventListener('click', () => {
+      leaveShot();
       model = exampleModel();
       selected = 4;
       flags = new Set();
@@ -1996,6 +2311,7 @@
       }
       clearArmed = 0;
       $('az-clear').textContent = 'Clear the board';
+      leaveShot();
       model = blankModel();
       selected = 1;
       flags = new Set();
@@ -2041,13 +2357,21 @@
       const file = e.dataTransfer.files && e.dataTransfer.files[0];
       if (file) readImageFile(file);
     });
-    $('az-scan-use').addEventListener('click', () => useScan());
+    $('az-fix').addEventListener('click', fixBoard);
+    $('az-recheck').addEventListener('click', () => ask());
+    // A screenshot's board waits to be shared until the player moves on; a
+    // closing tab counts as moving on.
+    window.addEventListener('pagehide', shareHeld);
     // Follow my game (js/auto.js, beta): read frames of the game, load
-    // them, and ask, without the prompts a pasted screenshot gets.
+    // them, and ask, without the toasts a pasted screenshot gets.
     window.TartarusAnalyzer = {
-      readFrame: (bitmap) => new Promise((resolve) => readBitmap(bitmap, { quiet: true, onRead: resolve })),
-      useReading: () => useScan(true),
-      offerReading,
+      readFrame: (bitmap) => new Promise((resolve) => readBitmap(bitmap, { quiet: true, folded: true, onRead: resolve })),
+      readPick: (bitmap) => readPick(bitmap),
+      usePick: (read, fresh) => usePick(read, fresh),
+      readObjective: (bitmap) => readObjective(bitmap),
+      useObjective: (read) => useObjective(read),
+      useTreasure: () => useTreasure(),
+      useReading: () => useScan(),
       ask: () => ask(true),
       recommendation: () => (fresh() ? recommendation() : null),
       day: () => model.day,
@@ -2064,17 +2388,30 @@
       const b = e.target.closest('[data-toast]');
       if (!b) return;
       $('az-toast').hidden = true;
-      if (b.dataset.toast === 'use') useScan();
-      else if (b.dataset.toast === 'skip') skipReading();
-      else if (b.dataset.toast === 'pick') $('az-scan-file').click();
+      if (b.dataset.toast === 'pick') $('az-scan-file').click();
       else $('az-scan').scrollIntoView({ block: 'start', behavior: 'smooth' });
     });
-    $('az-scan-discard').addEventListener('click', () => {
-      if (accepted || skipped) {
-        // Discarding a reading Follow my game asked about skips it.
-        $('az-toast').hidden = true;
-        skipReading();
+    $('az-scan-show').addEventListener('click', () => {
+      reader.folded = false;
+      renderScan();
+    });
+    $('az-scan-always').checked = showShots;
+    $('az-scan-always').addEventListener('change', (e) => {
+      showShots = e.target.checked;
+      try {
+        localStorage.setItem(SHOTS_KEY, showShots ? '1' : '0');
+      } catch (err) {
+        // Kept until the page closes.
       }
+      reader.folded = !showShots;
+      renderScan();
+    });
+    $('az-scan-back').addEventListener('click', () => {
+      undoMove();
+      renderScan();
+      scanStatus('Back to the board before that picture. It isn’t shared.');
+    });
+    $('az-scan-discard').addEventListener('click', () => {
       reader.result = null;
       reader.reading = null;
       renderScan();

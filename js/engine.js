@@ -190,7 +190,12 @@
   // pays nothing, so no tool is ever assumed for it.
   const OBJECTIVES = {
     king: { name: 'King of the Caged', text: "At least 1 inmate's rarity reaches Supreme" },
-    walk: { name: 'Prison Walk', text: 'Move 18 tiles', need: 18 },
+    walk: { name: 'Prison Walk', text: 'Move 18 tiles', need: 18, unit: 'Tiles moved' },
+    // Seen live 2026-10-16, each paying a tool when met (and a Warden's Cache
+    // at the riot, not simulated). Not drawn in simulated runs yet: the
+    // analyzer uses them when the player sets them.
+    consume: { name: 'Survival of the Fittest', text: 'Consume 4 times', need: 4, unit: 'Consumes', drawn: false },
+    incident: { name: 'Undercurrents', text: 'Trigger a Prison Incident 2 times', need: 2, unit: 'Prison Incidents', drawn: false },
     other: { name: 'Another objective', text: 'Not in the simulator yet, so no tool is assumed for it', drawn: false },
   };
   const OBJECTIVE_IDS = Object.keys(OBJECTIVES).filter((id) => OBJECTIVES[id].drawn !== false);
@@ -419,8 +424,12 @@
 
   // One devour a day, started by the inmate in the warden's cell; it then
   // chains on by itself (see devour). A day has a devour or a swap, not
-  // both: either one uses up the other (confirmed in the live game).
-  const canDevourNow = (state) => state.used.devour < 1 && state.used.swap < 1;
+  // both: either one uses up the other (confirmed in the live game). But
+  // the live game can still offer a consume after a swap (seen 2026-10-16,
+  // on a day with a special event). The analyzer sets
+  // used.devourAfterSwap only when the game shows that offer; it lasts the
+  // day.
+  const canDevourNow = (state) => state.used.devour < 1 && (state.used.swap < 1 || !!state.used.devourAfterSwap);
   const canSwapNow = (state) => state.used.devour < 1 && state.used.swap < state.params.swapsPerDay;
 
   function startOptions(state) {
@@ -474,6 +483,17 @@
     const options = state.params.rewards ? shuffle(state, TOOL_IDS.filter((t) => !has(state, t))).slice(0, 3) : [];
     if (options.length) state.pending.push({ kind: 'tool', options });
     log(state, 'tool', `Objective met, ${name}: ${why}.${options.length ? ' Choose a tool.' : ''}`, { type: 'objective', id: state.objective.id });
+  }
+
+  // Counts toward an objective met by doing something a number of times
+  // (Survival of the Fittest: each bite; Undercurrents: each Prison
+  // Incident), and meets it at its count.
+  function countObjective(state, id, what) {
+    const o = state.objective;
+    if (!o || o.id !== id || state.milestone) return;
+    const need = OBJECTIVES[id].need;
+    o.progress = Math.min(need, o.progress + 1);
+    if (o.progress >= need) meetObjective(state, `${need} ${what}`);
   }
 
   // Applies rewards for growth: King of the Caged, and the vault for anyone
@@ -965,6 +985,7 @@
     if (event && state.cells[n].inmate) {
       state.phase = 'event';
       state.event = { kind: event, cell: n };
+      countObjective(state, 'incident', 'Prison Incidents');
       log(state, 'event', `Cell ${cellLabel(n)} held a special event: ${eventName(event)}. Accept or skip it.`);
     } else {
       state.phase = n === OFFICE ? 'office' : 'manage';
@@ -1168,6 +1189,7 @@
     const eater = eaterCell.inmate;
     const meal = mealCell.sealed ? mealCell.hidden : mealCell.inmate;
     const bite = { from, cell: option.cell, scratch: !!option.scratch, eater: snap(eater), meal: snap(meal) };
+    countObjective(state, 'consume', 'consumes');
     const wasRat = eater.beast === 'rat';
     emptyCell(state, mealCell);
     // The Muzzle counts the block after the meal is gone.
@@ -1240,7 +1262,7 @@
   function devour(state, from, to) {
     const blocked = guard(state, 'manage');
     if (blocked) return blocked;
-    if (state.used.swap > 0) return fail('You swapped today, and a day has a swap or a devour, not both. End the day.');
+    if (state.used.swap > 0 && !state.used.devourAfterSwap) return fail('You swapped today, and a day has a swap or a devour, not both. End the day.');
     if (!canDevourNow(state)) return fail('Today’s devour is used. End the day for another.');
     if (from !== state.position) return fail(`Only the inmate in the warden's cell (${cellLabel(state.position)}) can start a devour.`);
     const option = devourOptions(state, from).find((o) => o.cell === to);

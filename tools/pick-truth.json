@@ -1,0 +1,25 @@
+{
+  "picks": {
+    "pick-2026-10-16-a.png": [
+      "cage",
+      "axe",
+      "pestle"
+    ],
+    "pick-2026-10-16-b.png": [
+      "revenge",
+      "shortchain",
+      "keys"
+    ],
+    "pick-report-11.png": [
+      "hook",
+      "whip",
+      "cage"
+    ]
+  },
+  "panels": {
+    "panel-2026-10-16-collar-keys.png": [
+      "collar",
+      "keys"
+    ]
+  }
+}

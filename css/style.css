@@ -37,10 +37,13 @@
   /* Rarity ladder */
   --t0: #cfd4dc;
   --t1: #6b96ff;
-  --t2: #f1cd48;
+  /* Rare is purple, as in the game. */
+  --t2: #b07cf0;
   --t3: #f28c36;
   --t4: #ea4f57;
   --t5: #f4f0ff;
+  /* Things to check, beta tags and swaps: amber, apart from the rarities. */
+  --check: #f1cd48;
   --rainbow: conic-gradient(from 210deg, #ff6a6a, #ffb562, #f5ea5c, #6fe08c, #5fc7ff, #8b80ff, #e470ff, #ff6a6a);
 
   /* Cell materials */
@@ -1522,7 +1525,7 @@ a.menu-item {
 .log-entry.k-tool,
 .log-entry.k-event { --k: var(--bone); }
 .log-entry.k-contract { --k: var(--moss); }
-.log-entry.k-swap { --k: var(--t2); }
+.log-entry.k-swap { --k: var(--check); }
 .log-entry.k-patrol { --k: var(--chalk); }
 
 .log-entry.k-rainbow::before {
@@ -3595,12 +3598,28 @@ textarea {
   margin: 0 0 12px;
 }
 
+/* After a screenshot: fix the board, then recheck. */
+.az-res-shot {
+  margin: 0 0 12px;
+  padding: 8px 10px 0;
+  border-left: 3px solid var(--iron-hi);
+  background: var(--slab);
+}
+
+.az-res-shot .trainer-why {
+  margin: 0 0 8px;
+}
+
+.az-res-shot .az-res-actions {
+  margin-bottom: 8px;
+}
+
 .az-results .trainer-body {
   margin-bottom: 12px;
 }
 
 .az-applied {
-  border-color: var(--t2);
+  border-color: var(--check);
 }
 
 .az-applied p {
@@ -3615,7 +3634,7 @@ textarea {
 
 /* Cells the simulator's dice decided, for the player to check against their game. */
 .cell.is-check {
-  outline: 2px dashed var(--t2);
+  outline: 2px dashed var(--check);
   outline-offset: -4px;
 }
 
@@ -3625,7 +3644,7 @@ textarea {
 }
 
 .az-board .cell.is-check:not(.is-hint) .cell-tag {
-  background: var(--t2);
+  background: var(--check);
   color: var(--bone-ink);
 }
 
@@ -3636,9 +3655,9 @@ textarea {
   gap: 12px;
   margin: 0 0 18px;
   padding: 12px 14px;
-  border: 1px solid var(--t2);
+  border: 1px solid var(--check);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--t2) 8%, var(--slab));
+  background: color-mix(in srgb, var(--check) 8%, var(--slab));
 }
 
 .az-beta p {
@@ -3651,7 +3670,7 @@ textarea {
   flex: none;
   padding: 2px 8px;
   border-radius: var(--radius);
-  background: var(--t2);
+  background: var(--check);
   color: var(--bone-ink);
   font-size: 12px;
   font-weight: 700;
@@ -3832,10 +3851,40 @@ textarea {
   border-color: var(--iron-hi);
 }
 
+/* The run's instruments: first in the list, lit up and marked. */
 .az-instrument[aria-pressed="true"] {
+  position: relative;
   border-color: #d9a066;
-  background: color-mix(in srgb, #d9a066 10%, var(--court));
-  color: var(--chalk);
+  background: color-mix(in srgb, #d9a066 18%, var(--court));
+  box-shadow: 0 0 0 1px #d9a066, 0 0 12px color-mix(in srgb, #d9a066 40%, transparent);
+  color: var(--bone);
+  font-weight: 600;
+}
+
+.az-instrument[aria-pressed="true"]::before {
+  content: "In this run";
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #d9a066;
+  color: #1a1410;
+  font: 700 8.5px/1.2 var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Between the run's instruments and the rest. */
+.az-tools-rest {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--iron);
+  color: var(--ash);
+  font: 500 10.5px/1.2 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .az-instrument[aria-pressed="true"] .instrument {
@@ -3847,6 +3896,56 @@ textarea {
 .az-instrument[aria-pressed="true"] .glow-teal { filter: drop-shadow(0 0 4px #3aa39a); }
 .az-instrument[aria-pressed="true"] .glow-orange { filter: drop-shadow(0 0 4px #e0702a); }
 .az-instrument[aria-pressed="true"] .glow-green { filter: drop-shadow(0 0 4px #9bc23a); }
+
+/* The instruments scroll in their own window, so a long list never pushes
+   the prompt bar and the board's advice off the screen. Beside the board,
+   the left column is exactly as tall as the board; stacked under it on
+   narrow screens, the list gets a height of its own. */
+.az-instruments {
+  align-content: start;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--iron-hi) transparent;
+}
+
+.az-instrument {
+  padding: 4px 3px;
+}
+
+.az-instrument .instrument {
+  width: 34px;
+  height: 34px;
+}
+
+@media (min-width: 901px) {
+  .az-game-left {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+    min-height: 0;
+    contain: size;
+  }
+
+  .az-instruments-panel {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .az-instruments {
+    flex: 1;
+    min-height: 120px;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .az-instruments {
+    max-height: 236px;
+    overflow-y: auto;
+  }
+}
 
 /* Chromatic Prisoner: ten hexagonal slots, like the game's panel. */
 .az-chromatic {
@@ -4238,12 +4337,12 @@ textarea {
 /* Confirms a cell marked Check without changing it. */
 .az-flag.az-match {
   border-style: dashed;
-  border-color: var(--t2);
-  color: var(--t2);
+  border-color: var(--check);
+  color: var(--check);
 }
 
 .az-flag.az-match:hover {
-  background: color-mix(in srgb, var(--t2) 10%, transparent);
+  background: color-mix(in srgb, var(--check) 10%, transparent);
 }
 
 /* Whether boards are shared, under the ask button. */
@@ -4404,7 +4503,7 @@ textarea {
 }
 
 .az-scan-summary li.is-check {
-  color: var(--t2);
+  color: var(--check);
 }
 
 .az-scan-summary li.is-note {
@@ -4695,4 +4794,52 @@ textarea {
 .az-auto-gate p {
   flex: 1 1 320px;
   margin: 0;
+}
+
+/* Follow my game's status, at the top of the analyzer (js/auto.js). */
+.az-follow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border: 1px solid var(--iron);
+  border-left: 3px solid var(--ash);
+  border-radius: var(--radius);
+  background: var(--slab);
+  font-size: 14px;
+  color: var(--chalk);
+}
+
+.az-follow.is-ok {
+  border-left-color: var(--teal);
+}
+
+.az-follow.is-off {
+  border-left-color: var(--blood);
+}
+
+.az-follow a {
+  color: var(--bone);
+}
+
+.az-follow p {
+  flex: 1 1 320px;
+  margin: 0;
+}
+
+.az-follow .btn {
+  padding: 4px 12px;
+}
+
+/* Under the reader's status: show a folded screenshot, or take it back. */
+.az-scan-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+}
+
+.az-scan-always {
+  margin-top: 6px;
 }

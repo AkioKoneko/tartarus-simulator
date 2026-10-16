@@ -1193,6 +1193,178 @@
     return [Math.max(0, x0 - 34 * u), Math.max(0, y0 - 6 * u), Math.min(img.width - 1, x1 + 6 * u), Math.min(img.height - 1, y1 + 6 * u)];
   }
 
+  // ---------- The instrument pick ----------
+
+  // "Select a Torture Instrument", at the start of a run: three cards side by
+  // side in the middle of the screen, in a UI scale set by the picture's
+  // height (1080 px at 1x). Each card's art and its glow sit in the middle
+  // of the card's top half, between torchlit walls, which are left out.
+  // k is the card: -1, 0 or 1, left to right.
+  function pickArtBox(img, k) {
+    const s = img.height / 1080;
+    const c = img.width / 2 + k * 480 * s;
+    const x0 = Math.max(0, Math.round(c - 85 * s));
+    const x1 = Math.min(img.width - 1, Math.round(c + 85 * s));
+    const y0 = Math.round(270 * s);
+    const y1 = Math.min(img.height - 1, Math.round(480 * s));
+    const xs = [];
+    const ys = [];
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const [h, sat, v] = hsvAt(img, x, y);
+        // Bright metal, or a glow that isn't the torches' warm orange.
+        if (v > 0.32 || (sat > 0.45 && v > 0.18 && !(h >= 15 && h <= 50))) {
+          xs.push(x);
+          ys.push(y);
+        }
+      }
+    }
+    if (xs.length < 400 * s * s) return null;
+    xs.sort((a, b) => a - b);
+    ys.sort((a, b) => a - b);
+    // A few stray sparkles around the art don't stretch the box.
+    const q = (a, f) => a[Math.round(f * (a.length - 1))];
+    return [q(xs, 0.01), q(ys, 0.01), q(xs, 0.99), q(ys, 0.99)];
+  }
+
+  // Whether the Re-roll button shows, left of Confirm: its label's light
+  // letters. Without a re-roll left, Confirm stands alone in the middle.
+  function pickRerollShown(img) {
+    const s = img.height / 1080;
+    const x0 = Math.round(img.width / 2 - 330 * s);
+    const x1 = Math.round(img.width / 2 - 90 * s);
+    let light = 0;
+    for (let y = Math.round(940 * s); y <= Math.min(img.height - 1, Math.round(985 * s)); y++) {
+      for (let x = Math.max(0, x0); x <= x1; x++) {
+        const [, sat, v] = hsvAt(img, x, y);
+        if (v > 0.55 && sat < 0.25) light += 1;
+      }
+    }
+    return light > 60 * s * s;
+  }
+
+  // The three cards on offer, left to right, each matched by its art to the
+  // instruments the reader knows: art from this page itself (pick.tools,
+  // js/pick-data.js), then the icons beside the board (ref.tools). Results
+  // are simulator ids. A card the reader isn't sure of has a low conf.
+  function scanPick(img, ref, pick) {
+    const t0 = Date.now();
+    const pool = [];
+    for (const t of (pick && pick.tools) || []) pool.push({ sim: t.sim, feat: t.feat });
+    for (const t of ref.tools) {
+      const known = ref.toolNames && ref.toolNames[t.id];
+      if (known && known.sim) pool.push({ sim: known.sim, feat: t.feat });
+    }
+    const cards = [-1, 0, 1].map((k) => {
+      const box = pickArtBox(img, k);
+      if (!box) return null;
+      const feat = artFeature(img, ...box);
+      const best = new Map();
+      for (const r of pool) {
+        const score = similarity(feat, r.feat);
+        if (!best.has(r.sim) || score > best.get(r.sim)) best.set(r.sim, score);
+      }
+      const ranked = [...best].map(([sim, score]) => ({ sim, score })).sort((a, b) => b.score - a.score);
+      if (!ranked.length) return null;
+      const margin = ranked[0].score - (ranked[1] ? ranked[1].score : 0);
+      const conf = Math.max(0, Math.min(1, (ranked[0].score - 0.85) * 5 + margin * 8));
+      return { sim: ranked[0].sim, score: ranked[0].score, margin, conf, box, alts: ranked.slice(1, 4).map((r) => r.sim) };
+    });
+    const ms = Date.now() - t0;
+    if (cards.some((c) => !c)) return { ok: false, reason: 'The three instrument cards weren’t found in this picture.', cards, ms };
+    if (cards.every((c) => c.conf < 0.2)) return { ok: false, reason: 'This doesn’t look like the instrument pick.', cards, ms };
+    return { ok: true, cards, reroll: pickRerollShown(img), ms };
+  }
+
+  // The reader's references with the panel icons from js/pick-data.js added:
+  // instruments as their icons look left of the board, from labeled
+  // screenshots of the live game (tools/pick-build.js).
+  function withPanelIcons(ref, pick) {
+    if (!pick || !pick.icons || !pick.icons.length) return ref;
+    return Object.assign({}, ref, { tools: ref.tools.concat(pick.icons) });
+  }
+
+  // ---------- The run's objective ----------
+
+  // The objective popup at the start of a run ("Objective: Undercurrents"):
+  // its title is the largest text in the middle of the screen. Its words'
+  // letter counts tell the known objectives apart; the words themselves
+  // aren't read. Returns the objective's id, or null.
+  // Short words can run together ("of the" reads as one word).
+  const OBJECTIVE_WORDS = { consume: [[8, 2, 3, 7], [8, 5, 7]], incident: [[13]], king: [[4, 2, 3, 5], [4, 5, 5]], walk: [[6, 4]] };
+  function readObjectiveTitle(img) {
+    let best = null;
+    for (const r of textRadii(img)) {
+      for (const line of textLines(img, img.width * 0.25, img.height * 0.12, img.width * 0.75, img.height * 0.4, { minH: 6, maxH: Math.max(48, img.height * 0.07), r })) {
+        for (const p of line.pieces) {
+          const words = p.words.map((w) => w.glyphs.length);
+          if (words.length >= 2 && (!best || line.h > best.h)) best = { h: line.h, words };
+        }
+      }
+    }
+    if (!best) return null;
+    // "Objective:" first, then the name.
+    const name = best.words[0] >= 8 && best.words[0] <= 11 ? best.words.slice(1) : best.words;
+    let match = null;
+    for (const [id, forms] of Object.entries(OBJECTIVE_WORDS)) {
+      for (const want of forms) {
+        if (want.length !== name.length) continue;
+        const off = want.reduce((a, n, i) => a + Math.abs(n - name[i]), 0);
+        const total = want.reduce((a, n) => a + n, 0);
+        if (off <= 1 + total * 0.15 && (!match || off < match.off)) match = { id, off };
+      }
+    }
+    return match ? { id: match.id, words: best.words } : { id: null, words: best.words };
+  }
+
+  // ---------- The day's decision ----------
+
+  // "Make Your Decision", after a move: a row of cards under the board, one
+  // for each action the game allows now. Replace and End have pale labels;
+  // the Consume card is red all over, its label too. Returns which cards
+  // show, or null when there's no such row.
+  function readDecision(img, loc) {
+    const bottom = Math.max(at(loc, 0, 3)[1], at(loc, 5, 3)[1]) + 30 * loc.s;
+    if (bottom >= img.height - 20) return null;
+    const x0 = Math.max(0, Math.min(at(loc, 0, 0)[0], at(loc, 0, 3)[0]) - 40 * loc.s);
+    const x1 = Math.min(img.width - 1, Math.max(at(loc, 5, 0)[0], at(loc, 5, 3)[0]) + 40 * loc.s);
+    let title = false;
+    let replace = false;
+    let end = false;
+    for (const r of textRadii(img)) {
+      for (const line of textLines(img, x0, bottom, x1, img.height - 1, { minH: 6, maxH: Math.max(48, img.height * 0.07), r })) {
+        for (const p of line.pieces) {
+          const n = p.words.reduce((a, w) => a + w.glyphs.length, 0);
+          const span = (p.x1 - p.x0) / Math.max(1, line.h);
+          if (n >= 14 && n <= 20 && span > 7 && span < 15) title = true; // Make Your Decision
+          else if (n >= 6 && n <= 8 && span > 3 && span < 6.5) replace = true;
+          else if (n === 3 && span > 1.5 && span < 3.2) end = true;
+        }
+      }
+    }
+    // The Consume card: a red block, not the torches' orange. Read in
+    // strips about a third of a card wide: the Consume card's best strip is
+    // about 5% strongly red, and nothing else under the board passes 1%.
+    const strip = Math.max(8, Math.round(100 * loc.s));
+    let red = 0;
+    for (let sx = Math.round(x0); sx + strip <= x1; sx += strip) {
+      let n = 0;
+      let hit = 0;
+      for (let y = Math.round(bottom); y < Math.min(img.height, bottom + 260 * loc.s); y += 2) {
+        for (let x = sx; x < sx + strip; x += 2) {
+          const [h, s, v] = hsvAt(img, x, y);
+          n += 1;
+          if ((h < 12 || h > 348) && s > 0.55 && v > 0.3) hit += 1;
+        }
+      }
+      if (n) red = Math.max(red, hit / n);
+    }
+    const consume = red > 0.025;
+    // Without its title, a stray short word isn't a row of cards.
+    if (!title) return null;
+    return { replace, consume, end, title, red: Math.round(1000 * red) / 1000 };
+  }
+
   // ---------- Everything ----------
 
   function scan(img, ref) {
@@ -1220,11 +1392,12 @@
     const chromatic = readChromatic(img, loc);
     const objective = objectiveBox(img, loc, tools);
     const chain = readChainScreen(img, loc, cells, warden);
+    const decision = doors || chain ? null : readDecision(img, loc);
     if (!warden) notes.push('The warden’s arrow was not found.');
-    return { ok: true, loc, cells, warden, doors, days, tools, chromatic, objective, chain, notes, ms: Date.now() - t0 };
+    return { ok: true, loc, cells, warden, doors, days, tools, chromatic, objective, chain, decision, notes, ms: Date.now() - t0 };
   }
 
-  const api = { scan, locateBoard, readCell, findWarden, findToolIcons, readDoors, readDays, doorCards, dayNumber, prefixVector, textLines, glyphVector, faceVector, artFeature, similarity, hsv, blobs, at, gridOf, scaleAt, grayOf, blur, RING, H0, ARROW, FACE, GLYPH, locateByLabels, readChainScreen };
+  const api = { scan, scanPick, pickArtBox, pickRerollShown, locateBoard, readCell, findWarden, findToolIcons, readDoors, readDays, doorCards, dayNumber, prefixVector, textLines, glyphVector, faceVector, artFeature, similarity, hsv, blobs, at, gridOf, scaleAt, grayOf, blur, RING, H0, ARROW, FACE, GLYPH, locateByLabels, readChainScreen, readDecision, readObjectiveTitle, withPanelIcons };
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.TartarusScan = api;
 })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);

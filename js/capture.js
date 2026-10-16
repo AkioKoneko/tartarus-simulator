@@ -48,13 +48,21 @@
   // #region read-log
   // The log follower, shared by the worker and the page. It reads only what
   // was added since the last look, decodes it as UTF-8, and reports the lines
-  // that match a trigger or the watch pattern.
+  // that match a trigger or the watch pattern. However the log changes
+  // (deleted, cleared, or swapped for a big one), one look reads at most
+  // MAX_READ bytes and reports at most MAX_HITS lines, so the page always
+  // keeps up. If the log is deleted, it waits for the game to write a new one.
   function follower(post) {
+    const MAX_READ = 1024 * 1024; // bytes per look: anything older is skipped
+    const MAX_LINE = 8192; // characters of one line that are checked
+    const MAX_HITS = 200; // lines reported per look: the newest
     let handle = null;
     let offset = 0;
     let decoder = null;
     let rest = '';
     let busy = false;
+    let gone = false; // the log isn't there (deleted, or between two logs)
+    let failed = ''; // the last error reported, so each is reported once
     let triggers = [];
     let watching = null;
     const compile = (list) => list.map((s) => {
@@ -64,14 +72,69 @@
         return null;
       }
     });
+    const readFrom = (at) => {
+      offset = at;
+      decoder = new TextDecoder('utf-8');
+      rest = '';
+    };
+    const fail = (e) => {
+      const missing = !!e && e.name === 'NotFoundError';
+      const message = missing ? '' : String((e && e.message) || e);
+      if (missing && !gone) post({ type: 'gone' });
+      else if (!missing && message !== failed) post({ type: 'error', message });
+      gone = missing;
+      failed = message;
+    };
+    let begun = false; // whether the log has been found since start
+    let fromFirst = false;
+    async function tick() {
+      if (!handle || busy) return;
+      busy = true;
+      try {
+        const file = await handle.getFile();
+        if (!begun) {
+          // The first look starts at the end of the log, unless it was
+          // missing until now: then the game wrote all of it since.
+          begun = true;
+          readFrom(fromFirst || gone ? 0 : file.size);
+          post({ type: 'started', name: file.name || handle.name || 'UE_game.log', size: file.size });
+        } else if (gone || file.size < offset) {
+          // The game started a new log, or the deleted one is back.
+          readFrom(0);
+          post({ type: 'rotated' });
+        }
+        gone = false;
+        failed = '';
+        // Over a look's worth is new (a big log in place of the old one, or
+        // the PC slept): only the newest part is read.
+        if (file.size - offset > MAX_READ) readFrom(file.size - MAX_READ);
+        if (file.size > offset) {
+          const buf = await file.slice(offset, file.size).arrayBuffer();
+          offset = file.size;
+          const lines = (rest + decoder.decode(buf, { stream: true })).split(/\r?\n/);
+          rest = lines.pop().slice(-MAX_LINE);
+          const hits = [];
+          for (const whole of lines) {
+            // A line can only be this long if the log was cleared while the
+            // game wrote on: its text is at the end.
+            const line = whole.length > MAX_LINE ? whole.slice(-MAX_LINE) : whole;
+            const rule = triggers.findIndex((re) => re && re.test(line));
+            if (rule >= 0) hits.push({ rule, line: line.slice(0, 400) });
+            else if (watching && watching.test(line)) hits.push({ rule: -1, line: line.slice(0, 400) });
+          }
+          post({ type: 'lines', count: lines.length, hits: hits.slice(-MAX_HITS) });
+        }
+      } catch (e) {
+        fail(e);
+      }
+      busy = false;
+    }
     return {
-      async start(h, fromStart) {
+      start(h, fromStart) {
         handle = h;
-        const file = await h.getFile();
-        offset = fromStart ? 0 : file.size;
-        decoder = new TextDecoder('utf-8');
-        rest = '';
-        post({ type: 'started', name: file.name || h.name || 'UE_game.log', size: file.size });
+        begun = false;
+        fromFirst = !!fromStart;
+        return tick();
       },
       stop() {
         handle = null;
@@ -80,36 +143,7 @@
         triggers = compile(list);
         watching = watchSource ? compile([watchSource])[0] : null;
       },
-      async tick() {
-        if (!handle || busy) return;
-        busy = true;
-        try {
-          const file = await handle.getFile();
-          if (file.size < offset) {
-            // The game started a new log.
-            offset = 0;
-            decoder = new TextDecoder('utf-8');
-            rest = '';
-            post({ type: 'rotated' });
-          }
-          if (file.size > offset) {
-            const buf = await file.slice(offset, file.size).arrayBuffer();
-            offset = file.size;
-            const lines = (rest + decoder.decode(buf, { stream: true })).split(/\r?\n/);
-            rest = lines.pop();
-            const hits = [];
-            for (const line of lines) {
-              const rule = triggers.findIndex((re) => re && re.test(line));
-              if (rule >= 0) hits.push({ rule, line: line.slice(0, 400) });
-              else if (watching && watching.test(line)) hits.push({ rule: -1, line: line.slice(0, 400) });
-            }
-            post({ type: 'lines', count: lines.length, hits });
-          }
-        } catch (e) {
-          post({ type: 'error', message: String((e && e.message) || e) });
-        }
-        busy = false;
-      },
+      tick,
     };
   }
 
@@ -123,7 +157,8 @@
     const onMessage = (m) => {
       if (stopIfOff()) return;
       if (m.type === 'started') setState({ log: 'on', file: m.name, error: '', note: '' });
-      else if (m.type === 'rotated') setState({ note: 'The game started a new log.' });
+      else if (m.type === 'rotated') setState({ log: 'on', error: '', note: 'The game started a new log.' });
+      else if (m.type === 'gone') setState({ log: 'gone', error: '' });
       else if (m.type === 'error') setState({ log: 'error', error: m.message });
       else if (m.type === 'lines') {
         const patch = { lines: state.lines + m.count };
@@ -197,6 +232,13 @@
     setState({ hits: state.hits + 1 });
     emit('hit', hit);
     emit('seen', { at, line: h.line, kind: rule.kind });
+    // A "skip" line (a new day's banner) drops a picture still waiting to be
+    // taken, as the screen is changing: the next screen's own line follows.
+    if (rule.kind === 'skip') {
+      if (burst) clearTimeout(burst.timer);
+      burst = null;
+      return;
+    }
     // Lines in a burst become one frame, once the log has been quiet for the
     // longest settle time among them.
     if (!burst) burst = { kind: rule.kind, rank: rule.rank, settle: 0, hits: [], timer: 0 };
@@ -260,7 +302,7 @@
   // What follow.html saves when the player agrees (shared with js/follow.js
   // and js/auto.js), and the version of that page they agreed to.
   const SETTINGS = 'tartarus-sim:auto:v1';
-  const CONSENT_VERSION = 2;
+  const CONSENT_VERSION = 3;
 
   // Whether the player agreed to this version of follow.html. It's read
   // again every time it's needed, so turning Follow my game off on that
@@ -289,6 +331,7 @@
   // Why a picture can't be taken right now, for the page to say.
   function whyNot() {
     if (!agreed()) return 'Follow my game is off.';
+    if (state.log === 'gone') return 'the game log isn’t there right now.';
     if (state.log !== 'on') return 'connect the game log first.';
     return 'share the game window first.';
   }
@@ -320,14 +363,44 @@
     remember(handle);
   }
 
+  // The log dragged onto the page from File Explorer. Chrome and Edge refuse
+  // files under Program Files in the picker above, but not ones dragged in,
+  // so this works wherever the game is installed. Only one file is taken,
+  // and only a .log file; a folder or anything else is turned away. It's
+  // called from the drop itself: the browser hands over the file only then.
+  async function dropLog(dataTransfer) {
+    mustAgree();
+    const items = [...((dataTransfer && dataTransfer.items) || [])].filter((i) => i.kind === 'file');
+    const one = items.length === 1 && typeof items[0].getAsFileSystemHandle === 'function' ? items[0].getAsFileSystemHandle() : null;
+    if (items.length !== 1) throw new Error('Drop one file: UE_game.log.');
+    if (!one) throw new Error('This browser can’t follow a dropped file. Use Chrome or Edge.');
+    let handle;
+    try {
+      handle = await one;
+    } catch (e) {
+      // A folder in a place the browser keeps from websites, for one.
+      throw new Error('The browser didn’t hand that over. Drag UE_game.log itself, from inside its folder.');
+    }
+    if (!handle || handle.kind !== 'file') throw new Error('That’s a folder. Open it and drag UE_game.log from inside it.');
+    if (!/\.log$/i.test(handle.name)) throw new Error(`That’s ${handle.name}. Drag UE_game.log, the game’s log.`);
+    useHandle(handle);
+    remember(handle);
+  }
+
   // The log picked on an earlier visit. The browser asks again for leave to
-  // read it, and that takes a click: without one this returns 'ask'.
+  // read it, and that takes a click: without one this returns 'ask'. If the
+  // browser can't use it any more, this returns 'none', to pick it again.
   async function resumeLog(click) {
     if (!agreed()) return 'none';
     const handle = await recall();
     if (!handle || typeof handle.queryPermission !== 'function') return 'none';
-    let p = await handle.queryPermission({ mode: 'read' });
-    if (p !== 'granted' && click) p = await handle.requestPermission({ mode: 'read' });
+    let p;
+    try {
+      p = await handle.queryPermission({ mode: 'read' });
+      if (p !== 'granted' && click) p = await handle.requestPermission({ mode: 'read' });
+    } catch (e) {
+      return 'none';
+    }
     if (p !== 'granted') {
       setState({ file: handle.name });
       return 'ask';
@@ -340,7 +413,7 @@
 
   function useHandle(handle) {
     mustAgree();
-    setState({ log: 'starting', file: handle.name || '', error: '' });
+    setState({ log: 'starting', file: handle.name || '', error: '', lines: 0, hits: 0 });
     startFollower(handle);
   }
 
@@ -475,6 +548,7 @@
     agreed,
     supported: {
       log: typeof window.showOpenFilePicker === 'function',
+      drop: typeof DataTransferItem === 'function' && typeof DataTransferItem.prototype.getAsFileSystemHandle === 'function',
       window: !!(navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function'),
     },
     get state() {
@@ -484,6 +558,7 @@
       if (listeners[name]) listeners[name].push(fn);
     },
     connectLog,
+    dropLog,
     resumeLog,
     stopLog,
     useHandle,

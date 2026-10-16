@@ -3,8 +3,9 @@
  * shares the game window there (js/follow.js). Each picture it takes comes
  * here, to the board analyzer open in the same browser, which reads it into
  * the board, shows what it read and refreshes the advice. The analyzer has
- * no Follow my game controls of its own. Nothing here runs until the player
- * has agreed on follow.html, and pictures never leave the browser. */
+ * no Follow my game controls of its own, but shows whether it's running.
+ * Nothing here runs until the player has agreed on follow.html, and
+ * pictures never leave the browser. */
 (function () {
   'use strict';
 
@@ -14,15 +15,20 @@
 
   // #region receive
   // The analyzer tells Follow my game it's open only once the player has
-  // agreed on follow.html, and it reads only the pictures sent to it. What
-  // was read is shown, and becomes the board when the player uses it (or
-  // at once, if they turned on using each reading without asking); then it
-  // asks what to do. Only how the reading went goes back to follow.html.
-  // Nothing is sent anywhere else.
+  // agreed on follow.html, and it reads only the pictures sent to it. A
+  // board's picture becomes the board at once, and the advice follows. If
+  // the reader got something wrong, the player fixes the board and
+  // rechecks. A picture of the instrument pick at the start of a run starts
+  // a fresh run at that offer, with the advice on which to take. Only how
+  // the reading went goes back to follow.html. Nothing is sent anywhere
+  // else.
   const channel = new BroadcastChannel('tartarus-follow');
   const me = Math.random().toString(36).slice(2);
   let focusedAt = document.hasFocus() ? Date.now() : 0;
   let newest = 0;
+  let lastKind = ''; // the kind of the picture before this one
+  let pickFresh = false; // whether the offer on screen starts a run
+  let lastBoardAt = 0; // when a board's picture was last loaded
   const say = (m) => {
     if (C.agreed()) channel.postMessage(Object.assign({ id: me }, m));
   };
@@ -31,6 +37,8 @@
   async function onPicture(m) {
     const answer = (patch) => channel.postMessage(Object.assign({ type: 'read', to: m.from, id: m.id }, patch));
     const mine = ++newest;
+    const before = lastKind;
+    lastKind = m.kind;
     let bitmap;
     try {
       bitmap = await createImageBitmap(m.blob);
@@ -38,37 +46,125 @@
       answer({ read: { ok: false, reason: 'the picture couldn’t be opened' } });
       return;
     }
+    if (m.kind === 'objective') {
+      // The run's objective popup: which objective, from its title.
+      const read = await A.readObjective(bitmap);
+      answer({ read });
+      if (read.ok && mine === newest) answer({ state: 'used', asked: A.useObjective(read) });
+      return;
+    }
+    if (m.kind === 'treasure') {
+      // The Warden's Treasure: every gift is on offer, so nothing is read;
+      // the advice is on the board as it is.
+      answer({ read: { ok: true, treasure: true } });
+      if (mine !== newest) return;
+      const asked = A.useTreasure();
+      answer({ state: 'used', asked });
+      return;
+    }
+    if (m.kind === 'instruments') {
+      // The offer that starts a run comes with the day-0 line (m.fresh); an
+      // objective's reward offers one mid-run, on the board as it is. A
+      // re-roll is the same offer again.
+      pickFresh = !!m.fresh || (before === 'instruments' && pickFresh);
+      const fresh = pickFresh;
+      const read = await A.readPick(bitmap);
+      answer({ read });
+      if (!read.ok || mine !== newest) return;
+      const asked = A.usePick(read, fresh);
+      answer({ state: 'used', asked });
+      return;
+    }
+    // A picture the log didn't name (Take a picture now) may be the
+    // instrument offer: at least two of its cards read surely, which no
+    // board does. It starts a run unless a board came in the last few
+    // minutes (an objective's reward comes mid-run).
+    if (m.kind !== 'board') {
+      const pick = await A.readPick(bitmap);
+      const sure = pick.ok ? pick.cards.map((c) => c.conf).sort((a, b) => b - a)[1] : 0;
+      if (sure >= 0.5) {
+        answer({ read: pick });
+        if (mine !== newest) return;
+        lastKind = 'instruments';
+        pickFresh = Date.now() - lastBoardAt > 300000;
+        const asked = A.usePick(pick, pickFresh);
+        answer({ state: 'used', asked });
+        return;
+      }
+    }
     const read = await A.readFrame(bitmap);
     answer({ read });
     // The newest picture wins: an older one still being read is left.
     if (!read.ok || mine !== newest) return;
-    const use = () => {
-      answer({ state: 'used' });
-      if (m.ask) {
-        A.ask();
-        answer({ asked: true });
-      }
-    };
-    if (m.accept) {
-      A.useReading();
-      use();
-      return;
+    A.useReading();
+    lastBoardAt = Date.now();
+    answer({ state: 'used' });
+    if (A.ask()) answer({ asked: true });
+  }
+
+  // Whether Follow my game is running, from what follow.html says of itself
+  // (whether it follows the log and shares the window, and its last
+  // picture), shown at the top of the analyzer.
+  const bar = document.getElementById('az-follow');
+  const barText = document.getElementById('az-follow-text');
+  const now = document.getElementById('az-follow-now');
+  let status = null;
+  let heard = 0;
+  const time = (t) => new Date(t).toLocaleTimeString();
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  function renderFollow() {
+    if (!bar) return;
+    bar.hidden = !C.agreed();
+    if (bar.hidden) return;
+    const link = '<a href="follow.html#follow" target="tartarus-follow">the Follow my game page</a>';
+    let ok = false;
+    let text;
+    if (!running()) {
+      text = `Follow my game isn’t running. Open ${link} to connect your game log and share the game window.`;
+    } else {
+      const file = esc(status.file || 'the game log');
+      const log = { on: `following ${file}`, starting: 'opening the game log', gone: `${file} isn’t there`, error: 'the game log can’t be read' }[status.log] || 'the game log isn’t connected';
+      const win = status.window === 'on' ? 'sharing the game window' : 'the game window isn’t shared';
+      ok = status.log === 'on' && status.window === 'on';
+      const l = status.last;
+      const last = l ? ` Last picture ${time(l.at)}${l.kind ? ` (${esc(l.kind)})` : ''}${l.ok ? '' : `: none taken, ${esc((l.why || 'the window wasn’t shared').replace(/\.$/, ''))}`}.` : ' No pictures yet.';
+      text = `Follow my game: ${log}, ${win}.${last}${ok ? '' : ` Fix it on ${link}.`}`;
     }
-    answer({ state: 'waiting' });
-    A.offerReading(use, (why) => answer({ state: why === 'replaced' ? 'replaced' : 'skipped' }));
+    bar.className = `az-follow ${ok ? 'is-ok' : 'is-off'}`;
+    barText.innerHTML = text;
+    // A picture can be taken from here while the game window is shared.
+    now.disabled = !(running() && status.window === 'on');
+    now.title = now.disabled ? 'Share the game window on the Follow my game page first.' : 'Take a picture of the game now, and read it here.';
+  }
+  const running = () => !!status && !status.closed && Date.now() - heard <= 25000;
+
+  // Take a picture now: Follow my game takes it (it holds the window), and
+  // sends it here, as this analyzer was used last.
+  if (now) {
+    now.addEventListener('click', () => {
+      focusedAt = Date.now();
+      announce();
+      say({ type: 'capture' });
+    });
   }
 
   channel.onmessage = (e) => {
     const m = e.data || {};
     if (!C.agreed()) return;
     if (m.type === 'hello') announce();
-    else if (m.type === 'frame' && m.to === me && m.blob) onPicture(m).catch((err) => console.error(err));
+    else if (m.type === 'status') {
+      status = m;
+      heard = Date.now();
+      renderFollow();
+    } else if (m.type === 'frame' && m.to === me && m.blob) onPicture(m).catch((err) => console.error(err));
   };
   window.addEventListener('focus', () => {
     focusedAt = Date.now();
     announce();
   });
   window.addEventListener('pagehide', () => say({ type: 'bye' }));
+  setInterval(renderFollow, 5000);
   announce();
+  renderFollow();
   // #endregion
 })();

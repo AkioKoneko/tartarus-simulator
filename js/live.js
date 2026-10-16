@@ -9,8 +9,11 @@
 (function () {
   'use strict';
 
-  // The collector. Empty turns sending off everywhere.
-  const ENDPOINT = 'https://tartarus-live.blahdot3h.workers.dev';
+  // The collector. Empty turns sending off everywhere. A copy of the site run
+  // on this PC (tools/serve.js) never sends, so test runs stay out of the
+  // odds study.
+  const LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  const ENDPOINT = LOCAL ? '' : 'https://tartarus-live.blahdot3h.workers.dev';
   const KEY = 'tartarus-sim:live:v1';
   const BATCH = 10; // snapshots per upload
   const QUEUE_MAX = 300;

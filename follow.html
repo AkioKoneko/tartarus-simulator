@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261015e">
+<link rel="stylesheet" href="css/style.css?v=20261016a">
 <style>
   /* A long read in the simulator's look, like the strategy guide. */
   .guide {
@@ -92,6 +92,8 @@
 
   .facts {
     display: grid;
+    /* One column: the site's .facts is a three-column grid of stat tiles. */
+    grid-template-columns: 1fr;
     gap: 10px;
     margin: 0;
     padding: 0;
@@ -210,6 +212,70 @@
     color: var(--moss);
   }
 
+  /* A log folder to paste into the file picker, with its Copy button. */
+  .log-path {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+    margin: 4px 0 10px;
+  }
+
+  .log-path code {
+    align-self: stretch;
+    padding: 6px 8px;
+    border: 1px solid var(--iron);
+    border-radius: var(--radius);
+    background: var(--slab);
+    font: 12px/1.4 var(--font-mono);
+    overflow-wrap: anywhere;
+    user-select: all;
+  }
+
+  .log-path .btn {
+    padding: 4px 12px;
+  }
+
+  /* Step 1 takes a whole row: the drop box and the log folders need room. */
+  .az-auto-step-wide {
+    grid-column: 1 / -1;
+  }
+
+  .az-auto-step-wide > div {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Where the log is dropped. It lights up while a file is dragged over
+     the page (js/follow.js). */
+  .log-drop {
+    display: grid;
+    gap: 4px;
+    place-items: center;
+    margin-bottom: 8px;
+    padding: 22px 14px;
+    border: 2px dashed var(--iron);
+    border-radius: var(--radius);
+    background: var(--slab);
+    text-align: center;
+    transition: border-color 0.15s, background-color 0.15s;
+  }
+
+  .log-drop strong {
+    color: var(--bone);
+    font-size: 18px;
+  }
+
+  .log-drop span {
+    color: var(--ash);
+    font-size: 13.5px;
+  }
+
+  .log-drop.is-over {
+    border-color: var(--teal);
+    background: color-mix(in srgb, var(--teal) 10%, var(--slab));
+  }
+
   @media (max-width: 600px) {
     .files thead {
       display: none;
@@ -244,12 +310,23 @@
     <div id="az-auto-body" hidden>
       <p class="note">Chrome or Edge on a PC, with the game borderless or windowed. Keep this tab open while you play: it follows the log and takes the pictures, and the analyzer tab shows the board and the advice.</p>
       <div class="az-auto-steps">
-        <div class="az-auto-step">
+        <div class="az-auto-step az-auto-step-wide">
           <span class="az-auto-n">1</span>
           <div>
-            <button type="button" class="btn" id="az-auto-log">Connect the game log</button>
+            <div class="log-drop" id="az-auto-drop">
+              <strong>Drag <code>UE_game.log</code> here</strong>
+              <span>from the game's log folder, in File Explorer</span>
+            </div>
             <p class="field-note" id="az-auto-log-state"></p>
-            <p class="field-note">It's <code>UE_game.log</code>, in your Steam library under <code>Torchlight Infinite\UE_game\TorchLight\Saved\Logs</code>.</p>
+            <button type="button" class="btn" id="az-auto-log">Or choose the file</button>
+            <p class="field-note">To open the log folder, press the Windows key and E together for File Explorer, paste the folder into the address bar at the top, and press Enter. Then drag <code>UE_game.log</code> onto the box above. With Steam's default install folder, the log folder is:</p>
+            <div class="log-path"><code id="log-path-steam">C:\Program Files (x86)\Steam\steamapps\common\Torchlight Infinite\UE_game\TorchLight\Saved\Logs</code><button type="button" class="btn" data-copy="log-path-steam">Copy</button></div>
+            <p class="field-note">With the game's own launcher, it's usually:</p>
+            <div class="log-path"><code id="log-path-launcher">C:\Program Files (x86)\Torchlight Infinite\Game\UE_game\Torchlight\Saved\Logs</code><button type="button" class="btn" data-copy="log-path-launcher">Copy</button></div>
+            <p class="field-note">If the game is in a Steam library on another drive, it's this, with that drive's letter instead of D:</p>
+            <div class="log-path"><code id="log-path-library">D:\SteamLibrary\steamapps\common\Torchlight Infinite\UE_game\TorchLight\Saved\Logs</code><button type="button" class="btn" data-copy="log-path-library">Copy</button></div>
+            <p class="field-note">Not there? In Steam, right-click Torchlight: Infinite, then Manage, then Browse local files. File Explorer opens the game's folder, and the log folder is <code>UE_game\TorchLight\Saved\Logs</code> inside it. With the launcher, it's <code>Game\UE_game\Torchlight\Saved\Logs</code> inside the game's folder.</p>
+            <p class="field-note">Dragging works wherever the game is installed. Choosing the file with the button doesn't if the game is under <code>C:\Program Files</code> or <code>C:\Program Files (x86)</code>: Chrome and Edge refuse files there from their file window, saying the folder “contains system files”. To use the button anyway, <a href="steam-library.html">move the game out of Program Files</a> first.</p>
           </div>
         </div>
         <div class="az-auto-step">
@@ -278,9 +355,7 @@
       </div>
       <p class="az-auto-note" id="az-auto-note" aria-live="polite"></p>
       <div class="az-auto-options">
-        <label class="toggle"><input type="checkbox" id="az-auto-read"><span><strong>Read each picture into the board</strong><small>Cells it's unsure of are marked Check.</small></span></label>
-        <label class="toggle"><input type="checkbox" id="az-auto-accept"><span><strong>Use each reading without asking</strong><small>Off: each time, the analyzer shows what was read and waits for Use this board.</small></span></label>
-        <label class="toggle"><input type="checkbox" id="az-auto-ask"><span><strong>Then ask what to do</strong><small>The advice refreshes after every move.</small></span></label>
+        <label class="toggle"><input type="checkbox" id="az-auto-read"><span><strong>Read each picture into the board</strong><small>The advice refreshes after every move. Cells it's unsure of are marked Check: fix anything wrong in the analyzer and press Recheck.</small></span></label>
       </div>
       <ol class="az-auto-caps" id="az-auto-caps" aria-live="polite"></ol>
       <details class="az-auto-dev">
@@ -299,19 +374,19 @@
     <h2>In short</h2>
     <ul class="facts">
       <li><b>Nothing before you agree.</b> Until you agree at the bottom of this page, its controls stay hidden: nothing can open your log or see any window, and the board analyzer takes no pictures.</li>
-      <li><b>One file, read only.</b> It reads the game log you pick (<code>UE_game.log</code>), and only the lines the game writes after you connect it. It can't open any other file, and it never changes the log.</li>
-      <li><b>One window, only with the log connected.</b> It takes pictures of the one window you share, never a whole screen or a browser tab. It only does so while the game log is connected: when the log shows a move, or when you press Take a picture now. Nothing is recorded in between.</li>
+      <li><b>One file, read only.</b> It reads the game log you drag onto this page or choose (<code>UE_game.log</code>), and only the lines the game writes after you connect it. It can't open any other file, and it never changes the log.</li>
+      <li><b>One window, only with the log connected.</b> It takes pictures of the one window you share, never a whole screen or a browser tab. It only does so while the game log is connected: when the log shows a move, or when you press Take a picture now, here or on the board analyzer (which asks this page to take it). Nothing is recorded in between.</li>
       <li><b>Pictures stay in your browser.</b> This page hands each picture to the board analyzer open in another tab, which reads the board from it with the screenshot reader. The picture passes between the two tabs inside your browser. Pictures are kept as small previews in memory and are gone when you close the tabs. Follow my game never uploads a picture or your log.</li>
-      <li><b>Boards, only if you share boards.</b> The board the analyzer reads from each picture is treated like any board you ask about. If board sharing is on (the switch under the analyzer's ask button), the board is shared for the odds study: its cells, day and tools, with no picture and nothing about you. Turn that switch off and nothing is shared.</li>
+      <li><b>Boards, only if you share boards.</b> The board the analyzer reads from each picture is treated like any board you ask about. If board sharing is on (the switch under the analyzer's ask button), the board is shared for the odds study: its cells, day and tools, with no picture and nothing about you. It's shared once the next picture comes in, so a board you fixed is shared as you fixed it. Turn that switch off and nothing is shared.</li>
       <li><b>Off whenever you like.</b> Stop following and Stop sharing end it at once, as does your browser's own stop-sharing button. Turning it off at the bottom of this page stops it at once, and the analyzer stops taking pictures.</li>
     </ul>
   </section>
 
   <section class="guide-section">
     <h2>What your browser asks you</h2>
-    <p>Chrome or Edge asks you twice, and nothing happens until you say yes both times:</p>
+    <p>Nothing happens until you've done both of these yourself:</p>
     <ol>
-      <li><b>To open a file.</b> You pick <code>UE_game.log</code>, in your Steam library under <code>Torchlight Infinite\UE_game\TorchLight\Saved\Logs</code>. The site gets read-only access to that one file. On your next visit, the browser asks again before the site can read it.</li>
+      <li><b>Give it the log.</b> You drag <code>UE_game.log</code> from the game's log folder in File Explorer onto this page, or choose it in the browser's file window (step 1 at the top lists the folders). Either way, the site gets read-only access to that one file and nothing else. The file window refuses files under Program Files, where Steam puts games by default; dragging works anywhere (or <a href="steam-library.html">move the game</a>). On your next visit, the browser asks again before the site can read it.</li>
       <li><b>To share a window.</b> The browser lists your open windows, and you pick Torchlight: Infinite. Whole screens aren't offered. While the window is shared, the browser shows which one, with a button to stop.</li>
     </ol>
     <p class="note">Browsers never tell a website which program a window belongs to: not its name, its title or its process. So the code can't check that the window is the game. What it does check is that you shared one window, not your screen or a browser tab, and the browser's sharing bar shows you which window that is. Pick the game, and only the game is seen.</p>
@@ -328,16 +403,16 @@
     <p>The part that takes pictures checks again on its own, every time, right before each picture. A picture is taken only if three things hold: you agreed to this version of this page, the game log is connected and being read, and what's shared is a single window. Connecting the log or sharing a window without your agreement is refused too.</p>
     <div class="code" data-file="js/capture.js" data-region="guard"></div>
 
-    <h3>2. You pick the log</h3>
-    <p><code>connectLog</code> opens the browser's file picker, and the site gets only the file you choose. <code>resumeLog</code> is for later visits: the browser remembers your choice, but asks you again before the site may read it.</p>
+    <h3>2. You give it the log</h3>
+    <p><code>dropLog</code> takes the file you drag onto the page: one <code>.log</code> file, and nothing else. <code>connectLog</code> opens the browser's file window instead, and the site gets only the file you choose. <code>resumeLog</code> is for later visits: the browser remembers your choice, but asks you again before the site may read it.</p>
     <div class="code" data-file="js/capture.js" data-region="pick-log"></div>
 
     <h3>3. It reads only the new lines</h3>
-    <p>Once a second, the follower checks whether the log has grown, and reads only the part added since its last look. It starts at the end of the log, so nothing written before you connected is ever read. Each new line is checked against the triggers below. A line that matches nothing is dropped; a line that matches the watch pattern is shown to you on the page. It runs in a background worker, so it keeps up when the tab is hidden.</p>
+    <p>Once a second, the follower checks whether the log has grown, and reads only the part added since its last look. It starts at the end of the log, so nothing written before you connected is ever read. Each new line is checked against the triggers below. A line that matches nothing is dropped; a line that matches the watch pattern is shown to you on the page. It runs in a background worker, so it keeps up when the tab is hidden. However the log changes, each look reads at most the newest megabyte and passes at most 200 lines to the page, so the page never has more than it can handle. If the log is deleted, the follower waits, and reads the next log the game writes from its start.</p>
     <div class="code" data-file="js/capture.js" data-region="read-log"></div>
 
     <h3>4. It watches for moves</h3>
-    <p>The triggers are patterns for the lines the game writes when something happens. Each has a kind, the pattern, and a settle time. The prison's lines are added once they're known; until then the defaults are the Frozen Canvas's, which test the whole path. You can see and change the triggers at the top of this page, under Triggers and log lines.</p>
+    <p>The triggers are patterns for the lines the game writes when something happens. Each has a kind, the pattern, and a settle time. By default there are eight. The run's objective popup, its pick of 3 instruments and each re-roll of it (also an extra pick an objective pays); the start of each day, once the new day's banner closes; after a move, when the cards come up; after an action in the cell, once it has played out; and the Warden's Treasure. One more line only cancels: the next day's banner, so an action that ends the day takes no picture of the banner. So it takes a picture of each screen where you decide something, and none in between. You can see and change the triggers at the top of this page, under Triggers and log lines.</p>
     <div class="code" data-file="js/follow.js" data-region="default-triggers"></div>
     <p>When matching lines come in a burst, it waits until the log has been quiet for the settle time, so the animations finish. Then it takes one picture for the whole burst.</p>
     <div class="code" data-file="js/capture.js" data-region="triggers"></div>
@@ -351,7 +426,8 @@
     <div class="code" data-file="js/follow.js" data-region="each-picture"></div>
 
     <h3>7. The analyzer reads it into your board</h3>
-    <p>The analyzer answers only after you've agreed, and reads only the pictures sent to it. The screenshot reader, running in your browser, turns the picture into a board. A prompt shows you what it read and what would change, and waits: Use this board loads it and asks for advice, Skip drops it. If you turn on Use each reading without asking, it loads each reading straight away. Only how the reading went goes back to this page. Nothing is uploaded.</p>
+    <p>The analyzer answers only after you've agreed, and reads only the pictures sent to it. The screenshot reader, running in your browser, turns the picture into a board, which becomes your board straight away, and the analyzer gives its advice. Cells the reader is unsure of are marked Check. If anything doesn't match your game, fix it on the board and press Recheck. A picture of the objective popup sets the run's objective, read from its title. A picture of the instrument pick is read as that instead: the analyzer starts a fresh run at the offer, with the three instruments it read and whether a re-roll is left, and says which to take, or to re-roll. An instrument it's unsure of is named for you to check. Only how the reading went goes back to this page. Nothing is uploaded.</p>
+    <p>The analyzer also shows, at its top, whether Follow my game is running. This page tells it whether the log is followed and the window shared, and when its last picture was taken and of what. It never sends the log's lines that way.</p>
     <div class="code" data-file="js/auto.js" data-region="receive"></div>
   </section>
 
@@ -374,12 +450,12 @@
       </div>
       <p class="agree-status" id="agree-status" aria-live="polite"></p>
     </div>
-    <p class="note">This is agreement version <span id="consent-version">2</span>. If what Follow my game does changes, this page asks you to read it again before it turns back on.</p>
+    <p class="note">This is agreement version <span id="consent-version">3</span>. If what Follow my game does changes, this page asks you to read it again before it turns back on.</p>
   </section>
 </main>
 
-<script src="js/capture.js?v=20261015e"></script>
-<script src="js/follow.js?v=20261015e"></script>
+<script src="js/capture.js?v=20261016a"></script>
+<script src="js/follow.js?v=20261016a"></script>
 <script>
 (function () {
   'use strict';
@@ -447,9 +523,22 @@
     $('az-auto-gate').hidden = false;
     $('az-auto-body').hidden = true;
     renderAgreement();
-    $('agree-status').textContent = 'Turned off, and the log you picked is forgotten.';
+    $('agree-status').textContent = 'Turned off, and the log you gave it is forgotten.';
   });
   renderAgreement();
+
+  // The log folder paths, ready to paste into the file picker.
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-copy]');
+    if (!b) return;
+    const text = $(b.dataset.copy).textContent;
+    const done = (ok) => {
+      b.textContent = ok ? 'Copied' : 'Select it and copy';
+      setTimeout(() => (b.textContent = 'Copy'), 2000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => done(true), () => done(false));
+    else done(false);
+  });
 
   // ---------- The code, from the files the site runs ----------
 

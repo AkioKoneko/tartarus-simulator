@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261015e">
+<link rel="stylesheet" href="css/style.css?v=20261016a">
 </head>
 <body>
 <main class="analyzer" id="analyzer">
@@ -31,13 +31,17 @@
       <button type="button" class="btn btn-danger" id="az-clear">Clear the board</button>
     </div>
     <p class="az-notice" id="az-notice" aria-live="polite"></p>
+    <div class="az-follow" id="az-follow" hidden>
+      <p id="az-follow-text" aria-live="polite"></p>
+      <button type="button" class="btn" id="az-follow-now">Take a picture now</button>
+    </div>
   </header>
 
   <section class="az-panel az-scan" id="az-scan" aria-labelledby="az-scan-title">
     <div class="az-scan-head">
       <div>
         <h2 class="az-h2" id="az-scan-title">Read a screenshot</h2>
-        <p class="az-scan-lede">Paste a screenshot of your prison screen (<kbd>Ctrl</kbd>+<kbd>V</kbd>), drop it here, or choose a file. The reader fills in your board, instruments, Chromatic prisoners, today's doors and the days until the riot. Check what it read, then use it. It's still learning: anything it's unsure of is marked Check.</p>
+        <p class="az-scan-lede">Paste a screenshot of your prison screen (<kbd>Ctrl</kbd>+<kbd>V</kbd>), drop it here, or choose a file. The reader fills in your board, instruments, Chromatic prisoners, today's doors and the days until the riot, and the advice follows straight away. It's still learning: anything it's unsure of is marked Check. If the board doesn't match your game, fix it and press Recheck.</p>
       </div>
       <div class="az-scan-buttons">
         <label class="btn" for="az-scan-file">Choose a screenshot</label>
@@ -46,6 +50,11 @@
       </div>
     </div>
     <p class="az-scan-status" id="az-scan-status" aria-live="polite"></p>
+    <div class="az-scan-links">
+      <button type="button" class="link" id="az-scan-show" hidden>Show the screenshot</button>
+      <button type="button" class="link" id="az-scan-back" hidden>Go back to the board before it</button>
+    </div>
+    <label class="toggle az-scan-always"><input type="checkbox" id="az-scan-always"><span><strong>Show screenshots after reading</strong><small>Off: a screenshot is read into the board and stays hidden, from Follow my game or pasted. Show the screenshot opens it when you want it. Remembered in this browser.</small></span></label>
     <div class="az-scan-result" id="az-scan-result" hidden>
       <div class="az-scan-preview"><canvas id="az-scan-canvas" aria-label="Your screenshot, with what the reader found drawn on it"></canvas></div>
       <div class="az-scan-side">
@@ -55,8 +64,7 @@
           <canvas id="az-scan-objective-canvas" aria-label="The objective text from your screenshot"></canvas>
         </div>
         <div class="az-res-actions">
-          <button type="button" class="btn btn-primary" id="az-scan-use">Use this board</button>
-          <button type="button" class="btn" id="az-scan-discard">Discard</button>
+          <button type="button" class="btn" id="az-scan-discard">Hide the screenshot</button>
         </div>
       </div>
     </div>
@@ -77,10 +85,12 @@
                 <option value="other">Another objective</option>
                 <option value="king">King of the Caged</option>
                 <option value="walk">Prison Walk</option>
+                <option value="consume">Survival of the Fittest</option>
+                <option value="incident">Undercurrents</option>
               </select>
             </h3>
             <p id="az-objective-text">At least 1 inmate's rarity reaches Supreme</p>
-            <label class="az-walk" id="az-walk-wrap" hidden><span>Tiles moved</span> <input type="number" id="az-walk" min="0" max="18" step="1"> <span>/18</span></label>
+            <label class="az-walk" id="az-walk-wrap" hidden><span id="az-walk-unit">Tiles moved</span> <input type="number" id="az-walk" min="0" max="18" step="1"> <span id="az-walk-need">/18</span></label>
             <label class="az-done"><input type="checkbox" id="az-milestone"> <span>Completed</span></label>
           </section>
           <section class="az-instruments-panel" aria-labelledby="az-instruments-title">
@@ -114,8 +124,9 @@
             <p class="field-note">Light up the doors your game offers today. They come from the next six cells clockwise from the warden.</p>
           </div>
           <div class="az-stepbox az-used" data-step="manage choice">
-            <label class="toggle"><input type="checkbox" id="az-swapped"><span><strong>Replace used today</strong><small>Only the warden's inmate can be swapped, once a day.</small></span></label>
-            <label class="toggle"><input type="checkbox" id="az-devoured"><span><strong>Devour used today</strong><small>Only the warden's inmate can devour, once a day.</small></span></label>
+            <label class="toggle"><input type="checkbox" id="az-swapped"><span><strong>Replace used today</strong><small>Only the warden's inmate can be swapped. A day has a swap or a devour, not both, unless the game offers a consume after the swap.</small></span></label>
+            <label class="toggle" id="az-consume-offered-wrap" hidden><input type="checkbox" id="az-consume-offered"><span><strong>Consume on offer after the swap</strong><small>Tick it when your game shows Consume after today's swap. Only then is a consume advised. Follow my game ticks it when the log shows the offer.</small></span></label>
+            <label class="toggle"><input type="checkbox" id="az-devoured"><span><strong>Devour used today</strong><small>Only the warden's inmate can devour. A day has a swap or a devour, not both.</small></span></label>
           </div>
           <div class="az-stepbox" data-step="office">
             <p class="field-note">Pick this only while your game shows the Instigate and Bestow buttons. The warden stands in the office (cell 01), and the analyzer ranks the two. Once you've taken one, the buttons are gone: paste your next screenshot, or go back to Make Your Decision.</p>
@@ -142,7 +153,7 @@
           <div class="az-stepbox" data-step="choice">
             <span class="field-label">What's on offer</span>
             <div class="az-seg" id="az-choice-kind">
-              <button type="button" data-v="tool">Objective's instrument</button>
+              <button type="button" data-v="tool">Instrument pick</button>
               <button type="button" data-v="refit">Refit instrument</button>
               <button type="button" data-v="gift">Warden's Treasure gift</button>
             </div>
@@ -178,6 +189,13 @@
           <button type="button" class="btn btn-primary" id="az-next" title="Plays this move, then the rest of the day by the strategy, and goes to the next day. Then paste a screenshot of your new day.">OK, on to the next day</button>
           <button type="button" class="btn" id="az-do">Do it here</button>
           <button type="button" class="btn" id="az-undo" hidden>Undo</button>
+        </div>
+        <div class="az-res-shot" id="az-res-shot" hidden>
+          <p class="trainer-why" id="az-res-shot-text"></p>
+          <div class="az-res-actions">
+            <button type="button" class="btn" id="az-fix">Fix the board</button>
+            <button type="button" class="btn" id="az-recheck">Recheck</button>
+          </div>
         </div>
         <div class="trainer-body" id="az-res-body"></div>
         <p class="solver-status" id="az-res-status"></p>
@@ -294,14 +312,14 @@
   </footer>
 </main>
 
-<script src="js/engine.js?v=20261015e"></script>
-<script src="js/board.js?v=20261015e"></script>
-<script src="js/tool-combos.js?v=20261015e"></script>
-<script src="js/solver.js?v=20261015e"></script>
-<script src="js/live.js?v=20261015e"></script>
-<script src="js/report.js?v=20261015e"></script>
-<script src="js/capture.js?v=20261015e"></script>
-<script src="js/analyze.js?v=20261015e"></script>
-<script src="js/auto.js?v=20261015e"></script>
+<script src="js/engine.js?v=20261016a"></script>
+<script src="js/board.js?v=20261016a"></script>
+<script src="js/tool-combos.js?v=20261016a"></script>
+<script src="js/solver.js?v=20261016a"></script>
+<script src="js/live.js?v=20261016a"></script>
+<script src="js/report.js?v=20261016a"></script>
+<script src="js/capture.js?v=20261016a"></script>
+<script src="js/analyze.js?v=20261016a"></script>
+<script src="js/auto.js?v=20261016a"></script>
 </body>
 </html>
