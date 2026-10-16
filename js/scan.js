@@ -1367,6 +1367,8 @@
     let pickCell = false;
     let replace = false;
     let end = false;
+    // Seven-letter labels: "Replace", or "Consume" (judged by its card below).
+    const labels = [];
     // The row's title, by its words' letter counts: "Make Your Decision"
     // [4, 4, 8], or the Sewer Ratway's "Select an Objective" [6, 2, 9]
     // (a stray mark can lead).
@@ -1384,7 +1386,7 @@
             if (near(words, [6, 2, 9]) && !near(words, [4, 4, 8])) pickCell = true;
             else title = true; // Make Your Decision
           }
-          else if (n >= 6 && n <= 8 && span > 3 && span < 6.5) replace = true;
+          else if (n >= 6 && n <= 8 && span > 3 && span < 6.5) labels.push({ x0: p.x0, x1: p.x1, mid: line.mid, h: line.h });
           else if (n === 3 && span > 1.5 && span < 3.2) end = true;
         }
       }
@@ -1407,6 +1409,25 @@
       if (n) red = Math.max(red, hit / n);
     }
     const consume = red > 0.025;
+    // "Consume" has as many letters as "Replace": a label on the Consume
+    // card's red is that card's. Read across the label and above it.
+    const redBy = (l) => {
+      let n = 0;
+      let hit = 0;
+      const w = l.x1 - l.x0;
+      for (let y = Math.max(0, Math.round(l.mid - 5 * l.h)); y < Math.min(img.height, l.mid + l.h); y += 2) {
+        for (let x = Math.max(0, Math.round(l.x0 - w / 2)); x < Math.min(img.width, l.x1 + w / 2); x += 2) {
+          const [h, s, v] = hsvAt(img, x, y);
+          n += 1;
+          if ((h < 12 || h > 348) && s > 0.55 && v > 0.3) hit += 1;
+        }
+      }
+      return n ? hit / n : 0;
+    };
+    for (const l of labels) {
+      l.red = redBy(l);
+      if (l.red < 0.01) replace = true;
+    }
     // The Sewer Ratway: the player picks any cell, with no cards.
     if (pickCell && !title) return { ratway: true, replace: false, consume: false, end: false, title: false };
     // Without its title, a stray short word isn't a row of cards.
