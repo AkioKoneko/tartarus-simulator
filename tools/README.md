@@ -99,13 +99,33 @@ The two-meal chain's challenge profile had a one-round tune (5.2 million runs, 7
 
 The Chinese sim's two-meal food chain (Mammoth also eats Wolf, Lion also eats Rat) was confirmed not to be in the live game on 2026-10-15, so it was removed from the simulator and the lab. The older sections below still show the two-meal numbers measured at the time; their files are in the git history.
 
+### Measured again with the live odds (2026-10-16)
+
+With the live rarity odds (40/38/12/8/2 behind doors and 52/32/9/6/1.5 from a Replace, two sections down), the instrument pairs, the guide and the contract challenge were measured again on 4 threads. "Treasure" Hunt (report 41) wasn't in the event pool yet.
+
+- **Headline, rewards on** (`guide --no-tune`, 100,000 runs per measurement, 5,300,000 runs in 27.9 minutes): **3.380** Rainbows a run (±0.011), up from 2.958. 97.2% of runs vault one (was 95.6%), the first around day 9 (was 10), with 9.4 Replaces and 5.1 consumes per run. With no instruments, 1.026, up from 0.816.
+- **Instruments alone:** Iron Crown of the Prison King 2.73, Hangman's Noose 2.27, Scapegoat's Guillotine 2.20, Kin's Coin of Fate 2.14, Severed Iron Maiden 2.05, Long-Chained Shackles 1.85, Executioner's Blacklist 1.79, Agonizing Muzzle 1.73, Ravenous Chains 1.71. The drill ranking (`toolRank`) follows this order.
+  - The Noose rose the most (from 1.67): with the live Replace odds, 36% of what it brings in is Legendary and 9% Supreme (it was 29% and none).
+  - Level with no instrument: the Searing Branding Iron and the Iron Pestle (1.02). Worse: the Gaoler's Execution Axe 0.97, the Forged Key 0.84 and the Squirming Iron Box 0.56.
+- **Pairs** (`combos --max 2`): 407 sets of up to 2 instruments, each to ±0.01, in 16.4M runs. The Maiden with the Noose, at 15 Rainbows a run, took 1.18M of them. The pair lab's no-instrument baseline is 1.030.
+  - Best pairs: the Maiden with the Noose (15.16), the Maiden with the Scapegoat's Guillotine (5.76), the Squirming Iron Box with the Skewered Rat Heads (4.11), the Crown with the Muzzle (4.08) and the Noose with Kin's Coin (4.01).
+  - Beyond their parts: Iron Box with Rat Heads +2.96, Maiden with Guillotine +2.53, Iron Box with Kin's Coin +2.24, Maiden with the Burning Stake +1.23, Crown with the Lost Ring of Keys +1.06.
+  - Clashes: the Scapegoat's Guillotine with the Crown (−1.01), the Noose (−0.96) and Kin's Coin (−0.84). Likely because each of its Replaces removes 2 inmates the Crown's Lions and the Coin's matching pairs need, and with the Noose the new inmate already comes in Rare or better.
+  - The best second instrument differs from the single ranking for 10 of the 28.
+- **Habits** (no instruments): always taking Bestow (0.807), preferring short walks (0.858), always accepting Executions (0.886) and never replacing (0.900) cost the most.
+- **"Never replacing" was mis-measured.** Since the Burning Stake (f0100c3), the solver's Replace cap had a floor at Normal, so `swapMaxTier` −1 still replaced Normals and scored the same as "Replacing Normals only". That's why the second-meals section below found never swapping "about even", and the strategy page and the Trainer said so.
+  - Now −1 never replaces, a Tusk cell included: 0.900 against 1.026, on the guide's prisons (`variants --seed GUIDE`, where the full strategy gives the guide's 1.0259 again). The page and the Trainer now say never replacing costs Rainbows.
+  - The profiles the site plays all cap at Normal or higher, so no advice changed.
+- **Warden's Treasure:** judging each gift on the spot (3.380) beats always taking the same one: Crimson Vintage 3.20, Three-Headed Thumb Ring 3.00, Brass Horn of Strife 2.87, Brand of Original Sin 2.81.
+- **Contract challenge** (`cguide --games 200000 --habit-games 100000`, 1,700,000 runs in 15.1 minutes): 95.4% pass with 52.5 points, up from 93.7% and 51.8. Sending the most points on every contract passes 35.1%, keeping 1 voucher 78.2%, and playing with the drill weights 93.1%. The challenge profile and its instrument ranking weren't tuned again.
+
 ### Sewer Ratway (2026-10-16)
 
 Report 13 and the user's screenshots: "Select any 1 cell (excluding the Interrogation Room), move to that cell, and trigger subsequent content", then the game asks "Select an Objective" with every cell but the office on offer, the warden's own included. It's in the event pool with the others. Its card has only Confirm, and moving to the warden's own cell keeps it in place, so the strategy always takes it. Then it weighs every cell as it weighs a patrol, without the walk: the move adds no tiles and sets off no Shackles. The analyzer has a Sewer Ratway step for that screen.
 
 ### Live odds for doors and Replace (2026-10-16)
 
-Players' boards (tools/live-data.js) showed the simulator's rarity odds were off. Behind doors, over 1,011 doors (no tutorial runs, no Sorting Hook or Felon's Dog Tag), live is 39.8% Normal, 38.5% Magic, 11.7% Rare, 8.2% Legendary and 1.9% Supreme, steady from day 1 to day 15+. The simulator had 52/27/15/6/0. Replace brings in 51.7/31.4/9.2/6.1/1.5 over 261 Replaces (no Noose, Maiden, Scapegoat's Guillotine or Stake roll). At the user's word, the simulator now uses 40/38/12/8/2 for doors (`tierWeights`) and 52/32/9/6/1.5 for Replace (`swapWeights`, new; the Lab takes halves). The Lab's saved settings move to params:v6 and pick up the new door odds. Everything below was measured with the old odds; it's being measured again.
+Players' boards (tools/live-data.js) showed the simulator's rarity odds were off. Behind doors, over 1,011 doors (no tutorial runs, no Sorting Hook or Felon's Dog Tag), live is 39.8% Normal, 38.5% Magic, 11.7% Rare, 8.2% Legendary and 1.9% Supreme, steady from day 1 to day 15+. The simulator had 52/27/15/6/0. Replace brings in 51.7/31.4/9.2/6.1/1.5 over 261 Replaces (no Noose, Maiden, Scapegoat's Guillotine or Stake roll). At the user's word, the simulator now uses 40/38/12/8/2 for doors (`tierWeights`) and 52/32/9/6/1.5 for Replace (`swapWeights`, new; the Lab takes halves). The Lab's saved settings move to params:v6 and pick up the new door odds. Everything below was measured with the old odds; "Measured again with the live odds", above, has the new measurements.
 
 ### Usurpation III and IV (2026-10-16)
 
@@ -126,7 +146,7 @@ From Legendary up, Mammoths also eat Wolves and Lions also eat Rats (fbbc8ba), a
 - **Headline, rewards on:** 2.958 Rainbows a run (±0.010), up from 2.153. With no instruments, 0.816, up from 0.627.
 - **Instruments alone,** 100,000 runs each: Iron Crown of the Prison King 2.58, Severed Iron Maiden 2.08, Kin's Coin of Fate 1.96, Scapegoat's Guillotine 1.82, Hangman's Noose 1.67, Long-Chained Shackles 1.61, then the Blacklist and the Muzzle at 1.54. The drill ranking (`toolRank`) follows this order. The Squirming Iron Box (0.45) and the Forged Key (0.57) still cost Rainbows on their own.
 - **Pairs:** 407 sets of up to 2 instruments, each to ±0.01, in 14.8M runs. The pair lab's no-instrument baseline is 0.817. The best pairs are the Maiden with the Noose (16.28), the Maiden with the Scapegoat's Guillotine (5.29) and the Crown with the Muzzle (4.01). The Crown gains most beyond its parts with the Lost Ring of Keys (+1.00) and the Muzzle (+0.70).
-- **Habits** (no instruments): never swapping now comes out about even (0.813 against 0.816), where before the second meals it was among the costliest habits. Always taking Bestow (0.590), short walks (0.651) and always accepting Executions (0.661) cost the most. The strategy page and the Trainer now say swapping is about even without tools.
+- **Habits** (no instruments): never swapping now comes out about even (0.813 against 0.816), where before the second meals it was among the costliest habits. (A bug: since the Burning Stake, "never" still swapped Normals, so this was Normals only. See the live-odds measurements above.) Always taking Bestow (0.590), short walks (0.651) and always accepting Executions (0.661) cost the most. The strategy page and the Trainer now say swapping is about even without tools.
 - **Stopping chains:** in the 100,000-run headline the strategy never stopped a chain (`stopMargin` 0). The live check still weighs Stop the chain (Cancel) at every bite.
 - **Contract challenge:** 93.7% pass and 51.8 points, up from 90.7% and 51.3.
 
