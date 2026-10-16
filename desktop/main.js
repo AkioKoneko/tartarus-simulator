@@ -45,6 +45,8 @@ const GAME_TITLE = new RegExp(arg('game-title') || '^Torchlight: Infinite\\s*$')
 // #endregion
 const LOG_OVERRIDE = arg('log');
 const TEST = flag('test');
+// Tests that need windows shown put them off every screen.
+const OFFSCREEN = TEST && flag('offscreen');
 const DEV = flag('dev') || TEST;
 // The maintainer's debug build (--dev) keeps 1 GB of recorded runs; the
 // normal build keeps the last few.
@@ -54,6 +56,11 @@ const HOTKEYS = { overlay: 'Control+Alt+O', analyzer: 'Control+Alt+A', capture: 
 const ICON = path.join(__dirname, 'build', 'icon.png');
 
 if (arg('user-data')) app.setPath('userData', path.resolve(arg('user-data')));
+// The app's windows sit behind a full-screen game, hidden or not. Chromium
+// treats a covered window as not drawn, and a window shown again could show
+// an old, narrow picture of its page: every window draws as if in front.
+app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 app.setAppUserModelId('io.github.blahdot3h.tartarus-overlay');
 
 // ---------- Settings ----------
@@ -543,26 +550,25 @@ function route(url) {
 function show(name) {
   const win = wins[name];
   if (!win || win.isDestroyed()) return;
+  if (OFFSCREEN) win.setPosition(Math.min(...screen.getAllDisplays().map((d) => d.bounds.x)) - win.getSize()[0] - 400, 0);
   if (win.isMinimized()) win.restore();
   win.show();
   win.focus();
   redraw(win);
 }
 
-// A window made while hidden can show an old, narrow picture of its page
-// until something makes it draw again: a size nudge makes it draw at once.
+// A window shown after being hidden can show an old, narrow picture of its
+// page until something makes it draw again: a size nudge lays the page out
+// at its real size, and it's drawn again in full twice over.
 function redraw(win) {
-  if (win.isMaximized() || win.isFullScreen()) {
-    win.webContents.invalidate();
-    return;
+  const paint = () => !win.isDestroyed() && win.webContents.invalidate();
+  if (!win.isMaximized() && !win.isFullScreen()) {
+    const [w, h] = win.getSize();
+    setTimeout(() => !win.isDestroyed() && win.setSize(w + 1, h + 1), 50);
+    setTimeout(() => !win.isDestroyed() && win.setSize(w, h), 150);
   }
-  const [w, h] = win.getSize();
-  win.setSize(w, h + 1);
-  setTimeout(() => {
-    if (win.isDestroyed()) return;
-    win.setSize(w, h);
-    win.webContents.invalidate();
-  }, 80);
+  setTimeout(paint, 300);
+  setTimeout(paint, 1000);
 }
 
 function toggle(name) {
@@ -827,7 +833,7 @@ ipcMain.on('site:follow', (e, data) => {
   if (typeof data.agreed === 'boolean' && data.agreed !== agreed) {
     agreed = data.agreed;
     // Before anything runs, the player reads follow.html and agrees there.
-    if (!agreed && !TEST) show('follow');
+    if (!agreed && (!TEST || OFFSCREEN)) show('follow');
     pushShell();
   }
   send('overlay', 'follow', data);
@@ -1077,10 +1083,14 @@ if (!app.requestSingleInstanceLock()) {
   // so the pages' storage is written out.
   if (TEST && process.stdin) {
     process.stdin.on('data', (d) => {
-      if (/quit/.test(String(d))) {
+      const text = String(d);
+      if (/quit/.test(text)) {
         quitting = true;
         app.quit();
       }
+      // "hide follow": as the player closes that window with its X.
+      const hide = /hide (w+)/.exec(text);
+      if (hide && wins[hide[1]] && !wins[hide[1]].isDestroyed()) wins[hide[1]].hide();
     });
   }
 
