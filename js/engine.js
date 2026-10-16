@@ -429,8 +429,11 @@
   // on a day with a special event). The analyzer sets
   // used.devourAfterSwap only when the game shows that offer; it lasts the
   // day.
-  const canDevourNow = (state) => state.used.devour < 1 && (state.used.swap < 1 || !!state.used.devourAfterSwap);
-  const canSwapNow = (state) => state.used.devour < 1 && state.used.swap < state.params.swapsPerDay;
+  // used.noDevour / used.noSwap: the game shows no Consume / Replace card
+  // today (the analyzer reads them), so that one isn't on offer, while the
+  // other still is.
+  const canDevourNow = (state) => state.used.devour < 1 && !state.used.noDevour && (state.used.swap < 1 || !!state.used.devourAfterSwap);
+  const canSwapNow = (state) => state.used.devour < 1 && !state.used.noSwap && state.used.swap < state.params.swapsPerDay;
 
   function startOptions(state) {
     const cell = state.cells[state.position];
@@ -1355,6 +1358,7 @@
     state.used.swap += 1;
     state.stats.swaps += 1;
     logAt(state, at, 'swap', `Swapped out the ${describe(old)} in cell ${cellLabel(n)}. In came a ${describe(fresh)}.`, { type: 'swap', cell: n, old: snap(old), fresh: snap(fresh) });
+    if (state.used.noSwap) return fail('Your game offers no Replace today.');
     // Severed Iron Maiden: as many inmates above the newcomer's rarity as below it.
     if (has(state, 'maiden')) {
       const others = boardInmates(state).filter((i) => i.id !== fresh.id);

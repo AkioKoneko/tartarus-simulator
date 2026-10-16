@@ -108,6 +108,10 @@
       // The game offers a consume after today's swap (it shows the button,
       // or Follow my game saw it in the log): only then is one advised.
       consumeOffered: false,
+      // The game shows no Replace / Consume card now (read from a screenshot):
+      // that move isn't advised, and the other one still can be.
+      noSwap: false,
+      noDevour: false,
       eventKind: 'chain',
       // rerolls: a pet's re-rolls left on an instrument offer.
       choice: { kind: 'tool', options: [], rerolls: 0 },
@@ -250,7 +254,7 @@
     }
 
     const usedToday = () => {
-      st.used = { swap: m.swapUsed ? 1 : 0, devour: m.devourUsed ? 1 : 0, devourAfterSwap: !!m.consumeOffered };
+      st.used = { swap: m.swapUsed ? 1 : 0, devour: m.devourUsed ? 1 : 0, devourAfterSwap: !!m.consumeOffered, noSwap: !!m.noSwap, noDevour: !!m.noDevour };
     };
     switch (m.step) {
       case 'patrol': {
@@ -384,6 +388,8 @@
     m.devourUsed = st.used.devour > 0;
     m.swapUsed = st.used.swap > 0;
     m.consumeOffered = !!st.used.devourAfterSwap;
+    m.noSwap = !!st.used.noSwap;
+    m.noDevour = !!st.used.noDevour;
     if (ch) {
       m.ch.vouchers = ch.vouchers;
       m.ch.contracts = ch.contracts.map((c) => c.id);
@@ -1878,10 +1884,17 @@
     // Consume card with no Replace card is a consume on offer, even after
     // today's swap.
     m.consumeOffered = false;
+    m.noSwap = false;
+    m.noDevour = false;
     if (r.decision) {
-      m.swapUsed = !r.decision.replace;
-      m.devourUsed = !r.decision.consume;
-      m.consumeOffered = !!r.decision.consume && !r.decision.replace;
+      // A missing card means that move isn't on offer now, not that it was
+      // used: a used devour would rule out today's swap too.
+      m.swapUsed = false;
+      m.devourUsed = false;
+      m.noSwap = !r.decision.replace;
+      m.noDevour = !r.decision.consume;
+      // A Consume card after today's swap is a consume on offer.
+      m.consumeOffered = !!r.decision.consume;
     }
     const read = r.tools && r.tools.tools ? r.tools.tools : [];
     const unsim = read.filter((t) => !t.sim);
