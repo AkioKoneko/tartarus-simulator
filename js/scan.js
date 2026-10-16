@@ -517,7 +517,8 @@
         g.cx = (g.cx * g.n + b.cx * b.n) / (g.n + b.n);
         g.cy = (g.cy * g.n + b.cy * b.n) / (g.n + b.n);
         g.n += b.n;
-      } else groups.push({ cx: b.cx, cy: b.cy, n: b.n });
+        g.box = [Math.min(g.box[0], b.x0), Math.min(g.box[1], b.y0), Math.max(g.box[2], b.x1), Math.max(g.box[3], b.y1)];
+      } else groups.push({ cx: b.cx, cy: b.cy, n: b.n, box: [b.x0, b.y0, b.x1, b.y1] });
     }
     let best = null;
     for (const b of groups) {
@@ -535,13 +536,16 @@
       });
       if (dist > 0.55) continue;
       const fit = area / 500 - dist;
-      if (!best || fit > best.fit) best = { cell, fit, dist, area };
+      if (!best || fit > best.fit) best = { cell, fit, dist, area, box: b.box };
     }
-    return best ? { cell: best.cell, conf: Math.max(0.2, Math.min(1, 1 - best.dist)) } : null;
+    // box: the arrow's extent, which findEvents leaves alone.
+    return best ? { cell: best.cell, conf: Math.max(0.2, Math.min(1, 1 - best.dist)), box: best.box } : null;
   }
 
-  // An event's "!" sits just outside its cell: orange, tall and thin.
-  function findEvents(img, loc, cells) {
+  // An event's "!" sits just outside its cell: orange, tall and thin. The
+  // warden's gold arrow (warden.box) has points that look the same.
+  function findEvents(img, loc, cells, warden) {
+    const arrow = warden && warden.box;
     const corners = [[-0.7, -1.1], [5.7, -1.1], [5.7, 3.5], [-0.7, 3.5]].map(([u, v]) => at(loc, u, v));
     const xs = corners.map((c) => c[0]);
     const ys = corners.map((c) => c[1]);
@@ -553,6 +557,7 @@
     for (const b of found) {
       const k = loc.s;
       if (b.h < 12 * k || b.h > 36 * k || b.h < 1.8 * b.w) continue;
+      if (arrow && b.cx > arrow[0] - 4 * k && b.cx < arrow[2] + 4 * k && b.cy > arrow[1] - 4 * k && b.cy < arrow[3] + 4 * k) continue;
       // Not inside a cell's room, where nests and frames are orange too.
       let nearest = -1;
       let dist = Infinity;
@@ -716,19 +721,20 @@
   }
 
   // The most likely number for a word, from a list of allowed values.
-  function readNumber(gray, w, h, word, lineH, digits, allowed) {
+  // With all, every allowed value that fits the word, best first.
+  function readNumber(gray, w, h, word, lineH, digits, allowed, all) {
     const glyphs = word.glyphs;
     const per = glyphs.map((g) => digitScores(gray, w, h, g, lineH, digits));
-    let best = null;
+    const out = [];
     for (const value of allowed) {
       const s = String(value);
       if (s.length !== glyphs.length) continue;
       let sc = 0;
       for (let i = 0; i < s.length; i++) sc += per[i][Number(s[i])];
-      sc /= s.length;
-      if (!best || sc > best.score) best = { value, score: sc };
+      out.push({ value, score: sc / s.length });
     }
-    return best;
+    out.sort((a, b) => b.score - a.score);
+    return all ? out : out[0] || null;
   }
 
   // The board placed by its cell numbers, for screens where the frame match
@@ -973,17 +979,18 @@
     // Doors are prison cells, 02-16.
     const allowed = [];
     for (let c = 2; c <= 16; c++) allowed.push(c);
-    const read = cards.map((c) => {
+    const options = cards.map((c) => {
       const glyphs = c.word.glyphs;
       // A blob wider than any one digit (about 0.65 of the letter height)
       // is two digits that touch, like "11" in small text.
       if (glyphs.length === 1 && glyphs[0].w > 0.72 * c.h) {
         const parts = splitGlyph(gray, img.width, glyphs[0]);
-        if (parts) return readNumber(gray, img.width, img.height, { glyphs: parts }, c.h, ref.digits, allowed);
+        if (parts) return readNumber(gray, img.width, img.height, { glyphs: parts }, c.h, ref.digits, allowed, true);
       }
-      return readNumber(gray, img.width, img.height, c.word, c.h, ref.digits, allowed);
+      return readNumber(gray, img.width, img.height, c.word, c.h, ref.digits, allowed, true);
     });
-    if (read.some((r) => !r)) return null;
+    if (options.some((o) => !o.length)) return null;
+    const read = distinctNumbers(options);
     const score = read.reduce((a, r) => a + r.score, 0) / read.length;
     const cells = [...new Set(read.map((r) => r.value - 1))];
     const boxes = cards.map((c) => [c.p.x0, c.p.y0, c.p.x1, c.p.y1]);
@@ -992,7 +999,34 @@
       cells.push(0);
       boxes.push([cards.office.x0, cards.office.y0, cards.office.x1, cards.office.y1]);
     }
-    return { cells, conf: Math.max(0.1, Math.min(1, (score - 0.3) * 1.6)) * (cells.length === read.length + (cards.office ? 1 : 0) ? 1 : 0.4), boxes };
+    // A card moved off its first reading, or two still alike, is worth a check.
+    const moved = read.some((r, i) => r.value !== options[i][0].value);
+    return { cells, conf: Math.max(0.1, Math.min(1, (score - 0.3) * 1.6)) * (cells.length === read.length + (cards.office ? 1 : 0) ? 1 : 0.4) * (moved ? 0.55 : 1), boxes };
+  }
+
+  // Doors lead to different cells, so two cards can't read the same number
+  // (a small "3" can pass for this font's footed "1"). From each card's
+  // readings, best first: the set of different numbers with the best total.
+  // Cards that can't all differ keep their first readings.
+  function distinctNumbers(options) {
+    const first = options.map((o) => o[0]);
+    if (new Set(first.map((r) => r.value)).size === first.length) return first;
+    const top = options.map((o) => o.slice(0, 4));
+    let best = null;
+    const pick = (i, chosen, total) => {
+      if (i === top.length) {
+        if (!best || total > best.total) best = { total, chosen: chosen.slice() };
+        return;
+      }
+      for (const r of top[i]) {
+        if (chosen.some((c) => c.value === r.value)) continue;
+        chosen.push(r);
+        pick(i + 1, chosen, total + r.score);
+        chosen.pop();
+      }
+    };
+    pick(0, [], 0);
+    return best ? best.chosen : first;
   }
 
   // "N day(s) until Riot" over the board: the number is the tall glyphs at
@@ -1471,7 +1505,7 @@
     const cells = [];
     for (let n = 0; n < 16; n++) cells.push(readCell(img, sharp, loc, n, ref));
     const warden = findWarden(img, loc);
-    for (const n of findEvents(img, loc, cells)) if (cells[n].kind === 'locked') cells[n].event = true;
+    for (const n of findEvents(img, loc, cells, warden)) if (cells[n].kind === 'locked') cells[n].event = true;
     const doors = readDoors(img, sharp, loc, ref);
     const days = readDays(img, sharp, loc, ref);
     const tools = readTools(img, loc, ref);
