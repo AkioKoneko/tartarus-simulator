@@ -43,8 +43,13 @@ const TOOLS = {
   axe: { name: "Gaoler's Execution Axe", sim: 'axe', card: ['cards_2026-10-15_axe_shackles_collar.png', 222, 180, 118, 175] },
   shackles: { name: 'Long-Chained Shackles', sim: 'shackles', card: ['cards_2026-10-15_axe_shackles_collar.png', 670, 235, 153, 150] },
   collar: { name: "Maddened Beast's Barbed Collar", sim: 'collar', card: ['cards_2026-10-15_axe_shackles_collar.png', 1150, 235, 150, 165] },
-  // From players' reports: the Beastcage's panel icon (report 7, as PNG).
+  // From players' reports: the Beastcage's panel icon (report 7) and the
+  // Severed Iron Maiden's (report 9), as PNG.
   cage: { name: 'Crowded Beastcage', sim: 'cage', card: ['report-7-crowded-beastcage.png', 16, 192, 68, 118] },
+  maiden: { name: 'Severed Iron Maiden', sim: 'maiden', card: null, icons: ['report-9-severed-iron-maiden.png'] },
+  // Report 11 shows the whip's card; report 10 its panel icon (the reader
+  // took it for the Iron Box).
+  whip: { name: 'Barbed Whip', sim: 'whip', card: ['report-11-barbed-whip-card.png', 440, 160, 120, 118], icons: ['report-10-barbed-whip.png'] },
   dogtag: { name: "Felon's Dog Tag", sim: 'dogtag', card: null },
 };
 
@@ -291,12 +296,28 @@ function tools() {
       icons += 1;
     });
   }
-  // Card art for every instrument, until panel icons of each are labeled.
+  // Card art for every instrument, until panel icons of each are labeled,
+  // and panel icons cut from players' reports (`icons`).
   for (const [id, t] of Object.entries(TOOLS)) {
-    if (!t.card) continue;
-    const [file, x, y, w, h] = t.card;
-    const img = read(file);
-    out.push({ id, from: 'card', feat: S.artFeature(img, ...artBox(img, x, y, w, h)) });
+    if (t.card) {
+      const [file, x, y, w, h] = t.card;
+      const img = read(file);
+      out.push({ id, from: 'card', feat: S.artFeature(img, ...artBox(img, x, y, w, h)) });
+    }
+    // A report's screenshot with this instrument alone on the panel: its
+    // icon, found as the reader finds it.
+    for (const file of t.icons || []) {
+      const img = read(file);
+      // Reports come at any size, so the board is found as the reader finds it.
+      const loc = S.locateBoard(img, S.grayOf(img), { board: { points: board.points, width: board.width, height: board.height } });
+      const found = loc ? S.findToolIcons(img, loc) : { icons: [] };
+      if (found.icons.length !== 1) {
+        console.log(`  ${file}: found ${found.icons.length} icons, expected 1; skipped`);
+        continue;
+      }
+      out.push({ id, from: 'icon', feat: S.artFeature(img, ...found.icons[0].box) });
+      icons += 1;
+    }
   }
   for (const r of out) {
     r.feat.grid = round(r.feat.grid, 1);

@@ -695,6 +695,7 @@
       if (notes.length) extras.push(`Bonus: ${notes.join(', ')}.`);
       extras.push(`This is today’s devour${canSwapNow(st) ? ', and it uses up today’s swap' : ''}. Afterwards the eater must keep eating while it can: a single meal is taken at once, and you pick when there’s a choice. Click the target again to devour.`);
       if (saw) extras.push('Rusty Saw may add +1.');
+      if (st.tools.includes('whip')) extras.push('Barbed Whip: 35% chance of +1.');
       if (st.tools.includes('collar')) extras.push('Barbed Collar: each bite after this one has an 80% chance of +1.');
       if (revenge) extras.push("Avenger's Casket may open a new meal.");
       if (T.linkOf(st, eater.id) && to < T.RAINBOW) extras.push('If its beast changes, its prey mark ends.');
@@ -720,6 +721,7 @@
       const extras = [];
       if (notes.length) extras.push(`Bonus: ${notes.join(', ')}.`);
       if (st.tools.includes('saw')) extras.push('Rusty Saw may add +1.');
+      if (st.tools.includes('whip')) extras.push('Barbed Whip: 35% chance of +1.');
       if (st.tools.includes('collar')) extras.push('Barbed Collar: 80% chance of +1.');
       const outcome = to === T.RAINBOW ? 'reaches Rainbow and leaves for the vault' : `rises to ${T.tierName(to)}, then its beast re-rolls`;
       setDecision(`Next bite, +${gain}?`, `The ${T.describe(eater)} eats ${meal} in cell ${L(p.to)}. It ${outcome}. ${extras.join(' ')}`.trim(), [

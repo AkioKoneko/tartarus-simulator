@@ -131,6 +131,17 @@
     // moving no more than 3 tiles in a single movement: randomly opens 1 cell".
     blacklist: { name: "Executioner's Blacklist", text: 'When a patrol opens a door and 5 or fewer cells are still locked, 2 random inmates rise a tier.' },
     shortchain: { name: 'Short-Chained Shackles', text: 'When a patrol walks 3 cells or fewer, 50% chance that 1 random locked cell opens. That door triggers nothing else.' },
+    // A player's report (#9, 2026-10-16), the card as typed: "Condition: The
+    // quantities of this Inmate's Higher-Tier Inmates and Lower-Tier Inmates
+    // are equal. Effect: +3 additional Rarity Tiers to the inmate this
+    // Replacement" (spelled "Servered"). Read as the inmate a swap (the
+    // game's Replace) brings in, counted against the rest of the block.
+    maiden: { name: 'Severed Iron Maiden', text: 'After a swap, if as many inmates on the block are above the new inmate’s rarity as below it, it gains +3 tiers.' },
+    // From a player's report (#11, 2026-10-16), the instrument pick: "-1 daily
+    // destination option; there is a 35% chance to trigger after Consuming",
+    // and "+1 additional Rarity Tier" (the rest of the card was cut off),
+    // read like the Rusty Saw: the eater, on each bite.
+    whip: { name: 'Barbed Whip', text: 'Each morning offers 1 destination fewer. Each bite of a devour has a 35% chance of +1 extra tier.' },
   };
   const TOOL_IDS = Object.keys(TOOLS);
 
@@ -736,7 +747,7 @@
   // Today's door count, drawn each morning.
   // The Forged Key takes one door off every morning.
   function destinationLimit(state) {
-    return Math.max(1, (state.destBase || state.params.destinations) - (has(state, 'forged') ? 1 : 0));
+    return Math.max(1, (state.destBase || state.params.destinations) - (has(state, 'forged') ? 1 : 0) - (has(state, 'whip') ? 1 : 0));
   }
 
   // Destinations come from the cells just ahead of the warden, clockwise:
@@ -1141,6 +1152,10 @@
       gain += 1;
       notes.push('Rusty Saw +1');
     }
+    if (has(state, 'whip') && rand(state) < 0.35) {
+      gain += 1;
+      notes.push('Barbed Whip +1');
+    }
     if (chained && has(state, 'collar') && rand(state) < 0.8) {
       gain += 1;
       notes.push('Barbed Collar +1');
@@ -1263,6 +1278,15 @@
     state.used.swap += 1;
     state.stats.swaps += 1;
     logAt(state, at, 'swap', `Swapped out the ${describe(old)} in cell ${cellLabel(n)}. In came a ${describe(fresh)}.`, { type: 'swap', cell: n, old: snap(old), fresh: snap(fresh) });
+    // Severed Iron Maiden: as many inmates above the newcomer's rarity as below it.
+    if (has(state, 'maiden')) {
+      const others = boardInmates(state).filter((i) => i.id !== fresh.id);
+      const above = others.filter((i) => i.tier > fresh.tier).length;
+      if (above === others.filter((i) => i.tier < fresh.tier).length) {
+        log(state, 'tool', `Severed Iron Maiden: ${above ? `${plural(above, 'inmate')} above it and as many below` : 'nobody above or below it'}, so the ${describe(fresh)} in cell ${cellLabel(n)} gains 3 tiers.`, { type: 'maiden', cell: n });
+        promote(state, fresh, 3, false, events);
+      }
+    }
     afterGrowth(state, fresh, events);
     if (has(state, 'axe') && fresh.tier > old.tier) {
       const doors = shuffle(state, state.cells.filter((c) => c.sealed)).slice(0, 2);
@@ -1718,6 +1742,8 @@
       case 'cage': return 12;
       case 'blacklist': return state.cells.filter((c) => c.sealed).length <= 7 ? 16 : 8;
       case 'shortchain': return 10;
+      case 'maiden': return 10;
+      case 'whip': return 8;
       case 'wine': return board.filter((i) => i.tier < 3).length * 4;
       case 'horn': return board.filter((i) => devourOptions(state, cellOf(state, i.id).n).length).length * 6;
       case 'brand': return board.filter((i) => !devourOptions(state, cellOf(state, i.id).n).length).length * 5;

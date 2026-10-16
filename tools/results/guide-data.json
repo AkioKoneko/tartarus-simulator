@@ -5,6 +5,12 @@
   "toolBase": 0.627,
   "tools": [
     {
+      "id": "maiden",
+      "name": "Severed Iron Maiden",
+      "value": 1.9588,
+      "delta": 1.3318
+    },
+    {
       "id": "blacklist",
       "name": "Executioner's Blacklist",
       "value": 1.5452,
@@ -63,6 +69,12 @@
       "name": "Fanged Guillotine",
       "value": 0.9424,
       "delta": 0.3154
+    },
+    {
+      "id": "whip",
+      "name": "Barbed Whip",
+      "value": 0.8476,
+      "delta": 0.2206
     },
     {
       "id": "tongs",
@@ -1538,5 +1550,9 @@
     },
     "totalRuns": 1700000,
     "minutes": 10
-  }
+  },
+  "toolsAdded": [
+    "maiden",
+    "whip"
+  ]
 }

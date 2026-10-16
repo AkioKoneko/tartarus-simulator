@@ -232,6 +232,27 @@
       '<path d="M37 26c1 4 0 7-3 9M31 35c-3 1-6 1-8 0" fill="none" stroke="#8d92a8" stroke-width="2.4" stroke-dasharray="3 1.5"/>' +
       spikes(14, 36, 6.8, 9.6, 8, 0.25, '#b9bcc6') +
       '<path d="M8.2 33.5a6.5 6.5 0 1 0 11.6 0" fill="none" stroke="#4d505b" stroke-width="3.8"/><path d="M8.2 33.5a6.5 6.5 0 1 0 11.6 0" fill="none" stroke="#9a9eaa" stroke-width="1"/>'),
+    // Severed Iron Maiden: a closed iron maiden with a red band, tilted and
+    // cut off below, as on the instrument panel in a player's report.
+    maiden: icon('glow-red',
+      '<g transform="rotate(-24 24 24)">' +
+      '<path d="M16.5 9c0-4 3.4-6.5 7.5-6.5s7.5 2.5 7.5 6.5l1.5 25-3 2.5-3-2-3 2.5-3-2.5-3 2-3-2.5Z" fill="#6b6870" stroke="#3c3a40" stroke-width="1.2"/>' +
+      '<ellipse cx="24" cy="9.5" rx="3.6" ry="4.2" fill="#9a98a0"/>' +
+      '<path d="M22.2 8.6h1.2M24.6 8.6h1.2M23.2 11.6h1.6" stroke="#2c2c33" stroke-width="1" stroke-linecap="round"/>' +
+      '<path d="M24 14.5V33" stroke="#3c3a40" stroke-width="1.2"/>' +
+      '<rect x="15.8" y="20" width="16.4" height="5" fill="#9b1d22"/>' +
+      '<path d="M18.6 17.5h-2M18.8 29.5h-2.2M29.4 17.5h2M29.2 29.5h2.2" stroke="#b9bcc6" stroke-width="1.2"/>' +
+      '<path d="M21 37.5v3M27 37.5v4.5" stroke="#9b1d22" stroke-width="1.6" stroke-linecap="round"/>' +
+      '</g>'),
+    // Barbed Whip: a red lash coiled into a ring, barbed, on a dark handle.
+    whip: icon('glow-red',
+      spikes(22, 20, 11, 14, 16, 0, '#c0282d') +
+      '<circle cx="22" cy="20" r="11" fill="none" stroke="#5a1418" stroke-width="3.6"/>' +
+      '<circle cx="22" cy="20" r="11" fill="none" stroke="#9b1d22" stroke-width="1.6" stroke-dasharray="3 1.6"/>' +
+      '<circle cx="23.5" cy="19" r="7.2" fill="none" stroke="#8c1d22" stroke-width="2"/>' +
+      '<path d="M30 28.5l7.5 12" stroke="#3a2a22" stroke-width="4.2" stroke-linecap="round"/>' +
+      '<path d="M31.5 31l5 8" stroke="#6e5244" stroke-width="1" stroke-linecap="round"/>' +
+      '<circle cx="38.2" cy="41.6" r="2.4" fill="#2c2c33" stroke="#8d92a8" stroke-width="1"/>'),
     // Maddened Beast's Barbed Collar: a blood-red collar ringed with barbs.
     collar: icon('glow-red',
       spikes(24, 24, 14.5, 21.5, 14, 0, '#3a1012') +

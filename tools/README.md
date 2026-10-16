@@ -99,6 +99,18 @@ The two-meal chain's challenge profile had a one-round tune (5.2 million runs, 7
 
 The Chinese sim's two-meal food chain (Mammoth also eats Wolf, Lion also eats Rat) was confirmed not to be in the live game on 2026-10-15, so it was removed from the simulator and the lab. The older sections below still show the two-meal numbers measured at the time; their files are in the git history.
 
+### The Severed Iron Maiden and the Barbed Whip (2026-10-16)
+
+Two more instruments from players' reports (#9 to #11), measured alone and in pairs on 4 threads (no instrument 0.633):
+
+- **Severed Iron Maiden**: after a swap, if the block has as many inmates above the new inmate's rarity as below it, the newcomer gains 3 tiers. The user confirmed that nobody above and nobody below counts. 1.968 alone, now the best single instrument (the Executioner's Blacklist is next at 1.552).
+  - Holding it, the strategy swaps up to Legendary (`maidenSwapTier` 3). With the no-tools profile's usual cap at Magic it made 1.68; up to Rare 1.91, Legendary 1.96, Supreme 1.92.
+  - With Hangman's Noose it makes **16.17** Rainbows per run. Every inmate the Noose swaps in is Rare or Legendary, so a level swap reaches Rainbow at once, and swapping an inmate that's alone on the block is always level.
+  - If nobody above and below didn't count, the Maiden would make 1.23 and the pair 2.63 (4,000 runs each).
+- **Barbed Whip**: one destination fewer each morning, and each bite of a devour has a 35% chance of +1 extra tier. The card was cut off after "+1 additional Rarity Tier"; the user confirmed reading it like the Rusty Saw. 0.852 alone (12th of 23): the lost door costs more than the extra chance gains (the Saw alone makes 1.005). Best with the Maiden (2.02) and the Noose (1.65).
+- **Contract challenge:** where the Maiden sits in its ranking makes no measurable difference (90.9% pass first, second or last), so it's second, after the Noose. The Whip follows the Saw.
+- **Screenshot reader:** it learned both from the reports: the Maiden's panel icon (report 9), the Whip's card (report 11) and the Whip's panel icon (report 10, which it had read as the Squirming Iron Box).
+
 ### A day has a swap or a devour, not both (2026-10-16)
 
 Confirmed in the live game: once the warden's inmate is swapped there is no devour that day, and a devour uses up the day's swap. The strategy used to swap first and then devour with the new inmate. Now the two are alternatives, and it swaps only when the swap is worth more than the best devour (`swapMargin` 0).

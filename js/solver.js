@@ -42,9 +42,10 @@
     minDevour: 0, // skip devours worth less than this (-1e9: never skip)
     swapMaxTier: 0, // swap the warden's inmate only at or below this tier
     swapMargin: 0, // a day has a swap or a devour: swap only when it beats the best devour by this much
+    maidenSwapTier: 3, // holding the Severed Iron Maiden, swap up to this tier (Legendary measured best)
     execMargin: 0, // accept an Execution worth more than this
     acceptChain: true, // accept Chain reactions
-    toolRank: ['blacklist', 'shackles', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'], // measured: each tool held from day 1
+    toolRank: ['maiden', 'blacklist', 'shackles', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'whip', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'], // measured: each tool held from day 1
     toolSets: true, // pick instruments by the measured sets (js/tool-combos.js) when there are any
     office: null, // always 'bestow' or 'instigate' at the office (only to measure the habit)
     giftRank: null, // null scores the gifts on the spot; or a fixed order
@@ -66,10 +67,10 @@
   // tools/results/ (train-report.json: the drill profiles were retrained on
   // 2026-10-15).
   const PROFILES = {
-    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['blacklist', 'shackles', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
-    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['blacklist', 'shackles', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
+    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['maiden', 'blacklist', 'shackles', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'whip', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
+    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['maiden', 'blacklist', 'shackles', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'whip', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
     // The contract challenge, tuned on passing first and then points.
-    challenge: { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'shackles', 'skewer', 'revenge', 'blacklist', 'collar', 'keys', 'cage', 'ironbox', 'muzzle', 'saw', 'guillotine', 'hook', 'tongs', 'dogtag', 'fire', 'axe', 'scales', 'pestle', 'shortchain', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
+    challenge: { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'maiden', 'shackles', 'skewer', 'revenge', 'blacklist', 'collar', 'keys', 'cage', 'ironbox', 'muzzle', 'saw', 'whip', 'guillotine', 'hook', 'tongs', 'dogtag', 'fire', 'axe', 'scales', 'pestle', 'shortchain', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
   };
   const paramsFor = (st) => PROFILES[st.mode === 'challenge' ? 'challenge' : st.params.rewards ? 'rewards' : 'notools'];
 
@@ -147,6 +148,7 @@
       v,
       R,
       saw: has(st, 'saw'),
+      whip: has(st, 'whip'),
       muzzle: has(st, 'muzzle'),
       skewer,
       collar: has(st, 'collar'),
@@ -156,6 +158,10 @@
       cage: has(st, 'cage'),
       blacklist: has(st, 'blacklist'),
       shortchain: has(st, 'shortchain'),
+      // Severed Iron Maiden: how many inmates of each tier are on the block.
+      maiden: has(st, 'maiden') ? [0, 1, 2, 3, 4].map((t) => board.filter((c) => c.inmate.tier === t).length) : null,
+      // The highest tier worth swapping: higher with the Maiden.
+      swapCap: has(st, 'maiden') ? Math.max(P.swapMaxTier, P.maidenSwapTier) : P.swapMaxTier,
       sealed,
       lift: board.length ? lift : 0,
       shacklesLift: has(st, 'shackles') && board.length ? lift : 0,
@@ -227,7 +233,10 @@
     if (ctx.muzzle && crowd - 1 <= 4) gain += 2;
     if (ctx.skewer && b === RAT) gain += 1;
     const after = (g) => rise(ctx, Math.min(RAINBOW, t + g), comp, crowd - 1);
-    const sawed = (g) => (ctx.saw ? 0.75 * after(g) + 0.25 * after(g + 1) : after(g));
+    // The Rusty Saw (25%) and the Barbed Whip (35%) each may add +1.
+    const s = ctx.saw ? 0.25 : 0;
+    const w = ctx.whip ? 0.35 : 0;
+    const sawed = (g) => (s || w ? (1 - s) * (1 - w) * after(g) + (s + w - 2 * s * w) * after(g + 1) + s * w * after(g + 2) : after(g));
     return -ctx.v[t] + (chained && ctx.collar ? 0.2 * sawed(gain) + 0.8 * sawed(gain + 1) : sawed(gain));
   }
 
@@ -335,12 +344,33 @@
   }
 
   // What swapping an inmate of this tier is worth, on average. With the
-  // Gaoler's Execution Axe, a higher roll also opens 2 doors.
+  // Gaoler's Execution Axe, a higher roll also opens 2 doors. With the
+  // Severed Iron Maiden, a roll with as many inmates above it as below it
+  // gains 3 tiers.
   function swapValue(ctx, tier) {
     const dist = swapDist(ctx, tier);
     let value = dist.reduce((sum, p, t) => sum + p * ctx.v[t], 0) - ctx.v[tier];
     if (ctx.axeDoors) value += dist.reduce((sum, p, t) => sum + (t > tier ? p : 0), 0) * ctx.axeDoors * ctx.P.wOpen * ctx.openValue;
-    return value;
+    return value + maidenBonus(ctx, tier).value;
+  }
+
+  // Severed Iron Maiden: the chance that a swap's newcomer has as many
+  // inmates above its rarity as below it, and what its 3 extra tiers add on
+  // average. The block is counted without the inmate swapped out.
+  function maidenBonus(ctx, tier) {
+    const out = { chance: 0, value: 0 };
+    if (!ctx.maiden) return out;
+    const dist = swapDist(ctx, tier);
+    const counts = ctx.maiden.slice();
+    if (counts[tier] > 0) counts[tier] -= 1;
+    for (let t = 0; t < dist.length; t++) {
+      const above = counts.reduce((sum, n, u) => sum + (u > t ? n : 0), 0);
+      const below = counts.reduce((sum, n, u) => sum + (u < t ? n : 0), 0);
+      if (!dist[t] || above !== below) continue;
+      out.chance += dist[t];
+      out.value += dist[t] * ((t + 3 >= RAINBOW ? ctx.R : ctx.v[t + 3]) - ctx.v[t]);
+    }
+    return out;
   }
 
   // Behind Closed Doors: the inmate in the warden's cell becomes a Supreme.
@@ -374,7 +404,7 @@
   function activation(ctx, tier, beast, comp, crowd, swapLeft) {
     let value = 0;
     if (tier < RAINBOW) value = Math.max(value, bestMeal(ctx, tier, beast, comp, crowd).value);
-    if (swapLeft && tier <= ctx.P.swapMaxTier) value = Math.max(value, swapValue(ctx, tier));
+    if (swapLeft && tier <= ctx.swapCap) value = Math.max(value, swapValue(ctx, tier));
     return value;
   }
 
@@ -633,7 +663,7 @@
       gain += Math.min(st.params.ivoryCount, board.length) * lift;
       return gain;
     }
-    return here.inmate.tier <= ctx.P.swapMaxTier ? gain : -Infinity;
+    return here.inmate.tier <= ctx.swapCap ? gain : -Infinity;
   }
 
   // Board value for comparing gifts: tier values plus vaulted Rainbows, with
@@ -1324,7 +1354,10 @@
       case 'swap': {
         // A day has a swap or a devour, not both.
         const over = T.startOptions(st).length ? ' That beats today’s best devour, and a day has one or the other.' : '';
-        if (here.ivory) return `A Tusk cell: swapping it raises other inmates a tier.${over}`;
+        const maiden = maidenBonus(ctx, here.inmate.tier);
+        const odds = `${(100 * maiden.chance).toFixed(0)}% of the time`;
+        if (here.ivory) return `A Tusk cell: swapping it raises other inmates a tier${maiden.chance > 0 ? `, and the Severed Iron Maiden adds 3 tiers to the new inmate ${odds}` : ''}.${over}`;
+        if (maiden.chance > 0) return `The Severed Iron Maiden adds 3 tiers to the new inmate ${odds}, so a fresh roll beats this ${T.tierName(here.inmate.tier)} inmate on average.${over}`;
         if (ctx.axeDoors) return `A ${T.tierName(here.inmate.tier)} inmate is worth less than a fresh roll on average, and a higher roll makes the Gaoler's Execution Axe open ${T.plural(ctx.axeDoors, 'door')}.${over}`;
         return `A ${T.tierName(here.inmate.tier)} inmate is worth less than a fresh roll on average.${over}`;
       }
