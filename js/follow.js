@@ -51,6 +51,8 @@
     'speed | Btn_S16Board_Top_Speed | 0',
     '# A Cancel (a consume chain stopped), once the board settles:',
     'board | UI_S16_Click_Cancel | 1500',
+    "# After an event's Confirm (the Sewer Ratway's cell pick, or the board after it):",
+    'board | Btn_S16Board_EventPop_Confirm | 1500',
   ].join('\n');
   // The prison's own events, for working out more triggers: its buttons,
   // sounds and screens, without the lines that repeat them.
@@ -59,6 +61,32 @@
   // Defaults from earlier versions. Saved settings that are just one of
   // these give way to the defaults above.
   const RETIRED = [
+    [
+      '# kind | pattern | settle ms  (one trigger a line; # starts a note)',
+      '# Tartarus Prison is S16 in the log. A run\'s objective, when it shows one:',
+      'objective | S16BoardTaskPop Run | 1500',
+      '# The pick of 3 instruments, and after a re-roll:',
+      'instruments | S16BoardRelicPop Run | 1500',
+      'instruments | Btn_S16Board_RelicPop_Reroll | 2000',
+      '# Each day, once its banner closes, and after a move, once its cards come up:',
+      'board | \\[S16LastDay\\] check cur=\\d+ max=[1-9] | 1500',
+      'board | UI_S16_Card_Up | 1500',
+      '# After an action in the cell, and after each bite of a consume chain',
+      '# (the next meal to pick, or the board after the chain), once it plays',
+      "# out; unless the day ends, as a new day's banner drops a picture still",
+      '# waiting (skip):',
+      'board | Btn_S16Board_ActionCell | 2000',
+      'board | UI_S16_Click_Eat | 2500',
+      'skip | S16BoardNewDayPop Run | 0',
+      "# The Warden's Treasure, which a Chromatic prisoner opens, and the board",
+      '# once it closes, with the gift taken (a consume can open two in a row):',
+      'treasure | S16BoardColoredPop Run | 1500',
+      'board | S16BoardColoredPop Destory | 1500',
+      "# The game's Speed-up button: no picture, it flips 'Speed-up is on' here:",
+      'speed | Btn_S16Board_Top_Speed | 0',
+      '# A Cancel (a consume chain stopped), once the board settles:',
+      'board | UI_S16_Click_Cancel | 1500',
+    ].join('\n'),
     [
       '# kind | pattern | settle ms  (one trigger a line; # starts a note)',
       '# Tartarus Prison is S16 in the log. A run\'s objective, when it shows one:',

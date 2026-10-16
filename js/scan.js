@@ -1329,14 +1329,26 @@
     const x0 = Math.max(0, Math.min(at(loc, 0, 0)[0], at(loc, 0, 3)[0]) - 40 * loc.s);
     const x1 = Math.min(img.width - 1, Math.max(at(loc, 5, 0)[0], at(loc, 5, 3)[0]) + 40 * loc.s);
     let title = false;
+    let pickCell = false;
     let replace = false;
     let end = false;
+    // The row's title, by its words' letter counts: "Make Your Decision"
+    // [4, 4, 8], or the Sewer Ratway's "Select an Objective" [6, 2, 9]
+    // (a stray mark can lead).
+    const near = (w, want) => {
+      const tail = w.slice(-want.length);
+      return tail.length === want.length && tail.reduce((a, n, i) => a + Math.abs(n - want[i]), 0) <= 2;
+    };
     for (const r of textRadii(img)) {
       for (const line of textLines(img, x0, bottom, x1, img.height - 1, { minH: 6, maxH: Math.max(48, img.height * 0.07), r })) {
         for (const p of line.pieces) {
           const n = p.words.reduce((a, w) => a + w.glyphs.length, 0);
           const span = (p.x1 - p.x0) / Math.max(1, line.h);
-          if (n >= 14 && n <= 20 && span > 7 && span < 15) title = true; // Make Your Decision
+          if (n >= 14 && n <= 20 && span > 7 && span < 15) {
+            const words = p.words.map((w) => w.glyphs.length);
+            if (near(words, [6, 2, 9]) && !near(words, [4, 4, 8])) pickCell = true;
+            else title = true; // Make Your Decision
+          }
           else if (n >= 6 && n <= 8 && span > 3 && span < 6.5) replace = true;
           else if (n === 3 && span > 1.5 && span < 3.2) end = true;
         }
@@ -1360,6 +1372,8 @@
       if (n) red = Math.max(red, hit / n);
     }
     const consume = red > 0.025;
+    // The Sewer Ratway: the player picks any cell, with no cards.
+    if (pickCell && !title) return { ratway: true, replace: false, consume: false, end: false, title: false };
     // Without its title, a stray short word isn't a row of cards.
     if (!title) return null;
     return { replace, consume, end, title, red: Math.round(1000 * red) / 1000 };
