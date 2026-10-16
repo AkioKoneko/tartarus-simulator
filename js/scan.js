@@ -1291,7 +1291,7 @@
   // letter counts tell the known objectives apart; the words themselves
   // aren't read. Returns the objective's id, or null.
   // Short words can run together ("of the" reads as one word).
-  const OBJECTIVE_WORDS = { consume: [[8, 2, 3, 7], [8, 5, 7]], incident: [[13]], king: [[4, 2, 3, 5], [4, 5, 5]], walk: [[6, 4]] };
+  const OBJECTIVE_WORDS = { consume: [[8, 2, 3, 7], [8, 5, 7]], incident: [[13]], king: [[4, 2, 3, 5], [4, 5, 5]], walk: [[6, 4]], cagefight: [[4, 5], [4, 4]] };
   function readObjectiveTitle(img) {
     let best = null;
     for (const r of textRadii(img)) {
