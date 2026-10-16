@@ -15,7 +15,7 @@
   // The published single-file build sets this; its viewer cannot download files.
   const EMBEDDED = !!window.TARTARUS_EMBEDDED;
 
-  const KEYS = { save: 'tartarus-sim:save:v2', prefs: 'tartarus-sim:prefs:v1', params: 'tartarus-sim:params:v5' };
+  const KEYS = { save: 'tartarus-sim:save:v2', prefs: 'tartarus-sim:prefs:v1', params: 'tartarus-sim:params:v6' };
   const HISTORY_LIMIT = 40;
   const DEFAULT_PREFS = { advisor: false, quick: false, motion: true, sound: true, volume: 60, immersive: false };
 
@@ -74,8 +74,15 @@
   function loadLabParams() {
     const saved = store.get(KEYS.params);
     if (saved) return T.normalizeParams(saved);
+    // The live door odds replace the old defaults (2026-10-16); the rest of
+    // the Lab's settings carry over.
+    const v5 = store.get('tartarus-sim:params:v5');
+    if (v5 && typeof v5 === 'object') {
+      delete v5.tierWeights;
+      return T.normalizeParams(v5);
+    }
     let old = store.get('tartarus-sim:params:v4') || store.get('tartarus-sim:params:v3');
-    const drop = ['destinations', 'fewerDoorsChance', 'eventTwoDoors', 'patrolRange', 'startTools'];
+    const drop = ['destinations', 'fewerDoorsChance', 'eventTwoDoors', 'patrolRange', 'startTools', 'tierWeights'];
     if (!old) old = store.get('tartarus-sim:params:v2');
     if (old && typeof old === 'object') for (const key of drop) delete old[key];
     return T.normalizeParams(old);
@@ -2214,7 +2221,7 @@
       return `<label class="param" for="${id}">${label}<select id="${id}">${T.TIERS.slice(0, 5).map((t, i) => `<option value="${i}"${i === value ? ' selected' : ''}>${t}</option>`).join('')}</select></label>`;
     }
     return `<div class="param">${label}<div class="list">${f.names
-      .map((name, i) => `<label for="${id}-${i}">${esc(name)}<input type="number" id="${id}-${i}" min="0" max="1000" step="1" value="${value[i]}"></label>`)
+      .map((name, i) => `<label for="${id}-${i}">${esc(name)}<input type="number" id="${id}-${i}" min="0" max="1000" step="0.5" value="${value[i]}"></label>`)
       .join('')}</div></div>`;
   }
 

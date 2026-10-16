@@ -298,7 +298,7 @@ function observe(pairs) {
     if (sameDay && A.step === 'manage' && ['manage', 'choice'].includes(B.step) && B.warden === w && !A.swapUsed && B.swapUsed && A.devourUsed === B.devourUsed) {
       const old = A.cells[w];
       const got = arrival(A, B, w);
-      if (old.kind === 'inmate' && !old.ivory && got && seen(`c${w}`)) obs.swaps.push(Object.assign({ oldTier: old.tier, rope: has('rope'), fire: has('fire') }, got));
+      if (old.kind === 'inmate' && !old.ivory && got && seen(`c${w}`)) obs.swaps.push(Object.assign({ oldTier: old.tier, rope: has('rope'), stake: has('stake'), maiden: has('maiden'), scapegoat: has('scapegoat') }, got));
     }
 
     // A devour from the warden's cell, and nothing else.
@@ -441,7 +441,10 @@ function measure(rows) {
     }
   }
 
-  const plainSwaps = obs.swaps.filter((s) => !s.rope && !(s.fire && s.oldTier < 3));
+  // Without the instruments that change who comes in: Hangman's Noose, the
+  // Burning Stake (from below Legendary), the Severed Iron Maiden (+3) and
+  // the Scapegoat's Guillotine (above the old rarity).
+  const plainSwaps = obs.swaps.filter((s) => !s.rope && !s.maiden && !s.scapegoat && !(s.stake && s.oldTier < 3));
   // Doors without the instruments that change what's behind them: the
   // Sorting Hook (never a Normal) and the Felon's Dog Tag (25% +1 tier).
   const plainDoors = obs.doors.filter((d) => !d.tools.includes('hook') && !d.tools.includes('dogtag'));

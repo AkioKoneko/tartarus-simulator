@@ -103,6 +103,10 @@ The Chinese sim's two-meal food chain (Mammoth also eats Wolf, Lion also eats Ra
 
 Report 13 and the user's screenshots: "Select any 1 cell (excluding the Interrogation Room), move to that cell, and trigger subsequent content", then the game asks "Select an Objective" with every cell but the office on offer, the warden's own included. It's in the event pool with the others. Its card has only Confirm, and moving to the warden's own cell keeps it in place, so the strategy always takes it. Then it weighs every cell as it weighs a patrol, without the walk: the move adds no tiles and sets off no Shackles. The analyzer has a Sewer Ratway step for that screen.
 
+### Live odds for doors and Replace (2026-10-16)
+
+Players' boards (tools/live-data.js) showed the simulator's rarity odds were off. Behind doors, over 1,011 doors (no tutorial runs, no Sorting Hook or Felon's Dog Tag), live is 39.8% Normal, 38.5% Magic, 11.7% Rare, 8.2% Legendary and 1.9% Supreme, steady from day 1 to day 15+. The simulator had 52/27/15/6/0. Replace brings in 51.7/31.4/9.2/6.1/1.5 over 261 Replaces (no Noose, Maiden, Scapegoat's Guillotine or Stake roll). At the user's word, the simulator now uses 40/38/12/8/2 for doors (`tierWeights`) and 52/32/9/6/1.5 for Replace (`swapWeights`, new; the Lab takes halves). The Lab's saved settings move to params:v6 and pick up the new door odds. Everything below was measured with the old odds; it's being measured again.
+
 ### Usurpation III and IV (2026-10-16)
 
 The user's cards: Usurpation III "Randomly increase 2 Inmates' rarity by 2 tiers / Add [Usurpation IV] to Prison Incidents and remove [Usurpation III] from Prison Incidents", and IV "Increase all Inmates' rarity by 2 tiers", then it leaves the Prison Incidents. So the chain runs I → II → III → IV (`T.USURP`): I raises 1 inmate a tier, II 2 a tier (its card is unseen, read from the others), III 2 inmates 2 tiers, IV every inmate 2 tiers. Each leaves the pool and brings the next. Only I's card also puts the next behind a locked door at once. The strategy accepts them all.

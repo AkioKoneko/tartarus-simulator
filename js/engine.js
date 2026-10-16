@@ -73,7 +73,12 @@
     // single meal. Off: the chain must go on, and a single meal is taken at
     // once.
     chainStop: true,
-    tierWeights: [52, 27, 15, 6, 0],
+    // Live odds from players' boards (tools/live-data.js, 2026-10-16): who's
+    // behind a door (1,011 doors without the Sorting Hook or the Dog Tag),
+    // and who a Replace brings in (261, without the instruments that change
+    // it). Both were 52/27/15/6/0 before.
+    tierWeights: [40, 38, 12, 8, 2],
+    swapWeights: [52, 32, 9, 6, 1.5],
     beastWeights: [25, 25, 25, 25],
     doubleEatTier: 3,
     eventChance: 5,
@@ -101,7 +106,8 @@
     { key: 'swapsPerDay', group: 'Pace', label: 'Swaps per day', type: 'int', min: 0, max: 16 },
     { key: 'reusableCells', group: 'Pace', label: 'Emptied cells seal again and can be reopened', type: 'bool' },
     { key: 'chainStop', group: 'Pace', label: 'A consume chain can be stopped after any bite (the game’s Cancel); off, it must go on', type: 'bool' },
-    { key: 'tierWeights', group: 'Odds', label: 'Rarity weights for new inmates', type: 'list', names: TIERS.slice(0, 5) },
+    { key: 'tierWeights', group: 'Odds', label: 'Rarity weights behind a door', type: 'list', names: TIERS.slice(0, 5) },
+    { key: 'swapWeights', group: 'Odds', label: 'Rarity weights for the inmate a Replace brings in', type: 'list', names: TIERS.slice(0, 5) },
     { key: 'beastWeights', group: 'Odds', label: 'Beast weights for new inmates', type: 'list', names: ['Mammoth', 'Lion', 'Wolf', 'Rat'] },
     { key: 'doubleEatTier', group: 'Odds', label: 'From this rarity up, Mammoths also eat Wolves and Lions also eat Rats (0 Normal, 1 Magic, 2 Rare, 3 Legendary, 4 Supreme; 5: never)', type: 'int', min: 0, max: 5 },
     { key: 'eventChance', group: 'Special events', label: 'Chance a sealed cell hides a special event, seen once the warden walks past it (%)', type: 'int', min: 0, max: 100 },
@@ -410,7 +416,8 @@
         p[field.key] = !!value;
       } else if (field.type === 'list') {
         if (Array.isArray(value) && value.length === field.names.length) {
-          const list = value.map((x) => clamp(Math.round(Number(x)) || 0, 0, 1000));
+          // Halves too (a measured 1.5%).
+          const list = value.map((x) => clamp(Math.round(Number(x) * 2) / 2 || 0, 0, 1000));
           if (list.some((x) => x > 0)) p[field.key] = list;
         }
       }
@@ -1477,7 +1484,7 @@
     if (state.used.devour > 0) return fail('You consumed today, and a day has a consume or a swap, not both. End the day.');
     if (state.used.swap >= state.params.swapsPerDay) return fail('No swaps left today.');
     if (state.used.noSwap) return fail('Your game offers no Replace today.');
-    const weights = state.params.tierWeights.slice();
+    const weights = (state.params.swapWeights || state.params.tierWeights).slice();
     if (has(state, 'rope')) weights[0] = weights[1] = 0;
     if (!weights.some((w) => w > 0)) return fail('No rarity is left to roll. Adjust the rarity weights in the Lab.');
     const old = cell.inmate;

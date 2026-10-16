@@ -215,7 +215,7 @@
   // reach no higher; index 5 is Chromatic). The Burning Stake then makes a
   // swap from below Legendary come in Legendary 40% of the time.
   function swapDist(ctx, oldTier) {
-    const w = ctx.st.params.tierWeights.slice();
+    const w = (ctx.st.params.swapWeights || ctx.st.params.tierWeights).slice();
     if (has(ctx.st, 'rope')) w[0] = w[1] = 0;
     let dist;
     if (ctx.scapegoat) {
