@@ -593,7 +593,11 @@
     const worth = eventWorth(ctx, comp);
     const pool = st.eventPool || T.EVENT_POOL;
     const each = pool.reduce((sum, id) => sum + worth[id](), 0) / pool.length;
-    return { bestow, instigate: Math.min(T.INSTIGATE_EVENTS, free) * each * ctx.P.wInstigate };
+    // Tyranny (a start card): every stop at the office also triggers 3 more
+    // Bestows and 3 more Instigates by themselves.
+    const extra = st.startEvent === 'tyranny' && T.START_EVENTS.tyranny ? T.START_EVENTS.tyranny.extra : 0;
+    const tyranny = extra ? extra * bestow + Math.min(extra * T.INSTIGATE_EVENTS, free) * each * ctx.P.wInstigate : 0;
+    return { bestow, instigate: Math.min(T.INSTIGATE_EVENTS, free) * each * ctx.P.wInstigate, tyranny };
   }
 
   // Scores today's destinations. Returns [{ cell, score, why }], best first.
@@ -652,8 +656,9 @@
         }
       } else if (n === T.OFFICE) {
         const office = officeValues(st, ctx, board.comp);
-        score += Math.max(office.bestow, office.instigate);
+        score += Math.max(office.bestow, office.instigate) + office.tyranny;
         why = office.bestow >= office.instigate ? 'the office: Bestow raises 1 random inmate a tier' : `the office: Instigate brings ${T.INSTIGATE_EVENTS} new special events`;
+        if (office.tyranny) why += `, and Tyranny adds ${T.START_EVENTS.tyranny.extra} of each`;
       } else if (c.inmate) {
         score += P.wWalk * known(c);
         why = `its ${T.describe(c.inmate)} can act today`;

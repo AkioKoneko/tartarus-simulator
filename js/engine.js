@@ -286,6 +286,11 @@
     cagefight: { name: 'Cage Fight', text: 'Inmates can consume the beasts they counter (Mammoths: Lions and Wolves; Lions: Wolves and Rats; Wolves: Rats; Rats: Mammoths) at their own rarity or lower, and consuming never changes their beast' },
     // "Iron Law. Extends the duration of the current run to 30 days".
     ironlaw: { name: 'Iron Law', text: 'The run lasts 30 days', days: 30 },
+    // "Tyranny. Automatically triggers Instigate and Bestow 3 additional
+    // times each time you stop at the Interrogation Room" (the user's
+    // screenshot, 2026-10-16): read as 3 more of each, on top of the
+    // visit's own choice.
+    tyranny: { name: 'Tyranny', text: 'Each stop at the Interrogation Room also triggers Instigate and Bestow 3 more times each, on top of your choice there', extra: 3 },
   };
 
   const GIFTS = {
@@ -1136,6 +1141,14 @@
       log(state, 'event', `Cell ${cellLabel(n)} held a special event: ${eventName(event)}. Accept or skip it.`);
     } else {
       state.phase = n === OFFICE ? 'office' : 'manage';
+      // Tyranny: each stop at the office also triggers Instigate and Bestow
+      // 3 more times each, by themselves, before the visit's own choice.
+      if (n === OFFICE && state.startEvent === 'tyranny') {
+        for (let i = 0; i < START_EVENTS.tyranny.extra; i++) {
+          instigate(state, events, 'Tyranny, Instigate');
+          bestow(state, events, 'Tyranny, Bestow');
+        }
+      }
     }
     return ok(events);
   }
@@ -1147,32 +1160,38 @@
     if (state.phase !== 'office') return fail("Instigate and Bestow come with a visit to the warden's office.");
     if (state.pending.length) return fail('Make your pending choice first.');
     const events = [];
-    if (choice === 'instigate') {
-      const doors = shuffle(state, state.cells.filter((c) => c.sealed && !c.event && !c.nest)).slice(0, INSTIGATE_EVENTS);
-      for (const c of doors) {
-        c.event = rollEvent(state);
-        c.seen = true;
-      }
-      log(state, 'event', doors.length
-        ? `Instigate: special events now wait behind ${doors.length === 1 ? `cell ${cellLabel(doors[0].n)}` : `cells ${doors.map((c) => cellLabel(c.n)).join(' and ')}`}.`
-        : 'Instigate: no locked door was free for a new event.', { type: 'instigate', cells: doors.map((c) => c.n) });
-    } else if (choice === 'bestow') {
-      const pool = boardInmates(state).filter((i) => i.tier < RAINBOW);
-      const at = state.log.length;
-      if (pool.length) {
-        const who = pickOne(state, pool);
-        const before = snap(who);
-        const cell = cellOf(state, who.id).n;
-        promote(state, who, 1, false, events);
-        logAt(state, at, 'event', `Bestow: the ${describe(before)} in cell ${cellLabel(cell)} rises to ${tierName(before.tier + 1)}.`, { type: 'bestow', cell, who: before });
-      } else {
-        log(state, 'event', 'Bestow: nobody was on the block to rise.', { type: 'bestow', cell: null, who: null });
-      }
-    } else {
-      return fail('Choose Instigate or Bestow.');
-    }
+    if (choice === 'instigate') instigate(state, events, 'Instigate');
+    else if (choice === 'bestow') bestow(state, events, 'Bestow');
+    else return fail('Choose Instigate or Bestow.');
     state.phase = 'manage';
     return ok(events);
+  }
+
+  // Instigate: special events behind up to INSTIGATE_EVENTS free locked doors.
+  function instigate(state, events, how) {
+    const doors = shuffle(state, state.cells.filter((c) => c.sealed && !c.event && !c.nest)).slice(0, INSTIGATE_EVENTS);
+    for (const c of doors) {
+      c.event = rollEvent(state);
+      c.seen = true;
+    }
+    log(state, 'event', doors.length
+      ? `${how}: special events now wait behind ${doors.length === 1 ? `cell ${cellLabel(doors[0].n)}` : `cells ${doors.map((c) => cellLabel(c.n)).join(' and ')}`}.`
+      : `${how}: no locked door was free for a new event.`, { type: 'instigate', cells: doors.map((c) => c.n) });
+  }
+
+  // Bestow: 1 random inmate on the block rises a tier.
+  function bestow(state, events, how) {
+    const pool = boardInmates(state).filter((i) => i.tier < RAINBOW);
+    const at = state.log.length;
+    if (pool.length) {
+      const who = pickOne(state, pool);
+      const before = snap(who);
+      const cell = cellOf(state, who.id).n;
+      promote(state, who, 1, false, events);
+      logAt(state, at, 'event', `${how}: the ${describe(before)} in cell ${cellLabel(cell)} rises to ${tierName(before.tier + 1)}.`, { type: 'bestow', cell, who: before });
+    } else {
+      log(state, 'event', `${how}: nobody was on the block to rise.`, { type: 'bestow', cell: null, who: null });
+    }
   }
 
   // After the warden's walk: the Long-Chained Shackles reward a long one, the

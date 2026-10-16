@@ -1364,14 +1364,18 @@
   // letter counts tell the known objectives apart; the words themselves
   // aren't read. Returns the objective's id, or null.
   // Short words can run together ("of the" reads as one word).
-  const OBJECTIVE_WORDS = { consume: [[8, 2, 3, 7], [8, 5, 7]], incident: [[13]], king: [[4, 2, 3, 5], [4, 5, 5]], walk: [[6, 4]], cagefight: [[4, 5], [4, 4]], ironlaw: [[4, 3]] };
+  // Start-of-run cards have no "Objective:" (Cage Fight, Iron Law), and
+  // Tyranny's title is one word, so a lone word counts only at a length a
+  // one-word title has.
+  const OBJECTIVE_WORDS = { consume: [[8, 2, 3, 7], [8, 5, 7]], incident: [[13]], king: [[4, 2, 3, 5], [4, 5, 5]], walk: [[6, 4]], cagefight: [[4, 5], [4, 4]], ironlaw: [[4, 3]], tyranny: [[7]] };
+  const ONE_WORD = new Set(Object.values(OBJECTIVE_WORDS).flat().filter((f) => f.length === 1).map((f) => f[0]));
   function readObjectiveTitle(img) {
     let best = null;
     for (const r of textRadii(img)) {
       for (const line of textLines(img, img.width * 0.25, img.height * 0.12, img.width * 0.75, img.height * 0.4, { minH: 6, maxH: Math.max(48, img.height * 0.07), r })) {
         for (const p of line.pieces) {
           const words = p.words.map((w) => w.glyphs.length);
-          if (words.length >= 2 && (!best || line.h > best.h)) best = { h: line.h, words };
+          if ((words.length >= 2 || ONE_WORD.has(words[0])) && (!best || line.h > best.h)) best = { h: line.h, words };
         }
       }
     }

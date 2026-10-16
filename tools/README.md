@@ -137,6 +137,10 @@ Players' boards (tools/live-data.js) showed the simulator's rarity odds were off
 
 The user's cards: Usurpation III "Randomly increase 2 Inmates' rarity by 2 tiers / Add [Usurpation IV] to Prison Incidents and remove [Usurpation III] from Prison Incidents", and IV "Increase all Inmates' rarity by 2 tiers", then it leaves the Prison Incidents. So the chain runs I → II → III → IV (`T.USURP`): I raises 1 inmate a tier, II 2 a tier (its card is unseen, read from the others), III 2 inmates 2 tiers, IV every inmate 2 tiers. Each leaves the pool and brings the next. Only I's card also puts the next behind a locked door at once. The strategy accepts them all.
 
+### Tyranny, a start-of-run card (2026-10-16)
+
+The user's screenshot: "Tyranny. Automatically triggers Instigate and Bestow 3 additional times each time you stop at the Interrogation Room". Read as 3 more of each on every stop at the office, by themselves and before the visit's own choice, which stays (`T.START_EVENTS.tyranny`, `extra` 3). The strategy adds what 3 Bestows and up to 6 new events are worth to a walk to the office, so with the card it heads there far more often: on a test board the office scored 142.8 against 32.2 without it. The analyzer has it under Start of run, and its popup reader knows the one-word title (a lone 7-letter word; every other saved screenshot reads as before). Simulated runs don't draw start cards yet.
+
 ### Start-of-run cards: Cage Fight and Iron Law (2026-10-16)
 
 The user's screenshots show cards before a run starts, besides its objective (the objective shows on the board, as "Objective: Survival of the Fittest"): Cage Fight, below, and Iron Law, "Extends the duration of the current run to 30 days". Cage Fight was first set up as an objective; it's now a start card (`state.startEvent`, `T.START_EVENTS`), so a run keeps its objective's tool with it, and older saves move it over. The analyzer has a Start of run setting, which Iron Law sets to a 30-day run keeping the days left, and its popup reader knows both titles. Simulated runs don't draw them yet.
