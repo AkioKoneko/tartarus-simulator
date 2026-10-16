@@ -113,9 +113,9 @@ On 100,000 drills per variant with rewards on, on the same prisons (`variants --
 | never | 2.0831 |
 | whenever the swap gains | 1.5991 |
 
-The swap tiers hold (`--seed SWAPTIER`). With rewards on, stopping at Rare or at Legendary scores the same (2.1104), and stopping at Magic costs 0.020. With no tools, Normals only and Normal and Magic are level (0.6300 and 0.6272).
+These runs still picked instruments by the pair data from before the rule, so they sit below the guide's headline. The comparison between them is what counts. The swap tiers hold (`--seed SWAPTIER`). With rewards on, stopping at Rare or at Legendary scores the same (2.1104), and stopping at Magic costs 0.020. With no tools, Normals only and Normal and Magic are level (0.6300 and 0.6272).
 
-**The guide's data** (`guide --no-tune` at 100,000 runs per measurement on 4 threads, 4,600,000 runs in 15.6 minutes). Rewards on: **2.108** Rainbows per run, down from 2.472. 86.2% of runs vault one (was 91.3%), the first around day 12, with 9.2 swaps and 5.2 devours per run. With no tools: 0.627, down from 0.759.
+**The guide's data** (`guide --no-tune` at 100,000 runs per measurement on 4 threads, 4,600,000 runs in 15.2 minutes). Rewards on: **2.160** Rainbows per run, down from 2.472. 87.0% of runs vault one (was 91.3%), the first around day 12, with 9.1 swaps and 5.1 devours per run. With no tools: 0.627, down from 0.759. A first run, made before the instrument sets below were re-measured, still picked instruments by the old pairs and made 2.108 with rewards on.
 
 - **Each instrument held from day 1:** Executioner's Blacklist 1.545, Long-Chained Shackles 1.463, Hangman's Noose 1.345, Skewered Rat Heads 1.275, Avenger's Casket 1.235, Agonizing Muzzle 1.227, Barbed Collar 1.005, Sorting Hook 1.004, Rusty Saw 0.996, Fanged Guillotine 0.942, Iron Tongs of Lust 0.843, Felon's Dog Tag 0.791, Crowded Beastcage 0.665, Warden's Scales 0.638.
   - Level with no instrument: Iron Pestle 0.623, Lost Ring of Keys 0.621, Short-Chained Shackles 0.610.
@@ -123,8 +123,16 @@ The swap tiers hold (`--seed SWAPTIER`). With rewards on, stopping at Rare or at
   - The Noose (1.767 before) and the Muzzle (1.605) lost the most, since swaps now cost a devour.
   - The Blacklist rose from 1.357. With fewer devours, fewer cells empty and re-seal, so 5 or fewer locked cells comes sooner.
 - **Habits** (no tools): always choosing Bestow 0.434, always accepting Executions 0.471, preferring short walks 0.481, never swapping 0.536. Never swapping scores what it did before, since the rule never bites without swaps. It was the costliest habit and is now the fourth.
-- **Warden's Treasure:** judging each gift on the spot (2.108) still beats always taking the same one: Crimson Vintage 2.056, Brand of Original Sin 1.812, Brass Horn of Strife 1.778, Three-Headed Thumb Ring 1.687.
+- **Warden's Treasure:** judging each gift on the spot (2.160) still beats always taking the same one: Crimson Vintage 2.105, Brand of Original Sin 1.828, Brass Horn of Strife 1.792, Three-Headed Thumb Ring 1.731.
 - **Contract challenge** (`cguide --games 200000 --habit-games 100000`): the trained strategy passes 91.1% with 51.4 points, down from 94.9% and 52.8. Sending the most points on every contract still fails most runs (27.8% pass), and playing with the drill weights makes no measurable difference to passing (91.3%) but scores 1 point less.
+
+**Instrument sets** (`combos --max 2` on 4 threads). The rule changed how the sets play, so they started over, singles and pairs only for now: 6,742,442 runs in 25.4 minutes, every set within ±0.01. With no instrument 0.633.
+
+- **Best pairs:** Squirming Iron Box with Skewered Rat Heads 3.63, Hangman's Noose with Long-Chained Shackles 2.68, Agonizing Muzzle with the Noose 2.49, Lost Ring of Keys with the Executioner's Blacklist 2.46, the Muzzle with the Shackles 2.17.
+- **Worth more than their parts:** Iron Box with Rat Heads +2.69, Ring of Keys with the Blacklist +0.92, Muzzle with Noose +0.54, Noose with Shackles +0.50, Searing Branding Iron with the Blacklist +0.44.
+- **Clashes:** the Blacklist with instruments that feed devours: the Iron Box −0.58, Avenger's Casket −0.51, Rat Heads −0.46 and the Rusty Saw −0.43. Likely because every devour empties a cell that seals again, which keeps the locked count above the Blacklist's 5.
+- **The best second instrument differs from the single ranking for 12 of the 21.** For example, holding the Blacklist the Ring of Keys adds 0.90 and the Shackles 0.54, and holding the Shackles the Noose adds 1.22 and the Muzzle 0.71.
+- Picking by the sets still pays: 2.165 Rainbows per run against 2.142 with the single ranking, +0.024 on the same prisons (`variants --rewards on --seed AB`, 100,000 runs each; it was +0.059 before the rule). Sets of 3 and 4 weren't re-measured; with more held, the Trainer averages over the pairs.
 
 ### The office, steered chains and six more events; retrained (2026-10-15, evening)
 

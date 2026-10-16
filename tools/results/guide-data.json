@@ -134,530 +134,530 @@
   "gifts": [
     {
       "id": "scored",
-      "value": 2.1075
+      "value": 2.1597
     },
     {
       "id": "wine",
       "name": "Crimson Vintage",
-      "value": 2.056
+      "value": 2.1051
     },
     {
       "id": "brand",
       "name": "Brand of Original Sin",
-      "value": 1.8119
+      "value": 1.8279
     },
     {
       "id": "horn",
       "name": "Brass Horn of Strife",
-      "value": 1.7784
+      "value": 1.7921
     },
     {
       "id": "ring",
       "name": "Three-Headed Thumb Ring",
-      "value": 1.6868
+      "value": 1.731
     }
   ],
   "headline": {
     "games": 100000,
-    "rainbowsPerRun": 2.1075,
-    "ci95": 0.0092,
-    "runsWithRainbow": 0.8623,
+    "rainbowsPerRun": 2.1597,
+    "ci95": 0.0093,
+    "runsWithRainbow": 0.8695,
     "rainbowCounts": [
-      0.1377,
-      0.2411,
-      0.2599,
-      0.1908,
-      0.1052,
-      0.0654
+      0.1305,
+      0.2354,
+      0.2597,
+      0.1946,
+      0.1089,
+      0.0709
     ],
-    "devoursPerRun": 5.19,
-    "bitesPerDevour": 1.303,
+    "devoursPerRun": 5.14,
+    "bitesPerDevour": 1.302,
     "chainLengths": [
-      0.7532,
-      0.1993,
+      0.7535,
+      0.1991,
       0.0398,
       0.0066,
       0.001,
       0
     ],
     "rainbowSources": {
-      "chain": 47829,
-      "singleDevour": 53499,
-      "other": 109421
+      "chain": 46379,
+      "singleDevour": 51240,
+      "other": 118348
     },
-    "firstRainbowDay": 11.88,
-    "swapsPerRun": 9.18,
-    "executionsPerRun": 0.062,
-    "doorsPerRun": 18.29
+    "firstRainbowDay": 12.07,
+    "swapsPerRun": 9.11,
+    "executionsPerRun": 0.065,
+    "doorsPerRun": 18.3
   },
   "stairs": [
     {
       "key": "3:1",
-      "n": 57950,
-      "rainbow": 0.3297,
-      "bites": 1.244
+      "n": 57302,
+      "rainbow": 0.3174,
+      "bites": 1.243
     },
     {
       "key": "3:0",
-      "n": 48505,
-      "rainbow": 0.1964,
-      "bites": 1.055
+      "n": 48049,
+      "rainbow": 0.1753,
+      "bites": 1.052
     },
     {
       "key": "4:",
-      "n": 34819,
+      "n": 35361,
       "rainbow": 1,
       "bites": 1
     },
     {
       "key": "2:11",
-      "n": 24529,
-      "rainbow": 0.1326,
-      "bites": 1.291
+      "n": 23841,
+      "rainbow": 0.1291,
+      "bites": 1.294
     },
     {
       "key": "2:10",
-      "n": 23932,
-      "rainbow": 0.1064,
+      "n": 23553,
+      "rainbow": 0.0915,
       "bites": 1.225
     },
     {
       "key": "2:21",
-      "n": 20625,
-      "rainbow": 0.1614,
-      "bites": 1.462
+      "n": 20071,
+      "rainbow": 0.1588,
+      "bites": 1.467
     },
     {
       "key": "2:20",
-      "n": 19012,
-      "rainbow": 0.1038,
-      "bites": 1.4
+      "n": 18475,
+      "rainbow": 0.096,
+      "bites": 1.401
     },
     {
       "key": "3:2",
-      "n": 16757,
-      "rainbow": 0.4865,
+      "n": 17351,
+      "rainbow": 0.4776,
       "bites": 1.442
     },
     {
       "key": "2:00",
-      "n": 13408,
-      "rainbow": 0.1254,
-      "bites": 1.061
+      "n": 13422,
+      "rainbow": 0.0992,
+      "bites": 1.059
     },
     {
       "key": "1:110",
-      "n": 9086,
-      "rainbow": 0.0409,
-      "bites": 1.281
-    },
-    {
-      "key": "2:12",
-      "n": 8667,
-      "rainbow": 0.1808,
-      "bites": 1.338
+      "n": 9237,
+      "rainbow": 0.0349,
+      "bites": 1.283
     },
     {
       "key": "1:111",
-      "n": 8576,
-      "rainbow": 0.0582,
-      "bites": 1.335
+      "n": 8583,
+      "rainbow": 0.0496,
+      "bites": 1.317
+    },
+    {
+      "key": "2:12",
+      "n": 8534,
+      "rainbow": 0.174,
+      "bites": 1.334
     },
     {
       "key": "2:01",
-      "n": 7173,
-      "rainbow": 0.1415,
-      "bites": 1.128
+      "n": 7143,
+      "rainbow": 0.1217,
+      "bites": 1.121
     },
     {
       "key": "1:210",
-      "n": 6746,
-      "rainbow": 0.0409,
-      "bites": 1.46
+      "n": 6830,
+      "rainbow": 0.0369,
+      "bites": 1.462
     },
     {
       "key": "1:121",
-      "n": 6681,
-      "rainbow": 0.0602,
-      "bites": 1.361
+      "n": 6741,
+      "rainbow": 0.0562,
+      "bites": 1.35
     },
     {
       "key": "1:211",
-      "n": 6632,
-      "rainbow": 0.0596,
-      "bites": 1.493
+      "n": 6660,
+      "rainbow": 0.058,
+      "bites": 1.501
     },
     {
       "key": "1:120",
-      "n": 6437,
-      "rainbow": 0.0432,
-      "bites": 1.346
+      "n": 6621,
+      "rainbow": 0.0385,
+      "bites": 1.343
     },
     {
       "key": "2:22",
-      "n": 6155,
-      "rainbow": 0.2385,
-      "bites": 1.548
+      "n": 6129,
+      "rainbow": 0.2317,
+      "bites": 1.544
     },
     {
       "key": "1:100",
-      "n": 5563,
-      "rainbow": 0.0252,
-      "bites": 1.23
+      "n": 5656,
+      "rainbow": 0.021,
+      "bites": 1.241
     },
     {
       "key": "1:220",
-      "n": 5299,
-      "rainbow": 0.0379,
-      "bites": 1.516
+      "n": 5249,
+      "rainbow": 0.0349,
+      "bites": 1.511
     },
     {
       "key": "2:30",
-      "n": 5018,
-      "rainbow": 0.0963,
-      "bites": 1.585
+      "n": 4979,
+      "rainbow": 0.0926,
+      "bites": 1.581
     },
     {
       "key": "1:000",
-      "n": 4655,
-      "rainbow": 0.0153,
-      "bites": 1.069
+      "n": 4759,
+      "rainbow": 0.0134,
+      "bites": 1.067
     },
     {
       "key": "1:221",
-      "n": 4649,
-      "rainbow": 0.0804,
-      "bites": 1.575
+      "n": 4726,
+      "rainbow": 0.0766,
+      "bites": 1.568
     },
     {
       "key": "1:010",
-      "n": 4290,
-      "rainbow": 0.0305,
-      "bites": 1.106
+      "n": 4295,
+      "rainbow": 0.0277,
+      "bites": 1.105
     },
     {
       "key": "0:1111",
-      "n": 4267,
-      "rainbow": 0.0291,
-      "bites": 1.348
-    },
-    {
-      "key": "0:1210",
-      "n": 4188,
-      "rainbow": 0.0181,
-      "bites": 1.335
-    },
-    {
-      "key": "0:1110",
-      "n": 4148,
-      "rainbow": 0.0376,
-      "bites": 1.335
+      "n": 4179,
+      "rainbow": 0.0256,
+      "bites": 1.342
     },
     {
       "key": "2:31",
-      "n": 3934,
-      "rainbow": 0.1995,
-      "bites": 1.691
+      "n": 4093,
+      "rainbow": 0.1869,
+      "bites": 1.688
+    },
+    {
+      "key": "0:1210",
+      "n": 4055,
+      "rainbow": 0.0165,
+      "bites": 1.339
+    },
+    {
+      "key": "0:1110",
+      "n": 3772,
+      "rainbow": 0.0361,
+      "bites": 1.341
     },
     {
       "key": "0:2110",
-      "n": 3629,
-      "rainbow": 0.0242,
-      "bites": 1.504
+      "n": 3588,
+      "rainbow": 0.022,
+      "bites": 1.501
     },
     {
       "key": "1:101",
-      "n": 3290,
-      "rainbow": 0.0559,
-      "bites": 1.279
+      "n": 3286,
+      "rainbow": 0.045,
+      "bites": 1.275
     },
     {
       "key": "1:011",
-      "n": 3189,
-      "rainbow": 0.0539,
-      "bites": 1.165
+      "n": 3227,
+      "rainbow": 0.049,
+      "bites": 1.154
     },
     {
       "key": "1:200",
-      "n": 3134,
-      "rainbow": 0.0325,
-      "bites": 1.385
+      "n": 3212,
+      "rainbow": 0.0249,
+      "bites": 1.393
     },
     {
       "key": "0:1211",
-      "n": 3111,
-      "rainbow": 0.0305,
-      "bites": 1.374
-    },
-    {
-      "key": "0:1100",
-      "n": 2809,
-      "rainbow": 0.0217,
-      "bites": 1.291
+      "n": 2952,
+      "rainbow": 0.0342,
+      "bites": 1.375
     },
     {
       "key": "2:02",
       "n": 2805,
-      "rainbow": 0.1444,
-      "bites": 1.17
-    },
-    {
-      "key": "0:2210",
-      "n": 2718,
-      "rainbow": 0.0136,
-      "bites": 1.493
+      "rainbow": 0.1405,
+      "bites": 1.171
     },
     {
       "key": "1:112",
-      "n": 2715,
-      "rainbow": 0.0604,
-      "bites": 1.322
+      "n": 2782,
+      "rainbow": 0.0561,
+      "bites": 1.327
+    },
+    {
+      "key": "0:2210",
+      "n": 2639,
+      "rainbow": 0.0136,
+      "bites": 1.509
     },
     {
       "key": "0:2111",
-      "n": 2703,
-      "rainbow": 0.0333,
+      "n": 2633,
+      "rainbow": 0.0338,
       "bites": 1.532
     },
     {
       "key": "0:1121",
-      "n": 2659,
-      "rainbow": 0.0323,
-      "bites": 1.343
+      "n": 2535,
+      "rainbow": 0.03,
+      "bites": 1.326
     },
     {
-      "key": "0:1220",
-      "n": 2617,
-      "rainbow": 0.0275,
-      "bites": 1.352
-    },
-    {
-      "key": "0:0000",
-      "n": 2546,
-      "rainbow": 0.0114,
-      "bites": 1.144
+      "key": "0:1100",
+      "n": 2521,
+      "rainbow": 0.021,
+      "bites": 1.308
     },
     {
       "key": "1:020",
-      "n": 2528,
-      "rainbow": 0.0419,
-      "bites": 1.156
+      "n": 2520,
+      "rainbow": 0.0389,
+      "bites": 1.148
+    },
+    {
+      "key": "0:1220",
+      "n": 2512,
+      "rainbow": 0.0255,
+      "bites": 1.342
     },
     {
       "key": "1:021",
-      "n": 2435,
-      "rainbow": 0.0517,
-      "bites": 1.179
+      "n": 2483,
+      "rainbow": 0.0467,
+      "bites": 1.174
     },
     {
       "key": "1:201",
-      "n": 2428,
-      "rainbow": 0.0519,
-      "bites": 1.454
+      "n": 2441,
+      "rainbow": 0.0479,
+      "bites": 1.458
     },
     {
-      "key": "0:0100",
-      "n": 2351,
-      "rainbow": 0.0153,
-      "bites": 1.183
+      "key": "0:0000",
+      "n": 2235,
+      "rainbow": 0.0107,
+      "bites": 1.161
     },
     {
       "key": "0:2120",
-      "n": 2244,
-      "rainbow": 0.0334,
-      "bites": 1.51
+      "n": 2171,
+      "rainbow": 0.0313,
+      "bites": 1.503
     },
     {
-      "key": "0:1000",
-      "n": 2243,
-      "rainbow": 0.0147,
-      "bites": 1.225
-    },
-    {
-      "key": "0:1120",
-      "n": 2172,
-      "rainbow": 0.0327,
-      "bites": 1.352
-    },
-    {
-      "key": "0:1010",
-      "n": 2139,
-      "rainbow": 0.0753,
-      "bites": 1.295
-    },
-    {
-      "key": "0:0110",
-      "n": 2074,
-      "rainbow": 0.1109,
-      "bites": 1.31
+      "key": "0:0100",
+      "n": 2112,
+      "rainbow": 0.0123,
+      "bites": 1.191
     },
     {
       "key": "0:2100",
-      "n": 2036,
-      "rainbow": 0.0172,
-      "bites": 1.472
+      "n": 2053,
+      "rainbow": 0.0146,
+      "bites": 1.477
+    },
+    {
+      "key": "0:1000",
+      "n": 2030,
+      "rainbow": 0.0143,
+      "bites": 1.24
     },
     {
       "key": "1:212",
-      "n": 1947,
-      "rainbow": 0.0791,
-      "bites": 1.525
+      "n": 2018,
+      "rainbow": 0.0773,
+      "bites": 1.527
     },
     {
-      "key": "0:2211",
-      "n": 1915,
-      "rainbow": 0.0319,
-      "bites": 1.547
+      "key": "0:1120",
+      "n": 2007,
+      "rainbow": 0.0344,
+      "bites": 1.348
     },
     {
-      "key": "0:1221",
-      "n": 1787,
-      "rainbow": 0.0392,
-      "bites": 1.403
+      "key": "0:1010",
+      "n": 1903,
+      "rainbow": 0.0667,
+      "bites": 1.305
+    },
+    {
+      "key": "0:0110",
+      "n": 1889,
+      "rainbow": 0.0937,
+      "bites": 1.3
     },
     {
       "key": "1:122",
-      "n": 1721,
-      "rainbow": 0.0755,
-      "bites": 1.351
+      "n": 1819,
+      "rainbow": 0.0627,
+      "bites": 1.345
     },
     {
-      "key": "0:2220",
-      "n": 1651,
-      "rainbow": 0.0291,
-      "bites": 1.538
+      "key": "0:2211",
+      "n": 1757,
+      "rainbow": 0.0319,
+      "bites": 1.541
+    },
+    {
+      "key": "0:1221",
+      "n": 1717,
+      "rainbow": 0.0361,
+      "bites": 1.401
     },
     {
       "key": "0:2121",
-      "n": 1643,
-      "rainbow": 0.0499,
-      "bites": 1.54
+      "n": 1573,
+      "rainbow": 0.0445,
+      "bites": 1.533
     },
     {
-      "key": "0:1101",
-      "n": 1445,
-      "rainbow": 0.045,
-      "bites": 1.364
+      "key": "0:2220",
+      "n": 1555,
+      "rainbow": 0.0264,
+      "bites": 1.539
     },
     {
       "key": "1:310",
-      "n": 1403,
-      "rainbow": 0.0257,
-      "bites": 1.647
-    },
-    {
-      "key": "0:0010",
-      "n": 1401,
-      "rainbow": 0.1378,
-      "bites": 1.272
-    },
-    {
-      "key": "0:1200",
-      "n": 1399,
-      "rainbow": 0.0193,
-      "bites": 1.317
+      "n": 1414,
+      "rainbow": 0.0205,
+      "bites": 1.651
     },
     {
       "key": "0:2200",
-      "n": 1387,
-      "rainbow": 0.013,
-      "bites": 1.505
+      "n": 1357,
+      "rainbow": 0.0133,
+      "bites": 1.511
     },
     {
       "key": "1:001",
-      "n": 1323,
-      "rainbow": 0.0703,
-      "bites": 1.135
-    },
-    {
-      "key": "0:0111",
-      "n": 1307,
-      "rainbow": 0.075,
-      "bites": 1.334
-    },
-    {
-      "key": "0:1011",
-      "n": 1245,
-      "rainbow": 0.0514,
-      "bites": 1.298
-    },
-    {
-      "key": "0:1112",
-      "n": 1227,
-      "rainbow": 0.0261,
-      "bites": 1.307
+      "n": 1314,
+      "rainbow": 0.0518,
+      "bites": 1.12
     },
     {
       "key": "1:130",
-      "n": 1224,
-      "rainbow": 0.0449,
-      "bites": 1.385
-    },
-    {
-      "key": "1:311",
-      "n": 1211,
-      "rainbow": 0.0528,
-      "bites": 1.692
-    },
-    {
-      "key": "0:2101",
-      "n": 1161,
-      "rainbow": 0.0233,
-      "bites": 1.496
+      "n": 1298,
+      "rainbow": 0.037,
+      "bites": 1.379
     },
     {
       "key": "1:222",
-      "n": 1158,
-      "rainbow": 0.1226,
-      "bites": 1.615
+      "n": 1290,
+      "rainbow": 0.1047,
+      "bites": 1.593
     },
     {
-      "key": "0:2221",
-      "n": 1132,
-      "rainbow": 0.0362,
-      "bites": 1.574
+      "key": "0:1101",
+      "n": 1283,
+      "rainbow": 0.0436,
+      "bites": 1.363
     },
     {
-      "key": "1:102",
-      "n": 1127,
-      "rainbow": 0.0506,
-      "bites": 1.291
+      "key": "0:1200",
+      "n": 1270,
+      "rainbow": 0.0157,
+      "bites": 1.318
     },
     {
-      "key": "2:32",
-      "n": 1058,
-      "rainbow": 0.3166,
-      "bites": 1.772
+      "key": "0:0010",
+      "n": 1238,
+      "rainbow": 0.126,
+      "bites": 1.283
+    },
+    {
+      "key": "1:311",
+      "n": 1236,
+      "rainbow": 0.0518,
+      "bites": 1.703
+    },
+    {
+      "key": "0:0111",
+      "n": 1202,
+      "rainbow": 0.0666,
+      "bites": 1.32
+    },
+    {
+      "key": "0:1112",
+      "n": 1200,
+      "rainbow": 0.0225,
+      "bites": 1.311
     },
     {
       "key": "1:131",
-      "n": 1048,
-      "rainbow": 0.0763,
-      "bites": 1.422
+      "n": 1175,
+      "rainbow": 0.0689,
+      "bites": 1.431
     },
     {
-      "key": "0:2010",
-      "n": 1039,
-      "rainbow": 0.0549,
-      "bites": 1.478
+      "key": "2:32",
+      "n": 1169,
+      "rainbow": 0.296,
+      "bites": 1.772
+    },
+    {
+      "key": "3:3",
+      "n": 1165,
+      "rainbow": 0.6618,
+      "bites": 1.667
+    },
+    {
+      "key": "1:102",
+      "n": 1153,
+      "rainbow": 0.046,
+      "bites": 1.302
+    },
+    {
+      "key": "0:1011",
+      "n": 1132,
+      "rainbow": 0.0495,
+      "bites": 1.307
+    },
+    {
+      "key": "0:2101",
+      "n": 1118,
+      "rainbow": 0.0259,
+      "bites": 1.525
     },
     {
       "key": "1:230",
-      "n": 1038,
-      "rainbow": 0.0491,
-      "bites": 1.617
+      "n": 1083,
+      "rainbow": 0.0369,
+      "bites": 1.596
     },
     {
-      "key": "0:1201",
-      "n": 1023,
-      "rainbow": 0.0264,
-      "bites": 1.37
+      "key": "0:2221",
+      "n": 1070,
+      "rainbow": 0.0336,
+      "bites": 1.581
+    },
+    {
+      "key": "1:012",
+      "n": 1027,
+      "rainbow": 0.0438,
+      "bites": 1.135
     },
     {
       "key": "1:320",
-      "n": 1016,
-      "rainbow": 0.0344,
-      "bites": 1.775
+      "n": 1022,
+      "rainbow": 0.0313,
+      "bites": 1.743
     }
   ],
   "compare": {
@@ -831,36 +831,36 @@
       },
       "tuned": {
         "games": 100000,
-        "rainbowsPerRun": 2.1075,
-        "ci95": 0.0092,
-        "runsWithRainbow": 0.8623,
+        "rainbowsPerRun": 2.1597,
+        "ci95": 0.0093,
+        "runsWithRainbow": 0.8695,
         "rainbowCounts": [
-          0.1377,
-          0.2411,
-          0.2599,
-          0.1908,
-          0.1052,
-          0.0654
+          0.1305,
+          0.2354,
+          0.2597,
+          0.1946,
+          0.1089,
+          0.0709
         ],
-        "devoursPerRun": 5.19,
-        "bitesPerDevour": 1.303,
+        "devoursPerRun": 5.14,
+        "bitesPerDevour": 1.302,
         "chainLengths": [
-          0.7532,
-          0.1993,
+          0.7535,
+          0.1991,
           0.0398,
           0.0066,
           0.001,
           0
         ],
         "rainbowSources": {
-          "chain": 47829,
-          "singleDevour": 53499,
-          "other": 109421
+          "chain": 46379,
+          "singleDevour": 51240,
+          "other": 118348
         },
-        "firstRainbowDay": 11.88,
-        "swapsPerRun": 9.18,
-        "executionsPerRun": 0.062,
-        "doorsPerRun": 18.29
+        "firstRainbowDay": 12.07,
+        "swapsPerRun": 9.11,
+        "executionsPerRun": 0.065,
+        "doorsPerRun": 18.3
       }
     }
   },
@@ -1151,7 +1151,7 @@
     }
   },
   "totalRuns": 4600000,
-  "minutes": 15.6,
+  "minutes": 15.2,
   "challenge": {
     "generated": "2026-10-16",
     "seed": "CGUIDE",
