@@ -108,6 +108,9 @@
       // The game offers a consume after today's swap (it shows the button,
       // or Follow my game saw it in the log): only then is one advised.
       consumeOffered: false,
+      // Set when a screenshot's instrument panel disagrees with the run's
+      // instruments: the player is asked to confirm them.
+      toolsToConfirm: '',
       // The game shows no Replace / Consume card now (read from a screenshot):
       // that move isn't advised, and the other one still can be.
       noSwap: false,
@@ -941,6 +944,8 @@
     $('az-window-note').textContent = !next ? '' : model.windowKind === 'early' ? 'From day 9, once the first two contracts are settled. Delivering it ends the run.' : `"${next.name}": ${next.needs.join(', ').toLowerCase()}.`;
     $('az-armed').checked = !!model.chainArmed;
     for (const b of $('az-tools').querySelectorAll('[data-tool]')) b.setAttribute('aria-pressed', String(model.tools.includes(b.dataset.tool)));
+    $('az-tools-confirm').hidden = !model.toolsToConfirm;
+    $('az-tools-confirm-text').textContent = model.toolsToConfirm || '';
     // The run's instruments first, in the order they were gained, then the
     // rest; the list scrolls back to the top when its order changes.
     const toolBox = $('az-tools');
@@ -1663,6 +1668,73 @@
     return true;
   }
 
+  // Reading printed text: Tesseract, loaded the first time it's needed (a
+  // pinned version from jsDelivr, cached by the browser). It runs in this
+  // browser; the picture isn't sent anywhere. Without it, the cards are
+  // read by their art alone.
+  let ocr = null;
+  function ocrWorker() {
+    if (!ocr) {
+      ocr = new Promise((resolve, reject) => {
+        if (window.Tesseract) return resolve();
+        const sc = document.createElement('script');
+        sc.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+        sc.onload = resolve;
+        sc.onerror = reject;
+        document.head.appendChild(sc);
+      })
+        .then(() => window.Tesseract.createWorker('eng'))
+        .catch(() => null);
+    }
+    return ocr;
+  }
+
+  function editDistance(a, b) {
+    let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+      const row = [i];
+      for (let j = 1; j <= b.length; j++) row[j] = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = row;
+    }
+    return prev[b.length];
+  }
+
+  // The instrument a card's text names: the known name it's closest to,
+  // when that's clearly closer than any other. null when it isn't.
+  function nameFromText(text) {
+    const letters = (t) => t.toLowerCase().replace(/[^a-z]/g, '');
+    const tries = [text, ...text.split('\n')].map(letters).filter((t) => t.length >= 3);
+    const scores = T.TOOL_IDS.map((id) => {
+      const n = letters(T.toolName(id));
+      return { id, score: Math.min(...tries.map((t) => editDistance(t, n) / n.length), 9) };
+    }).sort((a, b) => a.score - b.score);
+    const [best, next] = scores;
+    return best && best.score <= 0.3 && (!next || next.score - best.score >= 0.15) ? best : null;
+  }
+
+  // The three cards' names, left to right, from the band under each card's
+  // art (a raised card's title sits a little higher, inside the band).
+  async function readCardNames(canvas) {
+    const worker = await ocrWorker();
+    if (!worker) return [null, null, null];
+    const s = canvas.height / 1080;
+    const out = [];
+    for (let k = -1; k <= 1; k++) {
+      const c = canvas.width / 2 + k * 480 * s;
+      const crop = document.createElement('canvas');
+      crop.width = Math.round(430 * s);
+      crop.height = Math.round(130 * s);
+      crop.getContext('2d').drawImage(canvas, Math.round(c - 215 * s), Math.round(420 * s), crop.width, crop.height, 0, 0, crop.width, crop.height);
+      try {
+        const { data } = await worker.recognize(crop);
+        out.push(nameFromText(data.text || ''));
+      } catch (e) {
+        out.push(null);
+      }
+    }
+    return out;
+  }
+
   function readPick(source) {
     const scale = Math.min(1, 2600 / source.width);
     const w = Math.round(source.width * scale);
@@ -1681,8 +1753,14 @@
         const ms = Math.round(performance.now() - t0);
         if (error || !result) return resolve({ ok: false, pick: true, reason: error || 'no result', ms });
         if (!result.ok) return resolve({ ok: false, pick: true, reason: result.reason, ms });
-        const cards = result.cards.map((c) => ({ sim: c.sim, name: T.toolName(c.sim), conf: c.conf, alts: c.alts }));
-        resolve({ ok: true, pick: true, cards, names: cards.map((c) => c.name), unsure: cards.filter((c) => c.conf < 0.5).length, reroll: !!result.reroll, ms });
+        const cards = result.cards.map((c) => ({ sim: c.sim, name: T.toolName(c.sim), conf: c.conf, alts: c.alts, by: 'art' }));
+        // Each card's printed name, read where it can be, outranks its art.
+        readCardNames(canvas).then((names) => {
+          names.forEach((n, i) => {
+            if (n && cards[i]) Object.assign(cards[i], { sim: n.id, name: T.toolName(n.id), conf: 1, by: 'name' });
+          });
+          resolve({ ok: true, pick: true, cards, names: cards.map((c) => c.name), unsure: cards.filter((c) => c.conf < 0.5).length, reroll: !!result.reroll, byName: cards.filter((c) => c.by === 'name').length, ms: Math.round(performance.now() - t0) });
+        });
       };
       reader.pickId += 1;
       const id = `pick${reader.pickId}`;
@@ -1873,16 +1951,11 @@
     const out = known.map((id) => ({ id, sim: id, name: T.toolName(id), conf: 1, kept: true }));
     const has = (id) => out.some((t) => t.sim === id);
     const slots = read.length;
-    // The reader sure of every icon, and as many as known or more: the panel
-    // shows what's held, and corrects what was remembered (an instrument
-    // misread before, or one gained without an offer the analyzer saw).
-    const sure = slots > 0 && slots >= known.length && read.every((t) => t.sim && t.conf >= TOOL_SURE);
-    if (sure) {
-      const ids = [...new Set(read.map((t) => t.sim))];
-      const wrong = known.filter((id) => !ids.includes(id));
-      if (wrong.length) notes.push(`Your instruments read clearly as ${ids.map((id) => T.toolName(id)).join(', ')}, so ${wrong.map((id) => T.toolName(id)).join(', ')} ${wrong.length === 1 ? 'was' : 'were'} taken off.`);
-      return ids.map((id) => ({ id, sim: id, name: T.toolName(id), conf: 1 }));
-    }
+    // Once the run's instruments are known, they're locked: icons never
+    // change them. When the panel disagrees (more icons than known, or an
+    // icon that's clearly another instrument), the player is asked to
+    // confirm them (m.toolsToConfirm).
+    m.toolsToConfirm = '';
     if (sameRun && (known.length || offer.length || base.runStart)) {
       if (offer.length && slots > known.length && !offer.some(has)) {
         const seen = read.filter((t) => offer.includes(t.sim)).sort((a, b) => b.conf - a.conf)[0];
@@ -1895,16 +1968,16 @@
           out.push({ id: take, sim: take, name: T.toolName(take), conf: 1, kept: true });
           if (!seen) notes.push(`Took it you chose ${T.toolName(take)}, as advised. If you took another, change it under Torture Instrument.`);
         } else notes.push(`Your instruments show one more than before, from the offer of ${offer.map((id) => T.toolName(id)).join(', ')}: set which you took under Torture Instrument.`);
-      } else if (slots > out.length) {
-        notes.push(`Your instruments show ${slots}, and the analyzer knows ${out.length}. An instrument gained without an offer it saw isn't added from its icon: add it under Torture Instrument.`);
       }
-      const ignored = read.filter((t) => t.sim && !has(t.sim));
-      if (known.length && ignored.length) notes.push(`Kept your instruments from earlier in this run (${known.map((id) => T.toolName(id)).join(', ')}).`);
+      const off = read.filter((t) => t.sim && t.conf >= TOOL_SURE && !has(t.sim));
+      if (slots > out.length) m.toolsToConfirm = `Your panel shows ${T.plural(slots, 'instrument')}, and the analyzer has ${out.length}: ${out.map((t) => t.name).join(', ') || 'none'}. Set the ones you hold, then press These are right.`;
+      else if (off.length) m.toolsToConfirm = `An icon on your panel looks like ${off.map((t) => T.toolName(t.sim)).join(' and ')}, which isn’t one the analyzer has for this run (${out.map((t) => t.name).join(', ')}). Check your instruments, then press These are right.`;
       return out;
     }
+    // Nothing known of the run yet: only icons the reader is sure of, and
+    // the player is asked to confirm.
     for (const t of read) if (t.sim && !has(t.sim) && t.conf >= TOOL_SURE) out.push(t);
-    const unsure = read.filter((t) => t.sim && t.conf < TOOL_SURE);
-    if (unsure.length) notes.push(`${T.plural(unsure.length, 'instrument')} on your panel couldn’t be told apart for sure, so they’re left out: set them under Torture Instrument.`);
+    if (read.length) m.toolsToConfirm = `The analyzer doesn’t know this run’s instruments yet. It read ${out.length ? out.map((t) => T.toolName(t.sim)).join(', ') : 'none for sure'} from your panel of ${read.length}. Set the ones you hold, then press These are right.`;
     return out;
   }
 
@@ -2353,6 +2426,13 @@
       model.tools = model.tools.includes(id) ? model.tools.filter((t) => t !== id) : [...model.tools, id];
       model.choice = Object.assign({}, model.choice, { options: model.choice.options.filter((t) => !model.tools.includes(t)) });
       changed();
+    });
+    // The player confirms the run's instruments as set: they're locked in,
+    // and the advice is checked again with them.
+    $('az-tools-ok').addEventListener('click', () => {
+      model.toolsToConfirm = '';
+      changed();
+      ask();
     });
     $('az-rewards').addEventListener('change', (e) => {
       model.rewards = e.target.checked;

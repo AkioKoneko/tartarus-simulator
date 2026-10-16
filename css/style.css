@@ -4885,3 +4885,25 @@ textarea {
   background: color-mix(in srgb, var(--teal) 60%, transparent);
   transition: width 0.3s;
 }
+
+/* Asking the player to confirm the run's instruments (js/analyze.js). */
+.az-tools-confirm {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--check);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--check) 10%, var(--slab));
+  color: var(--bone);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.az-tools-confirm p {
+  margin: 0 0 6px;
+}
+
+.az-tools-confirm .btn {
+  padding: 3px 10px;
+  font-size: 12px;
+}
