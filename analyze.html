@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261016w">
+<link rel="stylesheet" href="css/style.css?v=20261016x">
 </head>
 <body>
 <main class="analyzer" id="analyzer">
@@ -190,6 +190,11 @@
   <div class="az-layout">
     <section class="az-main" aria-label="Your board">
 
+      <section class="az-panel az-treasure-wait" id="az-treasure-wait" aria-live="polite" hidden>
+        <p class="az-res-move">The Warden’s Treasure is open</p>
+        <p>It covers the board, which may have changed since the last picture. Press <strong>View Prison Status</strong> in the game, then return to the Treasure: Follow my game reads the board while you look, and the gift advice uses it. Without Follow my game, paste a screenshot of the board as you see it then.</p>
+        <button type="button" class="btn" id="az-treasure-now">Advise with the board as it is</button>
+      </section>
       <section class="az-panel az-results" id="az-results" aria-live="polite" hidden>
         <p class="trainer-eyebrow">Recommended</p>
         <p class="az-res-move" id="az-res-move"></p>
@@ -322,14 +327,14 @@
   </footer>
 </main>
 
-<script src="js/engine.js?v=20261016w"></script>
-<script src="js/board.js?v=20261016w"></script>
-<script src="js/tool-combos.js?v=20261016w"></script>
-<script src="js/solver.js?v=20261016w"></script>
-<script src="js/live.js?v=20261016w"></script>
-<script src="js/report.js?v=20261016w"></script>
-<script src="js/capture.js?v=20261016w"></script>
-<script src="js/analyze.js?v=20261016w"></script>
-<script src="js/auto.js?v=20261016w"></script>
+<script src="js/engine.js?v=20261016x"></script>
+<script src="js/board.js?v=20261016x"></script>
+<script src="js/tool-combos.js?v=20261016x"></script>
+<script src="js/solver.js?v=20261016x"></script>
+<script src="js/live.js?v=20261016x"></script>
+<script src="js/report.js?v=20261016x"></script>
+<script src="js/capture.js?v=20261016x"></script>
+<script src="js/analyze.js?v=20261016x"></script>
+<script src="js/auto.js?v=20261016x"></script>
 </body>
 </html>

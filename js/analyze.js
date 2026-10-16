@@ -108,6 +108,10 @@
       // The game offers a consume after today's swap (it shows the button,
       // or Follow my game saw it in the log): only then is one advised.
       consumeOffered: false,
+      // A Warden's Treasure waiting for the board behind it (treasureWait),
+      // and the board seen since it opened (treasureSeen).
+      treasureWait: false,
+      treasureSeen: false,
       // Set when a screenshot's instrument panel disagrees with the run's
       // instruments: the player is asked to confirm them.
       toolsToConfirm: '',
@@ -482,6 +486,12 @@
   // done with, and this one, not seen yet, isn't shared: the next board
   // starts a new run.
   function ask(quiet, fresh) {
+    // A Warden's Treasure waiting for the board behind it: no advice yet.
+    if (model.treasureWait) {
+      solver.st = null;
+      render();
+      return false;
+    }
     const { st, problems } = buildState(model);
     showProblems(problems);
     if (problems.length) return false;
@@ -843,7 +853,10 @@
     const rec = fresh() && settled() ? recommendation() : null;
     let title;
     let detail;
-    if (reading) {
+    if (model.treasureWait && !reading) {
+      title = 'The Warden’s Treasure: check the board first';
+      detail = 'Press View Prison Status in the game, then return. Follow my game reads the board while you look.';
+    } else if (reading) {
       title = 'Reading the new picture…';
       detail = 'The advice follows as soon as it’s read.';
     } else if (working) {
@@ -1072,6 +1085,7 @@
   const actionKey = (a) => [a.type, a.cell, a.to, a.id, a.accept, a.choice, (a.cells || []).slice().sort((x, y) => x - y).join('.'), (a.vaultIds || []).slice().sort((x, y) => x - y).join('.'), a.escort].join('|');
 
   function renderResults() {
+    $('az-treasure-wait').hidden = !model.treasureWait;
     const box = $('az-results');
     box.hidden = !solver.st;
     if (!solver.st) return;
@@ -1576,7 +1590,13 @@
         // The reading becomes the board at once, and the advice follows. If
         // the reader got something wrong, the player fixes it and rechecks.
         const unsure = reader.reading.checks.size;
+        const behindTreasure = model.treasureWait;
         useScan(true);
+        if (behindTreasure) {
+          useTreasure('view');
+          renderScan();
+          return;
+        }
         if (ask()) toast(`Loaded day ${model.day} from your screenshot${unsure ? `, with ${T.plural(unsure, 'cell')} marked Check` : ''}.${unsureTools()} The advice is below. If the board doesn’t match your game, fix it and press Recheck.`, 'ok');
         else toast(`Loaded day ${model.day} from your screenshot, but the board needs fixing before the advice: see the notes under “What should I do?”.`, 'bad');
       }
@@ -1892,6 +1912,26 @@
   // Rainbow, so it's in the vault and its cell locked again; after a
   // consume, today's consume is used.
   function useTreasure(after) {
+    const gift = () => {
+      model.step = 'choice';
+      model.choice = { kind: 'gift', options: [], rerolls: 0 };
+      applied = null;
+      solver.st = null;
+    };
+    // The board behind the Treasure has just been read (View Prison
+    // Status): the gift advice uses it.
+    if (after === 'view') {
+      gift();
+      model.treasureWait = false;
+      model.treasureSeen = true;
+      changed();
+      renderScan();
+      const asked = ask(true);
+      toast(`Board seen behind the Warden’s Treasure. ${asked ? 'Which gift to take is below.' : 'The board needs fixing before the advice.'}`, asked ? 'ok' : 'bad');
+      return asked;
+    }
+    // Back at the Treasure after viewing the board: nothing more to wait for.
+    if (model.step === 'choice' && model.choice.kind === 'gift' && model.treasureSeen) return fresh() && settled() ? true : ask(true);
     undo.push({ model: JSON.parse(JSON.stringify(model)), selected, shot });
     if (undo.length > 30) undo.shift();
     reader.undoable = true;
@@ -1907,15 +1947,15 @@
       model.devourUsed = true;
       how = ' It came from your consume: the next picture shows the board after it.';
     }
-    model.step = 'choice';
-    model.choice = { kind: 'gift', options: [], rerolls: 0 };
-    applied = null;
-    solver.st = null;
+    // The Treasure covers the board, which may have changed (a chain, a
+    // Rainbow): no gift is advised until the board behind it is seen.
+    gift();
+    model.treasureWait = true;
+    model.treasureSeen = false;
     changed();
     renderScan();
-    const asked = ask(true);
-    toast(`The Warden’s Treasure is open.${how} ${asked ? 'Which gift to take is below.' : 'The board needs fixing before the advice.'}`, asked ? 'ok' : 'bad');
-    return asked;
+    toast(`The Warden’s Treasure is open.${how} To advise a gift on the board as it is now, press View Prison Status in the game, then return to the Treasure.`, 'ok');
+    return false;
   }
 
   // Without workers (a page opened from disk), reads on the page itself,
@@ -2099,6 +2139,8 @@
     // Consume card with no Replace card is a consume on offer, even after
     // today's swap.
     m.consumeOffered = false;
+    m.treasureWait = false;
+    m.treasureSeen = false;
     m.noSwap = false;
     m.noDevour = false;
     // Without the cards (a picture taken as they come up), a board of the
@@ -2724,6 +2766,13 @@
       $('az-toast').hidden = true;
       if (b.dataset.toast === 'pick') $('az-scan-file').click();
       else $('az-scan').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
+    $('az-treasure-now').addEventListener('click', () => {
+      // Advise the gift on the board as the analyzer has it.
+      model.treasureWait = false;
+      model.treasureSeen = true;
+      changed();
+      ask();
     });
     $('az-scan-show').addEventListener('click', () => {
       reader.folded = false;

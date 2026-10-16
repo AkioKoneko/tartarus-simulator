@@ -290,6 +290,13 @@
   };
   let lastAction = 0;
   let lastEat = 0;
+  let lastGift = 0; // a Warden's Treasure gift confirmed
+  // The Treasure's popup closing with no gift confirmed just before: the
+  // player pressed View Prison Status, and the Treasure still waits.
+  function treasureViewed(hits) {
+    const shut = stampMs((hits.find((h) => /ColoredPop Destory/.test(h.text || '')) || {}).at);
+    return !!shut && !(lastGift && shut >= lastGift && shut - lastGift < 3000);
+  }
   function treasureAfter(hits) {
     const pop = stampMs((hits.find((h) => h.kind === 'treasure') || {}).at);
     if (!pop || !lastAction || pop < lastAction || pop - lastAction > 6000) return '';
@@ -424,7 +431,9 @@
           const fresh = c.hits.some((h) => /check cur=0\b/.test(h.text || ''));
           // after: for the Warden's Treasure, the action that led to it.
           const after = c.kind === 'treasure' ? treasureAfter(c.hits) : '';
-          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, fresh, after, blob });
+          // treasureView: the board, seen while a Warden's Treasure waits.
+          const treasureView = c.kind === 'board' && treasureViewed(c.hits);
+          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, fresh, after, treasureView, blob });
           c.sent = true;
         }
       }
@@ -462,6 +471,7 @@
   C.on('seen', (s) => {
     if (/Btn_S16Board_ActionCell/.test(s.line)) lastAction = stampMs(s.at);
     if (/Eating_red_screen/.test(s.line)) lastEat = stampMs(s.at);
+    if (/ColoredPop_Confirm/.test(s.line)) lastGift = stampMs(s.at);
     seen.unshift(s);
     seen.length = Math.min(seen.length, 200);
     soon(renderSeen);

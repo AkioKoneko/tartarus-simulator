@@ -109,6 +109,11 @@
     A.useReading();
     lastBoardAt = Date.now();
     answer({ state: 'used' });
+    // The board behind a Warden's Treasure: the gift advice uses it.
+    if (m.treasureView) {
+      if (A.useTreasure('view')) answer({ asked: true });
+      return;
+    }
     if (A.ask()) answer({ asked: true });
   }
 

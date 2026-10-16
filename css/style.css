@@ -4907,3 +4907,13 @@ textarea {
   padding: 3px 10px;
   font-size: 12px;
 }
+
+/* A Warden's Treasure waiting for the board behind it (js/analyze.js). */
+.az-treasure-wait {
+  border-color: var(--check);
+  border-left: 3px solid var(--check);
+}
+
+.az-treasure-wait p {
+  max-width: 70ch;
+}
