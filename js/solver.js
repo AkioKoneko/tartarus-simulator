@@ -1312,57 +1312,67 @@
     return Math.sqrt(Math.max(0, sq / n - m * m) / n);
   }
 
+  // Ranks played-out rows ({ label, action, vals, pass, points, best, ... })
+  // by value, after `rounds` of `target`. The analyzer also merges the rows
+  // several workers played out with it: rows whose vals line up round by
+  // round keep their common dice, and so their paired margins.
+  function summarize(rows, rounds, target, goal) {
+    const ranked = rows
+      .map((r) => {
+        let n = 0;
+        let sum = 0;
+        let sq = 0;
+        for (const x of r.vals) {
+          if (Number.isNaN(x)) continue;
+          n += 1;
+          sum += x;
+          sq += x * x;
+        }
+        const mean = n ? sum / n : 0;
+        const sd = n > 1 ? Math.sqrt(Math.max(0, sq / n - mean * mean)) : 0;
+        return { row: r, mean, se: n > 1 ? sd / Math.sqrt(n) : 0, n };
+      })
+      .sort((a, b) => b.mean - a.mean || b.row.best - a.row.best);
+    const top = ranked[0];
+    const options = ranked.map(({ row, mean, se, n }) => ({
+      label: row.label,
+      action: row.action,
+      kind: row.kind,
+      mean,
+      se,
+      gapSe: row === top.row ? 0 : pairedSe(top.row.vals, row.vals),
+      n,
+      pass: n ? row.pass / n : 0,
+      points: n ? row.points / n : 0,
+      best: n ? row.best / n : 0,
+      policy: row.policy,
+      extra: row.extra,
+    }));
+    return { done: rounds >= target || rows.length <= 1, rounds, goal, options };
+  }
+
   // Plays every candidate out `rollouts` times and ranks them by value. Each
   // round of playouts shares its dice across candidates (common random
   // numbers), so the differences between moves are measured, not the luck;
   // `gapSe` is each option's paired margin against the leader. `extra` adds
   // candidates, such as a convoy the player is putting together.
   // Returns a stepper: call step(budgetMs) until it reports done.
+  // `stream` splits the work between workers: each plays its own rounds of
+  // dice, and the pick and candidates are the same in all (summarize merges
+  // them).
   function solve(st, opts) {
-    const o = Object.assign({ rollouts: 400, seed: 1, params: null, extra: null }, opts || {});
+    const o = Object.assign({ rollouts: 400, seed: 1, stream: 0, params: null, extra: null }, opts || {});
     const base = clone(st);
     const list = candidates(base);
     for (const e of o.extra || []) if (!list.some((c) => sameAction(c.action, e.action))) list.push(Object.assign({ extra: true }, e));
-    const random = rng32(o.seed);
+    const random = rng32(o.stream ? (o.seed ^ Math.imul(o.stream, 0x9e3779b1)) >>> 0 : o.seed);
     const pick = list.length ? decide(clone(base), o.params, rng32(o.seed ^ 0x5bd1e995)) : null;
     const goal = base.mode === 'challenge' ? 'contract' : 'rainbows';
     const rows = list.map((c) => ({ label: c.label, action: c.action, kind: c.kind || null, extra: !!c.extra, vals: [], pass: 0, points: 0, best: 0, policy: sameAction(c.action, pick) }));
     let round = 0;
-    const result = () => {
-      const ranked = rows
-        .map((r) => {
-          let n = 0;
-          let sum = 0;
-          let sq = 0;
-          for (const x of r.vals) {
-            if (Number.isNaN(x)) continue;
-            n += 1;
-            sum += x;
-            sq += x * x;
-          }
-          const mean = n ? sum / n : 0;
-          const sd = n > 1 ? Math.sqrt(Math.max(0, sq / n - mean * mean)) : 0;
-          return { row: r, mean, se: n > 1 ? sd / Math.sqrt(n) : 0, n };
-        })
-        .sort((a, b) => b.mean - a.mean || b.row.best - a.row.best);
-      const top = ranked[0];
-      const options = ranked.map(({ row, mean, se, n }) => ({
-        label: row.label,
-        action: row.action,
-        kind: row.kind,
-        mean,
-        se,
-        gapSe: row === top.row ? 0 : pairedSe(top.row.vals, row.vals),
-        n,
-        pass: n ? row.pass / n : 0,
-        points: n ? row.points / n : 0,
-        best: n ? row.best / n : 0,
-        policy: row.policy,
-        extra: row.extra,
-      }));
-      return { done: round >= o.rollouts || rows.length <= 1, rounds: round, goal, options };
-    };
+    const result = () => summarize(rows, round, o.rollouts, goal);
     return {
+      rows,
       step(budgetMs) {
         const stop = Date.now() + (budgetMs || 50);
         while (round < o.rollouts && rows.length > 1 && Date.now() < stop) {
@@ -1592,7 +1602,7 @@
     return null;
   }
 
-  const api = { DEFAULTS, PROFILES, PASS_WEIGHT, paramsFor, instant, moveBetween, sameAction, decide, apply, playout, candidates, solve, chainOdds, patrolScores, devourScores, context, composition, clone, hideFuture, rng32, executionValue, planCargo, mostPoints, convoyPlan, convoyOptions, cargoLabel };
+  const api = { DEFAULTS, PROFILES, PASS_WEIGHT, paramsFor, instant, moveBetween, sameAction, decide, apply, playout, candidates, solve, summarize, chainOdds, patrolScores, devourScores, context, composition, clone, hideFuture, rng32, executionValue, planCargo, mostPoints, convoyPlan, convoyOptions, cargoLabel };
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.TartarusSolver = api;
 })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);

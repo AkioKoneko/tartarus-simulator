@@ -493,7 +493,11 @@
 
   // ---------- Analysis ----------
 
-  const solver = { worker: null, failed: false, id: 0, st: null, key: '', instant: null, result: null };
+  const solver = { workers: null, failed: false, id: 0, st: null, key: '', instant: null, result: null, shares: null, meta: null, goal: '' };
+  // The live check runs on a worker for every core but one, each playing its
+  // share of the rounds with its own dice. It runs for a few seconds after
+  // each board, then they all wait.
+  const WORKERS = Math.max(1, (navigator.hardwareConcurrency || 2) - 1);
 
   // fresh: a new run's instrument offer (usePick). The last run's board is
   // done with, and this one, not seen yet, isn't shared: the next board
@@ -556,29 +560,33 @@
 
   function startCheck(id, st, rollouts) {
     const state = JSON.parse(JSON.stringify(st));
-    if (!solver.worker && !solver.failed) {
+    if (!solver.workers && !solver.failed) {
       try {
-        solver.worker = new Worker(`js/solver-worker.js${SCRIPT_QUERY}`);
-        solver.worker.onmessage = (e) => {
-          if (e.data.id !== solver.id) return;
-          solver.result = e.data.result;
-          renderResults();
-          renderBoard();
-          renderCourt();
-        };
-        solver.worker.onerror = () => {
-          // Fall back to this page's thread, and redo the check.
-          solver.failed = true;
-          solver.worker = null;
-          if (solver.st) startCheck(solver.id, solver.st, Math.min(rollouts, 300));
-        };
+        solver.workers = Array.from({ length: WORKERS }, (_, k) => {
+          const worker = new Worker(`js/solver-worker.js${SCRIPT_QUERY}`);
+          worker.onmessage = (e) => onShare(k, e.data);
+          worker.onerror = () => {
+            // Fall back to this page's thread, and redo the check.
+            if (!solver.workers) return;
+            for (const w of solver.workers) w.terminate();
+            solver.workers = null;
+            solver.shares = null;
+            solver.failed = true;
+            if (solver.st) startCheck(solver.id, solver.st, Math.min(rollouts, 300));
+          };
+          return worker;
+        });
       } catch (e) {
         solver.failed = true;
-        solver.worker = null;
+        solver.workers = null;
       }
     }
-    if (solver.worker) {
-      solver.worker.postMessage({ id, state, rollouts });
+    if (solver.workers) {
+      // Each worker's share of the rounds: together they make `rollouts`.
+      const n = solver.workers.length;
+      solver.meta = null;
+      solver.shares = solver.workers.map((w, k) => ({ target: Math.floor(rollouts / n) + (k < rollouts % n ? 1 : 0), rounds: 0, done: false, rows: null }));
+      solver.workers.forEach((w, k) => w.postMessage({ id, state, rollouts: solver.shares[k].target, stream: k, raw: true }));
       return;
     }
     const job = S.solve(state, { rollouts: Math.min(rollouts, 300), seed: (id * 7919 + 1) >>> 0 });
@@ -591,6 +599,54 @@
       if (!solver.result.done) setTimeout(tick, 16);
     };
     setTimeout(tick, 0);
+  }
+
+  // A worker's new rounds for the current check. Its rows grow, and the
+  // merged result is redrawn at most every 100 ms, and once all are done.
+  let mergeTimer = 0;
+  function onShare(k, m) {
+    if (m.id !== solver.id || !solver.shares) return;
+    const share = solver.shares[k];
+    if (m.meta && !solver.meta) solver.meta = m.meta;
+    if (!share.rows) share.rows = m.rows.map(() => ({ vals: [], pass: 0, points: 0, best: 0 }));
+    m.rows.forEach((r, i) => {
+      const row = share.rows[i];
+      for (const v of r.vals) row.vals.push(v);
+      row.pass = r.pass;
+      row.points = r.points;
+      row.best = r.best;
+    });
+    share.rounds = m.rounds;
+    share.done = m.done;
+    solver.goal = m.goal;
+    if (solver.shares.every((s) => s.done)) {
+      clearTimeout(mergeTimer);
+      merge();
+    } else if (!mergeTimer) mergeTimer = setTimeout(merge, 100);
+  }
+
+  // The workers' rows as one: each share's rounds keep their common dice
+  // across the moves, so the paired margins hold (TartarusSolver.summarize).
+  function merge() {
+    mergeTimer = 0;
+    if (!solver.shares || !solver.meta) return;
+    const rows = solver.meta.map((meta, i) => {
+      const row = Object.assign({ vals: [], pass: 0, points: 0, best: 0 }, meta);
+      for (const s of solver.shares) {
+        const r = s.rows && s.rows[i];
+        if (!r) continue;
+        for (const v of r.vals) row.vals.push(v);
+        row.pass += r.pass;
+        row.points += r.points;
+        row.best += r.best;
+      }
+      return row;
+    });
+    const rounds = solver.shares.reduce((sum, s) => sum + s.rounds, 0);
+    solver.result = Object.assign(S.summarize(rows, rounds, solver.target, solver.goal), { done: solver.shares.every((s) => s.done) });
+    renderResults();
+    renderBoard();
+    renderCourt();
   }
 
   const fresh = () => !!solver.st && solver.key === modelKey();
@@ -2018,6 +2074,15 @@
       .catch(() => done(null, 'the screenshot reader could not load'));
   }
 
+  // The reader doesn't see Tusk marks yet. A mark stays on its inmate until
+  // it's used or the inmate goes, so a mark the board before knew (set by
+  // hand, or kept from an earlier picture of the run) stays while the same
+  // beast is still in the cell, at the same rarity or higher.
+  function keptTusk(base, n, beast, tier) {
+    const was = base && base.cells && base.cells[n];
+    return !!(was && was.kind === 'inmate' && was.ivory && was.beast === beast && tier >= was.tier);
+  }
+
   // The board the reading describes, built on the current settings (goal,
   // food chain, run length, contracts), plus the cells to check.
   // A devour's meal pick ("Select an Inmate to Consume"). The game darkens
@@ -2041,7 +2106,7 @@
       r.cells.forEach((c, n) => {
         if (n === T.OFFICE || n === warden) return;
         if (c.kind === 'locked') m.cells[n] = { kind: 'sealed', event: null };
-        else if (c.kind === 'inmate') m.cells[n] = { kind: 'inmate', beast: c.beast, tier: clamp(c.tier, 0, TOP_TIER), ivory: false, prey: null };
+        else if (c.kind === 'inmate') m.cells[n] = { kind: 'inmate', beast: c.beast, tier: clamp(c.tier, 0, TOP_TIER), ivory: keptTusk(base, n, c.beast, clamp(c.tier, 0, TOP_TIER)), prey: null };
         else m.cells[n] = { kind: 'empty' };
         if (c.kind !== 'locked') checks.add(n);
       });
@@ -2153,7 +2218,7 @@
         } else m.cells[n] = { kind: 'sealed', event: c.event ? 'unknown' : null };
         if (c.conf < 0.6) checks.add(n);
       } else if (c.kind === 'inmate') {
-        m.cells[n] = { kind: 'inmate', beast: c.beast, tier: clamp(c.tier, 0, TOP_TIER), ivory: false, prey: null };
+        m.cells[n] = { kind: 'inmate', beast: c.beast, tier: clamp(c.tier, 0, TOP_TIER), ivory: keptTusk(base, n, c.beast, clamp(c.tier, 0, TOP_TIER)), prey: null };
         if (c.conf < 0.6 || c.ghost) checks.add(n);
       } else {
         m.cells[n] = { kind: 'empty' };
@@ -2201,6 +2266,7 @@
         m.swapUsed = true;
         m.consumeOffered = true;
         notes.push('The warden’s inmate changed since the board before, so today’s Replace is taken as done.');
+        m.cells[m.warden].ivory = false; // a Tusk mark is used by the Replace
       }
     }
     if (r.decision && r.decision.ratway) {
@@ -2321,9 +2387,9 @@
     return c.kind;
   }
 
-  // What the reader read, up to the collector's 1000 characters: the most
-  // useful first.
-  function readingSummary() {
+  // What the reader read, up to the collector's 1000 characters (all of it
+  // with full): the most useful first.
+  function readingSummary(full) {
     const r = reader.result;
     const rd = reader.reading;
     const lines = [`Reader ${SCRIPT_QUERY.replace(/^\?v=/, '') || 'local'}, ${reader.follow ? 'a Follow my game picture' : 'a screenshot'} of ${reader.image.width}×${reader.image.height}, read in ${(reader.ms / 1000).toFixed(1)} s.`];
@@ -2368,7 +2434,7 @@
     lines.push(rec ? `Advice${fresh() ? '' : ' (before your changes)'}: ${rec.label}. ${(rec.why || '').slice(0, 200)}` : working ? 'Advice: still being worked out.' : 'Advice: none.');
     for (const note of rd.notes) lines.push(note);
     const text = lines.join('\n');
-    return text.length > 1000 ? `${text.slice(0, 999)}…` : text;
+    return !full && text.length > 1000 ? `${text.slice(0, 999)}…` : text;
   }
 
   // The screenshot with what was read drawn over it.
@@ -2788,6 +2854,9 @@
       useReading: () => useScan(),
       ask: () => ask(true),
       recommendation: () => (fresh() && settled() ? recommendation() : null),
+      // What the reader made of the last picture, in full (the desktop app's
+      // test record keeps it).
+      readingSummary: () => (reader.result && reader.image ? readingSummary(true) : ''),
       day: () => model.day,
       toast,
     };
