@@ -52,7 +52,7 @@ const DEV = flag('dev') || TEST;
 // normal build keeps the last few.
 const BIG_RECORD = flag('dev');
 const STEAM_APP = '1974050'; // Torchlight: Infinite on Steam
-const HOTKEYS = { overlay: 'Control+Alt+O', analyzer: 'Control+Alt+A', capture: 'Control+Alt+P', lock: 'Control+Alt+L' };
+const HOTKEYS = { overlay: 'Control+Alt+O', analyzer: 'Control+Alt+A', capture: 'Control+Alt+P' };
 const ICON = path.join(__dirname, 'build', 'icon.png');
 
 if (arg('user-data')) app.setPath('userData', path.resolve(arg('user-data')));
@@ -77,7 +77,6 @@ const settings = Object.assign({
   overlayOn: true, // the player can hide it (Ctrl+Alt+O)
   overlay: null, // { x, y }, where the player dragged it
   overlayWidth: 360,
-  locked: false, // clicks go through to the game
   hideFromCaptures: true, // kept out of screenshots, recordings and the shared window
   hideBehind: false, // hidden while another window is in front of the game
   collapsed: false, // the overlay folded to a thin bar ("–" on it)
@@ -89,6 +88,7 @@ const settings = Object.assign({
   analyzer: null, // the analyzer window's bounds
 }, readJson(SETTINGS_FILE));
 delete settings.onlyWithGame; // 0.1.1 hid the overlay behind other windows by default
+delete settings.locked; // before 0.2.5 the overlay could be locked (clicks went through)
 // Before 0.1.7 the overlay's "–" hid it for good, and that was kept; now it
 // folds the card. Anyone it hid gets the overlay back once.
 if (!(settings.v >= 2)) {
@@ -692,7 +692,6 @@ function makeOverlay() {
   wins.overlay = win;
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setContentProtection(!!settings.hideFromCaptures);
-  win.setIgnoreMouseEvents(!!settings.locked, { forward: true });
   win.loadFile(path.join(__dirname, 'lib', 'overlay.html'));
   win.webContents.on('will-navigate', (e) => e.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -736,14 +735,6 @@ function updateOverlay() {
   } else win.hide();
 }
 
-function setLocked(on) {
-  settings.locked = !!on;
-  saveSettings();
-  if (wins.overlay) wins.overlay.setIgnoreMouseEvents(settings.locked, { forward: true });
-  pushShell();
-  rebuildMenu();
-}
-
 function setOverlayOn(on) {
   settings.overlayOn = !!on;
   saveSettings();
@@ -776,7 +767,6 @@ let agreed = null; // whether the player agreed on follow.html, once it says
 function pushShell(patch) {
   if (patch) Object.assign(shellExtra, patch);
   send('overlay', 'shell', Object.assign({
-    locked: settings.locked,
     collapsed: settings.collapsed,
     riot,
     runOver,
@@ -1002,7 +992,6 @@ function command(cmd) {
       setOverlayOn(false);
       if (tray && !TEST) tray.displayBalloon({ title: 'Overlay hidden', content: `Press ${HOTKEYS.overlay.replace(/Control/, 'Ctrl')} to show it again, or use the tray icon.`, iconType: 'info' });
       return undefined;
-    case 'lock': return setLocked(!settings.locked);
     case 'collapse':
       riotFolded = false;
       settings.collapsed = !settings.collapsed;
@@ -1119,7 +1108,6 @@ function rebuildMenu() {
     { label: logPath ? `Log: ${logPath}` : 'Log: not found', enabled: false },
     { type: 'separator' },
     { label: 'Show the overlay', type: 'checkbox', checked: settings.overlayOn, accelerator: HOTKEYS.overlay, click: (i) => setOverlayOn(i.checked) },
-    { label: 'Lock it (clicks go through to the game)', type: 'checkbox', checked: settings.locked, accelerator: HOTKEYS.lock, click: (i) => setLocked(i.checked) },
     { label: 'Hide it while another window is in front', type: 'checkbox', checked: settings.hideBehind, enabled: !!win32, click: (i) => { settings.hideBehind = i.checked; saveSettings(); updateOverlay(); } },
     { label: 'Hide it from screenshots and streams', type: 'checkbox', checked: settings.hideFromCaptures, click: (i) => { settings.hideFromCaptures = i.checked; saveSettings(); if (wins.overlay) wins.overlay.setContentProtection(i.checked); } },
     { label: 'Put the overlay back in the corner', click: () => { settings.overlay = null; overlayPlaced = false; saveSettings(); placeOverlay(); } },
@@ -1161,7 +1149,6 @@ function registerHotkeys() {
     overlay: () => setOverlayOn(!settings.overlayOn),
     analyzer: () => toggle('analyzer'),
     capture: () => command('capture'),
-    lock: () => setLocked(!settings.locked),
   };
   for (const [name, key] of Object.entries(HOTKEYS)) {
     try {

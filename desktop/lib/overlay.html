@@ -292,12 +292,6 @@
     height: 16px;
     font-size: 12px;
   }
-
-  /* Locked: clicks go through to the game, so no buttons. */
-  .is-locked .foot,
-  .is-locked .line button {
-    display: none;
-  }
 </style>
 </head>
 <body>
@@ -305,7 +299,6 @@
   <div class="head">
     <span class="brand">Tartarus</span>
     <span class="day" id="day"></span>
-    <button type="button" id="lock" title="Lock: clicks go through to the game (Ctrl+Alt+L)" aria-pressed="false">&#128274;&#xFE0E;</button>
     <button type="button" id="fold" title="Fold it to a thin bar">&#8211;</button>
   </div>
   <div class="body" id="body"></div>

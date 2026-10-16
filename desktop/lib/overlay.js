@@ -23,7 +23,6 @@
   }
   const button = (label, cmd, primary) => h('button', { type: 'button', class: `btn${primary ? ' is-primary' : ''}`, cmd }, label);
   const line = (kind, content, ...buttons) => h('div', { class: `line is-${kind}` }, kind === 'busy' ? h('span', { class: 'spin' }) : null, h('p', null, content), ...buttons);
-  const key = (k) => String(k || '').replace('Control', 'Ctrl');
   const ago = (t) => {
     const s = Math.round((Date.now() - t) / 1000);
     return s < 60 ? `${s} s ago` : `${Math.round(s / 60)} min ago`;
@@ -71,10 +70,7 @@
     const a = state.advice;
     const f = state.follow;
     const sh = state.shell;
-    document.body.classList.toggle('is-locked', !!sh.locked);
     document.body.classList.toggle('is-collapsed', !!sh.collapsed);
-    $('lock').setAttribute('aria-pressed', String(!!sh.locked));
-    $('lock').title = sh.locked ? `Locked: clicks go through to the game. ${key(sh.hotkeys && sh.hotkeys.lock)} unlocks it.` : `Lock: clicks go through to the game (${key(sh.hotkeys && sh.hotkeys.lock)})`;
     $('fold').textContent = sh.collapsed ? '+' : '–';
     $('fold').title = sh.collapsed ? 'Unfold it' : 'Fold it to a thin bar';
     $('day').textContent = sh.collapsed ? oneLine()
@@ -142,7 +138,6 @@
       render();
       return;
     }
-    if (b.id === 'lock') return O.command('lock');
     if (b.id === 'fold') return O.command('collapse');
     if (b.dataset.cmd) {
       state.menu = false;

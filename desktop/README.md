@@ -36,7 +36,8 @@ VS Code's terminal sets `ELECTRON_RUN_AS_NODE=1`; unset it first if Electron
 says it can't find the module `electron`.
 
 Hotkeys: Ctrl+Alt+O show/hide the overlay · Ctrl+Alt+A board analyzer ·
-Ctrl+Alt+P take a picture now · Ctrl+Alt+L lock (clicks go through to the game).
+Ctrl+Alt+P take a picture now. The card's "–" folds it to a thin bar, and
+the Riot's fight folds it by itself.
 
 Run the game **borderless or windowed**: nothing can draw over exclusive
 fullscreen, and a shared window there looks black.
