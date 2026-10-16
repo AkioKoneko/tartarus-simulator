@@ -630,7 +630,7 @@
       ], true);
       return;
     }
-    if (['appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'ratway'].includes(kind)) {
+    if (['appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'usurp3', 'usurp4', 'ratway'].includes(kind)) {
       let detail;
       if (kind === 'appetite') {
         const low = T.lowestInmates(st);
@@ -639,7 +639,9 @@
       } else if (kind === 'crow') detail = `Accept to see the rarity behind the next ${T.CROW_CELLS} locked cells clockwise from the warden. Their beasts stay hidden.`;
       else if (kind === 'freedom') detail = `Accept to open ${T.FREEDOM_CELLS} random locked cells. They trigger no other effects.`;
       else if (kind === 'usurp1') detail = 'Accept to raise 1 random inmate a tier. Usurpation I then leaves the special events, Usurpation II joins them, and one appears behind a random locked door.';
-      else if (kind === 'usurp2') detail = 'Accept to raise 2 random inmates a tier each.';
+      else if (kind === 'usurp2') detail = 'Accept to raise 2 random inmates a tier each. Usurpation II then leaves the special events, and Usurpation III joins them.';
+      else if (kind === 'usurp3') detail = 'Accept to raise 2 random inmates 2 tiers each. Usurpation III then leaves the special events, and Usurpation IV joins them.';
+      else if (kind === 'usurp4') detail = 'Accept to raise every inmate on the block 2 tiers. Usurpation IV then leaves the special events.';
       else if (kind === 'ratway') detail = 'Accept to move the warden to any cell but the office. A locked door there opens as on a patrol, with any event behind it. The move isn’t a walk, so it adds no tiles.';
       else detail = 'Accept to open a random locked cell with a Legendary or better inmate inside. It triggers no other effects.';
       setDecision(T.eventName(kind), detail, [
@@ -1145,7 +1147,9 @@
     crow: 'Crow Whispers costs nothing: accept it, then aim your patrols at the higher rarities it shows.',
     freedom: 'Taste of Freedom opens 3 doors for free: accept it.',
     usurp1: 'Usurpation I raises an inmate for free, and brings Usurpation II: accept it.',
-    usurp2: 'Usurpation II raises two inmates for free: accept it.',
+    usurp2: 'Usurpation II raises two inmates for free, and brings Usurpation III: accept it.',
+    usurp3: 'Usurpation III raises two inmates 2 tiers each, and brings Usurpation IV: accept it.',
+    usurp4: 'Usurpation IV raises every inmate 2 tiers: accept it.',
     ratway: 'The Sewer Ratway is a free move to any cell but the office: accept it, then take the best door or inmate on the whole block.',
     office: 'At the office, Bestow when a raise helps now, and Instigate when the block needs new doors with events.',
     chainPick: 'You pick each meal of a chain, or stop it with Cancel: take the meal that keeps the chain fed at the next tier, and stop only when every meal would cost more than it gains.',

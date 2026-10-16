@@ -209,6 +209,8 @@
     freedom: { name: 'Taste of Freedom' },
     usurp1: { name: 'Usurpation I' },
     usurp2: { name: 'Usurpation II' },
+    usurp3: { name: 'Usurpation III' },
+    usurp4: { name: 'Usurpation IV' },
     // A player's report (#13) and the user's screenshot (2026-10-16): "Select
     // any 1 cell (excluding the Interrogation Room), move to that cell, and
     // trigger subsequent content". The game then asks "Select an Objective"
@@ -218,6 +220,17 @@
   // The pool new events are drawn from (the game's "Prison Incidents"). It
   // changes during a run: Usurpation I trades itself for Usurpation II.
   const EVENT_POOL = ['chain', 'execution', 'trickster', 'appetite', 'convict', 'crow', 'freedom', 'usurp1', 'ratway'];
+  // The Usurpation chain (the user's cards, 2026-10-16): how many inmates
+  // rise and by how much, and which Usurpation then takes its place in the
+  // Prison Incidents ("Add [Usurpation IV] to Prison Incidents and remove
+  // [Usurpation III]"). II's card is unseen: 2 inmates a tier, read from
+  // the others. IV ("Increase all Inmates' rarity by 2 tiers") is the last.
+  const USURP = {
+    usurp1: { count: 1, by: 1, next: 'usurp2' },
+    usurp2: { count: 2, by: 1, next: 'usurp3' },
+    usurp3: { count: 2, by: 2, next: 'usurp4' },
+    usurp4: { count: 'all', by: 2, next: null },
+  };
   // Taste of Freedom opens this many random locked cells.
   const FREEDOM_CELLS = 3;
   // Crow Whispers shows the rarity behind this many locked cells.
@@ -1208,23 +1221,27 @@
       log(state, 'event', seen.length
         ? `Crow Whispers: ${seen.map((c) => `cell ${cellLabel(c.n)} holds a ${tierName(c.hidden.tier)}`).join(', ')}.`
         : 'Crow Whispers: no locked cell was left to reveal.', { type: 'crow', cells: seen.map((c) => c.n) });
-    } else if (kind === 'usurp1' || kind === 'usurp2') {
-      // Random inmates rise a tier: 1 for Usurpation I, 2 for Usurpation II
-      // (its card hasn't been seen yet; the user expects 2).
-      const picks = shuffle(state, boardInmates(state).filter((i) => i.tier < RAINBOW)).slice(0, kind === 'usurp1' ? 1 : 2);
+    } else if (USURP[kind]) {
+      // Random inmates rise (all of them for Usurpation IV), then this
+      // Usurpation leaves the Prison Incidents and the next joins them.
+      const u = USURP[kind];
+      const pool = boardInmates(state).filter((i) => i.tier < RAINBOW);
+      const picks = u.count === 'all' ? pool : shuffle(state, pool).slice(0, u.count);
       const at = state.log.length;
       const raised = picks.map((who) => ({ who: snap(who), cell: cellOf(state, who.id).n }));
-      for (const who of picks) if (boardCellOf(state, who.id)) promote(state, who, 1, false, events);
+      for (const who of picks) if (boardCellOf(state, who.id)) promote(state, who, u.by, false, events);
+      const tiers = u.by === 1 ? 'a tier' : `${u.by} tiers`;
       if (raised.length) {
-        logAt(state, at, 'event', `${eventName(kind)}: ${raised.map((r) => `the ${describe(r.who)} in cell ${cellLabel(r.cell)}`).join(' and ')} ${raised.length === 1 ? 'rises' : 'rise'} a tier.`, { type: kind, raised });
+        const who = u.count === 'all' ? `all ${plural(raised.length, 'inmate')} on the block` : raised.map((r) => `the ${describe(r.who)} in cell ${cellLabel(r.cell)}`).join(' and ');
+        logAt(state, at, 'event', `${eventName(kind)}: ${who} ${raised.length === 1 ? 'rises' : 'rise'} ${tiers}.`, { type: kind, raised });
       } else {
         log(state, 'event', `${eventName(kind)}: nobody was on the block to rise.`, { type: kind, raised: [] });
       }
+      state.eventPool = (state.eventPool || EVENT_POOL).filter((id) => id !== kind);
+      if (u.next && !state.eventPool.includes(u.next)) state.eventPool.push(u.next);
       if (kind === 'usurp1') {
-        // Usurpation I leaves the pool and Usurpation II joins it, and one
-        // appears behind a random locked door at once.
-        state.eventPool = (state.eventPool || EVENT_POOL).filter((id) => id !== 'usurp1');
-        if (!state.eventPool.includes('usurp2')) state.eventPool.push('usurp2');
+        // Usurpation I's card also puts Usurpation II behind a random
+        // locked door at once.
         const free = state.cells.filter((c) => c.sealed && !c.event && !c.nest);
         if (free.length) {
           const door = pickOne(state, free);
@@ -2098,7 +2115,10 @@
       if (state.event.kind === 'convict') return [{ kind: 'event', accept: true, text: 'Accept: a locked cell opens on a Legendary or better inmate.' }];
       if (state.event.kind === 'crow') return [{ kind: 'event', accept: true, text: `Accept: the rarity behind the next ${CROW_CELLS} locked cells is shown.` }];
       if (state.event.kind === 'freedom') return [{ kind: 'event', accept: true, text: `Accept: ${FREEDOM_CELLS} random locked cells open.` }];
-      if (state.event.kind === 'usurp1' || state.event.kind === 'usurp2') return [{ kind: 'event', accept: true, text: `Accept: ${state.event.kind === 'usurp1' ? 'a random inmate rises' : '2 random inmates rise'} a tier.` }];
+      if (USURP[state.event.kind]) {
+        const u = USURP[state.event.kind];
+        return [{ kind: 'event', accept: true, text: `Accept: ${u.count === 'all' ? 'every inmate rises' : u.count === 1 ? 'a random inmate rises' : `${u.count} random inmates rise`} ${u.by === 1 ? 'a tier' : `${u.by} tiers`}.` }];
+      }
       if (state.event.kind === 'ratway') return [{ kind: 'event', accept: true, text: 'Accept: move to any cell but the office, and open it if it is locked.' }];
       const keepSmall = has(state, 'muzzle') && board.length <= 5;
       return [{ kind: 'event', accept: !keepSmall, text: keepSmall ? 'Skip: a chain would flood the block and switch off the Agonizing Muzzle.' : 'Accept: your next patrol opens every sealed cell on the way to its destination.' }];
@@ -2220,7 +2240,7 @@
 
   const api = {
     VERSION, CELL_COUNT, OFFICE, SUPREME, RAINBOW, TIERS, BEASTS, BEAST_INFO, FOOD_CHAIN, SECOND_MEAL, PRESSURE, ESCORTS, TOOLS, TOOL_IDS, GIFTS, GIFT_IDS,
-    EVENTS, EVENT_IDS, EVENT_POOL, APPETITE_TRIES, APPETITE_ODDS, INSTIGATE_EVENTS, CROW_CELLS, FREEDOM_CELLS, OBJECTIVES, OBJECTIVE_IDS, START_EVENTS,
+    EVENTS, EVENT_IDS, EVENT_POOL, USURP, APPETITE_TRIES, APPETITE_ODDS, INSTIGATE_EVENTS, CROW_CELLS, FREEDOM_CELLS, OBJECTIVES, OBJECTIVE_IDS, START_EVENTS,
     LOADOUTS, SCENARIOS, CONTRACT_SLOTS, DEFAULT_PARAMS, PARAM_FIELDS, CHALLENGE_DAYS, START_VOUCHERS,
     newGame, randomSeed, normalizeParams, serialize, deserialize,
     patrol: bounded(patrol),

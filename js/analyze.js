@@ -792,6 +792,8 @@
         btn('sealed:freedom', 'Locked door with Taste of Freedom', B.MARKS.freedom),
         btn('sealed:usurp1', 'Locked door with Usurpation I', B.MARKS.usurp1),
         btn('sealed:usurp2', 'Locked door with Usurpation II', B.MARKS.usurp2),
+        btn('sealed:usurp3', 'Locked door with Usurpation III', B.MARKS.usurp3),
+        btn('sealed:usurp4', 'Locked door with Usurpation IV', B.MARKS.usurp4),
         btn('sealed:ratway', 'Locked door with the Sewer Ratway', B.MARKS.ratway),
         btn('scouted', "Scouted door (Warden's Scales): set its beast and rarity in the panel below", B.MARKS.scouted),
       ]),

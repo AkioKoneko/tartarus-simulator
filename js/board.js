@@ -325,6 +325,8 @@
     usurp2: mark('<rect x="6" y="8" width="36" height="32" rx="3" fill="#2a2f37" stroke="#9aa0ad" stroke-width="1.4"/><path d="M11 14l4 20M17 13l4 20M23 14l4 20" stroke="#e0675f" stroke-width="2.2" stroke-linecap="round"/><path d="M32 15v18M38 15v18" stroke="#f5ecd8" stroke-width="3" stroke-linecap="round"/>'),
     // Sewer Ratway: a round sewer grate with a rat's tail slipping through.
     ratway: mark('<circle cx="24" cy="24" r="17" fill="#2a2f37" stroke="#8d92a8" stroke-width="2.4"/><path d="M11 17h26M8.5 24h31M11 31h26M24 8v32" stroke="#8d92a8" stroke-width="2.2"/><path d="M29 35c3 4 8 5 13 2" fill="none" stroke="#d9a3a6" stroke-width="2.4" stroke-linecap="round"/>'),
+    usurp3: mark('<rect x="6" y="8" width="36" height="32" rx="3" fill="#2a2f37" stroke="#9aa0ad" stroke-width="1.4"/><path d="M9 14l4 20M15 13l4 20M21 14l4 20" stroke="#e0675f" stroke-width="2.2" stroke-linecap="round"/><path d="M29 15v18M34 15v18M39 15v18" stroke="#f5ecd8" stroke-width="2.6" stroke-linecap="round"/>'),
+    usurp4: mark('<rect x="6" y="8" width="36" height="32" rx="3" fill="#2a2f37" stroke="#9aa0ad" stroke-width="1.4"/><path d="M9 14l3 20M14 13l3 20M19 14l3 20" stroke="#e0675f" stroke-width="2.2" stroke-linecap="round"/><path d="M26 15v18M30.5 15v18M35 15v18M39.5 15v18" stroke="#f5ecd8" stroke-width="2.4" stroke-linecap="round"/>'),
     // A locked door showing its inmate's rarity, beast unknown: a "?" tinted
     // by the rarity.
     revealed: mark('<path d="M12 44V18a12 12 0 0 1 24 0v26Z" fill="#2a2f37" stroke="var(--tc)" stroke-width="2.4"/><path d="M19.5 22a4.5 4.5 0 1 1 7 3.7c-1.8 1.3-2.5 2.4-2.5 4.6M24 36v.6" stroke="var(--tc)" stroke-width="2.6" fill="none" stroke-linecap="round"/>'),

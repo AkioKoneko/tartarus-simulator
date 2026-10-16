@@ -156,6 +156,8 @@
     // Long-Chained Shackles: what +1 tier on a random inmate is worth.
     const board = st.cells.filter((c) => !c.sealed && c.inmate && c.inmate.tier < RAINBOW);
     const lift = board.reduce((sum, c) => sum + (c.inmate.tier + 1 >= RAINBOW ? R : v[c.inmate.tier + 1]) - v[c.inmate.tier], 0) / Math.max(1, board.length);
+    // Two tiers for every inmate on the block (Usurpation IV), and for a random one.
+    const allLift2 = board.reduce((sum, c) => sum + (c.inmate.tier + 2 >= RAINBOW ? R : v[c.inmate.tier + 2]) - v[c.inmate.tier], 0);
     const goal = st.objective && st.objective.id === 'walk' && !st.milestone && st.params.rewards ? T.OBJECTIVES.walk.need - st.objective.progress : 0;
     return {
       st,
@@ -194,6 +196,8 @@
       swapCap: has(st, 'scapegoat') && board.length >= 3 ? T.SUPREME : Math.max(has(st, 'maiden') ? Math.max(P.swapMaxTier, P.maidenSwapTier) : P.swapMaxTier, has(st, 'stake') ? 2 : 0),
       sealed,
       lift: board.length ? lift : 0,
+      lift2: board.length ? allLift2 / board.length : 0,
+      allLift2,
       shacklesLift: has(st, 'shackles') && board.length ? lift : 0,
       goalLeft: goal,
       scratchExtra: 1 + (st.params.scratchStacksBase ? 1 : 0),
@@ -520,6 +524,8 @@
     freedom: 'Taste of Freedom waits there: 3 more locked cells open',
     usurp1: 'Usurpation I waits there: a random inmate rises a tier, and Usurpation II appears',
     usurp2: 'Usurpation II waits there: 2 random inmates rise a tier',
+    usurp3: 'Usurpation III waits there: 2 random inmates rise 2 tiers',
+    usurp4: 'Usurpation IV waits there: every inmate rises 2 tiers',
     ratway: 'the Sewer Ratway waits there: a free move to any cell but the office',
   };
 
@@ -549,8 +555,11 @@
       // Three more doors open, with nobody to patrol there.
       freedom: () => T.FREEDOM_CELLS * P.wOpen * ctx.openValue,
       // A random inmate rises a tier, and Usurpation II (2 inmates) appears.
+      // Each Usurpation raises inmates, then brings the next into the pool.
       usurp1: () => ctx.lift + 2 * ctx.lift * P.wInstigate,
-      usurp2: () => 2 * ctx.lift,
+      usurp2: () => 2 * ctx.lift + 2 * ctx.lift2 * P.wInstigate,
+      usurp3: () => 2 * ctx.lift2 + ctx.allLift2 * P.wInstigate,
+      usurp4: () => ctx.allLift2,
       // A second move: to the best door anywhere, worth a fresh door at least.
       ratway: () => P.wOpen * ctx.openValue,
     };
@@ -1093,7 +1102,7 @@
       // Ravenous Appetite, High-Risk Convict, Crow Whispers and Taste of
       // Freedom only add.
       // The Sewer Ratway's move can stay put, so it only adds too.
-      if (['appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'ratway'].includes(st.event.kind)) return { type: 'event', accept: true };
+      if (['appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'usurp3', 'usurp4', 'ratway'].includes(st.event.kind)) return { type: 'event', accept: true };
       const exec = st.cells[st.event.cell].inmate;
       if (!exec) return { type: 'event', accept: false };
       // Behind Closed Doors: a free Supreme, unless it already is one.
@@ -1449,7 +1458,9 @@
         if (st.event.kind === 'crow') return `Free information: the rarity behind the next ${T.CROW_CELLS} locked doors.`;
         if (st.event.kind === 'freedom') return `Free inmates: ${T.FREEDOM_CELLS} more locked cells open.`;
         if (st.event.kind === 'usurp1') return 'A random inmate rises a tier, and Usurpation II joins the events.';
-        if (st.event.kind === 'usurp2') return 'Two random inmates rise a tier.';
+        if (st.event.kind === 'usurp2') return 'Two random inmates rise a tier, and Usurpation III joins the events.';
+        if (st.event.kind === 'usurp3') return 'Two random inmates rise 2 tiers each, and Usurpation IV joins the events.';
+        if (st.event.kind === 'usurp4') return 'Every inmate on the block rises 2 tiers.';
         if (st.event.kind === 'ratway') return 'A free move to any cell but the office: the best door or inmate on the whole block, not just the next six cells.';
         const exec = st.cells[st.event.cell].inmate;
         const victims = T.executionVictims(st, st.event.cell).length;
@@ -1553,7 +1564,7 @@
     if (ch1 && ch1.window && ch1.window.early && !(ch0 && ch0.window)) return { type: 'early' };
     if (before.phase === 'event') {
       if (after.phase === 'event') return null;
-      const x = recent(['skipped', 'armed', 'execution', 'trickster', 'appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'ratway']);
+      const x = recent(['skipped', 'armed', 'execution', 'trickster', 'appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'usurp3', 'usurp4', 'ratway']);
       return x ? { type: 'event', accept: x.type !== 'skipped' } : null;
     }
     if (before.phase === 'office') {

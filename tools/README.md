@@ -103,6 +103,10 @@ The Chinese sim's two-meal food chain (Mammoth also eats Wolf, Lion also eats Ra
 
 Report 13 and the user's screenshots: "Select any 1 cell (excluding the Interrogation Room), move to that cell, and trigger subsequent content", then the game asks "Select an Objective" with every cell but the office on offer, the warden's own included. It's in the event pool with the others. Its card has only Confirm, and moving to the warden's own cell keeps it in place, so the strategy always takes it. Then it weighs every cell as it weighs a patrol, without the walk: the move adds no tiles and sets off no Shackles. The analyzer has a Sewer Ratway step for that screen.
 
+### Usurpation III and IV (2026-10-16)
+
+The user's cards: Usurpation III "Randomly increase 2 Inmates' rarity by 2 tiers / Add [Usurpation IV] to Prison Incidents and remove [Usurpation III] from Prison Incidents", and IV "Increase all Inmates' rarity by 2 tiers", then it leaves the Prison Incidents. So the chain runs I → II → III → IV (`T.USURP`): I raises 1 inmate a tier, II 2 a tier (its card is unseen, read from the others), III 2 inmates 2 tiers, IV every inmate 2 tiers. Each leaves the pool and brings the next. Only I's card also puts the next behind a locked door at once. The strategy accepts them all.
+
 ### Start-of-run cards: Cage Fight and Iron Law (2026-10-16)
 
 The user's screenshots show cards before a run starts, besides its objective (the objective shows on the board, as "Objective: Survival of the Fittest"): Cage Fight, below, and Iron Law, "Extends the duration of the current run to 30 days". Cage Fight was first set up as an objective; it's now a start card (`state.startEvent`, `T.START_EVENTS`), so a run keeps its objective's tool with it, and older saves move it over. The analyzer has a Start of run setting, which Iron Law sets to a 30-day run keeping the days left, and its popup reader knows both titles. Simulated runs don't draw them yet.
