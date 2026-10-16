@@ -564,6 +564,22 @@
   // nothing to compare. Until then no move is advised, so the advice never
   // changes its mind a moment after it's shown.
   const settled = () => !!solver.result && (solver.result.done || solver.result.options.length <= 1);
+  // A picture being read (the reader shows it on the board's card).
+  let reading = 0;
+  function setReading(on) {
+    reading = Math.max(0, reading + (on ? 1 : -1));
+    renderCourt();
+  }
+  const SPIN = '<span class="az-spin" aria-hidden="true"></span>';
+  // The moves being played out, in a steady order while the check runs.
+  function checking() {
+    const r = solver.result;
+    const moves = r ? r.options.slice() : solver.st ? S.candidates(solver.st) : [];
+    moves.sort((a, b) => a.label.localeCompare(b.label));
+    const each = solver.target || 0;
+    const done = r ? Math.min(each, r.rounds) : 0;
+    return { moves, each, done, total: each * moves.length, played: done * moves.length };
+  }
   // How far the live check has got, 0 to 1.
   const progress = () => (solver.result && solver.target ? Math.min(1, solver.result.rounds / solver.target) : 0);
 
@@ -815,9 +831,13 @@
     const rec = fresh() && settled() ? recommendation() : null;
     let title;
     let detail;
-    if (working) {
+    if (reading) {
+      title = 'Reading the new picture…';
+      detail = 'The advice follows as soon as it’s read.';
+    } else if (working) {
+      const c = checking();
       title = 'Working it out…';
-      detail = `Playing out every move: ${Math.round(100 * progress())}%`;
+      detail = `${T.plural(c.moves.length, 'move')}, ${c.each.toLocaleString()} games each: ${c.played.toLocaleString()} of ${c.total.toLocaleString()} played`;
     } else if (rec) {
       title = rec.label;
       detail = rec.option ? expectText(solver.result.goal, rec.option, solver.st) : 'Checking with playouts…';
@@ -826,7 +846,8 @@
       title = 'Your board';
       detail = `${day} · ${STEP_NAMES[model.step]} · warden ${model.warden === T.OFFICE ? 'in the office' : `at cell ${L(model.warden)}`}`;
     }
-    setHTML($('az-court'), `<div class="decision${rec ? ' az-court-rec' : ''}"><div class="decision-text"><p class="decision-title">${rec ? '<span class="az-court-eyebrow">Do this</span>' : ''}${esc(title)}</p><p class="decision-detail">${esc(detail)}</p></div></div>`);
+    const busy = reading || working;
+    setHTML($('az-court'), `<div class="decision${rec && !busy ? ' az-court-rec' : ''}${busy ? ' az-court-busy' : ''}"><div class="decision-text"><p class="decision-title">${busy ? SPIN : rec ? '<span class="az-court-eyebrow">Do this</span>' : ''}${esc(title)}</p><p class="decision-detail">${esc(detail)}</p></div></div>`);
   }
 
   function pressGroup(id, value) {
@@ -1047,7 +1068,8 @@
     const rec = working ? null : recommendation();
     const r = solver.result;
     const goal = r ? r.goal : st.mode === 'challenge' ? 'contract' : 'rainbows';
-    $('az-res-move').textContent = working ? 'Working it out…' : rec ? rec.label : 'Nothing to decide here.';
+    if (working) setHTML($('az-res-move'), `${SPIN}Working it out…`);
+    else $('az-res-move').textContent = rec ? rec.label : 'Nothing to decide here.';
     $('az-do').hidden = !rec || stale;
     $('az-do').textContent = rec && rec.action.type === 'end' ? 'End the day here' : 'Do it here';
     $('az-next').hidden = !rec || stale;
@@ -1061,7 +1083,7 @@
       ? 'The board changed since this check. Recheck for advice on the board as it is now.'
       : `Read from your screenshot${flags.size ? `, with ${T.plural(flags.size, 'cell')} marked Check` : ''}.${unsureTools()} If anything on the board doesn’t match your game, fix it, then Recheck.`;
     let body = '';
-    if (working) body += `<p class="trainer-source">Playing out every move from your board: ${Math.round(100 * progress())}%. The advice shows when it's done, so it won't change.</p>`;
+    if (working) body += `<p class="trainer-source">Each move below is played out from your board, with everything you can’t see re-rolled each time. The advice shows when they’re all done, so it won’t change.</p>`;
     if (rec) {
       body += `<p class="trainer-source">${esc(rec.live ? `Checked by ${rec.rounds.toLocaleString()} playouts per option` : 'Instant pick from training')}</p>`;
       if (rec.why) body += `<p class="trainer-why">${esc(rec.why)}</p>`;
@@ -1073,12 +1095,14 @@
       body += `<p class="trainer-lesson">${esc(afterText(rec.action))}</p>`;
     }
     setHTML($('az-res-body'), body);
-    const options = r ? r.options : [];
+    const c = checking();
+    const options = working ? c.moves : r ? r.options : [];
     const status = $('az-res-status');
-    if (!r) status.textContent = 'Live check: starting…';
+    if (working) status.textContent = `Playing out ${T.plural(c.moves.length, 'move')}, ${c.each.toLocaleString()} games each: ${c.played.toLocaleString()} of ${c.total.toLocaleString()} games played`;
+    else if (!r) status.textContent = 'Live check: starting…';
     else if (options.length <= 1) status.textContent = options.length ? 'Only one move here.' : 'Nothing to decide right now.';
     else status.textContent = r.done ? `Live check: ${r.rounds.toLocaleString()} playouts per option` : `Live check: ${r.rounds.toLocaleString()} playouts per option so far…`;
-    const max = Math.max(0.01, ...options.map((o) => o.mean));
+    const max = Math.max(0.01, ...options.map((o) => o.mean || 0));
     const shown = options.length > 1 ? options : [];
     syncRows(
       $('az-res-list'),
@@ -1099,6 +1123,19 @@
       },
       (li, o) => {
         li.option = o;
+        li.classList.toggle('is-working', working);
+        if (working) {
+          // While the check runs: each move with its progress, no scores.
+          li.classList.remove('is-best');
+          li.querySelector('.solver-text').textContent = o.label;
+          li.querySelector('.solver-tag').hidden = true;
+          li.querySelector('.solver-value').textContent = `${c.done.toLocaleString()} / ${c.each.toLocaleString()}`;
+          li.querySelector('.solver-value').title = 'Games played out for this move so far';
+          li.querySelector('.solver-meter span').style.width = `${Math.max(2, 100 * (c.each ? c.done / c.each : 0)).toFixed(1)}%`;
+          li.querySelector('.solver-sub').hidden = true;
+          li.btn.hidden = true;
+          return;
+        }
         const chosen = rec ? S.sameAction(o.action, rec.action) : o === options[0];
         li.classList.toggle('is-best', chosen);
         li.querySelector('.solver-text').textContent = o.label;
@@ -1122,7 +1159,7 @@
     const top = options[0];
     const second = options[1];
     const close = top && second && top.mean - second.mean < 1.96 * second.gapSe;
-    $('az-res-note').textContent = shown.length < 2
+    $('az-res-note').textContent = working || shown.length < 2
       ? ''
       : close
         ? 'The top moves are within the margin of error: either is fine.'
@@ -1487,7 +1524,9 @@
     reader.id += 1;
     const id = reader.id;
     const t0 = performance.now();
+    setReading(true);
     const done = (result, error) => {
+      if (id === reader.id) setReading(false);
       if (id !== reader.id) {
         if (o.onRead) o.onRead({ ok: false, skipped: true, reason: 'a newer picture came in' });
         return;
@@ -1595,7 +1634,8 @@
     ctx.drawImage(source, 0, 0, w, h);
     const imageData = ctx.getImageData(0, 0, w, h);
     return new Promise((resolve) => {
-      const done = (result, error) => resolve(error || !result || !result.id ? { ok: false, objective: true, reason: error || 'the objective wasn’t one the simulator knows' } : { ok: true, objective: true, id: result.id, name: T.OBJECTIVES[result.id].name });
+      setReading(true);
+      const done = (result, error) => (setReading(false), resolve(error || !result || !result.id ? { ok: false, objective: true, reason: error || 'the objective wasn’t one the simulator knows' } : { ok: true, objective: true, id: result.id, name: T.OBJECTIVES[result.id].name }));
       reader.pickId += 1;
       const id = `objective${reader.pickId}`;
       if (readerWorker()) {
@@ -1632,8 +1672,10 @@
     ctx.drawImage(source, 0, 0, w, h);
     const imageData = ctx.getImageData(0, 0, w, h);
     const t0 = performance.now();
+    setReading(true);
     return new Promise((resolve) => {
       const done = (result, error) => {
+        setReading(false);
         const ms = Math.round(performance.now() - t0);
         if (error || !result) return resolve({ ok: false, pick: true, reason: error || 'no result', ms });
         if (!result.ok) return resolve({ ok: false, pick: true, reason: result.reason, ms });
@@ -2090,8 +2132,10 @@
       if (model.day !== m.day) changes.push(`day ${m.day} → ${model.day}`);
       if (changes.length) lines.push(`You changed: ${changes.join('; ')}.`);
     }
-    const rec = solver.st ? recommendation() : null;
-    lines.push(rec ? `Advice${fresh() ? '' : ' (before your changes)'}: ${rec.label}. ${(rec.why || '').slice(0, 200)}` : 'Advice: none.');
+    // The advice as the player saw it: none until its check is done.
+    const working = solver.st && !settled();
+    const rec = solver.st && !working ? recommendation() : null;
+    lines.push(rec ? `Advice${fresh() ? '' : ' (before your changes)'}: ${rec.label}. ${(rec.why || '').slice(0, 200)}` : working ? 'Advice: still being worked out.' : 'Advice: none.');
     for (const note of rd.notes) lines.push(note);
     const text = lines.join('\n');
     return text.length > 1000 ? `${text.slice(0, 999)}…` : text;

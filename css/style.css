@@ -4843,3 +4843,45 @@ textarea {
 .az-scan-always {
   margin-top: 6px;
 }
+
+/* Thinking: a picture being read, or the live check playing out the moves. */
+.az-spin {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  margin-right: 0.45em;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  vertical-align: -0.08em;
+  animation: az-spin 0.8s linear infinite;
+}
+
+@keyframes az-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .az-spin {
+    animation: az-pulse 1.6s ease-in-out infinite;
+    border-top-color: currentColor;
+  }
+
+  @keyframes az-pulse {
+    50% { opacity: 0.35; }
+  }
+}
+
+.az-court-busy .decision-title {
+  color: var(--teal);
+}
+
+.solver-row.is-working .solver-value {
+  color: var(--ash);
+  font-variant-numeric: tabular-nums;
+}
+
+.solver-row.is-working .solver-meter span {
+  background: color-mix(in srgb, var(--teal) 60%, transparent);
+  transition: width 0.3s;
+}
