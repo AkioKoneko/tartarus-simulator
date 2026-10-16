@@ -4660,7 +4660,7 @@ textarea {
   margin: 0 0 14px;
 }
 
-/* Follow my game (js/auto.js, beta) */
+/* Auto Screenshot Mode (js/auto.js, beta) */
 
 .az-auto-beta {
   display: inline-block;
@@ -4823,7 +4823,7 @@ textarea {
   margin: 0;
 }
 
-/* Follow my game's status, at the top of the analyzer (js/auto.js). */
+/* Auto Screenshot Mode's status, at the top of the analyzer (js/auto.js). */
 .az-follow {
   display: flex;
   flex-wrap: wrap;

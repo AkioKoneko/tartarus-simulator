@@ -1,4 +1,4 @@
-/* Tartarus Simulator: Follow my game (beta), on follow.html.
+/* Tartarus Simulator: Auto Screenshot Mode (beta), on follow.html.
  * After the player agrees on this page, they connect the game log and share
  * the game window here. Each time the log shows a move, js/capture.js grabs a
  * frame of the window; this page lists it as a small preview and hands it to
@@ -206,7 +206,7 @@
       return {};
     }
   }
-  // The panel saves only its own settings. Whether Follow my game is on (the
+  // The panel saves only its own settings. Whether Auto Screenshot Mode is on (the
   // player's agreement) is written only by the agreement at the bottom.
   // Triggers and the watch pattern are saved only when changed from the
   // defaults, so new defaults reach everyone who didn't change them.
@@ -523,7 +523,7 @@
     };
     ask();
     setInterval(ask, 30000);
-    // The analyzer shows whether Follow my game is running, from what this
+    // The analyzer shows whether Auto Screenshot Mode is running, from what this
     // page says of itself: whether it follows the log and shares the
     // window, and its last picture (when, of what, and whether one was
     // taken). Never the picture or the log's lines.

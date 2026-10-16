@@ -309,7 +309,7 @@
   const CONSENT_VERSION = 4;
 
   // Whether the player agreed to this version of follow.html. It's read
-  // again every time it's needed, so turning Follow my game off on that
+  // again every time it's needed, so turning Auto Screenshot Mode off on that
   // page stops it here at once, even in a tab that's already open.
   function agreed() {
     try {
@@ -321,7 +321,7 @@
   }
 
   function mustAgree() {
-    if (!agreed()) throw new Error('Read and agree on the Follow my game page first.');
+    if (!agreed()) throw new Error('Read and agree on the Auto Screenshot Mode page first.');
   }
 
   // A picture may be taken only when all of these hold, checked right
@@ -334,20 +334,20 @@
 
   // Why a picture can't be taken right now, for the page to say.
   function whyNot() {
-    if (!agreed()) return 'Follow my game is off.';
+    if (!agreed()) return 'Auto Screenshot Mode is off.';
     if (state.log === 'gone') return 'the game log isn’t there right now.';
     if (state.log !== 'on') return 'connect the game log first.';
     return 'share the game window first.';
   }
 
-  // Turning Follow my game off on follow.html, in any tab, stops everything
+  // Turning Auto Screenshot Mode off on follow.html, in any tab, stops everything
   // here at once: the log stops being read and the window share ends.
   function stopIfOff() {
     if (agreed()) return false;
     if (tail || track) {
       stopLog();
       stopWindow();
-      setState({ note: 'Follow my game was turned off.' });
+      setState({ note: 'Auto Screenshot Mode was turned off.' });
     }
     return true;
   }

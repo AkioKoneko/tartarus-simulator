@@ -926,7 +926,7 @@
     let detail;
     if (model.treasureWait && !reading) {
       title = 'The Warden’s Treasure: check the board first';
-      detail = 'Press View Prison Status in the game, wait a second on the board, then return. Follow my game reads the board while you look.';
+      detail = 'Press View Prison Status in the game, wait a second on the board, then return. Auto Screenshot Mode reads the board while you look.';
     } else if (reading) {
       title = 'Reading the new picture…';
       detail = 'The advice follows as soon as it’s read.';
@@ -2396,7 +2396,7 @@
   function readingSummary(full) {
     const r = reader.result;
     const rd = reader.reading;
-    const lines = [`Reader ${SCRIPT_QUERY.replace(/^\?v=/, '') || 'local'}, ${reader.follow ? 'a Follow my game picture' : 'a screenshot'} of ${reader.image.width}×${reader.image.height}, read in ${(reader.ms / 1000).toFixed(1)} s.`];
+    const lines = [`Reader ${SCRIPT_QUERY.replace(/^\?v=/, '') || 'local'}, ${reader.follow ? 'an Auto Screenshot Mode picture' : 'a screenshot'} of ${reader.image.width}×${reader.image.height}, read in ${(reader.ms / 1000).toFixed(1)} s.`];
     if (!r.ok || !rd) {
       lines.push(`Not read: ${r.reason || 'no result'}`);
       return lines.join('\n');

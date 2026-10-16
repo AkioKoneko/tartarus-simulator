@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Follow My Game</title>
-<meta name="description" content="Follow my game for the board analyzer: connect your game log and share the game window, with what it reads and sees and the code that does each part.">
+<title>Auto Screenshot Mode</title>
+<meta name="description" content="Auto Screenshot Mode for the board analyzer: connect your game log and share the game window, with what it reads and sees and the code that does each part.">
 <meta name="robots" content="noindex">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230f1216'/%3E%3Ccircle cx='8' cy='8' r='4.5' fill='none' stroke='%235fc4b8' stroke-width='1.6'/%3E%3Ccircle cx='8' cy='8' r='1.6' fill='%235fc4b8'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261016zn">
+<link rel="stylesheet" href="css/style.css?v=20261016zo">
 <style>
   /* A long read in the simulator's look, like the strategy guide. */
   .guide {
@@ -298,13 +298,13 @@
 <main class="guide">
   <a class="guide-back" href="analyze.html">← Back to the board analyzer</a>
   <p class="eyebrow">Tartarus Simulator · Board analyzer · Beta</p>
-  <h1>Follow my game</h1>
-  <p class="lede">Follow my game lets the board analyzer keep up with your game by itself. You connect the game's log and share the game window on this page. When the log shows a move, this page takes a picture of the game and hands it to the board analyzer open in another tab, which reads the board and updates the advice. Everything happens in your browser, on your PC. Below, this page says exactly what it reads and what it sees, with the code that does each part. The code is loaded from the same files your browser runs, so it can't differ from what's described here.</p>
+  <h1>Auto Screenshot Mode</h1>
+  <p class="lede">Auto Screenshot Mode lets the board analyzer keep up with your game by itself. You connect the game's log and share the game window on this page. When the log shows a move, this page takes a picture of the game and hands it to the board analyzer open in another tab, which reads the board and updates the advice. Everything happens in your browser, on your PC. Below, this page says exactly what it reads and what it sees, with the code that does each part. The code is loaded from the same files your browser runs, so it can't differ from what's described here.</p>
 
   <section class="guide-section" id="follow" aria-labelledby="follow-title">
     <h2 id="follow-title">Your game <span class="az-auto-beta">Beta</span></h2>
     <div class="az-auto-gate" id="az-auto-gate">
-      <p>Read this page first, then turn Follow my game on at the bottom. Until you do, nothing here can open your log or see any window.</p>
+      <p>Read this page first, then turn Auto Screenshot Mode on at the bottom. Until you do, nothing here can open your log or see any window.</p>
       <a class="btn btn-report" href="#agree">Turn it on</a>
     </div>
     <div id="az-auto-body" hidden>
@@ -377,7 +377,7 @@
       <li><b>Nothing before you agree.</b> Until you agree at the bottom of this page, its controls stay hidden: nothing can open your log or see any window, and the board analyzer takes no pictures.</li>
       <li><b>One file, read only.</b> It reads the game log you drag onto this page or choose (<code>UE_game.log</code>), and only the lines the game writes after you connect it. It can't open any other file, and it never changes the log.</li>
       <li><b>One window, only with the log connected.</b> It takes pictures of the one window you share, never a whole screen or a browser tab. It only does so while the game log is connected: when the log shows a move, or when you press Take a picture now, here or on the board analyzer (which asks this page to take it). Nothing is recorded in between.</li>
-      <li><b>Pictures stay in your browser.</b> This page hands each picture to the board analyzer open in another tab, which reads the board from it with the screenshot reader. The picture passes between the two tabs inside your browser. Pictures are kept as small previews in memory and are gone when you close the tabs. Follow my game never uploads a picture or your log.</li>
+      <li><b>Pictures stay in your browser.</b> This page hands each picture to the board analyzer open in another tab, which reads the board from it with the screenshot reader. The picture passes between the two tabs inside your browser. Pictures are kept as small previews in memory and are gone when you close the tabs. Auto Screenshot Mode never uploads a picture or your log.</li>
       <li><b>Boards, only if you share boards.</b> The board the analyzer reads from each picture is treated like any board you ask about. If board sharing is on (the switch under the analyzer's ask button), the board is shared for the odds study: its cells, day and tools, with no picture and nothing about you. It's shared once the next picture comes in, so a board you fixed is shared as you fixed it. Turn that switch off and nothing is shared.</li>
       <li><b>In the desktop app.</b> Tartarus Overlay finds the log and the game window itself, with no picker, and keeps your last 5 runs' pictures, boards and advice on your PC to review. See <a href="#desktop">In the desktop app</a>.</li>
       <li><b>Off whenever you like.</b> Stop following and Stop sharing end it at once, as does your browser's own stop-sharing button. Turning it off at the bottom of this page stops it at once, and the analyzer stops taking pictures.</li>
@@ -392,7 +392,7 @@
       <li><b>To share a window.</b> The browser lists your open windows, and you pick Torchlight: Infinite. Whole screens aren't offered. While the window is shared, the browser shows which one, with a button to stop.</li>
     </ol>
     <p class="note">Browsers never tell a website which program a window belongs to: not its name, its title or its process. So the code can't check that the window is the game. What it does check is that you shared one window, not your screen or a browser tab, and the browser's sharing bar shows you which window that is. Pick the game, and only the game is seen.</p>
-    <p class="note">Other browsers can't follow a file on your PC, so Follow my game needs Chrome or Edge on a PC. Run the game borderless or windowed: in exclusive fullscreen, a shared window looks black.</p>
+    <p class="note">Other browsers can't follow a file on your PC, so Auto Screenshot Mode needs Chrome or Edge on a PC. Run the game borderless or windowed: in exclusive fullscreen, a shared window looks black.</p>
   </section>
 
   <section class="guide-section">
@@ -429,13 +429,13 @@
 
     <h3>7. The analyzer reads it into your board</h3>
     <p>The analyzer answers only after you've agreed, and reads only the pictures sent to it. The screenshot reader, running in your browser, turns the picture into a board, which becomes your board straight away, and the analyzer gives its advice. Cells the reader is unsure of are marked Check. If anything doesn't match your game, fix it on the board and press Recheck. A picture of the objective popup sets the run's objective, read from its title. A picture of the instrument pick is read as that instead: the analyzer starts a fresh run at the offer, with the three instruments it read and whether a re-roll is left, and says which to take, or to re-roll. The instruments are read by their printed names first, with an OCR engine (Tesseract) that the analyzer downloads once from jsDelivr, a public code host, and runs in your browser: the picture itself isn’t sent anywhere. Where a name isn’t clear, the card’s art is used. An instrument it's unsure of is named for you to check. Only how the reading went goes back to this page. Nothing is uploaded.</p>
-    <p>The analyzer also shows, at its top, whether Follow my game is running. This page tells it whether the log is followed and the window shared, and when its last picture was taken and of what. It never sends the log's lines that way.</p>
+    <p>The analyzer also shows, at its top, whether Auto Screenshot Mode is running. This page tells it whether the log is followed and the window shared, and when its last picture was taken and of what. It never sends the log's lines that way.</p>
     <div class="code" data-file="js/auto.js" data-region="receive"></div>
   </section>
 
   <section class="guide-section" id="desktop">
     <h2>In the desktop app</h2>
-    <p>Tartarus Overlay is a Windows app that runs Follow my game for you and shows the advice in a small card over the game, so one monitor is enough. It opens this site's own pages (this page and the board analyzer) inside the app, so everything above still holds there, with the differences below. Its code is in the site's repository, under <code>desktop/</code>, and each part is shown here the same way. <a href="https://github.com/blahdot3h/tartarus-simulator/releases/latest" target="_blank" rel="noopener">Download it</a> (Windows; it isn't code-signed yet, so Windows may ask you to confirm: More info, then Run anyway).</p>
+    <p>Tartarus Overlay is a Windows app that runs Auto Screenshot Mode for you and shows the advice in a small card over the game, so one monitor is enough. It opens this site's own pages (this page and the board analyzer) inside the app, so everything above still holds there, with the differences below. Its code is in the site's repository, under <code>desktop/</code>, and each part is shown here the same way. <a href="https://github.com/blahdot3h/tartarus-simulator/releases/latest" target="_blank" rel="noopener">Download it</a> (Windows; it isn't code-signed yet, so Windows may ask you to confirm: More info, then Run anyway).</p>
 
     <h3>It finds the log itself</h3>
     <p>You don't drag the log in. The app looks where the game writes it. While the game runs, that's beside the game itself: Windows tells the app where the game's program file is, and nothing else about it. Otherwise it looks in each Steam library that has the game (from Steam's own list of its libraries) and in the game launcher's default folder, and takes the newest <code>UE_game.log</code> there. You can also choose a log from its tray menu, drag one onto this page, or use the button in step 1. In the app, the app itself reads that file, so it works wherever the game is installed and doesn't ask again. Only this page can read it, and only its size and the bytes it asks for. The follower above still reads only the new lines.</p>
@@ -451,7 +451,7 @@
     <div class="code" data-file="desktop/lib/follow-adapter.js" data-region="connect"></div>
 
     <h3>One agreement for the app</h3>
-    <p>You agree once in the app. It remembers which version of this page you agreed to, so it doesn't ask again when it starts or updates. If this page's agreement version changes, it asks again. Turning Follow my game off here turns it off for the app.</p>
+    <p>You agree once in the app. It remembers which version of this page you agreed to, so it doesn't ask again when it starts or updates. If this page's agreement version changes, it asks again. Turning Auto Screenshot Mode off here turns it off for the app.</p>
     <div class="code" data-file="desktop/lib/follow-adapter.js" data-region="agreement"></div>
     <div class="code" data-file="desktop/main.js" data-region="consent"></div>
 
@@ -474,19 +474,19 @@
   <section class="guide-section" id="agree">
     <h2>Turn it on</h2>
     <div class="agree">
-      <label class="toggle"><input type="checkbox" id="agree-box"><span><strong>I've read this page.</strong><small>I agree to let Follow my game read the game log and take pictures of the game window, as described above. In a browser, that's the log I give it and the window I share. In the desktop app, it's the log and the Torchlight: Infinite window it finds, with its record of my last runs kept on this PC.</small></span></label>
+      <label class="toggle"><input type="checkbox" id="agree-box"><span><strong>I've read this page.</strong><small>I agree to let Auto Screenshot Mode read the game log and take pictures of the game window, as described above. In a browser, that's the log I give it and the window I share. In the desktop app, it's the log and the Torchlight: Infinite window it finds, with its record of my last runs kept on this PC.</small></span></label>
       <div class="agree-actions">
-        <button type="button" class="btn btn-primary" id="agree-on" disabled>Turn on Follow my game</button>
+        <button type="button" class="btn btn-primary" id="agree-on" disabled>Turn on Auto Screenshot Mode</button>
         <button type="button" class="btn" id="agree-off" hidden>Turn it off and forget my log</button>
       </div>
       <p class="agree-status" id="agree-status" aria-live="polite"></p>
     </div>
-    <p class="note">This is agreement version <span id="consent-version">4</span>. If what Follow my game does changes, this page asks you to read it again before it turns back on.</p>
+    <p class="note">This is agreement version <span id="consent-version">4</span>. If what Auto Screenshot Mode does changes, this page asks you to read it again before it turns back on.</p>
   </section>
 </main>
 
-<script src="js/capture.js?v=20261016zn"></script>
-<script src="js/follow.js?v=20261016zn"></script>
+<script src="js/capture.js?v=20261016zo"></script>
+<script src="js/follow.js?v=20261016zo"></script>
 <script>
 (function () {
   'use strict';
@@ -529,7 +529,7 @@
   function renderAgreement() {
     const on = prefs.enabled && prefs.consent === VERSION;
     $('agree-off').hidden = !on;
-    $('agree-status').textContent = on ? `Follow my game is on in this browser${prefs.consentAt ? `, since you agreed on ${new Date(prefs.consentAt).toLocaleDateString()}` : ''}.` : '';
+    $('agree-status').textContent = on ? `Auto Screenshot Mode is on in this browser${prefs.consentAt ? `, since you agreed on ${new Date(prefs.consentAt).toLocaleDateString()}` : ''}.` : '';
   }
   $('agree-box').addEventListener('change', (e) => ($('agree-on').disabled = !e.target.checked));
   $('agree-on').addEventListener('click', () => {

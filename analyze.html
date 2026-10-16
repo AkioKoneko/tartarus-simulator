@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261016zn">
+<link rel="stylesheet" href="css/style.css?v=20261016zo">
 </head>
 <body>
 <main class="analyzer" id="analyzer">
@@ -26,8 +26,8 @@
     <h1 class="az-title">What should I do?</h1>
     <p class="az-lede">Set up your board exactly as it is in your game: what's in each cell, where the warden stands, today's doors and your tools. Then ask, and the trained strategy picks your move and checks it with hundreds of playouts.</p>
     <div class="az-head-actions">
-      <a class="btn btn-primary" id="az-follow-setup" href="follow.html" target="tartarus-follow" title="Reads your game's log and pictures of its window, so the board and the advice keep up by themselves. Opens its setup in a tab to keep open while you play.">Follow my game (beta)</a>
-      <a class="btn" id="az-desktop-app" href="https://github.com/blahdot3h/tartarus-simulator/releases/latest" target="_blank" rel="noopener" title="Tartarus Overlay, for Windows: Follow my game as an app, with the advice in a small card over the game, so one monitor is enough. Opens its download page.">Desktop app (Windows)</a>
+      <a class="btn btn-primary" id="az-follow-setup" href="follow.html" target="tartarus-follow" title="Reads your game's log and pictures of its window, so the board and the advice keep up by themselves. Opens its setup in a tab to keep open while you play.">Auto Screenshot Mode (beta)</a>
+      <a class="btn" id="az-desktop-app" href="https://github.com/blahdot3h/tartarus-simulator/releases/latest" target="_blank" rel="noopener" title="Tartarus Overlay, for Windows: Auto Screenshot Mode as an app, with the advice in a small card over the game, so one monitor is enough. Opens its download page.">Desktop app (Windows)</a>
       <button type="button" class="btn" id="az-load-run">Load my simulator run</button>
       <button type="button" class="btn" id="az-example">Load an example</button>
       <button type="button" class="btn btn-danger" id="az-clear">Clear the board</button>
@@ -57,7 +57,7 @@
       <button type="button" class="link" id="az-scan-back" hidden>Go back to the board before it</button>
       <button type="button" class="link" id="az-scan-report" hidden title="The reader got your game wrong, or the advice points at something that isn't there? Send this screenshot with what the analyzer made of it.">Report a wrong reading</button>
     </div>
-    <label class="toggle az-scan-always"><input type="checkbox" id="az-scan-always"><span><strong>Show screenshots after reading</strong><small>Off: a screenshot is read into the board and stays hidden, from Follow my game or pasted. Show the screenshot opens it when you want it. Remembered in this browser.</small></span></label>
+    <label class="toggle az-scan-always"><input type="checkbox" id="az-scan-always"><span><strong>Show screenshots after reading</strong><small>Off: a screenshot is read into the board and stays hidden, from Auto Screenshot Mode or pasted. Show the screenshot opens it when you want it. Remembered in this browser.</small></span></label>
     <div class="az-scan-result" id="az-scan-result" hidden>
       <div class="az-scan-preview"><canvas id="az-scan-canvas" aria-label="Your screenshot, with what the reader found drawn on it"></canvas></div>
       <div class="az-scan-side">
@@ -136,7 +136,7 @@
           </div>
           <div class="az-stepbox az-used" data-step="manage choice">
             <label class="toggle"><input type="checkbox" id="az-swapped"><span><strong>Replace used today</strong><small>Only the warden's inmate can be replaced. A day has a Replace or a consume, not both, unless the game offers a consume after the Replace.</small></span></label>
-            <label class="toggle" id="az-consume-offered-wrap" hidden><input type="checkbox" id="az-consume-offered"><span><strong>Consume on offer after the Replace</strong><small>Tick it when your game shows Consume after today's Replace. Only then is a consume advised. Follow my game ticks it when the log shows the offer.</small></span></label>
+            <label class="toggle" id="az-consume-offered-wrap" hidden><input type="checkbox" id="az-consume-offered"><span><strong>Consume on offer after the Replace</strong><small>Tick it when your game shows Consume after today's Replace. Only then is a consume advised. Auto Screenshot Mode ticks it when the log shows the offer.</small></span></label>
             <label class="toggle"><input type="checkbox" id="az-devoured"><span><strong>Consume used today</strong><small>Only the warden's inmate can consume. A day has a Replace or a consume, not both.</small></span></label>
           </div>
           <div class="az-stepbox" data-step="office">
@@ -201,7 +201,7 @@
 
       <section class="az-panel az-treasure-wait" id="az-treasure-wait" aria-live="polite" hidden>
         <p class="az-res-move">The Warden’s Treasure is open</p>
-        <p>It covers the board, which may have changed since the last picture. Press <strong>View Prison Status</strong> in the game, wait a second on the board, then return to the Treasure: Follow my game reads the board while you look, and the gift advice uses it. Without Follow my game, paste a screenshot of the board as you see it then.</p>
+        <p>It covers the board, which may have changed since the last picture. Press <strong>View Prison Status</strong> in the game, wait a second on the board, then return to the Treasure: Auto Screenshot Mode reads the board while you look, and the gift advice uses it. Without Auto Screenshot Mode, paste a screenshot of the board as you see it then.</p>
         <button type="button" class="btn" id="az-treasure-now">Advise with the board as it is</button>
       </section>
       <section class="az-panel az-results" id="az-results" aria-live="polite" hidden>
@@ -338,15 +338,15 @@
   </footer>
 </main>
 
-<script src="js/engine.js?v=20261016zn"></script>
-<script src="js/board.js?v=20261016zn"></script>
-<script src="js/tool-combos.js?v=20261016zn"></script>
-<script src="js/solver.js?v=20261016zn"></script>
-<script src="js/live.js?v=20261016zn"></script>
-<script src="js/report.js?v=20261016zn"></script>
-<script src="js/capture.js?v=20261016zn"></script>
-<script src="js/analyze.js?v=20261016zn"></script>
-<script src="js/auto.js?v=20261016zn"></script>
-<script src="js/update.js?v=20261016zn"></script>
+<script src="js/engine.js?v=20261016zo"></script>
+<script src="js/board.js?v=20261016zo"></script>
+<script src="js/tool-combos.js?v=20261016zo"></script>
+<script src="js/solver.js?v=20261016zo"></script>
+<script src="js/live.js?v=20261016zo"></script>
+<script src="js/report.js?v=20261016zo"></script>
+<script src="js/capture.js?v=20261016zo"></script>
+<script src="js/analyze.js?v=20261016zo"></script>
+<script src="js/auto.js?v=20261016zo"></script>
+<script src="js/update.js?v=20261016zo"></script>
 </body>
 </html>

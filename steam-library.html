@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Move Your Game</title>
-<meta name="description" content="Chrome and Edge won't open files under Program Files. How to move Torchlight: Infinite to a second Steam library, or move Steam itself, so Follow my game can read the game log.">
+<meta name="description" content="Chrome and Edge won't open files under Program Files. How to move Torchlight: Infinite to a second Steam library, or move Steam itself, so Auto Screenshot Mode can read the game log.">
 <meta name="robots" content="noindex">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230f1216'/%3E%3Ccircle cx='8' cy='8' r='4.5' fill='none' stroke='%235fc4b8' stroke-width='1.6'/%3E%3Ccircle cx='8' cy='8' r='1.6' fill='%235fc4b8'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261016zn">
+<link rel="stylesheet" href="css/style.css?v=20261016zo">
 <style>
   /* A how-to in the look of follow.html. */
   .guide {
@@ -196,11 +196,11 @@
 </head>
 <body>
 <main class="guide">
-  <a class="guide-back" href="follow.html#follow">← Back to Follow my game</a>
-  <p class="eyebrow">Tartarus Simulator · Follow my game · Help</p>
+  <a class="guide-back" href="follow.html#follow">← Back to Auto Screenshot Mode</a>
+  <p class="eyebrow">Tartarus Simulator · Auto Screenshot Mode · Help</p>
   <h1>Move the game out of Program Files</h1>
-  <p class="lede">Chrome and Edge won't let any website open a file inside <code>C:\Program Files</code> or <code>C:\Program Files (x86)</code>. When you try, they say the folder “contains system files”. Steam installs games in <code>C:\Program Files (x86)\Steam</code> unless you choose otherwise, so Follow my game's <b>Or choose the file</b> button can't open Torchlight: Infinite's log there. The way around it is to move the game somewhere else. Steam does the moving for you: nothing is downloaded again, and your characters aren't touched, since they're kept on the game's servers.</p>
-  <p class="note"><b>You may not need this.</b> On <a href="follow.html#follow">Follow my game</a>, you can drag <code>UE_game.log</code> from File Explorer onto the page instead, and that works wherever the game is installed. Move the game only if you'd rather use the button, or if dragging doesn't work for you.</p>
+  <p class="lede">Chrome and Edge won't let any website open a file inside <code>C:\Program Files</code> or <code>C:\Program Files (x86)</code>. When you try, they say the folder “contains system files”. Steam installs games in <code>C:\Program Files (x86)\Steam</code> unless you choose otherwise, so Auto Screenshot Mode's <b>Or choose the file</b> button can't open Torchlight: Infinite's log there. The way around it is to move the game somewhere else. Steam does the moving for you: nothing is downloaded again, and your characters aren't touched, since they're kept on the game's servers.</p>
+  <p class="note"><b>You may not need this.</b> On <a href="follow.html#follow">Auto Screenshot Mode</a>, you can drag <code>UE_game.log</code> from File Explorer onto the page instead, and that works wherever the game is installed. Move the game only if you'd rather use the button, or if dragging doesn't work for you.</p>
 
   <section class="guide-section" aria-labelledby="where-title">
     <h2 id="where-title">Where is your game now?</h2>
@@ -209,7 +209,7 @@
       <li>File Explorer opens the game's folder. Click the address bar at the top to see its full path.</li>
     </ol>
     <p>If the path starts with <code>C:\Program Files</code> or <code>C:\Program Files (x86)</code>, read on.</p>
-    <p>If it doesn't (say it's <code>D:\SteamLibrary\steamapps\common\Torchlight Infinite</code>), there's nothing to move. Go back to <a href="follow.html#follow">Follow my game</a> and pick <code>UE_game.log</code> in <code>UE_game\TorchLight\Saved\Logs</code>, inside that folder.</p>
+    <p>If it doesn't (say it's <code>D:\SteamLibrary\steamapps\common\Torchlight Infinite</code>), there's nothing to move. Go back to <a href="follow.html#follow">Auto Screenshot Mode</a> and pick <code>UE_game.log</code> in <code>UE_game\TorchLight\Saved\Logs</code>, inside that folder.</p>
   </section>
 
   <section class="guide-section" aria-labelledby="ways-title">
@@ -274,17 +274,17 @@
   </section>
 
   <section class="guide-section" id="then" aria-labelledby="then-title">
-    <h2 id="then-title">Then, on Follow my game</h2>
+    <h2 id="then-title">Then, on Auto Screenshot Mode</h2>
     <p>The game's log is now in its new place. If you made a library on another drive, it's here, with your drive's letter instead of D:</p>
     <div class="log-path"><code id="path-library">D:\SteamLibrary\steamapps\common\Torchlight Infinite\UE_game\TorchLight\Saved\Logs</code><button type="button" class="btn" data-copy="path-library">Copy</button></div>
     <p>If you moved Steam to <code>C:\Steam</code>, it's here:</p>
     <div class="log-path"><code id="path-steam">C:\Steam\steamapps\common\Torchlight Infinite\UE_game\TorchLight\Saved\Logs</code><button type="button" class="btn" data-copy="path-steam">Copy</button></div>
     <ol class="steps">
       <li>Start the game once, so it writes its log in the new place.</li>
-      <li>The log Follow my game remembered moved with the game, so give it the log again. On <a href="follow.html#follow">Follow my game</a>, press <b>Or choose the file</b>.</li>
+      <li>The log Auto Screenshot Mode remembered moved with the game, so give it the log again. On <a href="follow.html#follow">Auto Screenshot Mode</a>, press <b>Or choose the file</b>.</li>
       <li>In the window that opens, paste the folder into the address bar at the top, press Enter, and pick <code>UE_game.log</code>. Or drag the file from that folder in File Explorer onto the box in step 1.</li>
     </ol>
-    <a class="btn btn-report" href="follow.html#follow">Back to Follow my game</a>
+    <a class="btn btn-report" href="follow.html#follow">Back to Auto Screenshot Mode</a>
   </section>
 
   <section class="guide-section" aria-labelledby="faq-title">

@@ -1,9 +1,9 @@
-/* Tartarus Simulator: Follow my game, in the board analyzer (beta).
- * Follow my game runs on follow.html: the player connects the game log and
+/* Tartarus Simulator: Auto Screenshot Mode, in the board analyzer (beta).
+ * Auto Screenshot Mode runs on follow.html: the player connects the game log and
  * shares the game window there (js/follow.js). Each picture it takes comes
  * here, to the board analyzer open in the same browser, which reads it into
  * the board, shows what it read and refreshes the advice. The analyzer has
- * no Follow my game controls of its own, but shows whether it's running.
+ * no Auto Screenshot Mode controls of its own, but shows whether it's running.
  * Nothing here runs until the player has agreed on follow.html, and
  * pictures never leave the browser. */
 (function () {
@@ -14,7 +14,7 @@
   if (!C || !A || typeof BroadcastChannel !== 'function') return;
 
   // #region receive
-  // The analyzer tells Follow my game it's open only once the player has
+  // The analyzer tells Auto Screenshot Mode it's open only once the player has
   // agreed on follow.html, and it reads only the pictures sent to it. A
   // board's picture becomes the board at once, and the advice follows. If
   // the reader got something wrong, the player fixes the board and
@@ -140,7 +140,7 @@
     if (A.ask()) answer({ asked: true });
   }
 
-  // Whether Follow my game is running, from what follow.html says of itself
+  // Whether Auto Screenshot Mode is running, from what follow.html says of itself
   // (whether it follows the log and shares the window, and its last
   // picture), shown at the top of the analyzer.
   const bar = document.getElementById('az-follow');
@@ -154,11 +154,11 @@
     if (!bar) return;
     bar.hidden = !C.agreed();
     if (bar.hidden) return;
-    const link = '<a href="follow.html#follow" target="tartarus-follow">the Follow my game page</a>';
+    const link = '<a href="follow.html#follow" target="tartarus-follow">the Auto Screenshot Mode page</a>';
     let ok = false;
     let text;
     if (!running()) {
-      text = `Follow my game isn’t running. Open ${link} to connect your game log and share the game window.`;
+      text = `Auto Screenshot Mode isn’t running. Open ${link} to connect your game log and share the game window.`;
     } else {
       const file = esc(status.file || 'the game log');
       const log = { on: `following ${file}`, starting: 'opening the game log', gone: `${file} isn’t there`, error: 'the game log can’t be read' }[status.log] || 'the game log isn’t connected';
@@ -167,17 +167,17 @@
       const l = status.last;
       const last = l ? ` Last picture ${time(l.at)}${l.kind ? ` (${esc(l.kind)})` : ''}${l.ok ? '' : `: none taken, ${esc((l.why || 'the window wasn’t shared').replace(/\.$/, ''))}`}.` : ' No pictures yet.';
       const trig = status.triggers ? ` ${status.triggers} triggers.` : '';
-      text = `Follow my game: ${log}, ${win}.${trig}${last}${ok ? '' : ` Fix it on ${link}.`}`;
+      text = `Auto Screenshot Mode: ${log}, ${win}.${trig}${last}${ok ? '' : ` Fix it on ${link}.`}`;
     }
     bar.className = `az-follow ${ok ? 'is-ok' : 'is-off'}`;
     barText.innerHTML = text;
     // A picture can be taken from here while the game window is shared.
     now.disabled = !(running() && status.window === 'on');
-    now.title = now.disabled ? 'Share the game window on the Follow my game page first.' : 'Take a picture of the game now, and read it here.';
+    now.title = now.disabled ? 'Share the game window on the Auto Screenshot Mode page first.' : 'Take a picture of the game now, and read it here.';
   }
   const running = () => !!status && !status.closed && Date.now() - heard <= 25000;
 
-  // Take a picture now: Follow my game takes it (it holds the window), and
+  // Take a picture now: Auto Screenshot Mode takes it (it holds the window), and
   // sends it here, as this analyzer was used last.
   if (now) {
     now.addEventListener('click', () => {
