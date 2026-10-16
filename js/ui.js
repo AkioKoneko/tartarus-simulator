@@ -637,6 +637,13 @@
       ], true);
       return;
     }
+    if (kind === 'hunt') {
+      // The card has only Confirm.
+      setDecision(T.eventName(kind), 'Every locked cell holding a Normal or Magic shows its rarity (its beast stays hidden), so the doors left dark hold Rare or better.', [
+        ['Confirm', () => run((s) => T.resolveEvent(s, true)), 'primary'],
+      ], true);
+      return;
+    }
     if (['appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'usurp3', 'usurp4', 'ratway'].includes(kind)) {
       let detail;
       if (kind === 'appetite') {
@@ -953,6 +960,7 @@
       else if (x.type === 'appetite') out.push(item(`Ravenous Appetite +${x.gain}`, `${tok(x.who, { cell: x.cell })}<span class="then">›</span>${tok(x.after, { cell: x.cell })}`));
       else if (x.type === 'convict') out.push(item('High-Risk Convict', x.cell === null ? '<span class="recap-note">no cell left</span>' : `<span class="recap-note">cell ${L(x.cell)}</span>`));
       else if (x.type === 'crow') out.push(item('Crow Whispers', `<span class="recap-note">${x.cells.length ? `rarity shown at ${x.cells.map(L).join(', ')}` : 'nothing left to show'}</span>`));
+      else if (x.type === 'hunt') out.push(item(T.eventName('hunt'), `<span class="recap-note">${[x.cells.length ? `low rarity shown at ${x.cells.map(L).join(', ')}` : '', x.high.length ? `Rare or better at ${x.high.map(L).join(', ')}` : ''].filter(Boolean).join('; ') || 'no locked cell left'}</span>`));
       else if (x.type === 'usurp1' || x.type === 'usurp2') out.push(item(T.eventName(x.type), x.raised.length ? x.raised.map((r) => tok(r.who, { cell: r.cell })).join('') : '<span class="recap-note">no one</span>'));
       else if (x.type === 'freedom') out.push(item('Taste of Freedom', `<span class="recap-note">${x.cells.length ? `opened ${x.cells.map(L).join(', ')}` : 'no locked cell left'}</span>`));
       else if (x.type === 'instigate') out.push(item('Instigate', `<span class="recap-note">${x.cells.length ? `events at ${x.cells.map(L).join(', ')}` : 'no free door'}</span>`));
@@ -1090,7 +1098,7 @@
       case 'swap':
         return ['Replace', () => run((s) => T.swap(s, tip.cell))];
       case 'event':
-        return [tip.accept ? 'Accept' : 'Skip', () => run((s) => T.resolveEvent(s, tip.accept))];
+        return [ui.state && ui.state.event && ui.state.event.kind === 'hunt' ? 'Confirm' : tip.accept ? 'Accept' : 'Skip', () => run((s) => T.resolveEvent(s, tip.accept))];
       case 'choose':
         return ['Take', () => run((s) => T.choose(s, tip.id))];
       case 'cargo':
@@ -1158,6 +1166,7 @@
     usurp3: 'Usurpation III raises two inmates 2 tiers each, and brings Usurpation IV: accept it.',
     usurp4: 'Usurpation IV raises every inmate 2 tiers: accept it.',
     ratway: 'The Sewer Ratway is a free move to any cell but the office: accept it, then take the best door or inmate on the whole block.',
+    hunt: 'The "Treasure" Hunt costs nothing: confirm it, then aim your patrols at the doors it leaves dark, which hold Rare or better.',
     office: 'At the office, Bestow when a raise helps now, and Instigate when the block needs new doors with events.',
     chainPick: 'You pick each meal of a chain, or stop it with Cancel: take the meal that keeps the chain fed at the next tier, and stop only when every meal would cost more than it gains.',
     gift: 'Training: picking the gift that fits the board beat always taking the same one.',

@@ -126,6 +126,12 @@
     return weights.map((w) => Math.max(0, w) / total);
   }
 
+  // Door odds known to be at or above a tier (a "Treasure" Hunt's dark doors).
+  function floorDist(dist, floor) {
+    const kept = dist.map((p, t) => (t >= floor ? p : 0));
+    return kept.some((p) => p > 0) ? normalize(kept) : dist;
+  }
+
   // ---------- Chain math ----------
 
   // Everything a decision needs, computed once per position.
@@ -528,6 +534,7 @@
     usurp3: 'Usurpation III waits there: 2 random inmates rise 2 tiers',
     usurp4: 'Usurpation IV waits there: every inmate rises 2 tiers',
     ratway: 'the Sewer Ratway waits there: a free move to any cell but the office',
+    hunt: '"Treasure" Hunt waits there: every locked door holding a Normal or Magic shows its rarity, so the rest hold Rare or better',
   };
 
   // What each event behind a door is worth, given the block's composition.
@@ -563,6 +570,9 @@
       usurp4: () => ctx.allLift2,
       // A second move: to the best door anywhere, worth a fresh door at least.
       ratway: () => P.wOpen * ctx.openValue,
+      // Like Crow Whispers, but it tells every locked door apart: the low
+      // ones show, and the rest are Rare or better.
+      hunt: () => P.wCrow * Math.max(1, ctx.sealed / T.CROW_CELLS),
     };
   }
 
@@ -614,14 +624,17 @@
         why = `it destroys the rat nest due on day ${c.nest.due}`;
       } else if (c.sealed) {
         // A door whose rarity shows (Crow Whispers, a scratch, the Scales)
-        // is worth that rarity.
+        // is worth that rarity, and one a "Treasure" Hunt left dark is worth
+        // the door odds from Rare up.
         const shown = c.known && c.hidden ? [0, 1, 2, 3, 4].map((t) => (t === Math.min(4, c.hidden.tier) ? 1 : 0)) : null;
-        const need = needValue(ctx, board.comp, [], shown || ctx.openDist);
-        score += (shown ? freshValue(ctx, tagged(ctx, shown), board.comp, board.crowd + 1, swapLeft) : freshNow()) + need;
+        const dist = shown || (c.atLeast ? floorDist(ctx.openDist, c.atLeast) : null);
+        const need = needValue(ctx, board.comp, [], dist || ctx.openDist);
+        score += (dist ? freshValue(ctx, tagged(ctx, dist), board.comp, board.crowd + 1, swapLeft) : freshNow()) + need;
         // Executioner's Blacklist: opening this door leaves 5 or fewer locked,
         // so 2 random inmates rise a tier.
         if (ctx.blacklist && ctx.sealed - 1 <= 5) score += 2 * ctx.lift;
-        why = need > 0 ? `a new inmate, who may help meet "${ctx.need.contract.name}"` : 'a new inmate, who may consume today';
+        const who = !shown && c.atLeast ? `a ${T.tierName(c.atLeast)} or better inmate (the "Treasure" Hunt left this door dark)` : 'a new inmate';
+        why = need > 0 ? `${who}, who may help meet "${ctx.need.contract.name}"` : `${who}, who may consume today`;
         const worth = eventWorth(ctx, board.comp);
         const pool = st.eventPool || T.EVENT_POOL;
         const anyEvent = () => pool.reduce((sum, id) => sum + worth[id](), 0) / pool.length;
@@ -1114,8 +1127,9 @@
       if (st.event.kind === 'chain') return { type: 'event', accept: !!P.acceptChain };
       // Ravenous Appetite, High-Risk Convict, Crow Whispers and Taste of
       // Freedom only add.
-      // The Sewer Ratway's move can stay put, so it only adds too.
-      if (['appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'usurp3', 'usurp4', 'ratway'].includes(st.event.kind)) return { type: 'event', accept: true };
+      // The Sewer Ratway's move can stay put, so it only adds too, and the
+      // "Treasure" Hunt's card has only Confirm.
+      if (['appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'usurp3', 'usurp4', 'ratway', 'hunt'].includes(st.event.kind)) return { type: 'event', accept: true };
       const exec = st.cells[st.event.cell].inmate;
       if (!exec) return { type: 'event', accept: false };
       // Behind Closed Doors: a free Supreme, unless it already is one.
@@ -1237,6 +1251,11 @@
     if (st.phase === 'event' && st.event) {
       // Event names that read as names (Behind Closed Doors) take no "the".
       const name = `${['chain', 'execution'].includes(st.event.kind) ? 'the ' : ''}${T.eventName(st.event.kind)}`;
+      // The "Treasure" Hunt's card has only Confirm.
+      if (st.event.kind === 'hunt') {
+        out.push({ action: { type: 'event', accept: true }, label: `Confirm ${name}` });
+        return out;
+      }
       out.push({ action: { type: 'event', accept: true }, label: `Accept ${name}` });
       out.push({ action: { type: 'event', accept: false }, label: `Skip ${name}` });
       return out;
@@ -1486,6 +1505,7 @@
         if (st.event.kind === 'usurp3') return 'Two random inmates rise 2 tiers each, and Usurpation IV joins the events.';
         if (st.event.kind === 'usurp4') return 'Every inmate on the block rises 2 tiers.';
         if (st.event.kind === 'ratway') return 'A free move to any cell but the office: the best door or inmate on the whole block, not just the next six cells.';
+        if (st.event.kind === 'hunt') return 'Free information, and its card has only Confirm: every locked door holding a Normal or Magic shows its rarity, so the doors left dark hold Rare or better.';
         const exec = st.cells[st.event.cell].inmate;
         const victims = T.executionVictims(st, st.event.cell).length;
         return action.accept ? `The ${T.describe(exec)} removes ${T.plural(victims, 'inmate')} and rises as many tiers: it gains more than it removes.` : 'It would remove more than it gains.';
@@ -1588,7 +1608,7 @@
     if (ch1 && ch1.window && ch1.window.early && !(ch0 && ch0.window)) return { type: 'early' };
     if (before.phase === 'event') {
       if (after.phase === 'event') return null;
-      const x = recent(['skipped', 'armed', 'execution', 'trickster', 'appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'usurp3', 'usurp4', 'ratway']);
+      const x = recent(['skipped', 'armed', 'execution', 'trickster', 'appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'usurp3', 'usurp4', 'ratway', 'hunt']);
       return x ? { type: 'event', accept: x.type !== 'skipped' } : null;
     }
     if (before.phase === 'office') {

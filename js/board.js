@@ -325,6 +325,10 @@
     usurp2: mark('<rect x="6" y="8" width="36" height="32" rx="3" fill="#2a2f37" stroke="#9aa0ad" stroke-width="1.4"/><path d="M11 14l4 20M17 13l4 20M23 14l4 20" stroke="#e0675f" stroke-width="2.2" stroke-linecap="round"/><path d="M32 15v18M38 15v18" stroke="#f5ecd8" stroke-width="3" stroke-linecap="round"/>'),
     // Sewer Ratway: a round sewer grate with a rat's tail slipping through.
     ratway: mark('<circle cx="24" cy="24" r="17" fill="#2a2f37" stroke="#8d92a8" stroke-width="2.4"/><path d="M11 17h26M8.5 24h31M11 31h26M24 8v32" stroke="#8d92a8" stroke-width="2.2"/><path d="M29 35c3 4 8 5 13 2" fill="none" stroke="#d9a3a6" stroke-width="2.4" stroke-linecap="round"/>'),
+    // A door the "Treasure" Hunt left dark: a lock with a plus, Rare or better.
+    dark: mark('<path d="M13 21v-5a8 8 0 0 1 16 0v5" fill="none" stroke="var(--tc)" stroke-width="3.2"/><rect x="8" y="21" width="26" height="20" rx="3" fill="#2a2f37" stroke="var(--tc)" stroke-width="2.2"/><path d="M40 6v14M33 13h14" stroke="var(--tc)" stroke-width="3.4" stroke-linecap="round"/>'),
+    // "Treasure" Hunt: a magnifier over a locked door.
+    hunt: mark('<path d="M6 44V24a10 10 0 0 1 20 0v20Z" fill="#2a2f37" stroke="#8d92a8" stroke-width="2"/><circle cx="29" cy="19" r="9" fill="#1d2228" stroke="#e8c46a" stroke-width="3"/><path d="M35.5 25.5l7.5 7.5" stroke="#e8c46a" stroke-width="4" stroke-linecap="round"/><path d="M25 19h8" stroke="#5fc4b8" stroke-width="2.2" stroke-linecap="round"/>'),
     usurp3: mark('<rect x="6" y="8" width="36" height="32" rx="3" fill="#2a2f37" stroke="#9aa0ad" stroke-width="1.4"/><path d="M9 14l4 20M15 13l4 20M21 14l4 20" stroke="#e0675f" stroke-width="2.2" stroke-linecap="round"/><path d="M29 15v18M34 15v18M39 15v18" stroke="#f5ecd8" stroke-width="2.6" stroke-linecap="round"/>'),
     usurp4: mark('<rect x="6" y="8" width="36" height="32" rx="3" fill="#2a2f37" stroke="#9aa0ad" stroke-width="1.4"/><path d="M9 14l3 20M14 13l3 20M19 14l3 20" stroke="#e0675f" stroke-width="2.2" stroke-linecap="round"/><path d="M26 15v18M30.5 15v18M35 15v18M39.5 15v18" stroke="#f5ecd8" stroke-width="2.4" stroke-linecap="round"/>'),
     // A locked door showing its inmate's rarity, beast unknown: a "?" tinted
@@ -369,6 +373,11 @@
         const text = cell.known === 2 ? T.describe(known) : T.tierName(known.tier);
         hint = `<span class="hint">${text}</span>`;
         label += `sealed, ${text} inside`;
+      } else if (cell.atLeast) {
+        // A door the "Treasure" Hunt left dark.
+        const text = `${T.tierName(cell.atLeast)}+`;
+        hint = `<span class="hint">${text}</span>`;
+        label += `sealed, ${T.tierName(cell.atLeast)} or better inside`;
       } else {
         label += 'sealed';
       }

@@ -222,10 +222,15 @@
     // trigger subsequent content". The game then asks "Select an Objective"
     // with every cell but the office (the Interrogation Room) on offer.
     ratway: { name: 'Sewer Ratway' },
+    // A player's report (#41, 2026-10-16), a card with only Confirm:
+    // "Reveals all unopened cells with rarity below Rare". A revealed door
+    // shows its rarity (a "?" portrait), as with Crow Whispers, so the
+    // locked doors left dark hold Rare or better.
+    hunt: { name: '"Treasure" Hunt' },
   };
   // The pool new events are drawn from (the game's "Prison Incidents"). It
   // changes during a run: Usurpation I trades itself for Usurpation II.
-  const EVENT_POOL = ['chain', 'execution', 'trickster', 'appetite', 'convict', 'crow', 'freedom', 'usurp1', 'ratway'];
+  const EVENT_POOL = ['chain', 'execution', 'trickster', 'appetite', 'convict', 'crow', 'freedom', 'usurp1', 'ratway', 'hunt'];
   // The Usurpation chain (the user's cards, 2026-10-16): how many inmates
   // rise and by how much, and which Usurpation then takes its place in the
   // Prison Incidents ("Add [Usurpation IV] to Prison Incidents and remove
@@ -241,6 +246,9 @@
   const FREEDOM_CELLS = 3;
   // Crow Whispers shows the rarity behind this many locked cells.
   const CROW_CELLS = 4;
+  // "Treasure" Hunt shows the rarity behind every locked cell below this
+  // tier (Rare).
+  const HUNT_BELOW = 2;
   // The warden's office: Instigate brings this many new special events.
   const INSTIGATE_EVENTS = 2;
   // Ravenous Appetite: tries at +1 tier, and the chance of each.
@@ -483,9 +491,19 @@
 
   const linkOf = (state, id) => state.prey.find((l) => l.lion === id || l.prey === id) || null;
 
+  // The door odds for one cell: at or above the rarity the player knows it
+  // has (`atLeast`: a "Treasure" Hunt leaves the doors it didn't reveal
+  // Rare or better).
+  function cellWeights(state, cell) {
+    const w = doorWeights(state);
+    const floor = cell.atLeast || 0;
+    const kept = w.map((x, t) => (t >= floor ? x : 0));
+    return kept.some((x) => x > 0) ? kept : w;
+  }
+
   // The occupant behind a sealed door is rolled the first time anyone looks.
   function hiddenOf(state, cell) {
-    if (!cell.hidden) cell.hidden = rollInmate(state, doorWeights(state));
+    if (!cell.hidden) cell.hidden = rollInmate(state, cellWeights(state, cell));
     return cell.hidden;
   }
 
@@ -494,7 +512,7 @@
   function doorInmate(state, cell) {
     const h = cell.hidden;
     if (h && (h.tier > 0 || cell.known || !has(state, 'hook'))) return h;
-    return rollInmate(state, doorWeights(state));
+    return rollInmate(state, cellWeights(state, cell));
   }
 
   function canEat(state, eater, meal) {
@@ -555,6 +573,7 @@
     cell.inmate = null;
     cell.hidden = null;
     cell.known = 0;
+    cell.atLeast = 0;
     cell.scratch = false;
     cell.nest = null;
     cell.ivory = false;
@@ -627,6 +646,7 @@
     cell.inmate = inmate;
     cell.hidden = null;
     cell.known = 0;
+    cell.atLeast = 0;
     cell.scratch = false;
     cell.nest = null;
     cell.event = null;
@@ -693,7 +713,7 @@
   // The office is never sealed and never holds anyone. `seen` turns on when
   // the warden walks past a sealed cell: only then does its event show.
   function blankCell(n) {
-    return { n, sealed: n !== OFFICE, inmate: null, hidden: null, known: 0, scratch: false, nest: null, event: null, ivory: false, seen: false };
+    return { n, sealed: n !== OFFICE, inmate: null, hidden: null, known: 0, atLeast: 0, scratch: false, nest: null, event: null, ivory: false, seen: false };
   }
 
   function newGame(options) {
@@ -1235,6 +1255,25 @@
       log(state, 'event', seen.length
         ? `Crow Whispers: ${seen.map((c) => `cell ${cellLabel(c.n)} holds a ${tierName(c.hidden.tier)}`).join(', ')}.`
         : 'Crow Whispers: no locked cell was left to reveal.', { type: 'crow', cells: seen.map((c) => c.n) });
+    } else if (kind === 'hunt') {
+      // Every locked cell holding a Normal or Magic shows its rarity, so the
+      // ones left dark hold Rare or better. Nests hold no inmate yet.
+      const low = [];
+      const high = [];
+      for (const c of state.cells) {
+        if (!c.sealed || c.nest) continue;
+        if (hiddenOf(state, c).tier < HUNT_BELOW) {
+          c.known = Math.max(c.known, 1);
+          low.push(c);
+        } else {
+          c.atLeast = Math.max(c.atLeast || 0, HUNT_BELOW);
+          high.push(c);
+        }
+      }
+      const shown = low.map((c) => `cell ${cellLabel(c.n)} holds a ${tierName(c.hidden.tier)}`).join(', ');
+      const dark = high.length === 1 ? `cell ${cellLabel(high[0].n)} holds Rare or better` : `${low.length ? 'the other' : 'all'} ${high.length} locked cells hold Rare or better`;
+      const text = low.length && high.length ? `${shown}; ${dark}` : low.length ? shown : high.length ? dark : 'no locked cell was left to reveal';
+      log(state, 'event', `${eventName(kind)}: ${text}.`, { type: 'hunt', cells: low.map((c) => c.n), high: high.map((c) => c.n) });
     } else if (USURP[kind]) {
       // Random inmates rise (all of them for Usurpation IV), then this
       // Usurpation leaves the Prison Incidents and the next joins them.
@@ -2254,7 +2293,7 @@
 
   const api = {
     VERSION, CELL_COUNT, OFFICE, SUPREME, RAINBOW, TIERS, BEASTS, BEAST_INFO, FOOD_CHAIN, SECOND_MEAL, PRESSURE, ESCORTS, TOOLS, TOOL_IDS, GIFTS, GIFT_IDS,
-    EVENTS, EVENT_IDS, EVENT_POOL, USURP, APPETITE_TRIES, APPETITE_ODDS, INSTIGATE_EVENTS, CROW_CELLS, FREEDOM_CELLS, OBJECTIVES, OBJECTIVE_IDS, START_EVENTS,
+    EVENTS, EVENT_IDS, EVENT_POOL, USURP, APPETITE_TRIES, APPETITE_ODDS, INSTIGATE_EVENTS, CROW_CELLS, HUNT_BELOW, FREEDOM_CELLS, OBJECTIVES, OBJECTIVE_IDS, START_EVENTS,
     LOADOUTS, SCENARIOS, CONTRACT_SLOTS, DEFAULT_PARAMS, PARAM_FIELDS, CHALLENGE_DAYS, START_VOUCHERS,
     newGame, randomSeed, normalizeParams, serialize, deserialize,
     patrol: bounded(patrol),

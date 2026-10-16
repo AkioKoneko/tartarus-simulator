@@ -99,6 +99,12 @@ The two-meal chain's challenge profile had a one-round tune (5.2 million runs, 7
 
 The Chinese sim's two-meal food chain (Mammoth also eats Wolf, Lion also eats Rat) was confirmed not to be in the live game on 2026-10-15, so it was removed from the simulator and the lab. The older sections below still show the two-meal numbers measured at the time; their files are in the git history.
 
+### "Treasure" Hunt (2026-10-16)
+
+Report 41, a card with only Confirm: "Reveals all unopened cells with rarity below Rare". A revealed door shows its rarity with a "?" portrait, as with Crow Whispers, so the player can tell that the locked doors left dark hold Rare or better. The engine marks those (`atLeast`, cleared when the cell opens or empties): the solver values such a door at the door odds from Rare up, and re-rolls what's behind it only from Rare up. Nests are passed over, as Crow Whispers does. It's the 10th event in the pool. The analyzer has it as an event and a door mark, and a "left dark" door kind (Rare or better); a screenshot keeps a door's shown rarity and its Rare-or-better floor while the door stays locked, since the reader takes a "?" portrait for a plain lock.
+
+In the pool it costs a little, since events come up evenly and this one only informs: on the guide's prisons (`variants --seed GUIDE`, 100,000 runs each), rewards on 3.299 against 3.380 without it, and no instruments 0.980 against 1.026. The guide, the pairs and the challenge below were measured without it.
+
 ### Measured again with the live odds (2026-10-16)
 
 With the live rarity odds (40/38/12/8/2 behind doors and 52/32/9/6/1.5 from a Replace, two sections down), the instrument pairs, the guide and the contract challenge were measured again on 4 threads. "Treasure" Hunt (report 41) wasn't in the event pool yet.

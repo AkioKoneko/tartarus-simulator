@@ -85,7 +85,7 @@
       case 'scratch': return ['scratch', toInt(c.tier, 0), c.event || ''].join('|');
       case 'revealed': return ['revealed', toInt(c.tier, 0), c.event || ''].join('|');
       case 'scouted': return ['scouted', c.beast, toInt(c.tier, 0), c.event || ''].join('|');
-      case 'sealed': return ['sealed', c.event || ''].join('|');
+      case 'sealed': return ['sealed', c.event || '', toInt(c.atLeast, 0)].join('|');
       case 'nest': return ['nest', toInt(c.due, 0)].join('|');
       default: return c.kind;
     }
@@ -214,7 +214,11 @@
         cell.known = 1;
         cell.hidden = make(T.BEASTS[Math.floor(Math.random() * 4)], c.tier);
         setEvent();
-      } else setEvent();
+      } else {
+        // A door the "Treasure" Hunt left dark holds Rare or better.
+        cell.atLeast = c.kind === 'sealed' ? clamp(toInt(c.atLeast, 0), 0, TOP_TIER) : 0;
+        setEvent();
+      }
       return cell;
     });
 
@@ -393,7 +397,7 @@
         if (c.scratch && c.hidden && c.known) return { kind: 'scratch', tier: Math.min(TOP_TIER, c.hidden.tier), event };
         if (c.hidden && c.known === 1) return { kind: 'revealed', tier: Math.min(TOP_TIER, c.hidden.tier), event };
         if (c.hidden && c.known >= 2) return { kind: 'scouted', beast: c.hidden.beast, tier: Math.min(TOP_TIER, c.hidden.tier), event };
-        return { kind: 'sealed', event };
+        return c.atLeast ? { kind: 'sealed', event, atLeast: c.atLeast } : { kind: 'sealed', event };
       }
       if (!c.inmate) return { kind: 'empty' };
       const link = T.linkOf(st, c.inmate.id);
@@ -853,6 +857,8 @@
         btn('sealed:usurp3', 'Locked door with Usurpation III', B.MARKS.usurp3),
         btn('sealed:usurp4', 'Locked door with Usurpation IV', B.MARKS.usurp4),
         btn('sealed:ratway', 'Locked door with the Sewer Ratway', B.MARKS.ratway),
+        btn('sealed:hunt', 'Locked door with the "Treasure" Hunt', B.MARKS.hunt),
+        btn('dark', 'Locked door the "Treasure" Hunt left dark: Rare or better inside', B.MARKS.dark, 't2'),
         btn('scouted', "Scouted door (Warden's Scales): set its beast and rarity in the panel below", B.MARKS.scouted),
       ]),
       row('Other', '', [btn('nest', 'Rat nest', B.MARKS.nest), btn('empty', 'Empty cell', B.MARKS.empty), btn('ivory', 'Tusk mark: toggles on the inmate here', B.MARKS.ivory)]),
@@ -868,7 +874,7 @@
     if (c.kind === 'scratch') return `scratch:${tier}`;
     if (c.kind === 'revealed') return `revealed:${tier}`;
     if (c.kind === 'scouted') return 'scouted';
-    if (c.kind === 'sealed') return c.event ? `sealed:${c.event}` : 'sealed';
+    if (c.kind === 'sealed') return c.atLeast && !c.event ? 'dark' : c.event ? `sealed:${c.event}` : 'sealed';
     return c.kind;
   }
 
@@ -905,6 +911,7 @@
       else if (mc.event === 'freedom') badges = badges.replace('>Event<', '>Freedom<');
       else if (mc.event === 'usurp1') badges = badges.replace('>Event<', '>Usurp. I<');
       else if (mc.event === 'usurp2') badges = badges.replace('>Event<', '>Usurp. II<');
+      else if (mc.event === 'hunt') badges = badges.replace('>Event<', '>Hunt<');
       if (cell.n === selected) p.cls.push('is-selected');
       if (doors.has(cell.n)) p.cls.push('is-dest');
       if (flags.has(cell.n)) p.cls.push('is-check');
@@ -1283,7 +1290,9 @@
       case 'stopchain': return 'In your game, press Cancel on the meal screen. Today’s consume is used, so the day ends next.';
       case 'swap': return 'In your game, replace the warden’s inmate. Then set the warden’s cell to what came in, and ask again.';
       case 'end': return 'In your game, end the day. Then mark the new day’s doors, and ask again.';
-      case 'event': return 'Then update what changed, and ask again.';
+      case 'event': return model.step === 'event' && model.eventKind === 'hunt'
+        ? 'In your game, press Confirm. Then set each door showing a "?" to its rarity (Rarity shown); the doors left dark hold Rare or better (Do it here marks them, with the simulator’s dice for the rest). Ask again.'
+        : 'Then update what changed, and ask again.';
       case 'office': return 'In your game, press it. Then paste a screenshot of what changed (or set it here under Make Your Decision), and ask again.';
       case 'choose': return 'Take it in your game, then ask again.';
       case 'deliver': return 'Load exactly these inmates in your game’s delivery window, with that escort.';
@@ -1399,7 +1408,8 @@
     const [kind, a, b] = value.split(':');
     if (kind === 'inmate') setCell(n, { kind, beast: a, tier: Number(b) });
     else if (kind === 'scratch' || kind === 'revealed') setCell(n, { kind, tier: Number(a) });
-    else if (kind === 'sealed') setCell(n, { kind, event: a || null });
+    else if (kind === 'sealed') setCell(n, { kind, event: a || null, atLeast: 0 });
+    else if (kind === 'dark') setCell(n, { kind: 'sealed', atLeast: 2 });
     else setCell(n, { kind });
   }
 
@@ -1440,6 +1450,7 @@
       c.event = null;
     }
     if (c.kind === 'empty') c.event = null;
+    if (c.kind !== 'sealed') delete c.atLeast;
     if (c.beast !== 'lion') c.prey = null;
     model.cells[n] = c;
     cleanPrey();
@@ -2221,7 +2232,17 @@
         if (c.nest) {
           m.cells[n] = { kind: 'nest', due: m.day + 2 };
           checks.add(n);
-        } else m.cells[n] = { kind: 'sealed', event: c.event ? 'unknown' : null };
+        } else {
+          // What the player knew of a door that's still locked stays: a
+          // rarity shown (Crow Whispers, or the "Treasure" Hunt's "?"
+          // portrait, which reads as a plain lock) and the Hunt's Rare or
+          // better.
+          const was = base.cells[n];
+          const event = c.event ? 'unknown' : null;
+          if (was && was.kind === 'revealed') m.cells[n] = { kind: 'revealed', tier: was.tier, event };
+          else if (was && was.kind === 'sealed' && was.atLeast) m.cells[n] = { kind: 'sealed', event, atLeast: was.atLeast };
+          else m.cells[n] = { kind: 'sealed', event };
+        }
         if (c.conf < 0.6) checks.add(n);
       } else if (c.kind === 'inmate') {
         m.cells[n] = { kind: 'inmate', beast: c.beast, tier: clamp(c.tier, 0, TOP_TIER), ivory: keptTusk(base, n, c.beast, clamp(c.tier, 0, TOP_TIER)), prey: null, event: c.event ? 'unknown' : null };
