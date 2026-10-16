@@ -99,6 +99,33 @@ The two-meal chain's challenge profile had a one-round tune (5.2 million runs, 7
 
 The Chinese sim's two-meal food chain (Mammoth also eats Wolf, Lion also eats Rat) was confirmed not to be in the live game on 2026-10-15, so it was removed from the simulator and the lab. The older sections below still show the two-meal numbers measured at the time; their files are in the git history.
 
+### A day has a swap or a devour, not both (2026-10-16)
+
+Confirmed in the live game: once the warden's inmate is swapped there is no devour that day, and a devour uses up the day's swap. The strategy used to swap first and then devour with the new inmate. Now the two are alternatives, and it swaps only when the swap is worth more than the best devour (`swapMargin` 0).
+
+On 100,000 drills per variant with rewards on, on the same prisons (`variants --rewards on --seed SWAPDEV`):
+
+| When a devour is on offer, swap… | Rainbows per run |
+| --- | --- |
+| only if it beats the best devour (`swapMargin` 0) | **2.1225** ± 0.009 |
+| only if it beats it by more than 3 (`swapMargin` 3) | 2.1207 |
+| if it comes within 3 of it (`swapMargin` −3) | 2.1117 |
+| never | 2.0831 |
+| whenever the swap gains | 1.5991 |
+
+The swap tiers hold (`--seed SWAPTIER`). With rewards on, stopping at Rare or at Legendary scores the same (2.1104), and stopping at Magic costs 0.020. With no tools, Normals only and Normal and Magic are level (0.6300 and 0.6272).
+
+**The guide's data** (`guide --no-tune` at 100,000 runs per measurement on 4 threads, 4,600,000 runs in 15.6 minutes). Rewards on: **2.108** Rainbows per run, down from 2.472. 86.2% of runs vault one (was 91.3%), the first around day 12, with 9.2 swaps and 5.2 devours per run. With no tools: 0.627, down from 0.759.
+
+- **Each instrument held from day 1:** Executioner's Blacklist 1.545, Long-Chained Shackles 1.463, Hangman's Noose 1.345, Skewered Rat Heads 1.275, Avenger's Casket 1.235, Agonizing Muzzle 1.227, Barbed Collar 1.005, Sorting Hook 1.004, Rusty Saw 0.996, Fanged Guillotine 0.942, Iron Tongs of Lust 0.843, Felon's Dog Tag 0.791, Crowded Beastcage 0.665, Warden's Scales 0.638.
+  - Level with no instrument: Iron Pestle 0.623, Lost Ring of Keys 0.621, Short-Chained Shackles 0.610.
+  - Worse: Searing Branding Iron 0.573, Gaoler's Execution Axe 0.537, Forged Key 0.394, Squirming Iron Box 0.297.
+  - The Noose (1.767 before) and the Muzzle (1.605) lost the most, since swaps now cost a devour.
+  - The Blacklist rose from 1.357. With fewer devours, fewer cells empty and re-seal, so 5 or fewer locked cells comes sooner.
+- **Habits** (no tools): always choosing Bestow 0.434, always accepting Executions 0.471, preferring short walks 0.481, never swapping 0.536. Never swapping scores what it did before, since the rule never bites without swaps. It was the costliest habit and is now the fourth.
+- **Warden's Treasure:** judging each gift on the spot (2.108) still beats always taking the same one: Crimson Vintage 2.056, Brand of Original Sin 1.812, Brass Horn of Strife 1.778, Three-Headed Thumb Ring 1.687.
+- **Contract challenge** (`cguide --games 200000 --habit-games 100000`): the trained strategy passes 91.1% with 51.4 points, down from 94.9% and 52.8. Sending the most points on every contract still fails most runs (27.8% pass), and playing with the drill weights makes no measurable difference to passing (91.3%) but scores 1 point less.
+
 ### The office, steered chains and six more events; retrained (2026-10-15, evening)
 
 More live play filled in the season:

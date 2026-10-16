@@ -44,7 +44,7 @@
     swapMargin: 0, // a day has a swap or a devour: swap only when it beats the best devour by this much
     execMargin: 0, // accept an Execution worth more than this
     acceptChain: true, // accept Chain reactions
-    toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'blacklist', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'dogtag', 'keys', 'cage', 'scales', 'pestle', 'shortchain', 'axe', 'fire', 'forged', 'ironbox'], // measured: each tool held from day 1
+    toolRank: ['blacklist', 'shackles', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'], // measured: each tool held from day 1
     toolSets: true, // pick instruments by the measured sets (js/tool-combos.js) when there are any
     office: null, // always 'bestow' or 'instigate' at the office (only to measure the habit)
     giftRank: null, // null scores the gifts on the spot; or a fixed order
@@ -66,8 +66,8 @@
   // tools/results/ (train-report.json: the drill profiles were retrained on
   // 2026-10-15).
   const PROFILES = {
-    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'blacklist', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'dogtag', 'keys', 'cage', 'scales', 'pestle', 'shortchain', 'axe', 'fire', 'forged', 'ironbox'] },
-    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'blacklist', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'dogtag', 'keys', 'cage', 'scales', 'pestle', 'shortchain', 'axe', 'fire', 'forged', 'ironbox'] },
+    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['blacklist', 'shackles', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
+    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['blacklist', 'shackles', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
     // The contract challenge, tuned on passing first and then points.
     challenge: { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'shackles', 'skewer', 'revenge', 'blacklist', 'collar', 'keys', 'cage', 'ironbox', 'muzzle', 'saw', 'guillotine', 'hook', 'tongs', 'dogtag', 'fire', 'axe', 'scales', 'pestle', 'shortchain', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
   };
