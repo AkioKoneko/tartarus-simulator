@@ -4,7 +4,7 @@
  * follow.html can read the log, and only the analyzer gives advice. */
 'use strict';
 
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 const listen = (channel, fn) => {
   if (typeof fn !== 'function') return;
@@ -22,6 +22,20 @@ contextBridge.exposeInMainWorld('TartarusDesktop', {
     const bytes = await ipcRenderer.invoke('log:read', start, end);
     return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
   },
+  // A log file dropped on follow.html: the app reads it, wherever it is
+  // (follow.html only). False when the file has no path on this PC.
+  useLogFile: (file) => {
+    let where = '';
+    try {
+      where = webUtils.getPathForFile(file);
+    } catch (e) {
+      where = '';
+    }
+    if (where) ipcRenderer.send('log:use', where);
+    return !!where;
+  },
+  // The app's own file window, for choosing the log (follow.html only).
+  pickLog: () => ipcRenderer.send('log:pick'),
   // To the overlay: what Follow my game is doing, and the advice.
   follow: (data) => ipcRenderer.send('site:follow', data),
   advice: (data) => ipcRenderer.send('site:advice', data),

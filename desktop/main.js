@@ -162,13 +162,34 @@ const statOf = (p) => {
 };
 
 // #region find-log
-// Where the game writes UE_game.log: under each Steam library that has the
-// game, and under the launcher's default folder. The newest log there wins.
-// Without a log yet, a folder of an installed game, where it appears once
-// the game starts.
+// Where the game writes UE_game.log. While the game runs, beside the game
+// itself: Windows says where its program is (UE_game\Binaries\Win64), and
+// the log is in UE_game\TorchLight\Saved\Logs. Otherwise under each Steam
+// library that has the game, and under the launcher's default folder; the
+// newest log there wins. A game under Program Files that can't write there
+// has its log in Windows' VirtualStore copy, which is looked at too. Without
+// a log yet, a folder of an installed game, where it appears once the game
+// starts.
+const virtualStore = (p) => (/^[a-z]:\\program files/i.test(p) && process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'VirtualStore', p.slice(3)) : null);
 async function findLog() {
-  if (LOG_OVERRIDE) return path.resolve(LOG_OVERRIDE);
-  if (settings.logPath && statOf(path.dirname(settings.logPath))) return settings.logPath;
+  if (LOG_OVERRIDE) {
+    logFoundBy = 'given';
+    return path.resolve(LOG_OVERRIDE);
+  }
+  if (settings.logPath && statOf(path.dirname(settings.logPath))) {
+    logFoundBy = 'chosen by the player';
+    return settings.logPath;
+  }
+  const program = game.running && game.hwnd && win32 ? win32.programOf(game.hwnd) : null;
+  if (program && /torchlight/i.test(program)) {
+    const own = path.resolve(path.dirname(program), '..', '..', 'TorchLight', 'Saved', 'Logs', 'UE_game.log');
+    const found = [own, virtualStore(own)].filter(Boolean).map((p) => ({ p, st: statOf(p) })).filter((x) => x.st && x.st.isFile()).sort((a, b) => b.st.mtimeMs - a.st.mtimeMs);
+    if (found.length) {
+      logFoundBy = 'beside the running game';
+      return found[0].p;
+    }
+  }
+  logFoundBy = 'in the game folders';
   const roots = new Map();
   const addRoot = (p) => p && roots.set(path.resolve(p).toLowerCase(), path.resolve(p));
   for (const [key, value] of [['HKCU\\Software\\Valve\\Steam', 'SteamPath'], ['HKLM\\SOFTWARE\\WOW6432Node\\Valve\\Steam', 'InstallPath'], ['HKLM\\SOFTWARE\\Valve\\Steam', 'InstallPath']]) addRoot(await regQuery(key, value));
@@ -198,6 +219,7 @@ async function findLog() {
   for (const base of ['C:\\Program Files (x86)\\Torchlight Infinite', 'C:\\Program Files\\Torchlight Infinite']) {
     logs.push(path.join(base, 'Game', 'UE_game', 'Torchlight', 'Saved', 'Logs', 'UE_game.log'));
   }
+  for (const p of [...logs]) if (virtualStore(p)) logs.push(virtualStore(p));
   const there = logs.map((p) => ({ p, st: statOf(p) })).filter((x) => x.st && x.st.isFile()).sort((a, b) => b.st.mtimeMs - a.st.mtimeMs);
   if (there.length) return there[0].p;
   // UE_game\TorchLight is there: the game is installed, and writes its log on start.
@@ -206,11 +228,16 @@ async function findLog() {
 
 // #endregion
 let logPath = null;
+let logFoundBy = '';
+let logNoted = '';
 async function refreshLog() {
   const found = await findLog();
+  if (`${found}|${logFoundBy}` !== logNoted) {
+    logNoted = `${found}|${logFoundBy}`;
+    note(`log file (${logFoundBy}):`, found || 'not found');
+  }
   if (found !== logPath) {
     logPath = found;
-    note('log file:', logPath || 'not found');
     pushGame();
     rebuildMenu();
   }
@@ -259,7 +286,7 @@ async function lookForGame() {
   if (game.running !== was) {
     note(game.running ? `game running: "${game.title}"` : 'game closed');
     recordEvent({ type: game.running ? 'game' : 'game-closed' });
-    if (game.running && !logPath) await refreshLog();
+    if (game.running) await refreshLog();
     if (game.running && !overlayPlaced) placeOverlay();
     if (!game.running) checkSite();
     pushGame();
@@ -279,7 +306,28 @@ const win32 = (() => {
     const foreground = user32.func('__stdcall', 'GetForegroundWindow', 'intptr', []);
     const rect = user32.func('__stdcall', 'GetWindowRect', 'bool', ['intptr', koffi.out(koffi.pointer(RECT))]);
     const iconic = user32.func('__stdcall', 'IsIconic', 'bool', ['intptr']);
+    const kernel32 = koffi.load('kernel32.dll');
+    const windowPid = user32.func('__stdcall', 'GetWindowThreadProcessId', 'uint32', ['intptr', koffi.out(koffi.pointer('uint32'))]);
+    const openProcess = kernel32.func('__stdcall', 'OpenProcess', 'intptr', ['uint32', 'bool', 'uint32']);
+    const imageName = kernel32.func('__stdcall', 'QueryFullProcessImageNameW', 'bool', ['intptr', 'uint32', 'void *', koffi.inout(koffi.pointer('uint32'))]);
+    const closeHandle = kernel32.func('__stdcall', 'CloseHandle', 'bool', ['intptr']);
     return {
+      // Where the program behind a window is: only its file's name
+      // (PROCESS_QUERY_LIMITED_INFORMATION reads nothing else of it).
+      programOf(hwnd) {
+        const pid = [0];
+        windowPid(hwnd, pid);
+        if (!pid[0]) return null;
+        const h = openProcess(0x1000, false, pid[0]);
+        if (!h) return null;
+        try {
+          const buf = Buffer.alloc(4096);
+          const size = [2048];
+          return imageName(h, 0, buf, size) ? buf.toString('utf16le', 0, size[0] * 2) : null;
+        } finally {
+          closeHandle(h);
+        }
+      },
       foreground: () => Number(foreground()),
       rect(hwnd) {
         const r = {};
@@ -807,6 +855,21 @@ ipcMain.handle('log:stat', async (e) => {
     return null;
   }
 });
+// A log dropped on follow.html (its path, from the app) or chosen in the
+// app's own file window: the app reads it, wherever it is.
+ipcMain.on('log:use', async (e, file) => {
+  if (!fromPage(e, 'follow') || typeof file !== 'string' || !/\.log$/i.test(file)) return;
+  const st = statOf(file);
+  if (!st || !st.isFile()) return;
+  settings.logPath = file;
+  saveSettings();
+  note('log chosen by the player:', file);
+  await refreshLog();
+});
+ipcMain.on('log:pick', (e) => {
+  if (fromPage(e, 'follow')) pickLog();
+});
+
 ipcMain.handle('log:read', async (e, start, end) => {
   if (!fromPage(e, 'follow') || !logPath) throw new Error('No log.');
   const from = Math.max(0, Math.floor(Number(start) || 0));

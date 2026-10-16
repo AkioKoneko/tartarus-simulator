@@ -38,8 +38,8 @@
     if (!g.log) return line('bad', 'Couldn’t find your game log (UE_game.log).', button('Choose it', 'pick-log', true));
     if (!g.running) return line('info', 'Waiting for Torchlight: Infinite…');
     if (!f) return line('busy', 'Starting Follow my game…');
-    if (f.log === 'gone') return line('warn', 'The game log isn’t there right now. It’s followed again once the game writes it.');
-    if (f.log === 'error') return line('bad', `The game log can’t be read: ${f.error || 'retrying'}.`);
+    if (f.log === 'gone') return line('warn', 'The game log isn’t there right now. It’s followed again once the game writes it.', button('Choose it', 'pick-log'));
+    if (f.log === 'error') return line('bad', `The game log can’t be read: ${f.error || 'retrying'}.`, button('Choose it', 'pick-log'));
     if (f.log !== 'on') return line('busy', 'Connecting the game log…');
     if (f.window !== 'on') return line('busy', 'Sharing the game window…');
     return null;

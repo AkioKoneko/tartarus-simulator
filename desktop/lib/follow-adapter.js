@@ -118,6 +118,27 @@
     if (e.target.closest('#az-auto-win')) stoppedWindow = st.window === 'on';
   }, true);
 
+  // In the app, a log dragged onto this page, or chosen with its button,
+  // goes to the app's own reader: it reads the log wherever the game is
+  // installed, and never needs the browser's leave again.
+  document.addEventListener('drop', (e) => {
+    const files = e.dataTransfer && e.dataTransfer.files;
+    if (!files || files.length !== 1 || !/\.log$/i.test(files[0].name)) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    stoppedLog = false;
+    note(D.useLogFile(files[0]) ? `Using ${files[0].name}: the app reads it.` : 'The app can’t find that file on this PC. Choose it with the button instead.');
+  }, true);
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#az-auto-log')) return;
+    const st = C.state;
+    if (st.log === 'on' || st.log === 'starting') return; // Stop following: the page's own
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    stoppedLog = false;
+    D.pickLog();
+  }, true);
+
   // #endregion
   // How Follow my game is doing, for the overlay. Never the log's lines.
   let lastFrame = null;
