@@ -65,6 +65,12 @@
       "delta": 0.2188
     },
     {
+      "id": "dogtag",
+      "name": "Felon's Dog Tag",
+      "value": 0.9268,
+      "delta": 0.1678
+    },
+    {
       "id": "keys",
       "name": "Lost Ring of Keys",
       "value": 0.7975,
@@ -1509,5 +1515,8 @@
     },
     "totalRuns": 1700000,
     "minutes": 2.3
-  }
+  },
+  "toolsAdded": [
+    "dogtag"
+  ]
 }
