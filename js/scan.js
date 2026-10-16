@@ -1002,7 +1002,8 @@
     if (top < 8) return null;
     let best = null;
     const lines = [];
-    for (const r of textRadii(img)) lines.push(...textLines(img, img.width * 0.2, 0, img.width * 0.8, top, { minH: 8, maxH: Math.max(70, img.height * 0.1), r }));
+    // The number turns red in the last days, so colored glyphs count too.
+    for (const r of textRadii(img)) lines.push(...textLines(img, img.width * 0.2, 0, img.width * 0.8, top, { minH: 8, maxH: Math.max(70, img.height * 0.1), r, s: 1.01 }));
     // The day number is the biggest text over the board.
     const tallest = Math.max(1, ...lines.flatMap((l) => l.glyphs.filter((g) => g.w >= 0.25 * g.h).map((g) => g.h)));
     for (const line of lines) {
@@ -1370,7 +1371,9 @@
     let pickCell = false;
     let replace = false;
     let end = false;
-    // Seven-letter labels: "Replace", or "Consume" (judged by its card below).
+    // Seven-letter labels, each read as one whole word: "Replace", or
+    // "Consume" (judged by its card below). The cards' icons can make seven
+    // marks in a row too, but they come apart into several words.
     const labels = [];
     // Single words, by their letters: the office's "Instigate" (9) and
     // "Bestow" (6).
@@ -1393,14 +1396,15 @@
             if (near(words, [6, 2, 9]) && !near(words, [4, 4, 8])) pickCell = true;
             else title = true; // Make Your Decision
           }
-          else if (n >= 6 && n <= 8 && span > 3 && span < 6.5) labels.push({ x0: p.x0, x1: p.x1, mid: line.mid, h: line.h });
+          else if (p.words.length === 1 && n >= 6 && n <= 8 && span > 3 && span < 6.5) labels.push({ x0: p.x0, x1: p.x1, mid: line.mid, h: line.h });
           else if (n === 3 && span > 1.5 && span < 3.2) end = true;
         }
       }
     }
     // The Consume card: a red block, not the torches' orange. Read in
     // strips about a third of a card wide: the Consume card's best strip is
-    // about 5% strongly red, and nothing else under the board passes 1%.
+    // about 5% strongly red (2% while the cards are still lit dimly), and
+    // nothing else under the board passes 0.2%.
     const strip = Math.max(8, Math.round(100 * loc.s));
     let red = 0;
     for (let sx = Math.round(x0); sx + strip <= x1; sx += strip) {
@@ -1415,7 +1419,7 @@
       }
       if (n) red = Math.max(red, hit / n);
     }
-    const consume = red > 0.025;
+    const consume = red > 0.01;
     // "Consume" has as many letters as "Replace": a label on the Consume
     // card's red is that card's. Read across the label and above it.
     const redBy = (l) => {
