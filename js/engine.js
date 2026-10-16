@@ -201,6 +201,12 @@
     // additional Rarity Tiers after consuming". Read like the Skewered Rat
     // Heads, whose card names the Colossal Rat: every Lion, on each bite.
     crown: { name: 'Iron Crown of the Prison King: Berserk Lion', text: "Lions can consume any inmate of the same rarity, and a Lion's consume gains +2 extra tiers." },
+    // A player's report (#57, 2026-10-16), the card: "Elephant-Foot Maul:
+    // Mammoth. Effect: Mammoth can Consume higher-rarity countered Inmates;
+    // after Consuming, its rarity increases to +2 tiers above the consumed
+    // target's rarity". Read like the Iron Crown: every Mammoth, on each
+    // bite, same-rarity meals included (+2 for those).
+    maul: { name: 'Elephant-Foot Maul: Mammoth', text: "Mammoths can consume the beasts they counter at a higher rarity too, and a Mammoth's consume takes it to 2 tiers above its meal." },
   };
   const TOOL_IDS = Object.keys(TOOLS);
 
@@ -526,6 +532,7 @@
     const counters = eatsOf(state, eater.beast, eater.tier).includes(meal.beast) || (eater.beast === 'rat' && meal.beast === 'rat' && has(state, 'skewer'));
     if (eater.tier !== meal.tier) {
       if (meal.tier < eater.tier && counters && cageFight(state)) return true;
+      if (meal.tier > eater.tier && counters && eater.beast === 'mammoth' && has(state, 'maul')) return true;
       return eater.tier > meal.tier && eater.beast === 'wolf' && has(state, 'guillotine') && eatsOf(state, 'wolf').includes(meal.beast);
     }
     return counters || (eater.beast === 'lion' && has(state, 'crown'));
@@ -1043,6 +1050,12 @@
     let gain = option.scratch ? 2 + (state.params.scratchStacksBase ? 1 : 0) : 1;
     const notes = [];
     if (option.scratch) notes.push(`scratch +${gain - 1}`);
+    const target = state.cells[option.cell];
+    const meal = target ? (target.sealed ? target.hidden : target.inmate) : null;
+    if (!option.scratch && meal && eater && eater.beast === 'mammoth' && has(state, 'maul')) {
+      gain = Math.max(1, meal.tier + 2 - eater.tier);
+      notes.push(`Elephant-Foot Maul to ${tierName(Math.min(RAINBOW, meal.tier + 2))}`);
+    }
     // The Muzzle counts the block after the meal is gone.
     if (has(state, 'muzzle') && boardCells(state).length - (option.scratch ? 0 : 1) <= 4) {
       gain += 2;
@@ -1398,6 +1411,11 @@
     let gain = option.scratch ? 2 + (state.params.scratchStacksBase ? 1 : 0) : 1;
     const notes = [];
     if (option.scratch) notes.push(`scratch +${gain - 1}`);
+    // The Elephant-Foot Maul: a Mammoth rises to 2 tiers above its meal.
+    if (!option.scratch && eater.beast === 'mammoth' && has(state, 'maul')) {
+      gain = Math.max(1, meal.tier + 2 - eater.tier);
+      notes.push(`Elephant-Foot Maul to ${tierName(Math.min(RAINBOW, meal.tier + 2))}`);
+    }
     if (has(state, 'muzzle') && crowd <= 4) {
       gain += 2;
       notes.push('Agonizing Muzzle +2');
@@ -2033,6 +2051,7 @@
       case 'muzzle': return small ? 30 : 8;
       case 'skewer': return board.filter((i) => i.beast === 'rat').length * 8;
       case 'crown': return 12 + board.filter((i) => i.beast === 'lion').length * 6;
+      case 'maul': return 12 + board.filter((i) => i.beast === 'mammoth').length * 6;
       case 'ironbox': return state.maxDays - state.day >= state.params.nestDays ? 18 : 0;
       case 'keys':
       case 'ring': return (board.length < 4 ? 20 : 5) - (has(state, 'muzzle') && small ? 12 : 0);

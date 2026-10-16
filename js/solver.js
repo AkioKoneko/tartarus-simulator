@@ -17,6 +17,7 @@
   const { BEASTS, RAINBOW } = T;
   const RAT = BEASTS.indexOf('rat');
   const LION = BEASTS.indexOf('lion');
+  const MAMMOTH = BEASTS.indexOf('mammoth');
   // The day's swap is still open: a day has a devour or a swap, not both.
   // (An engine cached from before that rule has no canSwapNow.)
   const canSwapNow = (st) => (T.canSwapNow ? T.canSwapNow(st) : st.used.swap < st.params.swapsPerDay);
@@ -47,7 +48,7 @@
     maidenSwapTier: 3, // holding the Severed Iron Maiden, swap up to this tier (Legendary measured best)
     execMargin: 0, // accept an Execution worth more than this
     acceptChain: true, // accept Chain reactions
-    toolRank: ['crown', 'rope', 'scapegoat', 'coin', 'maiden', 'shackles', 'blacklist', 'muzzle', 'ravenous', 'revenge', 'skewer', 'hook', 'saw', 'collar', 'stake', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'shortchain', 'fire', 'pestle', 'axe', 'forged', 'ironbox'], // measured: each tool held from day 1
+    toolRank: ['crown', 'maul', 'rope', 'scapegoat', 'coin', 'maiden', 'shackles', 'blacklist', 'muzzle', 'ravenous', 'revenge', 'skewer', 'hook', 'saw', 'collar', 'stake', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'shortchain', 'fire', 'pestle', 'axe', 'forged', 'ironbox'], // measured: each tool held from day 1
     toolSets: true, // pick instruments by the measured sets (js/tool-combos.js) when there are any
     office: null, // always 'bestow' or 'instigate' at the office (only to measure the habit)
     giftRank: null, // null scores the gifts on the spot; or a fixed order
@@ -69,10 +70,10 @@
   // tools/results/ (train-report.json: the drill profiles were retrained on
   // 2026-10-15).
   const PROFILES = {
-    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['crown', 'rope', 'scapegoat', 'coin', 'maiden', 'shackles', 'blacklist', 'muzzle', 'ravenous', 'revenge', 'skewer', 'hook', 'saw', 'collar', 'stake', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'shortchain', 'fire', 'pestle', 'axe', 'forged', 'ironbox'] },
-    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['crown', 'rope', 'scapegoat', 'coin', 'maiden', 'shackles', 'blacklist', 'muzzle', 'ravenous', 'revenge', 'skewer', 'hook', 'saw', 'collar', 'stake', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'shortchain', 'fire', 'pestle', 'axe', 'forged', 'ironbox'] },
+    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['crown', 'maul', 'rope', 'scapegoat', 'coin', 'maiden', 'shackles', 'blacklist', 'muzzle', 'ravenous', 'revenge', 'skewer', 'hook', 'saw', 'collar', 'stake', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'shortchain', 'fire', 'pestle', 'axe', 'forged', 'ironbox'] },
+    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['crown', 'maul', 'rope', 'scapegoat', 'coin', 'maiden', 'shackles', 'blacklist', 'muzzle', 'ravenous', 'revenge', 'skewer', 'hook', 'saw', 'collar', 'stake', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'shortchain', 'fire', 'pestle', 'axe', 'forged', 'ironbox'] },
     // The contract challenge, tuned on passing first and then points.
-    challenge: { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'crown', 'maiden', 'scapegoat', 'coin', 'shackles', 'ravenous', 'skewer', 'revenge', 'blacklist', 'collar', 'keys', 'cage', 'ironbox', 'muzzle', 'saw', 'whip', 'stake', 'guillotine', 'hook', 'tongs', 'dogtag', 'fire', 'axe', 'scales', 'pestle', 'shortchain', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
+    challenge: { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'crown', 'maul', 'maiden', 'scapegoat', 'coin', 'shackles', 'ravenous', 'skewer', 'revenge', 'blacklist', 'collar', 'keys', 'cage', 'ironbox', 'muzzle', 'saw', 'whip', 'stake', 'guillotine', 'hook', 'tongs', 'dogtag', 'fire', 'axe', 'scales', 'pestle', 'shortchain', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
   };
   const paramsFor = (st) => PROFILES[st.mode === 'challenge' ? 'challenge' : st.params.rewards ? 'rewards' : 'notools'];
 
@@ -147,6 +148,9 @@
     // The Iron Crown of the Prison King: a Lion eats any beast.
     const crown = has(st, 'crown');
     if (crown) eats[LION] = [0, 1, 2, 3];
+    // The Elephant-Foot Maul: a Mammoth eats what it counters at a higher
+    // rarity too, and rises to 2 tiers above its meal.
+    const maul = has(st, 'maul');
     // From Legendary up (params.doubleEatTier), Mammoths and Lions also eat
     // their second meal (an engine cached from before has none).
     const second = T.SECOND_MEAL || {};
@@ -181,6 +185,7 @@
       muzzle: has(st, 'muzzle'),
       skewer,
       crown,
+      maul,
       collar: has(st, 'collar'),
       revenge: has(st, 'revenge') && sealed > 0,
       axeDoors: has(st, 'axe') ? Math.min(2, sealed) : 0,
@@ -271,8 +276,8 @@
     if (hit !== undefined) return hit;
     let out = -Infinity;
     // Under Cage Fight, countered meals of a lower rarity too.
-    for (let mt = ctx.fight ? 0 : t; mt <= t; mt++) {
-      for (const f of (mt < t ? ctx.countersAt(t) : ctx.eatsAt(t))[b]) {
+    for (let mt = ctx.fight ? 0 : t; mt <= topMeal(ctx, t, b); mt++) {
+      for (const f of (mt !== t ? ctx.countersAt(t) : ctx.eatsAt(t))[b]) {
         if (!comp[mt * 4 + f]) continue;
         comp[mt * 4 + f] -= 1;
         out = Math.max(out, bite(ctx, t, b, comp, crowd, 0, true, mt));
@@ -289,7 +294,7 @@
   // `crowd` counts the block before the bite, meal included; the Muzzle
   // counts it after.
   function bite(ctx, t, b, comp, crowd, extra, chained, mealTier = t) {
-    let gain = 1 + extra;
+    let gain = (ctx.maul && b === MAMMOTH ? Math.max(1, mealTier + 2 - t) : 1) + extra;
     if (ctx.muzzle && crowd - 1 <= 4) gain += 2;
     if (ctx.skewer && b === RAT) gain += 1;
     if (ctx.crown && b === LION) gain += 2;
@@ -299,6 +304,12 @@
     const w = ctx.whip ? 0.35 : 0;
     const sawed = (g) => (s || w ? (1 - s) * (1 - w) * after(g) + (s + w - 2 * s * w) * after(g + 1) + s * w * after(g + 2) : after(g));
     return -ctx.v[mealTier] + (chained && ctx.collar ? 0.2 * sawed(gain) + 0.8 * sawed(gain + 1) : sawed(gain));
+  }
+
+  // The highest meal tier an eater of beast b at tier t can take: its own,
+  // or up to Supreme for a Mammoth with the Elephant-Foot Maul.
+  function topMeal(ctx, t, b) {
+    return ctx.maul && b === MAMMOTH ? RAINBOW - 1 : t;
   }
 
   // Expected change in value from a bite: the chosen meal, then the rest of
@@ -317,8 +328,8 @@
   // The best first meal for an eater of this tier and beast, by expected value.
   function bestMeal(ctx, tier, beast, comp, crowd) {
     let best = { value: -Infinity, meal: -1 };
-    for (let mt = ctx.fight ? 0 : tier; mt <= tier; mt++) {
-      for (const f of (mt < tier ? ctx.countersAt(tier) : ctx.eatsAt(tier))[beast]) {
+    for (let mt = ctx.fight ? 0 : tier; mt <= topMeal(ctx, tier, beast); mt++) {
+      for (const f of (mt !== tier ? ctx.countersAt(tier) : ctx.eatsAt(tier))[beast]) {
         if (!comp[mt * 4 + f]) continue;
         const value = devourDelta(ctx, tier, beast, f, false, comp, crowd, false, mt);
         if (value > best.value) best = { value, meal: f };
@@ -360,11 +371,11 @@
       if (memo.has(key)) return memo.get(key);
       // The player picks the meal with the best odds (then more bites).
       let out = null;
-      for (let mt = ctx.fight ? 0 : t; mt <= t; mt++) {
-        for (const f of (mt < t ? ctx.countersAt(t) : ctx.eatsAt(t))[b]) {
+      for (let mt = ctx.fight ? 0 : t; mt <= topMeal(ctx, t, b); mt++) {
+        for (const f of (mt !== t ? ctx.countersAt(t) : ctx.eatsAt(t))[b]) {
           if (!comp[mt * 4 + f]) continue;
           comp[mt * 4 + f] -= 1;
-          const [pf, nf] = fromTier(t + 1, ctx.fight ? b : -1);
+          const [pf, nf] = fromTier(ctx.maul && b === MAMMOTH ? Math.max(t + 1, mt + 2) : t + 1, ctx.fight ? b : -1);
           comp[mt * 4 + f] += 1;
           if (!out || pf > out[0] + 1e-12 || (Math.abs(pf - out[0]) <= 1e-12 && nf + 1 > out[1])) out = [pf, nf + 1];
         }
@@ -373,7 +384,7 @@
       memo.set(key, out);
       return out;
     };
-    const gain = target.sealed && target.scratch ? 1 + ctx.scratchExtra : 1;
+    const gain = target.sealed && target.scratch ? 1 + ctx.scratchExtra : ctx.maul && eater.beast === 'mammoth' ? Math.max(1, meal.tier + 2 - eater.tier) : 1;
     const [p, n] = fromTier(Math.min(RAINBOW, eater.tier + gain), ctx.fight ? beastIndex(eater.beast) : -1);
     return { rainbow: p, bites: 1 + n };
   }

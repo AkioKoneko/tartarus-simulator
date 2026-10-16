@@ -294,6 +294,14 @@
       '<circle cx="6" cy="13" r="1.8" fill="#9a9eaa"/><circle cx="19" cy="9" r="1.8" fill="#9a9eaa"/><circle cx="29" cy="9" r="1.8" fill="#9a9eaa"/><circle cx="42" cy="13" r="1.8" fill="#9a9eaa"/>' +
       '<rect x="7.5" y="34" width="33" height="7" rx="1.2" fill="#4a4c57" stroke="#2a2b31" stroke-width="1.3"/>' +
       '<circle cx="15" cy="37.5" r="1.9" fill="#c0282d"/><circle cx="24" cy="37.5" r="2.2" fill="#e0453a"/><circle cx="33" cy="37.5" r="1.9" fill="#c0282d"/>'),
+    // Elephant-Foot Maul: Mammoth: a spiked iron hammer head on a bound haft.
+    maul: icon('glow-orange',
+      '<path d="M11 44l18-23" stroke="#5e3a2c" stroke-width="4.2" stroke-linecap="round"/>' +
+      '<path d="M14.5 38.5l3.2-0.6M17.5 34.6l3.2-0.6M20.5 30.7l3.2-0.6" stroke="#9a9eaa" stroke-width="1.4" stroke-linecap="round"/>' +
+      '<g transform="rotate(-38 31 16)">' +
+      '<path d="M22 9.5l1.6-4.5 1.6 4.5M28.5 9.5l1.6-4.5 1.6 4.5M35 9.5l1.6-4.5 1.6 4.5M22 22.5l1.6 4.5 1.6-4.5M28.5 22.5l1.6 4.5 1.6-4.5M35 22.5l1.6 4.5 1.6-4.5" fill="#9a9eaa" stroke="#2a2b31" stroke-width="0.8" stroke-linejoin="round"/>' +
+      '<rect x="19" y="9" width="24" height="14" rx="4" fill="#6b6e7a" stroke="#2a2b31" stroke-width="1.3"/>' +
+      '<path d="M25.5 9v14M31.5 9v14M37.5 9v14" stroke="#4a4c57" stroke-width="1.5"/></g>'),
     // Maddened Beast's Barbed Collar: a blood-red collar ringed with barbs.
     collar: icon('glow-red',
       spikes(24, 24, 14.5, 21.5, 14, 0, '#3a1012') +
