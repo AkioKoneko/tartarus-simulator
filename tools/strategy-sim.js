@@ -896,14 +896,14 @@ async function guide(games) {
     ['neverExec', 'Never accepting Executions', { execMargin: 1e9 }],
     ['shortWalks', 'Preferring short walks', { wStep: -1 }],
     ['noSpread', 'Ignoring the beast spread', { wStair: 0 }],
-    ['swapNormals', 'Swapping Normals only', { swapMaxTier: 0 }],
-    ['swapRares', 'Swapping Rares too', { swapMaxTier: 2 }],
+    ['swapNormals', 'Replacing Normals only', { swapMaxTier: 0 }],
+    ['swapRares', 'Replacing Rares too', { swapMaxTier: 2 }],
     ['wait2', 'Waiting for bigger chains (small threshold)', { minDevour: 2 }],
     ['wait5', 'Waiting for bigger chains (large threshold)', { minDevour: 5 }],
     pNotools.acceptChain ? ['skipChain', 'Skipping Chain reactions', { acceptChain: false }] : ['acceptChain', 'Accepting Chain reactions', { acceptChain: true }],
     ['alwaysBestow', 'Always choosing Bestow at the office', { office: 'bestow' }],
     ['alwaysInstigate', 'Always choosing Instigate at the office', { office: 'instigate' }],
-    ['neverSwap', 'Never swapping', { swapMaxTier: -1 }],
+    ['neverSwap', 'Never replacing', { swapMaxTier: -1 }],
   ];
   out.habits = [];
   for (const [id, label, change] of variants) {

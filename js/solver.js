@@ -1244,7 +1244,7 @@
       out.push({ action: { type: 'devour', to: o.cell }, label: `Consume ${meal} in ${T.cellLabel(o.cell)}` });
     }
     if (canSwapNow(st) && here && !here.sealed && here.inmate) {
-      out.push({ action: { type: 'swap' }, label: `Swap the ${T.describe(here.inmate)} in ${T.cellLabel(here.n)}` });
+      out.push({ action: { type: 'swap' }, label: `Replace the ${T.describe(here.inmate)} in ${T.cellLabel(here.n)}` });
     }
     if (T.canOpenEarly(st)) out.push({ action: { type: 'early' }, label: 'Deliver the heavy contract early' });
     out.push({ action: { type: 'end' }, label: st.mode === 'drill' && st.day >= st.maxDays ? 'Finish the run' : 'End the day' });
@@ -1417,7 +1417,7 @@
       case 'devour': {
         const odds = chainOdds(st, st.position, action.to);
         // A day has a devour or a swap, not both.
-        const over = swapGainHere(st, ctx) > 0 ? ' It beats a swap here, and a day has one or the other.' : '';
+        const over = swapGainHere(st, ctx) > 0 ? ' It beats a Replace here, and a day has one or the other.' : '';
         return `The best first meal: picking its later meals well, its chain averages ${odds.bites.toFixed(1)} bites, with ${(100 * odds.rainbow).toFixed(0)}% to reach Rainbow.${over}`;
       }
       case 'chain': {
@@ -1433,7 +1433,7 @@
         const over = T.startOptions(st).length ? ' That beats today’s best consume, and a day has one or the other.' : '';
         const maiden = maidenBonus(ctx, here.inmate.tier);
         const odds = `${(100 * maiden.chance).toFixed(0)}% of the time`;
-        if (here.ivory) return `A Tusk cell: swapping it raises other inmates a tier${maiden.chance > 0 ? `, and the Severed Iron Maiden adds 3 tiers to the new inmate ${odds}` : ''}.${over}`;
+        if (here.ivory) return `A Tusk cell: replacing its inmate raises other inmates a tier${maiden.chance > 0 ? `, and the Severed Iron Maiden adds 3 tiers to the new inmate ${odds}` : ''}.${over}`;
         if (ctx.scapegoat) return `The Scapegoat's Guillotine brings the new inmate in above ${T.tierName(here.inmate.tier)}${here.inmate.tier >= T.SUPREME ? ', a Chromatic' : ''}, worth more than the 2 random inmates it removes.${over}`;
         if (maiden.chance > 0) return `The Severed Iron Maiden adds 3 tiers to the new inmate ${odds}, so a fresh roll beats this ${T.tierName(here.inmate.tier)} inmate on average.${over}`;
         if (ctx.axeDoors) return `A ${T.tierName(here.inmate.tier)} inmate is worth less than a fresh roll on average, and a higher roll makes the Gaoler's Execution Axe open ${T.plural(ctx.axeDoors, 'door')}.${over}`;

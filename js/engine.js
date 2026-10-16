@@ -103,7 +103,7 @@
     { key: 'destinations', group: 'Pace', label: 'Most patrol doors offered each morning', type: 'int', min: 1, max: 15 },
     { key: 'patrolRange', group: 'Pace', label: 'Destinations come from this many cells clockwise ahead of the warden', type: 'int', min: 1, max: 15 },
     { key: 'fewerDoorsChance', group: 'Pace', label: 'Chance a morning offers one door fewer (%)', type: 'int', min: 0, max: 100 },
-    { key: 'swapsPerDay', group: 'Pace', label: 'Swaps per day', type: 'int', min: 0, max: 16 },
+    { key: 'swapsPerDay', group: 'Pace', label: 'Replaces per day', type: 'int', min: 0, max: 16 },
     { key: 'reusableCells', group: 'Pace', label: 'Emptied cells seal again and can be reopened', type: 'bool' },
     { key: 'chainStop', group: 'Pace', label: 'A consume chain can be stopped after any bite (the game’s Cancel); off, it must go on', type: 'bool' },
     { key: 'tierWeights', group: 'Odds', label: 'Rarity weights behind a door', type: 'list', names: TIERS.slice(0, 5) },
@@ -114,8 +114,8 @@
     { key: 'eventTwoDoors', group: 'Special events', label: 'A morning whose doors include an event offers only 2 doors', type: 'bool' },
     { key: 'executionSameTier', group: 'Special events', label: 'Execution takes same-rarity prey (off: lower rarity only)', type: 'bool' },
     { key: 'executionRerolls', group: 'Special events', label: "Execution re-rolls the executioner's beast", type: 'bool' },
-    { key: 'ivoryCount', group: 'Markers', label: 'Inmates raised when a Tusk cell is swapped', type: 'int', min: 1, max: 15 },
-    { key: 'ivoryIncludesSwapped', group: 'Markers', label: 'Tusk can raise the swapped-in inmate', type: 'bool' },
+    { key: 'ivoryCount', group: 'Markers', label: 'Inmates raised by a Replace in a Tusk cell', type: 'int', min: 1, max: 15 },
+    { key: 'ivoryIncludesSwapped', group: 'Markers', label: 'Tusk can raise the new inmate', type: 'bool' },
     { key: 'preyRounds', group: 'Markers', label: 'Mornings a prey mark lasts', type: 'int', min: 1, max: 10 },
     { key: 'scratchStacksBase', group: 'Markers', label: 'Scratch bonus (+2) adds to the base +1', type: 'bool' },
     { key: 'nestDays', group: 'Markers', label: 'Days before a rat nest hatches', type: 'int', min: 1, max: 10 },
@@ -131,17 +131,17 @@
     muzzle: { name: "Raging Beast's Agonizing Muzzle", text: 'When 4 or fewer inmates are on the block after the meal, a consume gains +2 extra tiers.' },
     saw: { name: 'Rusty Saw', text: 'After a consume, 25% chance of +1 extra tier.' },
     keys: { name: 'Lost Ring of Keys', text: 'When a patrol opens a door, 80% chance to also open the cells on both sides. Those doors trigger nothing else.' },
-    rope: { name: "Hangman's Noose", text: 'Swapped-in inmates are never Normal or Magic.' },
+    rope: { name: "Hangman's Noose", text: 'Replacement inmates are never Normal or Magic.' },
     // Once translated as the Burning Stake, with other rules; the live card reads as below.
     fire: { name: 'Searing Branding Iron', text: 'When a patrol opens a door, 35% chance to copy the inmate behind it into 1 random unopened cell, which opens holding the copy. That door triggers nothing else.' },
     ironbox: { name: 'Squirming Iron Box: Colossal Rat', text: 'Each morning a sealed cell becomes a rat nest. It hatches a Rare Rat two days later.' },
     skewer: { name: 'Skewered Rat Heads: Colossal Rat', text: "Rats can consume Rats of the same rarity, and a Rat's consume gains +1 extra tier." },
     hook: { name: 'Sorting Hook', text: 'Cells that open never hold a Normal inmate.' },
-    pestle: { name: 'Iron Pestle', text: 'A swapped-in inmate keeps the beast of the one it replaced; only its rarity is re-rolled.' },
-    scales: { name: "Warden's Scales", text: 'After a swap, 80% chance to scout the highest-rarity inmate behind the locked doors: its door shows its beast and rarity.' },
+    pestle: { name: 'Iron Pestle', text: 'A replacement inmate keeps the beast of the one it replaced; only its rarity is re-rolled.' },
+    scales: { name: "Warden's Scales", text: 'After a Replace, 80% chance to scout the highest-rarity inmate behind the locked doors: its door shows its beast and rarity.' },
     tongs: { name: 'Iron Tongs of Lust: Mammoth', text: 'Each morning a random Mammoth on the block gets a Tusk mark.' },
     guillotine: { name: 'Fanged Guillotine: Alpha Wolf', text: 'Wolves can also consume the beasts they eat at a lower rarity than their own.' },
-    axe: { name: "Gaoler's Execution Axe", text: 'When a swap brings in a higher rarity than it replaced, 2 random sealed cells open. Those doors trigger nothing else.' },
+    axe: { name: "Gaoler's Execution Axe", text: 'When a Replace brings in a higher rarity than it replaced, 2 random sealed cells open. Those doors trigger nothing else.' },
     shackles: { name: 'Long-Chained Shackles', text: 'When a patrol walks 4 or more cells, 40% chance that 1 random inmate on the block rises a tier.' },
     // The card reads "When an Inmate Chain Consumes": the bites after the
     // first, which the eater takes by itself.
@@ -166,7 +166,7 @@
     // are equal. Effect: +3 additional Rarity Tiers to the inmate this
     // Replacement" (spelled "Servered"). Read as the inmate a swap (the
     // game's Replace) brings in, counted against the rest of the block.
-    maiden: { name: 'Severed Iron Maiden', text: 'After a swap, if as many inmates on the block are above the new inmate’s rarity as below it, it gains +3 tiers.' },
+    maiden: { name: 'Severed Iron Maiden', text: 'After a Replace, if as many inmates on the block are above the new inmate’s rarity as below it, it gains +3 tiers.' },
     // From a player's report (#11, 2026-10-16), the instrument pick: "-1 daily
     // destination option; there is a 35% chance to trigger after Consuming",
     // and "+1 additional Rarity Tier" (the rest of the card was cut off),
@@ -182,13 +182,13 @@
     // other Inmates on the field when replacing: Randomly removes 2 other
     // Inmates to guarantee that the Inmate's rarity is increased after
     // replacing".
-    scapegoat: { name: "Scapegoat's Guillotine", text: 'When a swap has 2 or more other inmates on the block, 2 random ones are removed and the new inmate comes in above the rarity it replaced.' },
+    scapegoat: { name: "Scapegoat's Guillotine", text: 'When a Replace has 2 or more other inmates on the block, 2 random ones are removed and the new inmate comes in above the rarity it replaced.' },
     // The user's screenshots of its card (2026-10-16): "-1 daily destination
     // option; when an Inmate with rarity lower than Legendary is Replaced,
     // there is a 40% chance to trigger. Effect: Changes Inmate rarity to
     // Legendary". A separate instrument from the Searing Branding Iron (id
     // `fire`, once taken for its mistranslation).
-    stake: { name: 'Burning Stake', text: 'Each morning offers 1 destination fewer. Swapping out an inmate below Legendary has a 40% chance to bring in a Legendary.' },
+    stake: { name: 'Burning Stake', text: 'Each morning offers 1 destination fewer. Replacing an inmate below Legendary has a 40% chance to bring in a Legendary.' },
     // A player's report (#17, 2026-10-16): "At the start of each day, if there
     // are matching Inmates on the field, there is a 60% chance to trigger:
     // Randomly removes 1 matching Inmate, then randomly selects 1 from the
@@ -298,7 +298,7 @@
   const SCENARIOS = {
     empty: { name: 'Empty prison', text: 'Day 1 with all 15 prison cells sealed. Recommended for a first run.' },
     events: { name: 'Special events drill', text: 'The three doors on today’s route hide an Execution, a Chain reaction, and Behind Closed Doors or Ravenous Appetite.' },
-    ivory: { name: 'Tusk drill', text: 'Swap the inmate in a Tusk cell and four inmates rise a tier.' },
+    ivory: { name: 'Tusk drill', text: 'Replace the inmate in a Tusk cell and four inmates rise a tier.' },
     prey: { name: 'Prey drill', text: 'A Lion and its marked prey both rise each morning for three days.' },
     scratch: { name: 'Scratch drill', text: 'Wolves consume through scratched doors for +3.' },
     nest: { name: 'Rat nest drill', text: 'Leave a nest sealed for two days to hatch a Rare Rat.' },
@@ -792,7 +792,7 @@
       place(state, 7, 'wolf', 2);
       place(state, 12, 'mammoth', 3);
       place(state, 15, 'rat', 1);
-      note = `Tusk drill: cell 02, the warden's cell, carries a Tusk mark. Swap its inmate and ${plural(state.params.ivoryCount, 'inmate')} on the block each gain a tier.`;
+      note = `Tusk drill: cell 02, the warden's cell, carries a Tusk mark. Replace its inmate and ${plural(state.params.ivoryCount, 'inmate')} on the block each gain a tier.`;
     } else if (s === 'prey') {
       const lion = place(state, 1, 'lion', 2);
       const wolf = place(state, 2, 'wolf', 2);
@@ -1407,7 +1407,7 @@
   function devour(state, from, to) {
     const blocked = guard(state, 'manage');
     if (blocked) return blocked;
-    if (state.used.swap > 0 && !state.used.devourAfterSwap) return fail('You swapped today, and a day has a swap or a consume, not both. End the day.');
+    if (state.used.swap > 0 && !state.used.devourAfterSwap) return fail('You replaced an inmate today, and a day has a Replace or a consume, not both. End the day.');
     if (!canDevourNow(state)) return fail('Today’s consume is used. End the day for another.');
     if (from !== state.position) return fail(`Only the inmate in the warden's cell (${cellLabel(state.position)}) can start a consume.`);
     const option = devourOptions(state, from).find((o) => o.cell === to);
@@ -1478,11 +1478,11 @@
   function swap(state, n = state.position) {
     const blocked = guard(state, 'manage');
     if (blocked) return blocked;
-    if (n !== state.position) return fail(`Only the inmate in the warden's cell (${cellLabel(state.position)}) can be swapped.`);
+    if (n !== state.position) return fail(`Only the inmate in the warden's cell (${cellLabel(state.position)}) can be replaced.`);
     const cell = state.cells[n];
-    if (!cell || cell.sealed || !cell.inmate) return fail('The warden’s cell has no inmate to swap.');
-    if (state.used.devour > 0) return fail('You consumed today, and a day has a consume or a swap, not both. End the day.');
-    if (state.used.swap >= state.params.swapsPerDay) return fail('No swaps left today.');
+    if (!cell || cell.sealed || !cell.inmate) return fail('The warden’s cell has no inmate to replace.');
+    if (state.used.devour > 0) return fail('You consumed today, and a day has a consume or a Replace, not both. End the day.');
+    if (state.used.swap >= state.params.swapsPerDay) return fail('No Replaces left today.');
     if (state.used.noSwap) return fail('Your game offers no Replace today.');
     const weights = (state.params.swapWeights || state.params.tierWeights).slice();
     if (has(state, 'rope')) weights[0] = weights[1] = 0;
@@ -1506,7 +1506,7 @@
           events.push({ type: 'removed', cell: v.n });
         }
         checkPrey(state);
-        log(state, 'tool', `Scapegoat's Guillotine: ${names.join(' and ')} go, so the swap comes in above ${TIERS[old.tier]}.`, { type: 'scapegoat', cell: n, removed: victims.map((c) => c.n) });
+        log(state, 'tool', `Scapegoat's Guillotine: ${names.join(' and ')} go, so the new inmate comes in above ${TIERS[old.tier]}.`, { type: 'scapegoat', cell: n, removed: victims.map((c) => c.n) });
         above = true;
       }
     }
@@ -1521,7 +1521,7 @@
     cell.inmate = fresh;
     state.used.swap += 1;
     state.stats.swaps += 1;
-    logAt(state, at, 'swap', `Swapped out the ${describe(old)} in cell ${cellLabel(n)}. In came a ${describe(fresh)}.`, { type: 'swap', cell: n, old: snap(old), fresh: snap(fresh) });
+    logAt(state, at, 'swap', `Replaced the ${describe(old)} in cell ${cellLabel(n)}. In came a ${describe(fresh)}.`, { type: 'swap', cell: n, old: snap(old), fresh: snap(fresh) });
     if (staked) log(state, 'tool', `Burning Stake: the ${describe(fresh)} in cell ${cellLabel(n)} came in Legendary.`, { type: 'stake', cell: n });
     // Severed Iron Maiden: as many inmates above the newcomer's rarity as below it.
     if (has(state, 'maiden')) {
@@ -1536,7 +1536,7 @@
     if (has(state, 'axe') && fresh.tier > old.tier) {
       const doors = shuffle(state, state.cells.filter((c) => c.sealed)).slice(0, 2);
       if (doors.length) {
-        log(state, 'tool', `Gaoler's Execution Axe: the swap raised the rarity, so ${doors.length === 1 ? `cell ${cellLabel(doors[0].n)} opens` : `cells ${doors.map((c) => cellLabel(c.n)).join(' and ')} open`}.`);
+        log(state, 'tool', `Gaoler's Execution Axe: the Replace raised the rarity, so ${doors.length === 1 ? `cell ${cellLabel(doors[0].n)} opens` : `cells ${doors.map((c) => cellLabel(c.n)).join(' and ')} open`}.`);
         for (const c of doors) openCell(state, c, 'side', events);
       }
     }
@@ -2173,7 +2173,7 @@
     // Only the warden's cell can be swapped.
     const here = state.cells[state.position];
     if (canSwapNow(state) && here.ivory && !here.sealed && here.inmate) {
-      tips.push({ kind: 'swap', cell: here.n, score: 20 + Math.min(board.length, state.params.ivoryCount) * 6, text: `Swap the inmate in Tusk cell ${cellLabel(here.n)}: up to ${plural(state.params.ivoryCount, 'inmate')} gain a tier.` });
+      tips.push({ kind: 'swap', cell: here.n, score: 20 + Math.min(board.length, state.params.ivoryCount) * 6, text: `Replace the inmate in Tusk cell ${cellLabel(here.n)}: up to ${plural(state.params.ivoryCount, 'inmate')} gain a tier.` });
     }
     tips.sort((a, b) => b.score - a.score);
     const out = tips.filter((t) => t.score > 0).slice(0, 4);

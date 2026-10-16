@@ -451,7 +451,7 @@
     <h2>The short version</h2>
     <ol class="rules">
       <li><strong>Consume every day you can.</strong><span>Waiting to build a bigger chain cost Rainbows: <span data-g="wait2"></span> per run with a small threshold and <span data-g="wait5"></span> with a large one, against <span data-g="full"></span> when you always consume (no tools).<span class="rule-note"><b>The one exception: don't break a prey mark.</b> When a Lion marks a prey of its own rarity, both rise a tier every morning for free until the mark runs out. Eating the marked prey ends the mark, and so does letting the marked Lion consume, since it usually turns into another beast. Either way you trade several free tiers for one. A consume almost never loses value otherwise: two inmates of one rarity become one a tier higher, which is worth more than the pair. In the contract challenge, also keep the inmates the next contract needs.</span></span></li>
-      <li><strong>Swap the warden's low-tier inmate when there's no better consume.</strong><span><span data-g="swapTiers"></span>. A fresh roll is worth more on average. <span data-g="swapNote"></span></span></li>
+      <li><strong>Replace the warden's low-tier inmate when there's no better consume.</strong><span><span data-g="swapTiers"></span>. A fresh roll is worth more on average. <span data-g="swapNote"></span></span></li>
       <li><strong>Chain reactions are a close call.</strong><span>Opening every door on the next walk floods the block with new inmates, but it also opens doors you might rather have kept. <span data-g="chainNote"></span> The Trainer's live check compares both each time.</span></li>
       <li><strong>Accept an Execution only when it gains more than it removes.</strong><span>Count what it would wipe out. Always accepting gave <span data-g="alwaysExec"></span> and never accepting <span data-g="neverExec"></span>, against <span data-g="full"></span> when you check first.</span></li>
       <li><strong>Accept the events that only give.</strong><span>Behind Closed Doors makes the inmate behind the door a Supreme of the scarcest beast on the block, one step from Rainbow; skip it only when that inmate already is a Supreme. Ravenous Appetite, High-Risk Convict and Crow Whispers never cost anything.</span></li>
@@ -470,7 +470,7 @@
       <li><b>Patrol</b><div><p>Pick one of the three destinations. A locked door usually wins: it adds a new inmate, who may consume today from the warden's cell. Go to a known inmate instead when it has a strong consume waiting. A door with an event badge is a bonus. Prefer the farther destination when they're close: it counts toward Prison Walk, and with the Long-Chained Shackles a walk of 4 or more cells can raise an inmate a tier. Don't open a rat nest before it hatches.</p></div></li>
       <li><b>Event</b><div><p>Accept Ravenous Appetite, High-Risk Convict, Crow Whispers, Taste of Freedom and both Usurpations, and Behind Closed Doors unless its inmate is already a Supreme. Chain reactions are the close call above. For an Execution, count the inmates it would remove against the tiers the executioner gains, and accept only if you come out ahead.</p></div></li>
       <li><b>Consume</b><div><p>If the warden's inmate has a target, consume. Pick the first meal whose chain is worth the most: the Trainer shows each option's chain odds. After that bite, your game asks for each next meal, and its Cancel stops the chain. Going on is almost always right, so stop only when the Trainer says so. When the eater has more than one meal, pick the one whose next tier still has food for the beast it may re-roll into.</p></div></li>
-      <li><b>Swap</b><div><p>If the warden's inmate is low-tier and has nothing worth eating, swap it. A day has a swap or a consume, not both, so a good consume comes first.</p></div></li>
+      <li><b>Replace</b><div><p>If the warden's inmate is low-tier and has nothing worth eating, replace it. A day has a Replace or a consume, not both, so a good consume comes first.</p></div></li>
       <li><b>End the day</b><div><p>Once nothing in the warden's cell can gain, end the day. The next morning, prey marks grow, nests hatch, and new destinations are drawn.</p></div></li>
     </ol>
   </section>
@@ -510,10 +510,10 @@
         <thead><tr><th>Tool</th><th>What it does</th></tr></thead>
         <tbody>
           <tr><td>Iron Crown of the Prison King: Berserk Lion</td><td>Lions can eat any inmate of their own rarity, and each bite a Lion takes gains 2 extra tiers, 3 in all.</td></tr>
-          <tr><td>Severed Iron Maiden</td><td>After a swap, the new inmate gains 3 tiers if as many inmates are above its rarity as below it, which an inmate alone on the block always is. With Hangman's Noose, such a swap makes a Rainbow.</td></tr>
+          <tr><td>Severed Iron Maiden</td><td>After a Replace, the new inmate gains 3 tiers if as many inmates are above its rarity as below it, which an inmate alone on the block always is. With Hangman's Noose, such a Replace makes a Rainbow.</td></tr>
           <tr><td>Kin's Coin of Fate</td><td>Each morning, when two or more inmates share a beast and rarity, a 60% chance that one of them is removed and another gains 2 tiers.</td></tr>
-          <tr><td>Scapegoat's Guillotine</td><td>A swap with 2 or more others on the block removes 2 random inmates, and the new inmate comes in above the rarity it replaced.</td></tr>
-          <tr><td>Hangman's Noose</td><td>Swapped-in inmates are never Normal or Magic, so every swap is an upgrade.</td></tr>
+          <tr><td>Scapegoat's Guillotine</td><td>A Replace with 2 or more others on the block removes 2 random inmates, and the new inmate comes in above the rarity it replaced.</td></tr>
+          <tr><td>Hangman's Noose</td><td>The new inmate is never Normal or Magic, so every Replace is an upgrade.</td></tr>
           <tr><td>Long-Chained Shackles</td><td>A walk of 4 or more cells has a 40% chance to raise a random inmate a tier. With six cells in reach, most mornings offer a walk that long.</td></tr>
           <tr><td>Executioner's Blacklist</td><td>Once 5 or fewer cells are still locked, each door a patrol opens raises 2 random inmates a tier.</td></tr>
           <tr><td>Raging Beast's Agonizing Muzzle</td><td>A consume gains 2 extra tiers when 4 or fewer inmates are left on the block after the meal.</td></tr>
@@ -523,18 +523,18 @@
           <tr><td>Sorting Hook</td><td>Doors never hold a Normal, so every new inmate starts at Magic or better.</td></tr>
           <tr><td>Maddened Beast's Barbed Collar</td><td>Each bite of a chain after the first has an 80% chance of an extra tier, so long chains climb faster.</td></tr>
           <tr><td>Rusty Saw</td><td>A 25% chance of an extra tier on each bite.</td></tr>
-          <tr><td>Burning Stake</td><td>Each morning offers one destination fewer, and swapping out an inmate below Legendary has a 40% chance to bring in a Legendary.</td></tr>
+          <tr><td>Burning Stake</td><td>Each morning offers one destination fewer, and replacing an inmate below Legendary has a 40% chance to bring in a Legendary.</td></tr>
           <tr><td>Fanged Guillotine</td><td>Wolves can also eat Rats below their own rarity, so a Wolf finds a meal far more often.</td></tr>
           <tr><td>Barbed Whip</td><td>Each morning offers one destination fewer, and each bite has a 35% chance of an extra tier.</td></tr>
           <tr><td>Felon's Dog Tag</td><td>The inmate behind each door a patrol opens has a 25% chance to rise a tier.</td></tr>
-          <tr><td>Iron Tongs of Lust</td><td>A Mammoth gets a Tusk mark each morning: swapping it out raises other inmates a tier.</td></tr>
+          <tr><td>Iron Tongs of Lust</td><td>A Mammoth gets a Tusk mark each morning: replacing it raises other inmates a tier.</td></tr>
           <tr><td>Crowded Beastcage</td><td>After an inmate is consumed, a 40% chance its cell opens again at once with someone new.</td></tr>
           <tr><td>Lost Ring of Keys</td><td>Patrols often open the neighboring doors too: more inmates.</td></tr>
-          <tr><td>Warden's Scales</td><td>After a swap, usually shows the best inmate behind the locked doors. Knowing it changes little.</td></tr>
+          <tr><td>Warden's Scales</td><td>After a Replace, usually shows the best inmate behind the locked doors. Knowing it changes little.</td></tr>
           <tr><td>Short-Chained Shackles</td><td>A walk of 3 cells or fewer has a 50% chance to open a random locked cell. That door triggers nothing else, so an event behind it is used up.</td></tr>
-          <tr><td>Iron Pestle</td><td>A swap keeps the beast and re-rolls only the rarity, which leaves the block less varied.</td></tr>
+          <tr><td>Iron Pestle</td><td>A Replace keeps the beast and re-rolls only the rarity, which leaves the block less varied.</td></tr>
           <tr><td>Searing Branding Iron</td><td>A patrol that opens a door has a 35% chance to copy its inmate into another unopened cell, which opens holding the copy.</td></tr>
-          <tr><td>Gaoler's Execution Axe</td><td>When a swap brings in a higher rarity, 2 random sealed cells open: more inmates, but only on the lucky swaps.</td></tr>
+          <tr><td>Gaoler's Execution Axe</td><td>When a Replace brings in a higher rarity, 2 random sealed cells open: more inmates, but only on the lucky Replaces.</td></tr>
           <tr><td>Forged Key</td><td>Each morning offers one destination fewer. A patrol that opens a door has a 50% chance to open one more random sealed cell. The lost choice costs more than the extra doors give.</td></tr>
           <tr><td>Squirming Iron Box</td><td>Turns a sealed cell into a rat nest every morning, which ties up doors for a Rare Rat at best.</td></tr>
         </tbody>
@@ -566,7 +566,7 @@
     <h2>What to expect</h2>
     <p>Rainbows vaulted per 20-day run with this strategy, in the default drill:</p>
     <div class="bars" id="spread"></div>
-    <p>A typical run opens about <span data-g="doors"></span> doors, swaps <span data-g="swaps"></span> times and consumes <span data-g="devours"></span> times.</p>
+    <p>A typical run opens about <span data-g="doors"></span> doors, replaces <span data-g="swaps"></span> times and consumes <span data-g="devours"></span> times.</p>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Strategy</th><th class="num">No tools</th><th class="num">Tools and Treasure on</th></tr></thead>
@@ -642,7 +642,7 @@
 
   <footer class="method">
     <p>This English version and guide are made by <strong>CoffeeBns</strong>: <a href="https://twitch.tv/coffeebns" target="_blank" rel="noopener">twitch.tv/coffeebns</a> and <a href="https://youtube.com/@CoffeeBns" target="_blank" rel="noopener">youtube.com/@CoffeeBns</a>.</p>
-    <p><strong>How these numbers were made.</strong> Every run used the simulator's own rules engine. A rules-based strategy played them, making each choice from what a player can see. There's no AI involved: it's a set of scoring rules whose weights were tuned for these rules by trying each value and keeping whichever vaulted more Rainbows. This data set took <span data-g="totalRuns"></span> runs and <span data-g="minutes"></span> minutes. The rules follow the season's video reveal and what players have since seen live. Odds and limits are practice values and may differ from the live game: new inmates roll 52% Normal, 27% Magic, 15% Rare and 6% Legendary, 5% of sealed cells hide an event, every kind equally likely, which shows only once the warden walks past, and you get one consume and one swap a day over a 20-day drill. The full tables are in the <a href="https://github.com/blahdot3h/tartarus-simulator/tree/main/tools" target="_blank" rel="noopener">strategy lab's notes</a>.</p>
+    <p><strong>How these numbers were made.</strong> Every run used the simulator's own rules engine. A rules-based strategy played them, making each choice from what a player can see. There's no AI involved: it's a set of scoring rules whose weights were tuned for these rules by trying each value and keeping whichever vaulted more Rainbows. This data set took <span data-g="totalRuns"></span> runs and <span data-g="minutes"></span> minutes. The rules follow the season's video reveal and what players have since seen live. Odds and limits are practice values and may differ from the live game: new inmates roll 52% Normal, 27% Magic, 15% Rare and 6% Legendary, 5% of sealed cells hide an event, every kind equally likely, which shows only once the warden walks past, and you get one consume and one Replace a day over a 20-day drill. The full tables are in the <a href="https://github.com/blahdot3h/tartarus-simulator/tree/main/tools" target="_blank" rel="noopener">strategy lab's notes</a>.</p>
   </footer>
 </main>
 
@@ -703,8 +703,8 @@
         const full = habit('full').value;
         const never = habit('neverSwap').value;
         return full - never < 0.01
-          ? `Without tools, never swapping came out about even: ${two(never)} per run, against ${two(full)}. But swaps are what the Severed Iron Maiden, the Scapegoat's Guillotine and the Burning Stake work on.`
-          : `Never swapping drops results to ${two(never)} per run, against ${two(full)}.`;
+          ? `Without tools, never replacing came out about even: ${two(never)} per run, against ${two(full)}. But Replaces are what the Severed Iron Maiden, the Scapegoat's Guillotine and the Burning Stake work on.`
+          : `Never replacing drops results to ${two(never)} per run, against ${two(full)}.`;
       })(),
       chainNote: (() => {
         const tooled = G.params.rewards.acceptChain ? 'accepts' : 'skips';
@@ -719,7 +719,7 @@
       shortWalks: two(habit('shortWalks').value),
       alwaysBestow: habit('alwaysBestow') ? two(habit('alwaysBestow').value) : '?',
       alwaysInstigate: habit('alwaysInstigate') ? two(habit('alwaysInstigate').value) : '?',
-      swapTiers: `Swap ${tierList(G.params.notools.swapMaxTier)} inmates with no tools, and ${tierList(G.params.rewards.swapMaxTier)} once you hold tools`,
+      swapTiers: `Replace ${tierList(G.params.notools.swapMaxTier)} inmates with no tools, and ${tierList(G.params.rewards.swapMaxTier)} once you hold tools`,
       tool1: tools[0].name,
       tool2: tools[1].name,
       toolNote: `Held from day 1, ${tools[0].name} made ${times(tools[0])}× the Rainbows of no tool and ${tools[1].name} ${times(tools[1])}×.${worseNote}`,
@@ -805,7 +805,7 @@
     const C = G.compare;
     document.getElementById('compare').innerHTML = [
       ['Random legal moves', C.notools.random, C.rewards.random],
-      ['Simple: consume when possible, else swap Normals, open doors', C.notools.simple, C.rewards.simple],
+      ['Simple: consume when possible, else replace Normals, open doors', C.notools.simple, C.rewards.simple],
       ["This guide's strategy", C.notools.tuned, C.rewards.tuned, true],
     ].map(([label, a, b, key]) => `<tr${key ? ' class="is-key"' : ''}><td>${label}</td><td class="num">${two(a.rainbowsPerRun)}</td><td class="num">${two(b.rainbowsPerRun)}</td></tr>`).join('');
 

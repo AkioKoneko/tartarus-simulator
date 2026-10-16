@@ -856,7 +856,7 @@
       setHTML(el.hint, p.hint);
       setHTML(el.badges, badges);
       setHTML(el.warden, p.warden ? B.LANTERN : '');
-      const tag = best.has(cell.n) ? (a.type === 'deliver' ? 'Send' : a.type === 'swap' ? 'Swap' : a.type === 'devour' ? 'Eat' : 'Go') : flags.has(cell.n) ? 'Check' : doors.has(cell.n) ? 'Door' : '';
+      const tag = best.has(cell.n) ? (a.type === 'deliver' ? 'Send' : a.type === 'swap' ? 'Replace' : a.type === 'devour' ? 'Eat' : 'Go') : flags.has(cell.n) ? 'Check' : doors.has(cell.n) ? 'Door' : '';
       el.tag.textContent = tag;
       el.btn.setAttribute('aria-label', `${p.label}${doors.has(cell.n) ? ". One of today's doors" : ''}${tag === 'Check' ? '. Changed by the simulator: check it against your game' : ''}`);
       el.btn.setAttribute('aria-pressed', String(cell.n === selected));
@@ -1222,7 +1222,7 @@
       case 'devour': return 'In your game, start the consume on that target. Then update the cells the chain changed, and ask again.';
       case 'chain': return 'In your game, pick that meal. Then paste the next screen, or update the cells that changed, and ask again.';
       case 'stopchain': return 'In your game, press Cancel on the meal screen. Today’s consume is used, so the day ends next.';
-      case 'swap': return 'In your game, swap the warden’s inmate. Then set the warden’s cell to what came in, and ask again.';
+      case 'swap': return 'In your game, replace the warden’s inmate. Then set the warden’s cell to what came in, and ask again.';
       case 'end': return 'In your game, end the day. Then mark the new day’s doors, and ask again.';
       case 'event': return 'Then update what changed, and ask again.';
       case 'office': return 'In your game, press it. Then paste a screenshot of what changed (or set it here under Make Your Decision), and ask again.';

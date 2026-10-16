@@ -134,9 +134,9 @@
             <p class="field-note">Light up the doors your game offers today. They come from the next six cells clockwise from the warden.</p>
           </div>
           <div class="az-stepbox az-used" data-step="manage choice">
-            <label class="toggle"><input type="checkbox" id="az-swapped"><span><strong>Replace used today</strong><small>Only the warden's inmate can be swapped. A day has a swap or a consume, not both, unless the game offers a consume after the swap.</small></span></label>
-            <label class="toggle" id="az-consume-offered-wrap" hidden><input type="checkbox" id="az-consume-offered"><span><strong>Consume on offer after the swap</strong><small>Tick it when your game shows Consume after today's swap. Only then is a consume advised. Follow my game ticks it when the log shows the offer.</small></span></label>
-            <label class="toggle"><input type="checkbox" id="az-devoured"><span><strong>Consume used today</strong><small>Only the warden's inmate can consume. A day has a swap or a consume, not both.</small></span></label>
+            <label class="toggle"><input type="checkbox" id="az-swapped"><span><strong>Replace used today</strong><small>Only the warden's inmate can be replaced. A day has a Replace or a consume, not both, unless the game offers a consume after the Replace.</small></span></label>
+            <label class="toggle" id="az-consume-offered-wrap" hidden><input type="checkbox" id="az-consume-offered"><span><strong>Consume on offer after the Replace</strong><small>Tick it when your game shows Consume after today's Replace. Only then is a consume advised. Follow my game ticks it when the log shows the offer.</small></span></label>
+            <label class="toggle"><input type="checkbox" id="az-devoured"><span><strong>Consume used today</strong><small>Only the warden's inmate can consume. A day has a Replace or a consume, not both.</small></span></label>
           </div>
           <div class="az-stepbox" data-step="office">
             <p class="field-note">Pick this only while your game shows the Instigate and Bestow buttons. The warden stands in the office (cell 01), and the analyzer ranks the two. Once you've taken one, the buttons are gone: paste your next screenshot, or go back to Make Your Decision.</p>
@@ -259,7 +259,7 @@
             <div class="az-tiers" id="az-tiers"></div>
           </fieldset>
           <div class="az-inmate-extra" id="az-inmate-extra">
-            <label class="toggle"><input type="checkbox" id="az-ivory"><span><strong>Tusk mark</strong><small>Swapping this inmate raises others on the block a tier.</small></span></label>
+            <label class="toggle"><input type="checkbox" id="az-ivory"><span><strong>Tusk mark</strong><small>Replacing this inmate raises others on the block a tier.</small></span></label>
             <div class="az-prey" id="az-prey-field">
               <label class="field"><span class="field-label">Prey mark</span><select id="az-prey"></select></label>
               <label class="field"><span class="field-label">Mornings left</span><input type="number" id="az-prey-rounds" min="1" max="9" step="1"></label>

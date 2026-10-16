@@ -607,12 +607,12 @@
     const warden = st.cells[st.position];
     let lead;
     // A day has a devour or a swap, not both.
-    if (st.used.swap > 0) lead = `You swapped today, so there is no consume: a day has a swap or a consume, not both. ${canSwapNow(st) ? 'Swap again or end' : 'End'} the day.`;
-    else if (!T.canDevourNow(st)) lead = 'Today’s consume is used, and with it the swap: a day has one or the other. End the day.';
-    else if (st.position === T.OFFICE) lead = 'The warden is in the office, so there is no consume today. Swap or end the day.';
-    else if (!warden.inmate || warden.sealed) lead = `The warden's cell (${L(st.position)}) is empty, so there is no consume today. Swap or end the day.`;
+    if (st.used.swap > 0) lead = `You replaced an inmate today, so there is no consume: a day has a Replace or a consume, not both. ${canSwapNow(st) ? 'Replace again or end' : 'End'} the day.`;
+    else if (!T.canDevourNow(st)) lead = 'Today’s consume is used, and with it the Replace: a day has one or the other. End the day.';
+    else if (st.position === T.OFFICE) lead = 'The warden is in the office, so there is no consume today. Replace or end the day.';
+    else if (!warden.inmate || warden.sealed) lead = `The warden's cell (${L(st.position)}) is empty, so there is no consume today. Replace or end the day.`;
     else if (devours) lead = `The ${T.describe(warden.inmate)} in the warden's cell (${L(st.position)}) can make today's consume. Select it to see its ${T.plural(devours, 'target')}, or double-click a target to consume it. ${T.canStopChain && T.canStopChain(st) ? 'It then goes on eating: you pick each next meal, or stop the chain, as the game’s Cancel does.' : 'It then must keep eating while it can: a single meal is taken at once, and you pick when there’s a choice.'}`;
-    else lead = `The ${T.describe(warden.inmate)} in the warden's cell (${L(st.position)}) has no target today. Swap or end the day.`;
+    else lead = `The ${T.describe(warden.inmate)} in the warden's cell (${L(st.position)}) has no target today. Replace or end the day.`;
     const parts = [lead];
     if (due && due.deadline === st.day) parts.push(`"${due.name}" is due: ending the day opens its delivery window.`);
     setDecision('Manage the block', parts.join(' '), []);
@@ -714,7 +714,7 @@
       const meal = target.sealed ? `the ${T.tierName(target.hidden.tier)} inmate behind the scratched door` : `the ${T.describe(target.inmate)}`;
       const extras = [];
       if (notes.length) extras.push(`Bonus: ${notes.join(', ')}.`);
-      extras.push(`This is today’s consume${canSwapNow(st) ? ', and it uses up today’s swap' : ''}. ${T.canStopChain && T.canStopChain(st) ? 'Afterwards the eater goes on eating: you pick each next meal, or stop the chain, as the game’s Cancel does.' : 'Afterwards the eater must keep eating while it can: a single meal is taken at once, and you pick when there’s a choice.'} Click the target again to consume.`);
+      extras.push(`This is today’s consume${canSwapNow(st) ? ', and it uses up today’s Replace' : ''}. ${T.canStopChain && T.canStopChain(st) ? 'Afterwards the eater goes on eating: you pick each next meal, or stop the chain, as the game’s Cancel does.' : 'Afterwards the eater must keep eating while it can: a single meal is taken at once, and you pick when there’s a choice.'} Click the target again to consume.`);
       if (saw) extras.push('Rusty Saw may add +1.');
       if (st.tools.includes('whip')) extras.push('Barbed Whip: 35% chance of +1.');
       if (st.tools.includes('collar')) extras.push('Barbed Collar: each bite after this one has an 80% chance of +1.');
@@ -763,9 +763,9 @@
       if (st.tools.includes('rope')) parts.push("Hangman's Noose: never Normal or Magic.");
       if (st.tools.includes('axe')) parts.push(`Gaoler's Execution Axe: if it comes out above ${T.tierName(cell.inmate.tier)}, 2 random sealed cells open.`);
       if (cell.ivory) parts.push(`Tusk cell: ${T.plural(st.params.ivoryCount, 'inmate')} then gain a tier.`);
-      if (T.canDevourNow(st)) parts.push('It uses up today’s consume: a day has a swap or a consume, not both.');
-      setDecision(`Swap cell ${L(p.cell)}?`, parts.join(' '), [
-        ['Swap', () => run((s) => T.swap(s, p.cell)), 'primary'],
+      if (T.canDevourNow(st)) parts.push('It uses up today’s consume: a day has a Replace or a consume, not both.');
+      setDecision(`Replace the inmate in cell ${L(p.cell)}?`, parts.join(' '), [
+        ['Replace', () => run((s) => T.swap(s, p.cell)), 'primary'],
         ['Cancel', back],
       ], true);
       return;
@@ -814,10 +814,10 @@
     else if (st.phase === 'manage') {
       const options = T.devourOptions(st, cell.n);
       if (cell.n !== st.position) parts.push(`Only the inmate in the warden's cell (${L(st.position)}) can start today's consume.`);
-      else if (!T.canDevourNow(st)) parts.push(st.used.swap > 0 ? 'You swapped today, so there is no consume: a day has one or the other.' : 'Today’s consume is used.');
+      else if (!T.canDevourNow(st)) parts.push(st.used.swap > 0 ? 'You replaced an inmate today, so there is no consume: a day has one or the other.' : 'Today’s consume is used.');
       else parts.push(options.length ? `It stands in the warden's cell: ${T.plural(options.length, 'target')} highlighted. Double-click one to consume it, or click once to preview the bite.` : 'It stands in the warden’s cell but has no target right now.');
     }
-    if (cell.ivory) parts.push(`Tusk cell: swapping here raises ${T.plural(st.params.ivoryCount, 'inmate')} a tier.`);
+    if (cell.ivory) parts.push(`Tusk cell: replacing the inmate here raises ${T.plural(st.params.ivoryCount, 'inmate')} a tier.`);
     const link = T.linkOf(st, inmate.id);
     if (link) {
       const hunter = link.lion === inmate.id;
@@ -826,8 +826,8 @@
     }
     if (free && st.phase === 'manage' && cell.n === st.position) {
       const left = canSwapNow(st) ? st.params.swapsPerDay - st.used.swap : 0;
-      actions.push([`Swap (${Math.max(0, left)} left)`, () => askSwap(cell.n), null, left <= 0]);
-    } else if (st.phase === 'manage') parts.push("Only the inmate in the warden's cell can be swapped.");
+      actions.push([`Replace (${Math.max(0, left)} left)`, () => askSwap(cell.n), null, left <= 0]);
+    } else if (st.phase === 'manage') parts.push("Only the inmate in the warden's cell can be replaced.");
     actions.push(['Deselect', cancel]);
     setDecision(`Cell ${L(cell.n)}: ${T.describe(inmate)}`, parts.join(' '), actions);
   }
@@ -855,9 +855,9 @@
     const left = canSwapNow(st) ? Math.max(0, st.params.swapsPerDay - st.used.swap) : 0;
     const here = st.cells[st.position];
     const canSwap = free && st.phase === 'manage' && left > 0 && !here.sealed && !!here.inmate;
-    swapBtn.textContent = `Swap (${left})`;
+    swapBtn.textContent = `Replace (${left})`;
     swapBtn.disabled = !canSwap;
-    swapBtn.title = canSwap ? `Swap the inmate in the warden's cell (${L(st.position)}).${T.canDevourNow(st) ? " It uses up today's consume." : ''}` : st.used.devour > 0 ? 'You consumed today: a day has a consume or a swap, not both.' : "Only the inmate in the warden's cell can be swapped, after the patrol.";
+    swapBtn.title = canSwap ? `Replace the inmate in the warden's cell (${L(st.position)}).${T.canDevourNow(st) ? " It uses up today's consume." : ''}` : st.used.devour > 0 ? 'You consumed today: a day has a consume or a Replace, not both.' : "Only the inmate in the warden's cell can be replaced, after the patrol.";
 
     const deliverBtn = $('btn-deliver');
     deliverBtn.hidden = st.mode !== 'challenge';
@@ -963,7 +963,7 @@
         const took = x.victims.length ? `<span class="fang">${FANGS}<b>×${x.victims.length}</b></span>${x.victims.map((v) => tok(v, { eaten: true })).join('')}` : '<span class="recap-note">no one</span>';
         out.push(item('Execution', `${tok(x.who, { cell: x.cell })}${took}`, 'is-devour'));
       } else if (x.type === 'devour') out.push(item(x.bites.length > 1 ? `Chain ×${x.bites.length}` : 'Consume', chainStrip(x), 'is-devour'));
-      else if (x.type === 'swap') out.push(item(`Swap ${L(x.cell)}`, `${tok(x.old, { cell: x.cell, eaten: true })}<span class="then">›</span>${tok(x.fresh, { cell: x.cell })}`));
+      else if (x.type === 'swap') out.push(item(`Replace ${L(x.cell)}`, `${tok(x.old, { cell: x.cell, eaten: true })}<span class="then">›</span>${tok(x.fresh, { cell: x.cell })}`));
       else if (x.type === 'rainbow') out.push(item('Rainbow', tok(x.who), 'is-rainbow'));
       else if (x.type === 'tool') out.push(item('Tool', `<span class="recap-note">${esc(T.toolName(x.id))}</span>`));
       else if (x.type === 'gift') out.push(item('Treasure', `<span class="recap-note">${esc(T.toolName(x.id))}</span>`));
@@ -1088,7 +1088,7 @@
       case 'office':
         return [tip.choice === 'bestow' ? 'Bestow' : 'Instigate', () => run((s) => T.officeAct(s, tip.choice))];
       case 'swap':
-        return ['Swap', () => run((s) => T.swap(s, tip.cell))];
+        return ['Replace', () => run((s) => T.swap(s, tip.cell))];
       case 'event':
         return [tip.accept ? 'Accept' : 'Skip', () => run((s) => T.resolveEvent(s, tip.accept))];
       case 'choose':
@@ -1143,7 +1143,7 @@
   const LESSONS = {
     patrol: 'Training: opening doors and walking further vaulted more Rainbows than walking to an inmate with nothing to eat.',
     devour: 'Training: consume every day you can, unless it breaks a prey mark. Waiting for a bigger chain cost Rainbows.',
-    swap: 'Training: swap a low-tier inmate in the warden’s cell when no consume there is worth more, since a day has one or the other. Never swapping cost Rainbows.',
+    swap: 'Training: replace a low-tier inmate in the warden’s cell when no consume there is worth more, since a day has one or the other. Never replacing cost Rainbows.',
     end: 'Training: end the day once nothing here gains.',
     early: 'Contracts: the heavy contract is needed to pass, and delivering it early ends the run.',
     chain: 'Training: accepting Chain reactions vaulted more Rainbows than skipping them.',
@@ -1198,11 +1198,11 @@
     if (action.type === 'swap') {
       // Without tools, never swapping can come out about even.
       const never = habit('neverSwap');
-      if (full && never && full.value - never.value < 0.01) return `Training: swap a low-tier inmate in the warden’s cell when no consume there is worth more, since a day has one or the other. Without tools it came out about even with never swapping (${never.value.toFixed(2)} Rainbows per run, against ${full.value.toFixed(2)}), but swaps are what the Severed Iron Maiden, the Scapegoat’s Guillotine and the Burning Stake work on.`;
+      if (full && never && full.value - never.value < 0.01) return `Training: replace a low-tier inmate in the warden’s cell when no consume there is worth more, since a day has one or the other. Without tools it came out about even with never replacing (${never.value.toFixed(2)} Rainbows per run, against ${full.value.toFixed(2)}), but Replaces are what the Severed Iron Maiden, the Scapegoat’s Guillotine and the Burning Stake work on.`;
       // "The most" only while the guide's data still has never swapping as
       // the costliest habit.
       const worst = g ? g.habits.filter((h) => h.id !== 'simple' && h.id !== 'random').sort((a, b) => a.value - b.value)[0] : null;
-      const text = `Training: swap a low-tier inmate in the warden’s cell when no consume there is worth more, since a day has one or the other. Never swapping cost ${worst && worst.id === 'neverSwap' ? 'the most' : 'Rainbows'}`;
+      const text = `Training: replace a low-tier inmate in the warden’s cell when no consume there is worth more, since a day has one or the other. Never replacing cost ${worst && worst.id === 'neverSwap' ? 'the most' : 'Rainbows'}`;
       return (vs('neverSwap', text) || LESSONS.swap) + (g ? '.' : '');
     }
     return LESSONS[action.type] || '';
@@ -2047,7 +2047,7 @@
         ['Inmates', r.roster.rows.length],
         ['Patrols', r.stats.patrols],
         ['Consumes', r.stats.devours],
-        ['Swaps', r.stats.swaps],
+        ['Replaces', r.stats.swaps],
         ['Executions', r.stats.executions],
       ]);
     }
@@ -2075,7 +2075,7 @@
       const rows = r.roster.rows.filter((x) => x.tier === t);
       if (rows.length) lines.push(`${T.TIERS[t]} ×${rows.length}: ${rows.map((x) => T.beastName(x.beast)).join(', ')}`);
     }
-    lines.push(`Moves: ${r.stats.patrols} patrols, ${r.stats.devours} consumes, ${r.stats.swaps} swaps, ${r.stats.executions} executions`);
+    lines.push(`Moves: ${r.stats.patrols} patrols, ${r.stats.devours} consumes, ${r.stats.swaps} Replaces, ${r.stats.executions} executions`);
     return lines.join('\n');
   }
 
