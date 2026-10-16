@@ -644,6 +644,18 @@
       } else if (c.inmate) {
         score += P.wWalk * known(c);
         why = `its ${T.describe(c.inmate)} can act today`;
+        // An event waiting in an open cell goes off when the warden walks in.
+        if (c.event) {
+          const worth = eventWorth(ctx, board.comp);
+          const pool = st.eventPool || T.EVENT_POOL;
+          if (c.eventKnown === false || !worth[c.event]) {
+            score += pool.reduce((sum, id) => sum + worth[id](), 0) / pool.length;
+            why = `a special event waits in the cell with its ${T.describe(c.inmate)}`;
+          } else {
+            score += worth[c.event]();
+            why = EVENT_WHY[c.event].replace('behind the door', 'in the cell');
+          }
+        }
       } else {
         why = 'an empty cell';
       }
@@ -1181,10 +1193,11 @@
     const random = rng32(seed);
     st.rng = (random() * 4294967296) >>> 0;
     for (const c of st.cells) {
-      // An event whose kind the player can't see is any of them, evenly. A
-      // door the warden hasn't walked past may hide one the player can't see.
+      // An event whose kind the player can't see (behind a door, or in an
+      // open cell) is any of them, evenly. A door the warden hasn't walked
+      // past may hide one the player can't see.
       const pool = st.eventPool || T.EVENT_POOL;
-      if (c.sealed && c.event && c.eventKnown === false) c.event = pool[Math.floor(random() * pool.length)];
+      if (c.event && c.eventKnown === false) c.event = pool[Math.floor(random() * pool.length)];
       if (c.sealed && c.seen === false && !c.nest) c.event = random() * 100 < st.params.eventChance ? pool[Math.floor(random() * pool.length)] : null;
       if (!c.sealed || !c.hidden || c.known >= 2) continue;
       if (c.known === 1) c.hidden.beast = BEASTS[Math.floor(random() * 4)];

@@ -1099,6 +1099,13 @@
     } else {
       log(state, 'patrol', `Walked to empty cell ${cellLabel(n)}.`, { type: 'walk', cell: n, who: null });
     }
+    // An event can wait in an open cell beside its inmate (the game's cell
+    // popup: "Can trigger Prison Incident", report 52). Walking in sets it
+    // off, as opening a door with one would.
+    if (!event && !cell.sealed && cell.inmate && cell.event) {
+      event = cell.event;
+      cell.event = null;
+    }
     state.position = n;
     checkPrey(state);
     if (!ratway) walked(state, steps, events);

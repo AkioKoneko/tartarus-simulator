@@ -81,7 +81,7 @@
   // from the reader or older edits compare equal when they hold the same.
   function cellSig(c) {
     switch (c.kind) {
-      case 'inmate': return ['inmate', c.beast, toInt(c.tier, 0), !!c.ivory, c.prey ? [c.prey.cell, c.prey.rounds] : null].join('|');
+      case 'inmate': return ['inmate', c.beast, toInt(c.tier, 0), !!c.ivory, c.prey ? [c.prey.cell, c.prey.rounds] : null, c.event || ''].join('|');
       case 'scratch': return ['scratch', toInt(c.tier, 0), c.event || ''].join('|');
       case 'revealed': return ['revealed', toInt(c.tier, 0), c.event || ''].join('|');
       case 'scouted': return ['scouted', c.beast, toInt(c.tier, 0), c.event || ''].join('|');
@@ -199,6 +199,8 @@
         cell.sealed = false;
         cell.inmate = make(c.beast, c.tier);
         cell.ivory = !!c.ivory;
+        // An event can wait in an open cell ("Can trigger Prison Incident").
+        setEvent();
       } else if (c.kind === 'nest') {
         // A nest due today hatched this morning, so a sealed one is due later.
         cell.nest = { due: Math.max(st.day + 1, toInt(c.due, st.day + 1)) };
@@ -396,7 +398,7 @@
       if (!c.inmate) return { kind: 'empty' };
       const link = T.linkOf(st, c.inmate.id);
       const preyCell = link && link.lion === c.inmate.id ? T.cellOf(st, link.prey) : null;
-      return { kind: 'inmate', beast: c.inmate.beast, tier: Math.min(TOP_TIER, c.inmate.tier), ivory: !!c.ivory, prey: preyCell ? { cell: preyCell.n, rounds: link.rounds } : null };
+      return { kind: 'inmate', beast: c.inmate.beast, tier: Math.min(TOP_TIER, c.inmate.tier), ivory: !!c.ivory, prey: preyCell ? { cell: preyCell.n, rounds: link.rounds } : null, event };
     });
     const ch = st.challenge;
     if (st.pending.length) {
@@ -715,7 +717,7 @@
       return;
     }
     for (const c of st.cells) {
-      if (c.sealed && c.event && c.eventKnown === false) c.event = T.EVENT_POOL[Math.floor(Math.random() * T.EVENT_POOL.length)];
+      if (c.event && c.eventKnown === false) c.event = T.EVENT_POOL[Math.floor(Math.random() * T.EVENT_POOL.length)];
       // A door not marked with an event may hide one nobody has seen.
       if (c.sealed && c.seen === false && !c.nest && Math.random() * 100 < st.params.eventChance) c.event = T.EVENT_POOL[Math.floor(Math.random() * T.EVENT_POOL.length)];
     }
@@ -992,7 +994,8 @@
       $('az-prey-of').hidden = hunter < 0;
       if (hunter >= 0) $('az-prey-of').textContent = `Marked as prey by the Lion in cell ${L(hunter)}: both rise a tier each morning for ${T.plural(model.cells[hunter].prey.rounds, 'more morning')}.`;
     }
-    $('az-event-field').hidden = !(c.kind === 'sealed' || c.kind === 'scratch' || c.kind === 'revealed' || scouted);
+    $('az-event-field').hidden = !(c.kind === 'sealed' || c.kind === 'scratch' || c.kind === 'revealed' || c.kind === 'inmate' || scouted);
+    $('az-event-field').querySelector('legend').textContent = c.kind === 'inmate' ? 'Event in the cell (a "!" beside the inmate)' : 'Event behind the door';
     pressGroup('az-event', c.event || 'none');
     $('az-nest-field').hidden = c.kind !== 'nest';
     if (c.kind === 'nest') $('az-nest-due').value = String(toInt(c.due, model.day + 2));
@@ -1419,7 +1422,10 @@
     if (c.kind === 'inmate') {
       c.beast = T.BEASTS.includes(c.beast) ? c.beast : 'mammoth';
       c.tier = clamp(toInt(c.tier, 0), 0, TOP_TIER);
-      c.event = null;
+      // An event can wait beside an inmate ("Can trigger Prison Incident"):
+      // it stays while the inmate is edited, and a door that opens drops its
+      // event (opening it set the event off).
+      c.event = 'event' in patch ? patch.event : prev && prev.kind === 'inmate' ? prev.event || null : null;
     } else {
       c.prey = null;
       c.ivory = false;
@@ -2218,7 +2224,7 @@
         } else m.cells[n] = { kind: 'sealed', event: c.event ? 'unknown' : null };
         if (c.conf < 0.6) checks.add(n);
       } else if (c.kind === 'inmate') {
-        m.cells[n] = { kind: 'inmate', beast: c.beast, tier: clamp(c.tier, 0, TOP_TIER), ivory: keptTusk(base, n, c.beast, clamp(c.tier, 0, TOP_TIER)), prey: null };
+        m.cells[n] = { kind: 'inmate', beast: c.beast, tier: clamp(c.tier, 0, TOP_TIER), ivory: keptTusk(base, n, c.beast, clamp(c.tier, 0, TOP_TIER)), prey: null, event: c.event ? 'unknown' : null };
         if (c.conf < 0.6 || c.ghost) checks.add(n);
       } else {
         m.cells[n] = { kind: 'empty' };
@@ -2385,7 +2391,7 @@
   // number, 0 Normal to 4 Supreme.
   function cellText(c) {
     if (!c) return '?';
-    if (c.kind === 'inmate' || c.kind === 'scouted') return `${c.beast} ${c.tier}`;
+    if (c.kind === 'inmate' || c.kind === 'scouted') return `${c.beast} ${c.tier}${c.kind === 'inmate' && c.event ? '!' : ''}`;
     if (c.kind === 'scratch' || c.kind === 'revealed') return `${c.kind} ${c.tier}`;
     if (c.kind === 'locked' || c.kind === 'sealed') return c.nest ? 'nest' : c.event ? 'locked!' : 'locked';
     return c.kind;

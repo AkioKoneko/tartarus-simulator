@@ -1505,7 +1505,9 @@
     const cells = [];
     for (let n = 0; n < 16; n++) cells.push(readCell(img, sharp, loc, n, ref));
     const warden = findWarden(img, loc);
-    for (const n of findEvents(img, loc, cells, warden)) if (cells[n].kind === 'locked') cells[n].event = true;
+    // An open cell can hold an event beside its inmate (the cell popup's
+    // "Can trigger Prison Incident"): 8 saved screenshots show one.
+    for (const n of findEvents(img, loc, cells, warden)) if (cells[n].kind === 'locked' || cells[n].kind === 'inmate') cells[n].event = true;
     const doors = readDoors(img, sharp, loc, ref);
     const days = readDays(img, sharp, loc, ref);
     const tools = readTools(img, loc, ref);

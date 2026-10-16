@@ -383,6 +383,11 @@
         badges.push('<span class="badge badge-ivory">Tusk</span>');
         label += ', Tusk cell';
       }
+      // An event can wait in an open cell; walking in sets it off.
+      if (cell.event) {
+        badges.push('<span class="badge badge-event">Event</span>');
+        label += ', a special event waits in the cell';
+      }
       const link = T.linkOf(st, inmate.id);
       if (link) {
         const hunter = link.lion === inmate.id;
