@@ -45,7 +45,7 @@
     maidenSwapTier: 3, // holding the Severed Iron Maiden, swap up to this tier (Legendary measured best)
     execMargin: 0, // accept an Execution worth more than this
     acceptChain: true, // accept Chain reactions
-    toolRank: ['maiden', 'scapegoat', 'blacklist', 'shackles', 'ravenous', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'whip', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'], // measured: each tool held from day 1
+    toolRank: ['maiden', 'coin', 'scapegoat', 'blacklist', 'shackles', 'ravenous', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'stake', 'whip', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'], // measured: each tool held from day 1
     toolSets: true, // pick instruments by the measured sets (js/tool-combos.js) when there are any
     office: null, // always 'bestow' or 'instigate' at the office (only to measure the habit)
     giftRank: null, // null scores the gifts on the spot; or a fixed order
@@ -67,10 +67,10 @@
   // tools/results/ (train-report.json: the drill profiles were retrained on
   // 2026-10-15).
   const PROFILES = {
-    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['maiden', 'scapegoat', 'blacklist', 'shackles', 'ravenous', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'whip', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
-    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['maiden', 'scapegoat', 'blacklist', 'shackles', 'ravenous', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'whip', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
+    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['maiden', 'coin', 'scapegoat', 'blacklist', 'shackles', 'ravenous', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'stake', 'whip', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
+    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['maiden', 'coin', 'scapegoat', 'blacklist', 'shackles', 'ravenous', 'rope', 'skewer', 'revenge', 'muzzle', 'collar', 'hook', 'saw', 'guillotine', 'stake', 'whip', 'tongs', 'dogtag', 'cage', 'scales', 'pestle', 'keys', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
     // The contract challenge, tuned on passing first and then points.
-    challenge: { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'maiden', 'scapegoat', 'shackles', 'ravenous', 'skewer', 'revenge', 'blacklist', 'collar', 'keys', 'cage', 'ironbox', 'muzzle', 'saw', 'whip', 'guillotine', 'hook', 'tongs', 'dogtag', 'fire', 'axe', 'scales', 'pestle', 'shortchain', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
+    challenge: { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'maiden', 'scapegoat', 'coin', 'shackles', 'ravenous', 'skewer', 'revenge', 'blacklist', 'collar', 'keys', 'cage', 'ironbox', 'muzzle', 'saw', 'whip', 'stake', 'guillotine', 'hook', 'tongs', 'dogtag', 'fire', 'axe', 'scales', 'pestle', 'shortchain', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
   };
   const paramsFor = (st) => PROFILES[st.mode === 'challenge' ? 'challenge' : st.params.rewards ? 'rewards' : 'notools'];
 
@@ -164,9 +164,12 @@
       // inmate: a swap comes in above the rarity it replaces, and 2 random
       // inmates go (what they're worth on average).
       scapegoat: has(st, 'scapegoat') && board.length >= 3 ? { loss: (2 * board.reduce((sum, c) => sum + v[c.inmate.tier], 0)) / board.length } : null,
-      // The highest tier worth swapping: higher with the Maiden, and up to
-      // Supreme with the Guillotine (a Supreme's swap comes in Chromatic).
-      swapCap: has(st, 'scapegoat') && board.length >= 3 ? T.SUPREME : has(st, 'maiden') ? Math.max(P.swapMaxTier, P.maidenSwapTier) : P.swapMaxTier,
+      // Burning Stake: a swap from below Legendary may come in Legendary.
+      stake: has(st, 'stake'),
+      // The highest tier worth swapping: higher with the Maiden, up to Rare
+      // with the Burning Stake, and up to Supreme with the Guillotine (a
+      // Supreme's swap comes in Chromatic).
+      swapCap: has(st, 'scapegoat') && board.length >= 3 ? T.SUPREME : Math.max(has(st, 'maiden') ? Math.max(P.swapMaxTier, P.maidenSwapTier) : P.swapMaxTier, has(st, 'stake') ? 2 : 0),
       sealed,
       lift: board.length ? lift : 0,
       shacklesLift: has(st, 'shackles') && board.length ? lift : 0,
@@ -181,16 +184,21 @@
 
   // Tier odds for a swapped-in inmate, after Hangman's Noose, and above the
   // old tier with the Scapegoat's Guillotine (a tier above when the weights
-  // reach no higher; index 5 is Chromatic).
+  // reach no higher; index 5 is Chromatic). The Burning Stake then makes a
+  // swap from below Legendary come in Legendary 40% of the time.
   function swapDist(ctx, oldTier) {
     const w = ctx.st.params.tierWeights.slice();
     if (has(ctx.st, 'rope')) w[0] = w[1] = 0;
+    let dist;
     if (ctx.scapegoat) {
       const higher = w.map((x, t) => (t > oldTier ? x : 0));
-      if (higher.some((x) => x > 0)) return normalize(higher);
-      return [0, 1, 2, 3, 4, 5].map((t) => (t === Math.min(RAINBOW, oldTier + 1) ? 1 : 0));
+      dist = higher.some((x) => x > 0) ? normalize(higher) : [0, 1, 2, 3, 4, 5].map((t) => (t === Math.min(RAINBOW, oldTier + 1) ? 1 : 0));
+    } else dist = normalize(w);
+    if (ctx.stake && oldTier < 3) {
+      dist = dist.map((p) => 0.6 * p);
+      dist[3] += 0.4;
     }
-    return normalize(w);
+    return dist;
   }
 
   // Value from here on for an eater that just reached tier t: its beast

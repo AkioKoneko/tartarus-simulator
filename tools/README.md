@@ -99,6 +99,13 @@ The two-meal chain's challenge profile had a one-round tune (5.2 million runs, 7
 
 The Chinese sim's two-meal food chain (Mammoth also eats Wolf, Lion also eats Rat) was confirmed not to be in the live game on 2026-10-15, so it was removed from the simulator and the lab. The older sections below still show the two-meal numbers measured at the time; their files are in the git history.
 
+### The Burning Stake and Kin's Coin of Fate (2026-10-16)
+
+Measured alone and in pairs on 4 threads (no instrument 0.633):
+
+- **Burning Stake** (the user's screenshots of its card): one destination fewer each morning, and swapping out an inmate below Legendary has a 40% chance to bring in a Legendary. The simulator first had it under this name, then took it for a mistranslation of the Searing Branding Iron; the live game has both. 0.924 alone, 15th of 27: the lost door costs nearly what the Legendaries bring. Holding it, the strategy swaps up to Rare. Best with the Severed Iron Maiden (3.50, +1.24 beyond their parts) and Kin's Coin (2.94).
+- **Kin's Coin of Fate** (report 17): each morning, when two or more inmates share a beast and rarity ("matching", as the user read the game's link), 60% chance that one of them is removed and another like it gains +2 tiers. 1.907 alone, 2nd of 27. Best with Hangman's Noose (3.51) and the Squirming Iron Box (3.46, +1.88 beyond their parts: its nests hatch matching Rare Rats).
+
 ### The Ravenous Chains and the Scapegoat's Guillotine (2026-10-16)
 
 Two more instruments, measured alone and in pairs on 4 threads (no instrument 0.633):

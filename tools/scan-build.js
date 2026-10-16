@@ -51,6 +51,10 @@ const TOOLS = {
   // with a tail, was dropped: it may be the whip, the Ravenous Chains or the
   // Barbed Collar, and as the whip it drew the user's Collar.
   whip: { name: 'Barbed Whip', sim: 'whip', card: ['report-11-barbed-whip-card.png', 440, 160, 120, 118] },
+  // Cards from the user's screenshot and players' reports (2026-10-16).
+  stake: { name: 'Burning Stake', sim: 'stake', card: ['user-burning-stake-card.png', 225, 105, 115, 190] },
+  coin: { name: "Kin's Coin of Fate", sim: 'coin', card: ['report-17-kins-coin-card.png', 210, 180, 195, 195] },
+  scapegoat: { name: "Scapegoat's Guillotine", sim: 'scapegoat', card: ['report-12-scapegoat-card.png', 170, 125, 130, 145] },
   dogtag: { name: "Felon's Dog Tag", sim: 'dogtag', card: null },
 };
 

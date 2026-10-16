@@ -153,6 +153,18 @@
     // Inmates to guarantee that the Inmate's rarity is increased after
     // replacing".
     scapegoat: { name: "Scapegoat's Guillotine", text: 'When a swap has 2 or more other inmates on the block, 2 random ones are removed and the new inmate comes in above the rarity it replaced.' },
+    // The user's screenshots of its card (2026-10-16): "-1 daily destination
+    // option; when an Inmate with rarity lower than Legendary is Replaced,
+    // there is a 40% chance to trigger. Effect: Changes Inmate rarity to
+    // Legendary". A separate instrument from the Searing Branding Iron (id
+    // `fire`, once taken for its mistranslation).
+    stake: { name: 'Burning Stake', text: 'Each morning offers 1 destination fewer. Swapping out an inmate below Legendary has a 40% chance to bring in a Legendary.' },
+    // A player's report (#17, 2026-10-16): "At the start of each day, if there
+    // are matching Inmates on the field, there is a 60% chance to trigger:
+    // Randomly removes 1 matching Inmate, then randomly selects 1 from the
+    // remaining matching Inmates to grant them +2 Rarity Tiers". Matching is
+    // the same beast and rarity (the user, from the game's own link).
+    coin: { name: "Kin's Coin of Fate", text: 'Each morning, when two or more inmates share a beast and rarity, 60% chance that one of them is removed and another like it gains +2 tiers.' },
   };
   const TOOL_IDS = Object.keys(TOOLS);
 
@@ -781,7 +793,7 @@
   // Today's door count, drawn each morning.
   // The Forged Key takes one door off every morning.
   function destinationLimit(state) {
-    return Math.max(1, (state.destBase || state.params.destinations) - (has(state, 'forged') ? 1 : 0) - (has(state, 'whip') ? 1 : 0));
+    return Math.max(1, (state.destBase || state.params.destinations) - (has(state, 'forged') ? 1 : 0) - (has(state, 'whip') ? 1 : 0) - (has(state, 'stake') ? 1 : 0));
   }
 
   // Destinations come from the cells just ahead of the warden, clockwise:
@@ -847,7 +859,29 @@
       }
     }
     if (has(state, 'ravenous')) ravenousChains(state, events);
+    if (has(state, 'coin')) coinOfFate(state, events);
     rollDestinations(state);
+  }
+
+  // Kin's Coin of Fate, each morning: with inmates that share a beast and
+  // rarity on the block, 60% of the time one of them goes and another like
+  // it rises 2 tiers.
+  function coinOfFate(state, events) {
+    const kind = (c) => `${c.inmate.beast}|${c.inmate.tier}`;
+    const board = boardCells(state);
+    const count = {};
+    for (const c of board) count[kind(c)] = (count[kind(c)] || 0) + 1;
+    const matching = board.filter((c) => count[kind(c)] >= 2);
+    if (!matching.length || rand(state) >= 0.6) return;
+    const gone = pickOne(state, matching);
+    const lucky = pickOne(state, matching.filter((c) => c !== gone && kind(c) === kind(gone)));
+    const goneWho = describe(gone.inmate);
+    const luckyWho = describe(lucky.inmate);
+    emptyCell(state, gone);
+    events.push({ type: 'removed', cell: gone.n });
+    checkPrey(state);
+    log(state, 'tool', `Kin's Coin of Fate: the ${goneWho} in cell ${cellLabel(gone.n)} goes, and the ${luckyWho} in cell ${cellLabel(lucky.n)} rises 2 tiers.`, { type: 'coin', removed: gone.n, cell: lucky.n });
+    promote(state, lucky.inmate, 2, false, events);
   }
 
   // Ferocious Beast's Ravenous Chains, each morning: the highest-rarity
@@ -1324,6 +1358,7 @@
     if (!cell || cell.sealed || !cell.inmate) return fail('The warden’s cell has no inmate to swap.');
     if (state.used.devour > 0) return fail('You devoured today, and a day has a devour or a swap, not both. End the day.');
     if (state.used.swap >= state.params.swapsPerDay) return fail('No swaps left today.');
+    if (state.used.noSwap) return fail('Your game offers no Replace today.');
     const weights = state.params.tierWeights.slice();
     if (has(state, 'rope')) weights[0] = weights[1] = 0;
     if (!weights.some((w) => w > 0)) return fail('No rarity is left to roll. Adjust the rarity weights in the Lab.');
@@ -1353,12 +1388,16 @@
     const higher = weights.map((w, t) => (t > old.tier ? w : 0));
     const fresh = rollInmate(state, above && higher.some((w) => w > 0) ? higher : weights);
     if (above && fresh.tier <= old.tier) fresh.tier = Math.min(RAINBOW, old.tier + 1);
+    // Burning Stake: replacing an inmate below Legendary may bring in a
+    // Legendary.
+    const staked = has(state, 'stake') && old.tier < 3 && rand(state) < 0.4 && fresh.tier !== 3;
+    if (staked) fresh.tier = 3;
     if (has(state, 'pestle')) fresh.beast = old.beast;
     cell.inmate = fresh;
     state.used.swap += 1;
     state.stats.swaps += 1;
     logAt(state, at, 'swap', `Swapped out the ${describe(old)} in cell ${cellLabel(n)}. In came a ${describe(fresh)}.`, { type: 'swap', cell: n, old: snap(old), fresh: snap(fresh) });
-    if (state.used.noSwap) return fail('Your game offers no Replace today.');
+    if (staked) log(state, 'tool', `Burning Stake: the ${describe(fresh)} in cell ${cellLabel(n)} came in Legendary.`, { type: 'stake', cell: n });
     // Severed Iron Maiden: as many inmates above the newcomer's rarity as below it.
     if (has(state, 'maiden')) {
       const others = boardInmates(state).filter((i) => i.id !== fresh.id);
@@ -1827,6 +1866,8 @@
       case 'whip': return 8;
       case 'ravenous': return 8;
       case 'scapegoat': return board.length >= 3 ? 10 : 4;
+      case 'stake': return 10;
+      case 'coin': return 10;
       case 'wine': return board.filter((i) => i.tier < 3).length * 4;
       case 'horn': return board.filter((i) => devourOptions(state, cellOf(state, i.id).n).length).length * 6;
       case 'brand': return board.filter((i) => !devourOptions(state, cellOf(state, i.id).n).length).length * 5;

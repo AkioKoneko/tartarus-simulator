@@ -270,6 +270,23 @@
       '<path d="M11 19h26l-2.5 22h-21Z" fill="#9a9eaa" stroke="#5d606c" stroke-width="1.2"/>' +
       '<path d="M11.5 23.5h25" stroke="#c9ccd4" stroke-width="1"/>' +
       '<path d="M17 27c3 1 5 4 3.5 8M27 26c2 2.5 1.5 6 4 9M23 31c.5 2 0 4-1 5.5" stroke="#9b1d22" stroke-width="2" fill="none" stroke-linecap="round"/>'),
+    // Burning Stake: a chained wooden stake over a fire.
+    stake: icon('glow-orange',
+      '<rect x="20" y="4" width="8" height="32" rx="2" fill="#5e3a2c" stroke="#3a2a22" stroke-width="1"/>' +
+      '<path d="M21 9h6M21 15h6M21 21h6" stroke="#3a2a22" stroke-width="1"/>' +
+      '<path d="M19 11l10 4M19 17l10 4M19 23l10 4" stroke="#8d92a8" stroke-width="1.6" stroke-dasharray="2 1"/>' +
+      '<path d="M10 44c-2-6 2-9 4-13 1 3 3 4 4 2 0-4 3-6 5-9 1 4 4 6 5 3 2 3 5 6 4 10 2-1 3-3 3-5 3 4 4 9 2 12Z" fill="#d9581e"/>' +
+      '<path d="M15 44c-1-4 2-6 3-8 1 2 3 2 3 0 2 2 4 3 5 1 1 2 3 4 2 7Z" fill="#f2b23a"/>' +
+      '<path d="M8 45l32-3M10 42l28 3" stroke="#5e3a2c" stroke-width="2.4" stroke-linecap="round"/>'),
+    // Kin's Coin of Fate: a cracked coin, half a frowning face, half smiling.
+    coin: icon('glow-blue',
+      '<circle cx="24" cy="24" r="17" fill="#6b6870" stroke="#3c3a40" stroke-width="2"/>' +
+      '<circle cx="24" cy="24" r="13.5" fill="none" stroke="#9a98a0" stroke-width="1" stroke-dasharray="2 1.6"/>' +
+      '<path d="M24 11.5a12.5 12.5 0 0 0 0 25Z" fill="#3c3a40"/><path d="M24 11.5a12.5 12.5 0 0 1 0 25Z" fill="#c9ccd4"/>' +
+      '<path d="M16.5 20.5l3.5 1M27.5 21.5l3.5-1" stroke="#1d1b20" stroke-width="1.4" stroke-linecap="round"/>' +
+      '<path d="M17 31c1.5-2 3.5-2 5 0" fill="none" stroke="#9a98a0" stroke-width="1.4" stroke-linecap="round"/>' +
+      '<path d="M26.5 29c1.5 2.5 4 2.5 5.5 0" fill="none" stroke="#1d1b20" stroke-width="1.4" stroke-linecap="round"/>' +
+      '<path d="M24 8l-2 6 3 5-3 6 2 5-2 6 2 4" fill="none" stroke="#1d1b20" stroke-width="1.4"/>'),
     // Maddened Beast's Barbed Collar: a blood-red collar ringed with barbs.
     collar: icon('glow-red',
       spikes(24, 24, 14.5, 21.5, 14, 0, '#3a1012') +

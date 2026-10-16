@@ -11,6 +11,12 @@
       "delta": 1.3317
     },
     {
+      "id": "coin",
+      "name": "Kin's Coin of Fate",
+      "value": 1.9101,
+      "delta": 1.2831
+    },
+    {
       "id": "scapegoat",
       "name": "Scapegoat's Guillotine",
       "value": 1.8061,
@@ -81,6 +87,12 @@
       "name": "Fanged Guillotine",
       "value": 0.9424,
       "delta": 0.3154
+    },
+    {
+      "id": "stake",
+      "name": "Burning Stake",
+      "value": 0.9169,
+      "delta": 0.2899
     },
     {
       "id": "whip",
@@ -1568,6 +1580,8 @@
   },
   "toolsAdded": [
     "ravenous",
-    "scapegoat"
+    "scapegoat",
+    "stake",
+    "coin"
   ]
 }
