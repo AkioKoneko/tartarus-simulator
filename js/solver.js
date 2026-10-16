@@ -40,6 +40,7 @@
     rerollMargin: 0.02, // a pet's re-roll: only when a new offer's best averages this much more (Rainbows per run)
     wStair: 0, // keeping a spread of beasts at each tier, so chains can go on
     minDevour: 0, // skip devours worth less than this (-1e9: never skip)
+    stopMargin: 0, // stop a consume chain (the game's Cancel) when its best next meal is worth less than this (-1e9: never stop)
     swapMaxTier: 0, // swap the warden's inmate only at or below this tier
     swapMargin: 0, // a day has a swap or a devour: swap only when it beats the best devour by this much
     maidenSwapTier: 3, // holding the Severed Iron Maiden, swap up to this tier (Legendary measured best)
@@ -185,6 +186,8 @@
       openDist,
       openValue: openDist.reduce((sum, p, t) => sum + p * v[t], 0),
       need: contractNeed(st, P),
+      // The game's Cancel: a chain can stop after any bite.
+      chainStop: T.canStopChain ? T.canStopChain(st) : false,
       memo: new Map(),
     };
   }
@@ -231,9 +234,9 @@
     return sum / 4;
   }
 
-  // An eater of beast b at tier t must take a meal while it has one, and the
-  // player picks which: the best one. With none, the chain ends and it keeps
-  // its tier.
+  // An eater of beast b at tier t takes the best meal it has. With none, the
+  // chain ends and it keeps its tier, and with the game's Cancel it also
+  // stops when no meal is worth eating (stopMargin).
   function feed(ctx, t, b, comp, crowd) {
     let key = `${t}${b}${ctx.muzzle ? `m${crowd}` : ''}`;
     for (let i = t * 4; i < 20; i++) key += String.fromCharCode(48 + comp[i]);
@@ -246,7 +249,7 @@
       out = Math.max(out, bite(ctx, t, b, comp, crowd, 0, true));
       comp[t * 4 + f] += 1;
     }
-    if (out === -Infinity) out = ctx.v[t];
+    if (out === -Infinity || (ctx.chainStop && out - ctx.v[t] < ctx.P.stopMargin)) out = ctx.v[t];
     ctx.memo.set(key, out);
     return out;
   }
@@ -1043,9 +1046,11 @@
       if (plan) return { type: 'deliver', cells: plan.cells, vaultIds: plan.vaultIds, escort: plan.escort };
       return st.challenge.window.early ? { type: 'close' } : { type: 'skip' };
     }
-    // A chain waiting for a pick takes the meal worth the most.
+    // A chain waiting for a pick takes the meal worth the most, or stops
+    // (the game's Cancel) when none is worth eating.
     if (st.chaining) {
       const options = devourScores(st, ctx);
+      if (ctx.chainStop && (!options.length || options[0].score < P.stopMargin)) return { type: 'stopchain' };
       return options.length ? { type: 'chain', to: options[0].cell } : { type: 'end' };
     }
     if (st.phase === 'office') {
@@ -1093,6 +1098,7 @@
       case 'patrol': return T.patrol(st, action.cell);
       case 'devour': return T.devour(st, st.position, action.to);
       case 'chain': return T.chainBite(st, action.to);
+      case 'stopchain': return T.stopChain(st);
       case 'office': return T.officeAct(st, action.choice);
       case 'swap': return T.swap(st, st.position);
       case 'end': return T.endDay(st);
@@ -1166,6 +1172,7 @@
         const meal = o.scratch ? 'the scratched door' : `the ${T.describe(target.inmate)}`;
         out.push({ action: { type: 'chain', to: o.cell }, label: `Chain on: eat ${meal} in ${T.cellLabel(o.cell)}` });
       }
+      if (T.canStopChain && T.canStopChain(st)) out.push({ action: { type: 'stopchain' }, label: 'Stop the chain (Cancel)' });
       return out;
     }
     if (st.phase === 'office') {
@@ -1375,8 +1382,10 @@
       }
       case 'chain': {
         const odds = chainOdds(st, st.position, action.to);
-        return `The best next meal: from here the chain averages ${odds.bites.toFixed(1)} more bites, with ${(100 * odds.rainbow).toFixed(0)}% to reach Rainbow.`;
+        return `The best next meal: going on with the best meal each time, the chain averages ${odds.bites.toFixed(1)} more bites, with ${(100 * odds.rainbow).toFixed(0)}% to reach Rainbow.`;
       }
+      case 'stopchain':
+        return 'No meal left is worth eating: each would cost more than it gains, so press Cancel and keep them on the block.';
       case 'office':
         return action.choice === 'bestow' ? 'A random inmate rises a tier now, which beats a couple of new event doors.' : 'The block is thin, so new event doors are worth more than raising it.';
       case 'swap': {
@@ -1525,7 +1534,8 @@
       const n = before.chaining.bites.length;
       const done = [...after.log].reverse().find((e) => e.x && e.x.type === 'devour');
       const bites = after.chaining ? after.chaining.bites : done ? done.x.bites : null;
-      return bites && bites[n] ? { type: 'chain', to: bites[n].cell } : null;
+      if (bites && bites[n]) return { type: 'chain', to: bites[n].cell };
+      return !after.chaining && after.phase !== 'ended' ? { type: 'stopchain' } : null;
     }
     if (before.phase === 'patrol') return after.stats.patrols > before.stats.patrols ? { type: 'patrol', cell: after.position } : null;
     if (after.used.devour > before.used.devour) {

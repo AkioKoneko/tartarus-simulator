@@ -280,7 +280,7 @@
     const st = ui.state;
     if (!st || blocked(st) || st.phase !== 'manage') return;
     const warnings = [];
-    if (devoursAvailable(st)) warnings.push('You haven’t used today’s devour yet.');
+    if (devoursAvailable(st)) warnings.push('You haven’t used today’s consume yet.');
     const due = T.currentContract(st);
     const deliveryDay = due && due.deadline === st.day;
     const last = st.mode === 'drill' && st.day >= st.maxDays;
@@ -566,7 +566,16 @@
     if (st.chaining && !(ui.pending && ui.pending.kind === 'chain')) {
       const eater = st.cells[st.position].inmate;
       const count = T.chainOptions(st).length;
-      setDecision('Devour chain: pick the next meal', `The ${T.describe(eater)} in cell ${L(st.position)} must keep eating, and it has ${count} meals to choose from. Click one on the board to preview the bite, or double-click to take it. The chain ends when it has nothing left to eat.`, [], true);
+      const stop = !!T.canStopChain && T.canStopChain(st);
+      const pick = `Click ${count > 1 ? 'one' : 'it'} on the board to preview the bite, or double-click to take it.`;
+      setDecision(
+        'Consume chain: pick the next meal',
+        stop
+          ? `The ${T.describe(eater)} in cell ${L(st.position)} has ${T.plural(count, 'meal')} to eat. ${pick} Or stop the chain here, as the game's Cancel does: the eater keeps what it gained, and its meals stay on the block.`
+          : `The ${T.describe(eater)} in cell ${L(st.position)} must keep eating, and it has ${count} meals to choose from. ${pick} The chain ends when it has nothing left to eat.`,
+        stop ? [['Stop the chain', () => run((s) => T.stopChain(s), { select: st.position })]] : [],
+        true,
+      );
       return;
     }
     if (ui.pending) {
@@ -579,7 +588,7 @@
     }
     if (st.phase === 'patrol') {
       const options = T.patrolOptions(st);
-      const parts = [`The warden stands ${wardenAt(st)}. Pick one of the ${T.plural(options.length, 'cell')} below, or double-click a glowing cell on the ring. Whichever inmate the warden ends up with makes today's devour.`];
+      const parts = [`The warden stands ${wardenAt(st)}. Pick one of the ${T.plural(options.length, 'cell')} below, or double-click a glowing cell on the ring. Whichever inmate the warden ends up with makes today's consume.`];
       if (st.chain) parts.push('Chain reaction armed: every sealed door on the clockwise walk opens.');
       setDecision('Patrol: select a destination', parts.join(' '), []);
       return;
@@ -589,11 +598,11 @@
     const warden = st.cells[st.position];
     let lead;
     // A day has a devour or a swap, not both.
-    if (st.used.swap > 0) lead = `You swapped today, so there is no devour: a day has a swap or a devour, not both. ${canSwapNow(st) ? 'Swap again or end' : 'End'} the day.`;
-    else if (!T.canDevourNow(st)) lead = 'Today’s devour is used, and with it the swap: a day has one or the other. End the day.';
-    else if (st.position === T.OFFICE) lead = 'The warden is in the office, so there is no devour today. Swap or end the day.';
-    else if (!warden.inmate || warden.sealed) lead = `The warden's cell (${L(st.position)}) is empty, so there is no devour today. Swap or end the day.`;
-    else if (devours) lead = `The ${T.describe(warden.inmate)} in the warden's cell (${L(st.position)}) can make today's devour. Select it to see its ${T.plural(devours, 'target')}, or double-click a target to devour it. It then must keep eating while it can: a single meal is taken at once, and you pick when there's a choice.`;
+    if (st.used.swap > 0) lead = `You swapped today, so there is no consume: a day has a swap or a consume, not both. ${canSwapNow(st) ? 'Swap again or end' : 'End'} the day.`;
+    else if (!T.canDevourNow(st)) lead = 'Today’s consume is used, and with it the swap: a day has one or the other. End the day.';
+    else if (st.position === T.OFFICE) lead = 'The warden is in the office, so there is no consume today. Swap or end the day.';
+    else if (!warden.inmate || warden.sealed) lead = `The warden's cell (${L(st.position)}) is empty, so there is no consume today. Swap or end the day.`;
+    else if (devours) lead = `The ${T.describe(warden.inmate)} in the warden's cell (${L(st.position)}) can make today's consume. Select it to see its ${T.plural(devours, 'target')}, or double-click a target to consume it. ${T.canStopChain && T.canStopChain(st) ? 'It then goes on eating: you pick each next meal, or stop the chain, as the game’s Cancel does.' : 'It then must keep eating while it can: a single meal is taken at once, and you pick when there’s a choice.'}`;
     else lead = `The ${T.describe(warden.inmate)} in the warden's cell (${L(st.position)}) has no target today. Swap or end the day.`;
     const parts = [lead];
     if (due && due.deadline === st.day) parts.push(`"${due.name}" is due: ending the day opens its delivery window.`);
@@ -662,7 +671,7 @@
         parts.push(`Chain reaction: the walk from cell ${L(st.position)} opens ${T.plural(opens, 'sealed door')}, including this one.`);
       } else if (!c.sealed && c.inmate) {
         const count = T.devourOptions(st, p.cell).length;
-        parts.push(`The warden walks to the ${T.describe(c.inmate)} in cell ${L(p.cell)}. It then makes today's devour${count ? ` (${T.plural(count, 'target')} from there)` : ', but it has no target from there'}.`);
+        parts.push(`The warden walks to the ${T.describe(c.inmate)} in cell ${L(p.cell)}. It then makes today's consume${count ? ` (${T.plural(count, 'target')} from there)` : ', but it has no target from there'}.`);
       } else if (p.cell === T.OFFICE) parts.push(`The warden's office: there you choose Instigate (${T.INSTIGATE_EVENTS} new special events behind locked doors) or Bestow (1 random inmate rises a tier).`);
       else if (!c.sealed) parts.push('An empty cell: the warden walks there.');
       else if (c.nest) parts.push(`This destroys the rat nest due on day ${c.nest.due}.`);
@@ -693,15 +702,15 @@
       const meal = target.sealed ? `the ${T.tierName(target.hidden.tier)} inmate behind the scratched door` : `the ${T.describe(target.inmate)}`;
       const extras = [];
       if (notes.length) extras.push(`Bonus: ${notes.join(', ')}.`);
-      extras.push(`This is today’s devour${canSwapNow(st) ? ', and it uses up today’s swap' : ''}. Afterwards the eater must keep eating while it can: a single meal is taken at once, and you pick when there’s a choice. Click the target again to devour.`);
+      extras.push(`This is today’s consume${canSwapNow(st) ? ', and it uses up today’s swap' : ''}. ${T.canStopChain && T.canStopChain(st) ? 'Afterwards the eater goes on eating: you pick each next meal, or stop the chain, as the game’s Cancel does.' : 'Afterwards the eater must keep eating while it can: a single meal is taken at once, and you pick when there’s a choice.'} Click the target again to consume.`);
       if (saw) extras.push('Rusty Saw may add +1.');
       if (st.tools.includes('whip')) extras.push('Barbed Whip: 35% chance of +1.');
       if (st.tools.includes('collar')) extras.push('Barbed Collar: each bite after this one has an 80% chance of +1.');
       if (revenge) extras.push("Avenger's Casket may open a new meal.");
       if (T.linkOf(st, eater.id) && to < T.RAINBOW) extras.push('If its beast changes, its prey mark ends.');
       const outcome = to === T.RAINBOW ? 'reaches Rainbow and leaves for the vault' : `rises to ${T.tierName(to)}, then its beast re-rolls`;
-      setDecision(`Devour, +${gain}?`, `The ${T.describe(eater)} in cell ${L(p.from)} eats ${meal} in cell ${L(p.to)}. It ${outcome}. ${extras.join(' ')}`.trim(), [
-        ['Devour', () => run((s) => T.devour(s, p.from, p.to)), 'primary'],
+      setDecision(`Consume, +${gain}?`, `The ${T.describe(eater)} in cell ${L(p.from)} eats ${meal} in cell ${L(p.to)}. It ${outcome}. ${extras.join(' ')}`.trim(), [
+        ['Consume', () => run((s) => T.devour(s, p.from, p.to)), 'primary'],
         ['Cancel', back],
       ], true);
       return;
@@ -726,6 +735,7 @@
       const outcome = to === T.RAINBOW ? 'reaches Rainbow and leaves for the vault' : `rises to ${T.tierName(to)}, then its beast re-rolls`;
       setDecision(`Next bite, +${gain}?`, `The ${T.describe(eater)} eats ${meal} in cell ${L(p.to)}. It ${outcome}. ${extras.join(' ')}`.trim(), [
         ['Eat it', () => run((s) => T.chainBite(s, p.to), { select: st.position }), 'primary'],
+        ...(T.canStopChain && T.canStopChain(st) ? [['Stop the chain', () => run((s) => T.stopChain(s), { select: st.position })]] : []),
         ['Back', back],
       ], true);
       return;
@@ -741,7 +751,7 @@
       if (st.tools.includes('rope')) parts.push("Hangman's Noose: never Normal or Magic.");
       if (st.tools.includes('axe')) parts.push(`Gaoler's Execution Axe: if it comes out above ${T.tierName(cell.inmate.tier)}, 2 random sealed cells open.`);
       if (cell.ivory) parts.push(`Tusk cell: ${T.plural(st.params.ivoryCount, 'inmate')} then gain a tier.`);
-      if (T.canDevourNow(st)) parts.push('It uses up today’s devour: a day has a swap or a devour, not both.');
+      if (T.canDevourNow(st)) parts.push('It uses up today’s consume: a day has a swap or a consume, not both.');
       setDecision(`Swap cell ${L(p.cell)}?`, parts.join(' '), [
         ['Swap', () => run((s) => T.swap(s, p.cell)), 'primary'],
         ['Cancel', back],
@@ -771,7 +781,7 @@
       else if (cell.known === 2) parts.push(`A ${T.describe(cell.hidden)} waits inside.`);
       else if (cell.known === 1) parts.push(`A ${T.tierName(cell.hidden.tier)} inmate waits inside. Its beast is unknown.`);
       else parts.push('The occupant is unknown.');
-      if (cell.scratch) parts.push(`A ${T.tierName(cell.hidden.tier)} Wolf can devour it through the scratched door.`);
+      if (cell.scratch) parts.push(`A ${T.tierName(cell.hidden.tier)} Wolf can consume it through the scratched door.`);
       if (cell.event && cell.seen) parts.push('A special event waits behind this door. It triggers only when a patrol opens it.');
       if (free && st.phase === 'patrol' && !st.destinations.includes(cell.n)) parts.push('It is not one of today’s destinations.');
       actions.push(['Deselect', cancel]);
@@ -787,13 +797,13 @@
     const eats = T.eatsOf(st, inmate.beast, inmate.tier).map(T.beastName);
     if (inmate.beast === 'rat' && st.tools.includes('skewer')) eats.push('Rat');
     const parts = [`Eats ${eats.join(' and ')} of the same rarity.`];
-    if (inmate.beast === 'wolf') parts.push('Can also devour through scratched doors.');
-    if (st.phase === 'patrol') parts.push('Patrol first. Then the inmate in the warden’s cell can devour.');
+    if (inmate.beast === 'wolf') parts.push('Can also consume through scratched doors.');
+    if (st.phase === 'patrol') parts.push('Patrol first. Then the inmate in the warden’s cell can consume.');
     else if (st.phase === 'manage') {
       const options = T.devourOptions(st, cell.n);
-      if (cell.n !== st.position) parts.push(`Only the inmate in the warden's cell (${L(st.position)}) can start today's devour.`);
-      else if (!T.canDevourNow(st)) parts.push(st.used.swap > 0 ? 'You swapped today, so there is no devour: a day has one or the other.' : 'Today’s devour is used.');
-      else parts.push(options.length ? `It stands in the warden's cell: ${T.plural(options.length, 'target')} highlighted. Double-click one to devour it, or click once to preview the bite.` : 'It stands in the warden’s cell but has no target right now.');
+      if (cell.n !== st.position) parts.push(`Only the inmate in the warden's cell (${L(st.position)}) can start today's consume.`);
+      else if (!T.canDevourNow(st)) parts.push(st.used.swap > 0 ? 'You swapped today, so there is no consume: a day has one or the other.' : 'Today’s consume is used.');
+      else parts.push(options.length ? `It stands in the warden's cell: ${T.plural(options.length, 'target')} highlighted. Double-click one to consume it, or click once to preview the bite.` : 'It stands in the warden’s cell but has no target right now.');
     }
     if (cell.ivory) parts.push(`Tusk cell: swapping here raises ${T.plural(st.params.ivoryCount, 'inmate')} a tier.`);
     const link = T.linkOf(st, inmate.id);
@@ -835,7 +845,7 @@
     const canSwap = free && st.phase === 'manage' && left > 0 && !here.sealed && !!here.inmate;
     swapBtn.textContent = `Swap (${left})`;
     swapBtn.disabled = !canSwap;
-    swapBtn.title = canSwap ? `Swap the inmate in the warden's cell (${L(st.position)}).${T.canDevourNow(st) ? " It uses up today's devour." : ''}` : st.used.devour > 0 ? 'You devoured today: a day has a devour or a swap, not both.' : "Only the inmate in the warden's cell can be swapped, after the patrol.";
+    swapBtn.title = canSwap ? `Swap the inmate in the warden's cell (${L(st.position)}).${T.canDevourNow(st) ? " It uses up today's consume." : ''}` : st.used.devour > 0 ? 'You consumed today: a day has a consume or a swap, not both.' : "Only the inmate in the warden's cell can be swapped, after the patrol.";
 
     const deliverBtn = $('btn-deliver');
     deliverBtn.hidden = st.mode !== 'challenge';
@@ -940,7 +950,7 @@
       else if (x.type === 'execution') {
         const took = x.victims.length ? `<span class="fang">${FANGS}<b>×${x.victims.length}</b></span>${x.victims.map((v) => tok(v, { eaten: true })).join('')}` : '<span class="recap-note">no one</span>';
         out.push(item('Execution', `${tok(x.who, { cell: x.cell })}${took}`, 'is-devour'));
-      } else if (x.type === 'devour') out.push(item(x.bites.length > 1 ? `Chain ×${x.bites.length}` : 'Devour', chainStrip(x), 'is-devour'));
+      } else if (x.type === 'devour') out.push(item(x.bites.length > 1 ? `Chain ×${x.bites.length}` : 'Consume', chainStrip(x), 'is-devour'));
       else if (x.type === 'swap') out.push(item(`Swap ${L(x.cell)}`, `${tok(x.old, { cell: x.cell, eaten: true })}<span class="then">›</span>${tok(x.fresh, { cell: x.cell })}`));
       else if (x.type === 'rainbow') out.push(item('Rainbow', tok(x.who), 'is-rainbow'));
       else if (x.type === 'tool') out.push(item('Tool', `<span class="recap-note">${esc(T.toolName(x.id))}</span>`));
@@ -1055,9 +1065,11 @@
       case 'patrol':
         return ['Go', () => run((s) => T.patrol(s, tip.cell), { select: tip.cell })];
       case 'devour':
-        return ['Devour', () => run((s) => T.devour(s, tip.from, tip.to), { select: tip.from })];
+        return ['Consume', () => run((s) => T.devour(s, tip.from, tip.to), { select: tip.from })];
       case 'chain':
         return ['Eat', () => run((s) => T.chainBite(s, tip.to), { select: tip.from })];
+      case 'stopchain':
+        return ['Stop', () => run((s) => T.stopChain(s), { select: tip.from })];
       case 'office':
         return [tip.choice === 'bestow' ? 'Bestow' : 'Instigate', () => run((s) => T.officeAct(s, tip.choice))];
       case 'swap':
@@ -1115,8 +1127,8 @@
   // its numbers; otherwise they give the advice without numbers.
   const LESSONS = {
     patrol: 'Training: opening doors and walking further vaulted more Rainbows than walking to an inmate with nothing to eat.',
-    devour: 'Training: devour every day you can, unless it breaks a prey mark. Waiting for a bigger chain cost Rainbows.',
-    swap: 'Training: swap a low-tier inmate in the warden’s cell when no devour there is worth more, since a day has one or the other. Never swapping cost Rainbows.',
+    devour: 'Training: consume every day you can, unless it breaks a prey mark. Waiting for a bigger chain cost Rainbows.',
+    swap: 'Training: swap a low-tier inmate in the warden’s cell when no consume there is worth more, since a day has one or the other. Never swapping cost Rainbows.',
     end: 'Training: end the day once nothing here gains.',
     early: 'Contracts: the heavy contract is needed to pass, and delivering it early ends the run.',
     chain: 'Training: accepting Chain reactions vaulted more Rainbows than skipping them.',
@@ -1129,7 +1141,7 @@
     usurp1: 'Usurpation I raises an inmate for free, and brings Usurpation II: accept it.',
     usurp2: 'Usurpation II raises two inmates for free: accept it.',
     office: 'At the office, Bestow when a raise helps now, and Instigate when the block needs new doors with events.',
-    chainPick: 'A chain must go on while it can, but you pick each meal: take the one that keeps the chain fed at the next tier.',
+    chainPick: 'You pick each meal of a chain, or stop it with Cancel: take the meal that keeps the chain fed at the next tier, and stop only when every meal would cost more than it gains.',
     gift: 'Training: picking the gift that fits the board beat always taking the same one.',
     window: 'Contracts: on the first two, send inmates you can spare by light escort, and keep 3 vouchers for the heavy contract. Sending the most points every time passed far less often.',
     heavy: 'Contracts: the heavy contract ends the run, so it takes the most points your vouchers can escort.',
@@ -1164,12 +1176,12 @@
     if (st.chaining) return LESSONS.chainPick;
     if (st.phase === 'patrol') return action && action.type === 'early' ? LESSONS.early : LESSONS.patrol;
     if (!action) return '';
-    if (action.type === 'devour') return (vs('wait2', 'Training: devour every day you can, unless it breaks a prey mark. Waiting for a bigger chain cost Rainbows') || LESSONS.devour) + (g ? '.' : '');
+    if (action.type === 'devour') return (vs('wait2', 'Training: consume every day you can, unless it breaks a prey mark. Waiting for a bigger chain cost Rainbows') || LESSONS.devour) + (g ? '.' : '');
     if (action.type === 'swap') {
       // "The most" only while the guide's data still has never swapping as
       // the costliest habit.
       const worst = g ? g.habits.filter((h) => h.id !== 'simple' && h.id !== 'random').sort((a, b) => a.value - b.value)[0] : null;
-      const text = `Training: swap a low-tier inmate in the warden’s cell when no devour there is worth more, since a day has one or the other. Never swapping cost ${worst && worst.id === 'neverSwap' ? 'the most' : 'Rainbows'}`;
+      const text = `Training: swap a low-tier inmate in the warden’s cell when no consume there is worth more, since a day has one or the other. Never swapping cost ${worst && worst.id === 'neverSwap' ? 'the most' : 'Rainbows'}`;
       return (vs('neverSwap', text) || LESSONS.swap) + (g ? '.' : '');
     }
     return LESSONS[action.type] || '';
@@ -1293,7 +1305,7 @@
     const st = ui.state;
     if (!action || !st) return;
     if (action.type === 'patrol') run((s) => window.TartarusSolver.apply(s, action), { select: action.cell });
-    else if (action.type === 'devour' || action.type === 'chain' || action.type === 'swap') run((s) => window.TartarusSolver.apply(s, action), { select: st.position });
+    else if (action.type === 'devour' || action.type === 'chain' || action.type === 'stopchain' || action.type === 'swap') run((s) => window.TartarusSolver.apply(s, action), { select: st.position });
     else if (action.type === 'end') run((s) => T.endDay(s), { select: null });
     // A convoy opens the delivery window with it loaded, to check before sending.
     else if (action.type === 'deliver') openDeliver({ cells: action.cells, vaultIds: action.vaultIds, escort: action.escort });
@@ -1999,7 +2011,7 @@
         ['Vouchers left', res.vouchers],
         ['Rainbows', st.cache],
         ['Best rarity', T.tierName(r.best), true],
-        ['Devours', r.stats.devours],
+        ['Consumes', r.stats.devours],
       ]);
       $('results-contracts').innerHTML = `<div class="table-scroll"><table class="score-table"><thead><tr><th>Contract</th><th>Day</th><th>Result</th><th>Points</th></tr></thead><tbody>${ch.deliveries
         .map((d, i) => `<tr><td>${esc(ch.contracts[i].name)}</td><td>${d.day}</td><td>${d.success ? `${d.early ? 'Delivered early' : 'Delivered'}, ${escortName(d.escort)}` : 'Missed'}</td><td>${d.points}</td></tr>`)
@@ -2013,7 +2025,7 @@
         ['Best rarity', T.tierName(r.best), true],
         ['Inmates', r.roster.rows.length],
         ['Patrols', r.stats.patrols],
-        ['Devours', r.stats.devours],
+        ['Consumes', r.stats.devours],
         ['Swaps', r.stats.swaps],
         ['Executions', r.stats.executions],
       ]);
@@ -2042,7 +2054,7 @@
       const rows = r.roster.rows.filter((x) => x.tier === t);
       if (rows.length) lines.push(`${T.TIERS[t]} ×${rows.length}: ${rows.map((x) => T.beastName(x.beast)).join(', ')}`);
     }
-    lines.push(`Moves: ${r.stats.patrols} patrols, ${r.stats.devours} devours, ${r.stats.swaps} swaps, ${r.stats.executions} executions`);
+    lines.push(`Moves: ${r.stats.patrols} patrols, ${r.stats.devours} consumes, ${r.stats.swaps} swaps, ${r.stats.executions} executions`);
     return lines.join('\n');
   }
 

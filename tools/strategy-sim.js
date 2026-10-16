@@ -31,7 +31,7 @@ const S = require('../js/solver.js');
 function emptyStats() {
   return {
     games: 0, rainbows: 0, rainbowsSq: 0, dist: [0, 0, 0, 0, 0, 0],
-    devours: 0, bites: 0, chainHist: [0, 0, 0, 0, 0, 0, 0],
+    devours: 0, bites: 0, stops: 0, chainHist: [0, 0, 0, 0, 0, 0, 0],
     fromChain: 0, fromDevour: 0, fromOther: 0, bestTier: [0, 0, 0, 0, 0, 0],
     swaps: 0, executions: 0, opened: 0, firstDay: 0, firstCount: 0,
     stairs: {}, crashes: 0, crash: null,
@@ -55,11 +55,18 @@ function merge(a, b) {
   return a;
 }
 
+// A chain's next meal, at random: the baselines never stop a chain.
+function mealPick(st, random) {
+  const meals = T.chainOptions(st);
+  return meals.length ? { type: 'chain', to: meals[Math.floor(random() * meals.length)].cell } : { type: 'stopchain' };
+}
+
 // Simple strategies to compare against.
 const BASELINES = {
   // Random legal moves: any destination, any target, swap half the time.
   random(st, random) {
     if (st.pending.length) return { type: 'choose', id: st.pending[0].options[Math.floor(random() * st.pending[0].options.length)] };
+    if (st.chaining) return mealPick(st, random);
     if (st.phase === 'event') return { type: 'event', accept: random() < 0.5 };
     if (st.phase === 'patrol') return { type: 'patrol', cell: st.destinations[Math.floor(random() * st.destinations.length)] };
     const options = T.startOptions(st);
@@ -72,6 +79,7 @@ const BASELINES = {
   // Normals, walk to an inmate that can eat, otherwise open a door.
   simple(st, random) {
     if (st.pending.length) return { type: 'choose', id: st.pending[0].options[0] };
+    if (st.chaining) return mealPick(st, random);
     if (st.phase === 'event') return { type: 'event', accept: true };
     if (st.phase === 'patrol') {
       const hungry = st.destinations.find((n) => !st.cells[n].sealed && st.cells[n].inmate && T.devourOptions(st, n).length);
@@ -121,20 +129,24 @@ function playGames(job) {
     const random = S.rng32(i * 2654435761 + 7);
     const decide = job.policy === 'solver' ? (s) => S.decide(s, job.params, random) : (s) => BASELINES[job.policy](s, random);
     let firstDay = 0;
+    // Today's consume, counted when its chain ends: each bite waits for a
+    // pick (or the game's Cancel).
+    let consume = null;
     // A game that throws is left out and reported (the first one in full),
     // so one bad state can't end a long run.
     try {
       for (let guard = 0; st.phase !== 'ended' && guard < 2000; guard++) {
         const action = decide(st);
         const vaultBefore = st.vault.length;
-        const key = job.stairs && action.type === 'devour' ? stairKey(st, st.position) : null;
+        if (action.type === 'devour') consume = { vault: vaultBefore, key: job.stairs ? stairKey(st, st.position) : null };
         const result = S.apply(st, action);
         if (!result.ok) {
           if (!S.apply(st, { type: 'end' }).ok) break;
           continue;
         }
         const gained = st.vault.length - vaultBefore;
-        if (action.type === 'devour') {
+        const eating = action.type === 'devour' || action.type === 'chain' || action.type === 'stopchain';
+        if (eating && consume && !st.chaining) {
           let bites = 1;
           for (let k = st.log.length - 1; k >= 0; k--) {
             const x = st.log[k].x;
@@ -143,17 +155,20 @@ function playGames(job) {
               break;
             }
           }
+          const won = st.vault.length - consume.vault;
           stats.devours += 1;
           stats.bites += bites;
           stats.chainHist[Math.min(6, bites)] += 1;
-          if (gained) stats[bites > 1 ? 'fromChain' : 'fromDevour'] += gained;
-          if (key) {
-            const t = stats.stairs[key] || (stats.stairs[key] = { n: 0, rainbow: 0, bites: 0 });
+          if (won) stats[bites > 1 ? 'fromChain' : 'fromDevour'] += won;
+          if (consume.key) {
+            const t = stats.stairs[consume.key] || (stats.stairs[consume.key] = { n: 0, rainbow: 0, bites: 0 });
             t.n += 1;
             t.bites += bites;
-            if (gained) t.rainbow += 1;
+            if (won) t.rainbow += 1;
           }
-        } else if (gained) stats.fromOther += gained;
+          if (action.type === 'stopchain') stats.stops += 1;
+          consume = null;
+        } else if (gained && !eating) stats.fromOther += gained;
         if (gained && !firstDay) firstDay = st.day;
       }
     } catch (e) {
@@ -430,6 +445,7 @@ function describe(s) {
     rainbowCounts: s.dist.map((n) => +(n / s.games).toFixed(4)),
     devoursPerRun: +(s.devours / s.games).toFixed(2),
     bitesPerDevour: +(s.bites / Math.max(1, s.devours)).toFixed(3),
+    chainStopsPerRun: +((s.stops || 0) / Math.max(1, s.games)).toFixed(3),
     chainLengths: s.chainHist.slice(1).map((n) => +(n / Math.max(1, s.devours)).toFixed(4)),
     rainbowSources: { chain: s.fromChain, singleDevour: s.fromDevour, other: s.fromOther },
     firstRainbowDay: s.firstCount ? +(s.firstDay / s.firstCount).toFixed(2) : null,

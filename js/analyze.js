@@ -47,7 +47,7 @@
   const PLAYOUT_BUDGET = 9600; // playouts per check, shared across the options
   const LIVE_MIN = 150; // playouts per option before the live check can lead
   const STEPS = ['patrol', 'manage', 'office', 'chain', 'event', 'choice', 'window'];
-  const STEP_NAMES = { patrol: 'Which door to patrol', manage: 'After the patrol', office: 'Instigate or Bestow', chain: 'A meal to pick', event: 'A special event', choice: 'A tool or gift', window: 'A delivery' };
+  const STEP_NAMES = { patrol: 'Which door to patrol', manage: 'After the patrol', office: 'Instigate or Bestow', chain: 'A meal to pick, or Cancel', event: 'A special event', choice: 'A tool or gift', window: 'A delivery' };
   const BEAST_KEYS = { m: 'mammoth', l: 'lion', w: 'wolf', r: 'rat' };
   const TOP_TIER = T.SUPREME; // Rainbows leave for the vault, so cells hold Normal to Supreme
 
@@ -309,8 +309,8 @@
         break;
       }
       case 'chain': {
-        // The warden's inmate has eaten and must eat again; the game asks
-        // which meal when there's more than one.
+        // The warden's inmate has eaten and has a meal again: the game asks
+        // which to eat, even with only one, and its Cancel stops the chain.
         usedToday();
         st.used.devour = 1;
         const here = st.cells[st.position];
@@ -319,7 +319,7 @@
           break;
         }
         st.chaining = { eater: here.inmate.id, at: 0, bites: [] };
-        if (T.chainOptions(st).length < 2) problems.push("Your game asks for a meal only when the chaining inmate has 2 or more to choose from. Check the board: it can't find 2 meals for it.");
+        if (!T.chainOptions(st).length) problems.push("Your game asks for a meal only when the chaining inmate has one to eat. Check the board: it can't find a meal for it.");
         break;
       }
       case 'office': {
@@ -1090,7 +1090,7 @@
       if (rec.option) body += `<p class="trainer-why">${esc(expectText(goal, rec.option, st))}</p>`;
       if (rec.action.type === 'devour') {
         const odds = S.chainOdds(st, st.position, rec.action.to);
-        body += `<p class="trainer-lesson">After this first bite the chain runs by itself: ${odds.bites.toFixed(1)} bites on average, ${(100 * odds.rainbow).toFixed(0)}% to reach Rainbow.</p>`;
+        body += `<p class="trainer-lesson">If the chain then goes on with the best meal at each bite: ${odds.bites.toFixed(1)} bites on average, ${(100 * odds.rainbow).toFixed(0)}% to reach Rainbow. Your game's Cancel can stop it at any bite.</p>`;
       }
       body += `<p class="trainer-lesson">${esc(afterText(rec.action))}</p>`;
     }
@@ -1173,6 +1173,8 @@
     switch (action.type) {
       case 'patrol': return 'In your game, walk there. Then set the cell to what the door reveals (or press Do it here and fix it), and ask again.';
       case 'devour': return 'In your game, start the consume on that target. Then update the cells the chain changed, and ask again.';
+      case 'chain': return 'In your game, pick that meal. Then paste the next screen, or update the cells that changed, and ask again.';
+      case 'stopchain': return 'In your game, press Cancel on the meal screen. Today’s consume is used, so the day ends next.';
       case 'swap': return 'In your game, swap the warden’s inmate. Then set the warden’s cell to what came in, and ask again.';
       case 'end': return 'In your game, end the day. Then mark the new day’s doors, and ask again.';
       case 'event': return 'Then update what changed, and ask again.';
@@ -2049,7 +2051,7 @@
       const nests = m.cells.filter((c) => c.kind === 'nest').length;
       list.push(`<li><b>Board</b> ${T.plural(inmates, 'inmate')}, ${T.plural(locked, 'locked cell')}${events ? `, ${T.plural(events, 'event')}` : ''}${nests ? `, ${T.plural(nests, 'rat nest')}` : ''}</li>`);
       list.push(`<li><b>Warden</b> ${r.warden ? (r.warden.cell === T.OFFICE ? 'in the office' : `cell ${L(r.warden.cell)}`) : 'not found'}</li>`);
-      list.push(`<li><b>Today</b> ${rd.chain ? `${m.step === 'chain' ? 'a consume chain picks its next meal' : 'the day’s consume picks its meal'}: cell ${rd.chain.map(L).join(' or ')}` : m.step === 'patrol' ? `choose a door: ${m.dest.map(L).join(', ')}` : r.decision ? `your decision: ${[r.decision.replace && 'Replace', r.decision.consume && 'Consume', 'End'].filter(Boolean).join(', ')}` : 'no door cards, so after the patrol'}</li>`);
+      list.push(`<li><b>Today</b> ${rd.chain ? `${m.step === 'chain' ? 'a consume chain picks its next meal, or Cancel stops it' : 'the day’s consume picks its meal'}: cell ${rd.chain.map(L).join(' or ')}` : m.step === 'patrol' ? `choose a door: ${m.dest.map(L).join(', ')}` : r.decision ? `your decision: ${[r.decision.replace && 'Replace', r.decision.consume && 'Consume', 'End'].filter(Boolean).join(', ')}` : 'no door cards, so after the patrol'}</li>`);
       list.push(`<li><b>Riot</b> ${r.days ? `${T.plural(r.days.days, 'day')} away, so day ${m.day} of ${m.mode === 'challenge' ? T.CHALLENGE_DAYS : m.maxDays}` : 'not read'}</li>`);
       list.push(`<li><b>Instruments</b> ${rd.tools.length ? rd.tools.map((t) => esc(t.name || t.id) + (t.sim ? '' : ' (not simulated)')).join(', ') : 'none'}</li>`);
       list.push(`<li><b>Chromatic</b> ${T.plural(rd.chromatic, 'prisoner')}${r.chromatic ? '' : ' (panel not found)'}</li>`);

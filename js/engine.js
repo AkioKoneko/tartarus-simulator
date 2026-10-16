@@ -63,6 +63,11 @@
     fewerDoorsChance: 0,
     swapsPerDay: 1,
     reusableCells: true,
+    // The game's Cancel stops a consume chain after any bite (user,
+    // 2026-10-16), so every bite waits for the player's pick, even of a
+    // single meal. Off: the chain must go on, and a single meal is taken at
+    // once.
+    chainStop: true,
     tierWeights: [52, 27, 15, 6, 0],
     beastWeights: [25, 25, 25, 25],
     doubleEatTier: 3,
@@ -90,6 +95,7 @@
     { key: 'fewerDoorsChance', group: 'Pace', label: 'Chance a morning offers one door fewer (%)', type: 'int', min: 0, max: 100 },
     { key: 'swapsPerDay', group: 'Pace', label: 'Swaps per day', type: 'int', min: 0, max: 16 },
     { key: 'reusableCells', group: 'Pace', label: 'Emptied cells seal again and can be reopened', type: 'bool' },
+    { key: 'chainStop', group: 'Pace', label: 'A consume chain can be stopped after any bite (the game’s Cancel); off, it must go on', type: 'bool' },
     { key: 'tierWeights', group: 'Odds', label: 'Rarity weights for new inmates', type: 'list', names: TIERS.slice(0, 5) },
     { key: 'beastWeights', group: 'Odds', label: 'Beast weights for new inmates', type: 'list', names: ['Mammoth', 'Lion', 'Wolf', 'Rat'] },
     { key: 'doubleEatTier', group: 'Odds', label: 'From this rarity up, Mammoths also eat Wolves and Lions also eat Rats (0 Normal, 1 Magic, 2 Rare, 3 Legendary, 4 Supreme; 5: never)', type: 'int', min: 0, max: 5 },
@@ -616,7 +622,7 @@
   function guard(state, need) {
     if (state.phase === 'ended') return fail('This run is over. Start a new run to keep playing.');
     if (state.pending.length) return fail('Make your pending choice first.');
-    if (state.chaining) return fail('The consume chain must go on: pick its next meal first.');
+    if (state.chaining) return fail(canStopChain(state) ? 'Finish the consume chain first: pick its next meal, or stop it.' : 'The consume chain must go on: pick its next meal first.');
     if (state.phase === 'office') return fail('Choose Instigate or Bestow first.');
     if (state.challenge && state.challenge.window) return fail('Finish the delivery window first.');
     if (state.phase === 'event') return fail('Decide on the special event first.');
@@ -1290,22 +1296,27 @@
   }
 
   // One log entry for a whole devour, inserted before the side effects that
-  // were logged while it resolved. Its record lists every bite.
-  function logDevour(state, at, bites) {
+  // were logged while it resolved. Its record lists every bite, and whether
+  // the player stopped the chain.
+  function logDevour(state, at, bites, stopped) {
     if (!bites.length) return;
     const first = bites[0];
     const last = bites[bites.length - 1];
     const end = last.after.tier >= RAINBOW ? ' It reached Rainbow and left for the vault.' : '';
+    const stop = stopped ? ' Then the chain was stopped.' : '';
     let text;
     if (bites.length === 1) {
       const outcome = last.after.tier < RAINBOW ? ` and is now a ${beastName(last.after.beast)}` : '';
-      text = `The ${describe(first.eater)} in cell ${cellLabel(first.from)} consumed the ${first.scratch ? 'scratched-door ' : ''}${describe(first.meal)} in cell ${cellLabel(first.cell)}. It rose to ${tierName(last.after.tier)}${outcome}${first.notes.length ? ` (${first.notes.join(', ')})` : ''}.`;
+      text = `The ${describe(first.eater)} in cell ${cellLabel(first.from)} consumed the ${first.scratch ? 'scratched-door ' : ''}${describe(first.meal)} in cell ${cellLabel(first.cell)}. It rose to ${tierName(last.after.tier)}${outcome}${first.notes.length ? ` (${first.notes.join(', ')})` : ''}.${stop}`;
     } else {
       const steps = bites.map((b) => `${describe(b.eater)} ate ${b.scratch ? 'the scratched-door ' : ''}${describe(b.meal)} (${cellLabel(b.cell)})${b.notes.length ? ` [${b.notes.join(', ')}]` : ''}`);
-      text = `Consume chain, ${bites.length} bites, from cell ${cellLabel(first.from)}: ${steps.join('; then ')}.${end || ` It ended as a ${describe(last.after)}.`}`;
+      text = `Consume chain, ${bites.length} bites, from cell ${cellLabel(first.from)}: ${steps.join('; then ')}.${end || ` It ended as a ${describe(last.after)}.`}${stop}`;
     }
-    logAt(state, at, 'devour', text, { type: 'devour', from: first.from, bites });
+    logAt(state, at, 'devour', text, Object.assign({ type: 'devour', from: first.from, bites }, stopped ? { stopped: true } : {}));
   }
+
+  // Whether a chain can be stopped after a bite (the game's Cancel).
+  const canStopChain = (state) => (state.params && typeof state.params.chainStop === 'boolean' ? state.params.chainStop : DEFAULT_PARAMS.chainStop);
 
   function devour(state, from, to) {
     const blocked = guard(state, 'manage');
@@ -1329,16 +1340,20 @@
     return cell ? devourOptions(state, cell.n) : [];
   }
 
-  // After each bite the chain must go on while the eater has a meal: a
-  // single meal is taken at once, and a choice waits for the player's pick
-  // (chainBite). Every bite raises a tier, so it ends by Rainbow at the
-  // latest. The whole chain is logged as one entry, where it began.
+  // After each bite the chain goes on while the eater has a meal. Each bite
+  // waits for the player's pick of the next meal (chainBite), or for the
+  // chain to be stopped (stopChain), as the game's Cancel does. With
+  // params.chainStop off, the chain must go on: a single meal is taken at
+  // once, and only a choice waits. Every bite raises a tier, so it ends by
+  // Rainbow at the latest. The whole chain is logged as one entry, where it
+  // began.
   function goOnChain(state, events) {
     const ch = state.chaining;
+    const stoppable = canStopChain(state);
     for (let cell = boardCellOf(state, ch.eater); cell; cell = boardCellOf(state, ch.eater)) {
       const options = devourOptions(state, cell.n);
       if (!options.length) break;
-      if (options.length > 1) return;
+      if (options.length > 1 || stoppable) return;
       ch.bites.push(doDevour(state, cell.n, options[0], events, true));
       state.stats.chains += 1;
     }
@@ -1358,6 +1373,19 @@
     state.stats.chains += 1;
     goOnChain(state, events);
     return ok(events);
+  }
+
+  // The game's Cancel: the chain stops after its last bite. The eater keeps
+  // what it gained, its meals stay on the block, and today's consume stays
+  // used.
+  function stopChain(state) {
+    if (!state.chaining) return fail('No consume chain is waiting for a meal.');
+    if (!canStopChain(state)) return fail('With this Lab setting, a consume chain must go on while it has a meal.');
+    if (state.pending.length) return fail('Make your pending choice first.');
+    const ch = state.chaining;
+    state.chaining = null;
+    logDevour(state, ch.at, ch.bites, true);
+    return ok([{ type: 'stopchain' }]);
   }
 
   // Swaps the inmate in the warden's cell; no other cell can be swapped.
@@ -1975,7 +2003,9 @@
     }
     if (state.chaining) {
       const from = boardCellOf(state, state.chaining.eater).n;
-      return chainOptions(state).map((o) => devourTip(state, from, o, 'chain')).sort((a, b) => b.score - a.score).slice(0, 3);
+      const tips = chainOptions(state).map((o) => devourTip(state, from, o, 'chain')).sort((a, b) => b.score - a.score).slice(0, 3);
+      if (canStopChain(state)) tips.push({ kind: 'stopchain', from, score: 0, text: 'Stop the chain (Cancel): the eater keeps what it gained, and its meals stay on the block.' });
+      return tips;
     }
     if (state.phase === 'office') {
       const pool = board.filter((i) => i.tier < RAINBOW);
@@ -2126,6 +2156,7 @@
     resolveEvent: bounded(resolveEvent),
     devour: bounded(devour),
     chainBite: bounded(chainBite),
+    stopChain: bounded(stopChain),
     officeAct: bounded(officeAct),
     swap: bounded(swap),
     endDay: bounded(endDay),
@@ -2142,7 +2173,7 @@
     moveWarden: bounded(moveWarden),
     addTool: bounded(addTool),
     removeTool: bounded(removeTool),
-    patrolOptions, clockwisePath, devourOptions, startOptions, chainOptions, gainFor, executionVictims, canEat, eatsOf, canDevourNow, canSwapNow, canOpenEarly, canRefresh, canReroll,
+    patrolOptions, clockwisePath, devourOptions, startOptions, chainOptions, canStopChain, gainFor, executionVictims, canEat, eatsOf, canDevourNow, canSwapNow, canOpenEarly, canRefresh, canReroll,
     linkOf, cellOf, boardInmates, currentContract, deliveryCheck, bestCargo, rosterOf, advise, limits,
     toolText, toolName, eventName, describe, tierName, beastName, cellLabel, plural, stepsBetween, scarceBeasts, lowestInmates,
   };
