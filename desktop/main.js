@@ -1,4 +1,4 @@
-/* Tartarus Overlay: Follow my game as a desktop app, with the advice in an
+/* Tartarus Overlay: Auto Screenshot Mode as a desktop app, with the advice in an
  * overlay over the game, for playing on one monitor.
  *
  * The app is a thin shell around the website. It loads the live site's own
@@ -1114,7 +1114,7 @@ function rebuildMenu() {
     { type: 'separator' },
     { label: 'Board analyzer', accelerator: HOTKEYS.analyzer, click: () => show('analyzer') },
     { label: 'Take a picture now', accelerator: HOTKEYS.capture, click: () => command('capture') },
-    { label: 'Follow my game (status and agreement)', click: () => show('follow') },
+    { label: 'Auto Screenshot Mode (status and agreement)', click: () => show('follow') },
     { label: 'Choose the game log…', click: () => pickLog() },
     { type: 'separator' },
     { label: 'Start with Windows', type: 'checkbox', checked: login, click: (i) => app.setLoginItemSettings({ openAtLogin: i.checked }) },
@@ -1125,7 +1125,7 @@ function rebuildMenu() {
     { label: 'Open the debug log', click: () => shell.openPath(LOG_FILE) },
     ...(DEV ? [{
       label: 'Developer tools',
-      submenu: [['follow', 'Follow my game page'], ['analyzer', 'Board analyzer'], ['overlay', 'Overlay']].map(([name, label]) => ({
+      submenu: [['follow', 'Auto Screenshot Mode page'], ['analyzer', 'Board analyzer'], ['overlay', 'Overlay']].map(([name, label]) => ({
         label,
         click: () => wins[name] && wins[name].webContents.openDevTools({ mode: 'detach' }),
       })),
@@ -1195,7 +1195,7 @@ if (!app.requestSingleInstanceLock()) {
     await refreshLog();
     await adoptLiveAgreement();
     makeOverlay();
-    makeSiteWindow('follow', { width: 1000, height: 860, title: 'Follow my game · Tartarus Overlay' });
+    makeSiteWindow('follow', { width: 1000, height: 860, title: 'Auto Screenshot Mode · Tartarus Overlay' });
     makeAnalyzer();
     makeTray();
     registerHotkeys();

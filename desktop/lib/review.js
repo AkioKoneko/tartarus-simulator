@@ -132,7 +132,7 @@
     const main = $('steps');
     main.replaceChildren();
     if (!data || !data.entries.length) {
-      main.append(h('p', { class: 'empty' }, 'Nothing recorded in this session yet. Pictures, readings and advice show here as Follow my game takes them.'));
+      main.append(h('p', { class: 'empty' }, 'Nothing recorded in this session yet. Pictures, readings and advice show here as Auto Screenshot Mode takes them.'));
       $('count').textContent = '';
       return;
     }

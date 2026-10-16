@@ -1,6 +1,6 @@
 /* Tartarus Overlay: put into analyze.html by the app, after the page's own
  * scripts. The analyzer itself is the site's code: it reads each picture
- * Follow my game sends, loads the board and gives its advice, shares boards
+ * Auto Screenshot Mode sends, loads the board and gives its advice, shares boards
  * and sends reports exactly as on the website. This only copies what its
  * results panel says to the overlay, and presses its buttons for the
  * overlay's.
@@ -76,7 +76,7 @@
   // the reading down.
   const waitingPictures = new Map(); // id -> { blob, timer }
   function recordPicture(m) {
-    // Follow my game hands over raw pixels (m.pixels), or a PNG (m.blob)
+    // Auto Screenshot Mode hands over raw pixels (m.pixels), or a PNG (m.blob)
     // to an analyzer from before that.
     const has = !!(m.blob || (m.pixels && m.pixels.buffer));
     record({ type: 'picture', id: m.id, kind: m.kind, fresh: !!m.fresh, after: m.after || null, pending: has });
@@ -108,7 +108,7 @@
     if (bytes) record({ type: 'picture-file', id }, bytes);
   }
 
-  // Follow my game's pictures, as they come in and as they're read.
+  // Auto Screenshot Mode's pictures, as they come in and as they're read.
   let reading = null; // { kind, at }
   let lastRead = null;
   if (typeof BroadcastChannel === 'function') {

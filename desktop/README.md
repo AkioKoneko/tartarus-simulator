@@ -1,6 +1,6 @@
 # Tartarus Overlay (desktop app, local only for now)
 
-Follow my game as a Windows app, with the board analyzer's advice in a small
+Auto Screenshot Mode as a Windows app, with the board analyzer's advice in a small
 always-on-top card over the game, so one monitor is enough.
 
 ## How it's built

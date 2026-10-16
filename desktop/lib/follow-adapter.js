@@ -1,10 +1,10 @@
 /* Tartarus Overlay: put into follow.html by the app, after the page's own
- * scripts. Follow my game itself is the site's code (js/capture.js and
+ * scripts. Auto Screenshot Mode itself is the site's code (js/capture.js and
  * js/follow.js), with its triggers, its agreement and its checks. This only
  * does what the player does by hand in a browser: it connects the log the
  * app found, and shares the game window, which the app picks by its title
  * (main.js). Both wait for the player's agreement on this page, as the
- * site's own code does. It also tells the overlay how Follow my game is
+ * site's own code does. It also tells the overlay how Auto Screenshot Mode is
  * doing. */
 (function () {
   'use strict';
@@ -159,7 +159,7 @@
   };
   C.on('seen', riotWatch);
 
-  // How Follow my game is doing, for the overlay. Never the log's lines.
+  // How Auto Screenshot Mode is doing, for the overlay. Never the log's lines.
   let lastFrame = null;
   const tell = () => {
     const st = C.state;

@@ -1,6 +1,6 @@
 /* Tartarus Overlay: the card over the game. It shows what the board
  * analyzer recommends, read from the analyzer's own results panel
- * (lib/analyzer-adapter.js), and how Follow my game is doing. Everything
+ * (lib/analyzer-adapter.js), and how Auto Screenshot Mode is doing. Everything
  * shown here is text the site wrote; it's set as text, never as markup. */
 (function () {
   'use strict';
@@ -28,15 +28,15 @@
     return s < 60 ? `${s} s ago` : `${Math.round(s / 60)} min ago`;
   };
 
-  // What stops Follow my game from working, if anything.
+  // What stops Auto Screenshot Mode from working, if anything.
   function followProblem() {
     const f = state.follow;
     const g = state.game;
     if (state.shell.offline) return line('bad', `Can’t reach the site (${state.shell.offline}). Retrying…`);
-    if (state.shell.agreed === false) return line('warn', 'Read and agree on the Follow my game page first.', button('Open it', 'follow', true));
+    if (state.shell.agreed === false) return line('warn', 'Read and agree on the Auto Screenshot Mode page first.', button('Open it', 'follow', true));
     if (!g.log) return line('bad', 'Couldn’t find your game log (UE_game.log).', button('Choose it', 'pick-log', true));
     if (!g.running) return line('info', 'Waiting for Torchlight: Infinite…');
-    if (!f) return line('busy', 'Starting Follow my game…');
+    if (!f) return line('busy', 'Starting Auto Screenshot Mode…');
     if (f.log === 'gone') return line('warn', 'The game log isn’t there right now. It’s followed again once the game writes it.', button('Choose it', 'pick-log'));
     if (f.log === 'error') return line('bad', `The game log can’t be read: ${f.error || 'retrying'}.`, button('Choose it', 'pick-log'));
     if (f.log !== 'on') return line('busy', 'Connecting the game log…');
@@ -50,7 +50,7 @@
     const f = state.follow;
     const sh = state.shell;
     if (sh.offline) return 'Can’t reach the site';
-    if (sh.agreed === false) return 'Agree on Follow my game first';
+    if (sh.agreed === false) return 'Agree on Auto Screenshot Mode first';
     if (!state.game.log) return 'Game log not found';
     if (!state.game.running) return 'Waiting for the game';
     if (sh.riot) return 'Riot: fight on';
