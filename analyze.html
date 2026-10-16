@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261016y">
+<link rel="stylesheet" href="css/style.css?v=20261016z">
 </head>
 <body>
 <main class="analyzer" id="analyzer">
@@ -88,10 +88,15 @@
                 <option value="walk">Prison Walk</option>
                 <option value="consume">Survival of the Fittest</option>
                 <option value="incident">Undercurrents</option>
-                <option value="cagefight">Cage Fight</option>
               </select>
             </h3>
             <p id="az-objective-text">At least 1 inmate's rarity reaches Supreme</p>
+            <label class="az-start"><span>Start of run:</span> <select id="az-start-event" class="az-objective-pick">
+                <option value="none">No card</option>
+                <option value="cagefight">Cage Fight</option>
+                <option value="ironlaw">Iron Law</option>
+              </select></label>
+            <p id="az-start-text" hidden></p>
             <label class="az-walk" id="az-walk-wrap" hidden><span id="az-walk-unit">Tiles moved</span> <input type="number" id="az-walk" min="0" max="18" step="1"> <span id="az-walk-need">/18</span></label>
             <label class="az-done"><input type="checkbox" id="az-milestone"> <span>Completed</span></label>
           </section>
@@ -327,14 +332,14 @@
   </footer>
 </main>
 
-<script src="js/engine.js?v=20261016y"></script>
-<script src="js/board.js?v=20261016y"></script>
-<script src="js/tool-combos.js?v=20261016y"></script>
-<script src="js/solver.js?v=20261016y"></script>
-<script src="js/live.js?v=20261016y"></script>
-<script src="js/report.js?v=20261016y"></script>
-<script src="js/capture.js?v=20261016y"></script>
-<script src="js/analyze.js?v=20261016y"></script>
-<script src="js/auto.js?v=20261016y"></script>
+<script src="js/engine.js?v=20261016z"></script>
+<script src="js/board.js?v=20261016z"></script>
+<script src="js/tool-combos.js?v=20261016z"></script>
+<script src="js/solver.js?v=20261016z"></script>
+<script src="js/live.js?v=20261016z"></script>
+<script src="js/report.js?v=20261016z"></script>
+<script src="js/capture.js?v=20261016z"></script>
+<script src="js/analyze.js?v=20261016z"></script>
+<script src="js/auto.js?v=20261016z"></script>
 </body>
 </html>

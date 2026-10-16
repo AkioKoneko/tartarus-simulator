@@ -43,7 +43,7 @@
   // counters (both meals, at any rarity: the user saw a Rare Mammoth eat
   // Wolves) at its own rarity or lower, and consuming never re-rolls its
   // beast.
-  const cageFight = (state) => !!state && !!state.objective && state.objective.id === 'cagefight';
+  const cageFight = (state) => !!state && state.startEvent === 'cagefight';
   const eatsOf = (state, beast, tier) => {
     const first = FOOD_CHAIN[beast] || [];
     const from = cageFight(state) ? 0 : state && state.params && Number.isFinite(state.params.doubleEatTier) ? state.params.doubleEatTier : DEFAULT_PARAMS.doubleEatTier;
@@ -244,15 +244,22 @@
     consume: { name: 'Survival of the Fittest', text: 'Consume 4 times', need: 4, unit: 'Consumes', drawn: false },
     incident: { name: 'Undercurrents', text: 'Trigger a Prison Incident 2 times', need: 2, unit: 'Prison Incidents', drawn: false },
     other: { name: 'Another objective', text: 'Not in the simulator yet, so no tool is assumed for it', drawn: false },
-    // The user's screenshot (2026-10-16): "Cage Fight. Inmates can Consume
-    // lower-rarity countered Inmates; Consuming does not randomly change
-    // their Codes". Countered: the beasts an inmate eats, at its rarity or
-    // lower (the user), with both meals at any rarity (a Rare Mammoth ate
-    // Wolves). Codes: beasts, as in Behind Closed Doors' "Scarce Code". A
-    // rule for the run, with nothing to meet, so no tool.
-    cagefight: { name: 'Cage Fight', text: 'Inmates can consume the beasts they counter (Mammoths: Lions and Wolves; Lions: Wolves and Rats; Wolves: Rats; Rats: Mammoths) at their own rarity or lower, and consuming never changes their beast', drawn: false, rule: true },
   };
   const OBJECTIVE_IDS = Object.keys(OBJECTIVES).filter((id) => OBJECTIVES[id].drawn !== false);
+
+  // Cards the game can show before a run starts, besides its objective
+  // (the user's screenshots, 2026-10-16). Simulated runs don't draw them
+  // yet; the analyzer uses them when the player sets them.
+  const START_EVENTS = {
+    // "Cage Fight. Inmates can Consume lower-rarity countered Inmates;
+    // Consuming does not randomly change their Codes". Countered: the
+    // beasts an inmate eats, at its rarity or lower, with both meals at any
+    // rarity (a Rare Mammoth ate Wolves). Codes: beasts, as in Behind Closed
+    // Doors' "Scarce Code".
+    cagefight: { name: 'Cage Fight', text: 'Inmates can consume the beasts they counter (Mammoths: Lions and Wolves; Lions: Wolves and Rats; Wolves: Rats; Rats: Mammoths) at their own rarity or lower, and consuming never changes their beast' },
+    // "Iron Law. Extends the duration of the current run to 30 days".
+    ironlaw: { name: 'Iron Law', text: 'The run lasts 30 days', days: 30 },
+  };
 
   const GIFTS = {
     ring: { name: 'Three-Headed Thumb Ring', text: 'Open up to 3 random sealed cells. They trigger nothing else.' },
@@ -685,7 +692,9 @@
       rng: hashSeed([seed, mode, scenario, loadout].join('|')),
       params,
       day: 1,
-      maxDays: mode === 'challenge' ? CHALLENGE_DAYS : params.drillDays,
+      maxDays: mode === 'challenge' ? CHALLENGE_DAYS : opts.startEvent === 'ironlaw' ? START_EVENTS.ironlaw.days : params.drillDays,
+      // A card shown before the run (START_EVENTS), or none.
+      startEvent: START_EVENTS[opts.startEvent] ? opts.startEvent : null,
       phase: 'patrol',
       position: OFFICE,
       destinations: [],
@@ -2183,6 +2192,12 @@
     data.cache = Number(data.cache) || 0;
     data.position = clamp(Number(data.position) || 0, 0, CELL_COUNT - 1);
     // Saves from before objectives played for King of the Caged.
+    // Cage Fight was briefly an objective.
+    if (data.objective && data.objective.id === 'cagefight') {
+      data.startEvent = 'cagefight';
+      data.objective = { id: 'other', progress: 0 };
+    }
+    data.startEvent = START_EVENTS[data.startEvent] ? data.startEvent : null;
     const goal = data.objective && OBJECTIVES[data.objective.id] ? data.objective : { id: 'king', progress: 0 };
     data.objective = { id: goal.id, progress: clamp(Number(goal.progress) || 0, 0, 99) };
     data.milestone = !!data.milestone;
@@ -2205,7 +2220,7 @@
 
   const api = {
     VERSION, CELL_COUNT, OFFICE, SUPREME, RAINBOW, TIERS, BEASTS, BEAST_INFO, FOOD_CHAIN, SECOND_MEAL, PRESSURE, ESCORTS, TOOLS, TOOL_IDS, GIFTS, GIFT_IDS,
-    EVENTS, EVENT_IDS, EVENT_POOL, APPETITE_TRIES, APPETITE_ODDS, INSTIGATE_EVENTS, CROW_CELLS, FREEDOM_CELLS, OBJECTIVES, OBJECTIVE_IDS,
+    EVENTS, EVENT_IDS, EVENT_POOL, APPETITE_TRIES, APPETITE_ODDS, INSTIGATE_EVENTS, CROW_CELLS, FREEDOM_CELLS, OBJECTIVES, OBJECTIVE_IDS, START_EVENTS,
     LOADOUTS, SCENARIOS, CONTRACT_SLOTS, DEFAULT_PARAMS, PARAM_FIELDS, CHALLENGE_DAYS, START_VOUCHERS,
     newGame, randomSeed, normalizeParams, serialize, deserialize,
     patrol: bounded(patrol),

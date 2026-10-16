@@ -126,6 +126,8 @@
       chainArmed: false,
       // Until the player sets it, no objective's tool is assumed.
       objective: 'other',
+      // A card shown before the run, besides its objective (T.START_EVENTS).
+      startEvent: 'none',
       walkTiles: 0,
       milestone: false,
       tools: [],
@@ -146,6 +148,11 @@
     out.cells = m.cells.map((c, n) => (n === T.OFFICE ? officeCell() : Object.assign(sealedCell(), c)));
     out.dest = Array.isArray(m.dest) ? m.dest.filter((n) => Number.isInteger(n) && n >= 0 && n < T.CELL_COUNT) : [];
     if (!STEPS.includes(out.step)) out.step = 'patrol';
+    if (out.objective === 'cagefight') {
+      out.startEvent = 'cagefight';
+      out.objective = 'other';
+    }
+    if (!T.START_EVENTS || !T.START_EVENTS[out.startEvent]) out.startEvent = 'none';
     if (!T.OBJECTIVES[out.objective]) out.objective = 'other';
     // Progress on an objective counted to a number (tiles, consumes, ...).
     out.walkTiles = clamp(toInt(out.walkTiles, 0), 0, T.OBJECTIVES[out.objective].need || 0);
@@ -233,6 +240,7 @@
     st.chain = !!m.chainArmed;
     const need = (T.OBJECTIVES[m.objective] && T.OBJECTIVES[m.objective].need) || 0;
     st.objective = { id: m.objective, progress: need ? clamp(toInt(m.walkTiles, 0), 0, need) : 0 };
+    st.startEvent = m.startEvent !== 'none' ? m.startEvent : null;
     st.milestone = !!m.milestone || (need > 0 && st.objective.progress >= need);
     st.stats.best = Math.max(0, ...st.cells.filter((c) => c.inmate).map((c) => c.inmate.tier), st.vault.length ? T.RAINBOW : 0);
     st.used = { swap: 0, devour: 0 };
@@ -363,6 +371,7 @@
     m.warden = st.position;
     m.chainArmed = !!st.chain;
     m.objective = st.objective ? st.objective.id : 'other';
+    m.startEvent = st.startEvent || 'none';
     m.walkTiles = st.objective ? st.objective.progress : 0;
     m.milestone = !!st.milestone;
     m.tools = st.tools.slice();
@@ -988,6 +997,10 @@
     const goal = model.objective;
     $('az-objective').value = goal;
     $('az-objective-text').textContent = T.OBJECTIVES[goal].text;
+    const card = T.START_EVENTS && T.START_EVENTS[model.startEvent];
+    $('az-start-event').value = card ? model.startEvent : 'none';
+    $('az-start-text').hidden = !card;
+    $('az-start-text').textContent = card ? `${card.text}.` : '';
     const goalNeed = T.OBJECTIVES[goal].need || 0;
     $('az-walk-wrap').hidden = !goalNeed;
     $('az-walk-unit').textContent = T.OBJECTIVES[goal].unit || 'Progress';
@@ -1678,7 +1691,7 @@
     const imageData = ctx.getImageData(0, 0, w, h);
     return new Promise((resolve) => {
       setReading(true);
-      const done = (result, error) => (setReading(false), resolve(error || !result || !result.id ? { ok: false, objective: true, reason: error || 'the objective wasn’t one the simulator knows' } : { ok: true, objective: true, id: result.id, name: T.OBJECTIVES[result.id].name }));
+      const done = (result, error) => (setReading(false), resolve(error || !result || !result.id ? { ok: false, objective: true, reason: error || 'the objective wasn’t one the simulator knows' } : { ok: true, objective: true, id: result.id, name: (T.OBJECTIVES[result.id] || T.START_EVENTS[result.id]).name }));
       reader.pickId += 1;
       const id = `objective${reader.pickId}`;
       if (readerWorker()) {
@@ -1693,7 +1706,28 @@
     });
   }
 
+  // A card shown before the run (Cage Fight, Iron Law), besides its
+  // objective. Iron Law makes the run 30 days long.
+  let runStartEvent = null;
+  function setStartEvent(id) {
+    const card = T.START_EVENTS && T.START_EVENTS[id] ? T.START_EVENTS[id] : null;
+    model.startEvent = card ? id : 'none';
+    if (model.mode !== 'challenge') {
+      const left = model.maxDays - model.day;
+      const days = card && card.days ? card.days : model.maxDays === 30 && id === 'none' ? T.DEFAULT_PARAMS.drillDays : model.maxDays;
+      model.maxDays = days;
+      model.day = clamp(days - left, 1, days);
+    }
+    changed();
+  }
+
   function useObjective(read) {
+    if (read && read.ok && T.START_EVENTS && T.START_EVENTS[read.id]) {
+      runStartEvent = read.id;
+      setStartEvent(read.id);
+      toast(`This run’s card: ${T.START_EVENTS[read.id].name}. It’s set under Start of run.`, 'ok');
+      return true;
+    }
     if (!read || !read.ok || !T.OBJECTIVES[read.id]) return false;
     runObjective = read.id;
     model.objective = read.id;
@@ -1882,8 +1916,9 @@
       // The run's objective: its popup came just before, or this is a
       // re-roll of the run's opening offer, which keeps what was set.
       const again = model.runStart && model.step === 'choice';
-      const keep = { mode: model.mode, rewards: model.rewards, maxDays: model.maxDays, runStart: true, objective: runObjective || (again ? model.objective : 'other'), walkTiles: again ? model.walkTiles : 0 };
+      const keep = { mode: model.mode, rewards: model.rewards, maxDays: model.maxDays, runStart: true, objective: runObjective || (again ? model.objective : 'other'), walkTiles: again ? model.walkTiles : 0, startEvent: runStartEvent || (again ? model.startEvent : 'none') };
       runObjective = null;
+      runStartEvent = null;
       model = normalize(Object.assign(blankModel(), keep));
       shot = false;
       flags = new Set();
@@ -2303,7 +2338,7 @@
     lines.push(`Cells (tiers 0 Normal to 4 Supreme, ? unsure): ${r.cells.filter((c) => c.n !== T.OFFICE).map((c) => `${L(c.n)} ${cellText(c)}${c.jaws ? ' jaws' : ''}${c.ghost ? ' faded' : ''}${sure(c)}`).join(', ')}.`);
     const icons = r.tools && r.tools.tools ? r.tools.tools : [];
     lines.push(`Instruments read: ${icons.length ? icons.map((t) => `${t.name || t.id} ${Math.round(100 * t.conf)}%`).join(', ') : 'none'}; used: ${rd.tools.length ? rd.tools.map((t) => `${t.name || t.id}${t.kept ? ' (kept)' : ''}`).join(', ') : 'none'}.`);
-    lines.push(`Chromatic ${rd.chromatic}${r.chromatic ? '' : ' (panel not found)'}; objective ${(T.OBJECTIVES[model.objective] || { name: model.objective || 'none' }).name}.`);
+    lines.push(`Chromatic ${rd.chromatic}${r.chromatic ? '' : ' (panel not found)'}; objective ${(T.OBJECTIVES[model.objective] || { name: model.objective || 'none' }).name}${T.START_EVENTS && T.START_EVENTS[model.startEvent] ? `; start card ${T.START_EVENTS[model.startEvent].name}` : ''}.`);
     if (rd.checks.size) lines.push(`Check: ${[...rd.checks].sort((a, b) => a - b).map(L).join(', ')}.`);
     // What the player has changed since this reading became the board.
     if (shot && reader.loaded === rd) {
@@ -2558,6 +2593,7 @@
       if (!model.milestone && n) model.walkTiles = Math.min(model.walkTiles, n - 1);
       changed();
     });
+    $('az-start-event').addEventListener('change', (e) => setStartEvent(e.target.value));
     $('az-objective').addEventListener('change', (e) => {
       model.objective = T.OBJECTIVES[e.target.value] ? e.target.value : 'king';
       model.walkTiles = clamp(model.walkTiles, 0, T.OBJECTIVES[model.objective].need || 0);

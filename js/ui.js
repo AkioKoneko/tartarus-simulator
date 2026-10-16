@@ -1002,7 +1002,10 @@
     const status = done ? 'Done' : o.id === 'walk' ? `${o.progress}/${def.need}` : 'Not yet';
     const reward = !st.params.rewards ? 'Rewards are off for this drill.' : done ? 'Its tool is earned.' : 'Meeting it earns a tool.';
     const bar = o.id === 'walk' ? `<span class="objective-bar${done ? ' is-done' : ''}"><span style="width:${Math.round((100 * o.progress) / def.need)}%"></span></span>` : '';
-    setHTML($('goal-objective'), `<p class="objective-head"><span class="objective-tag">Objective</span><span class="objective-name">${esc(def.name)}</span><span class="objective-status${done ? ' is-done' : ''}">${esc(status)}</span></p><p class="objective-text">${esc(def.text)}. ${esc(reward)}</p>${bar}`);
+    // A card shown before the run (Cage Fight, Iron Law), besides its objective.
+    const card = st.startEvent && T.START_EVENTS ? T.START_EVENTS[st.startEvent] : null;
+    const cardHTML = card ? `<p class="objective-head"><span class="objective-tag">Start of run</span><span class="objective-name">${esc(card.name)}</span></p><p class="objective-text">${esc(card.text)}.</p>` : '';
+    setHTML($('goal-objective'), `<p class="objective-head"><span class="objective-tag">Objective</span><span class="objective-name">${esc(def.name)}</span><span class="objective-status${done ? ' is-done' : ''}">${esc(status)}</span></p><p class="objective-text">${esc(def.text)}. ${esc(reward)}</p>${bar}${cardHTML}`);
   }
 
   function renderVault() {
