@@ -409,9 +409,9 @@ function addRecord(entry, bytes) {
       const opens = entry.kind === 'objective' || (entry.kind === 'instruments' && entry.fresh);
       if (opens && !['objective', 'instruments'].includes(recording.lastKind)) recording = null;
     }
-    const s = recordTo();
     // A picture's file, sent after the analyzer read it: written under the
-    // name its entry got, with no line of its own.
+    // name its entry got, with no line of its own (and no new run's folder:
+    // its run may be over already).
     if (entry.type === 'picture-file') {
       const file = pictureFiles.get(entry.id);
       pictureFiles.delete(entry.id);
@@ -422,6 +422,7 @@ function addRecord(entry, bytes) {
       }
       return;
     }
+    const s = recordTo();
     if (entry.type === 'picture') s.lastKind = entry.kind;
     const out = Object.assign({ at: new Date().toISOString() }, entry);
     delete out.pending;
@@ -778,6 +779,7 @@ function pushShell(patch) {
     locked: settings.locked,
     collapsed: settings.collapsed,
     riot,
+    runOver,
     agreed,
     siteUpdate,
     appUpdate,
@@ -920,6 +922,26 @@ ipcMain.on('site:riot', (e, on) => {
     riotFolded = false;
   }
   pushShell();
+});
+
+// Ignore on the Riot screen ends the run: its record is closed (the next
+// picture starts a new run's folder), the analyzer clears its board (which
+// also ends its shared run), and the overlay says the run is over until the
+// next one begins.
+let runOver = false;
+ipcMain.on('site:run', (e, what) => {
+  if (!fromPage(e, 'follow')) return;
+  if (what === 'over' && !runOver) {
+    runOver = true;
+    note('run over: its record is closed, the analyzer cleared');
+    recordEvent({ type: 'run-over' });
+    recording = null;
+    send('analyzer', 'command', 'run-over');
+    pushShell();
+  } else if (what === 'new' && runOver) {
+    runOver = false;
+    pushShell();
+  }
 });
 
 ipcMain.on('site:advice', (e, data) => {

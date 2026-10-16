@@ -146,7 +146,14 @@
   // facts go to the app, never the log's lines.
   const RIOT = /S16GamePlayCheckOut Run|UI_S16_Riot_Interface/;
   const PRISON = /S16GamePlayEntry Run|Btn_S16GamePlay_Start|S16BoardTaskPop Run|S16BoardRelicPop Run|S16BoardMain Run/;
+  // Ignore on the Riot screen (Btn_S16GamePlay_CheckOut_AbandonChallenge)
+  // ends the run; the next run's Start, objective or instrument pick begins
+  // one.
+  const RUN_OVER = /Btn_S16GamePlay_CheckOut_AbandonChallenge/;
+  const RUN_NEW = /Btn_S16GamePlay_Start|S16BoardTaskPop Run|S16BoardRelicPop Run/;
   const riotWatch = (s) => {
+    if (RUN_OVER.test(s.line)) D.run('over');
+    else if (RUN_NEW.test(s.line)) D.run('new');
     if (RIOT.test(s.line)) D.riot(true);
     else if (PRISON.test(s.line)) D.riot(false);
   };

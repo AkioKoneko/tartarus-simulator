@@ -55,6 +55,7 @@
     if (!state.game.log) return 'Game log not found';
     if (!state.game.running) return 'Waiting for the game';
     if (sh.riot) return 'Riot: fight on';
+    if (sh.runOver) return 'Run over: ready for the next';
     if (f && (f.log !== 'on' || f.window !== 'on')) return 'Connecting…';
     if (a && a.reading) return 'Reading the picture…';
     if (a && a.treasureWait) return 'Treasure: press View Prison Status';
@@ -117,7 +118,9 @@
     } else if (a && a.has && a.nothing) {
       out.push(line('info', 'Nothing to decide on this screen.', button('Picture', 'capture')));
     } else if (!problem && !(a && a.treasureWait)) {
-      out.push(line('info', 'Advice comes with the next move. Or take a picture now.', button('Picture', 'capture')));
+      out.push(sh.runOver
+        ? line('info', 'Run over. Its record is saved (tray menu: Review the record). Ready for the next run.')
+        : line('info', 'Advice comes with the next move. Or take a picture now.', button('Picture', 'capture')));
     }
 
     $('body').replaceChildren(...out);

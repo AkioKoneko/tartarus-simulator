@@ -276,6 +276,13 @@
     } else if (cmd === 'report') {
       // A wrong reading goes with its screenshot; anything else is new.
       if (!click('az-report-reading') && !click('az-scan-report') && window.TartarusReport) window.TartarusReport.open('other');
+    } else if (cmd === 'run-over') {
+      // The run is over: a clean board for the next one (Clear the board
+      // asks for a second click, so it gets two). The finished run's board
+      // stays in its record; the clean one isn't a change to record.
+      click('az-clear');
+      click('az-clear');
+      setTimeout(() => keep(boardNow()), 300);
     } else if (cmd === 'treasure-now') {
       click('az-treasure-now');
     } else if (cmd === 'tools-ok') {

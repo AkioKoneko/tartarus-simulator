@@ -39,6 +39,9 @@ contextBridge.exposeInMainWorld('TartarusDesktop', {
   // The Riot's fight has begun (true) or the prison's screens are back
   // (false), from the log (follow.html only).
   riot: (on) => ipcRenderer.send('site:riot', !!on),
+  // The run is over (Ignore on the Riot screen), or a new one begins
+  // (follow.html only): 'over' or 'new'.
+  run: (what) => ipcRenderer.send('site:run', String(what)),
   // To the overlay: what Follow my game is doing, and the advice.
   follow: (data) => ipcRenderer.send('site:follow', data),
   advice: (data) => ipcRenderer.send('site:advice', data),
