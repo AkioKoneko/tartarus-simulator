@@ -1002,6 +1002,13 @@
       // A card holds art; past the last instrument there's only wall. A dark
       // card with little art still counts if it's lighter than the wall.
       if (art < 1.0 * h * h && !(art > 0.5 * h * h && inside > wall + 0.012)) break;
+      // An open tooltip spills its text over the next slots. Text is thin
+      // strokes spread through a tall box, or a flat strip, where an icon is
+      // a solid drawing (at least 7% of its box, never much wider than
+      // tall), so the panel ends there.
+      const bw = ax1 - ax0 + 1;
+      const bh = ay1 - ay0 + 1;
+      if (art / (bw * bh) < 0.065 || bw > 2 * bh) break;
       out.push({ box: [ax0, ay0, ax1, ay1], card: [x0, y0, x1, y1], art });
     }
     return { icons: out, found: true, label };
