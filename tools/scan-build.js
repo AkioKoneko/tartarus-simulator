@@ -58,7 +58,9 @@ const TOOLS = {
   stake: { name: 'Burning Stake', sim: 'stake', card: ['user-burning-stake-card.png', 225, 105, 115, 190] },
   coin: { name: "Kin's Coin of Fate", sim: 'coin', card: ['report-17-kins-coin-card.png', 210, 180, 195, 195] },
   scapegoat: { name: "Scapegoat's Guillotine", sim: 'scapegoat', card: ['report-12-scapegoat-card.png', 170, 125, 130, 145] },
-  dogtag: { name: "Felon's Dog Tag", sim: 'dogtag', card: null },
+  // Its card art: report 28, a player's screenshot of the card (the reader
+  // had nothing for it, and read a held Dog Tag as the Skewer).
+  dogtag: { name: "Felon's Dog Tag", sim: 'dogtag', card: ['report-28-felons-dog-tag-card.png', 238, 180, 180, 220] },
 };
 
 const cache = new Map();
