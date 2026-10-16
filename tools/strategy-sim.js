@@ -65,10 +65,10 @@ const BASELINES = {
     const options = T.startOptions(st);
     if (options.length && random() < 0.7) return { type: 'devour', to: options[Math.floor(random() * options.length)].cell };
     const here = st.cells[st.position];
-    if (st.used.swap < 1 && here.inmate && !here.sealed && random() < 0.3) return { type: 'swap' };
+    if (T.canSwapNow(st) && here.inmate && !here.sealed && random() < 0.3) return { type: 'swap' };
     return { type: 'end' };
   },
-  // A sensible player without the math: devour whenever possible, swap
+  // A sensible player without the math: devour whenever possible, else swap
   // Normals, walk to an inmate that can eat, otherwise open a door.
   simple(st, random) {
     if (st.pending.length) return { type: 'choose', id: st.pending[0].options[0] };
@@ -81,7 +81,7 @@ const BASELINES = {
     const options = T.startOptions(st);
     if (options.length) return { type: 'devour', to: options[Math.floor(random() * options.length)].cell };
     const here = st.cells[st.position];
-    if (st.used.swap < 1 && here.inmate && !here.sealed && here.inmate.tier === 0) return { type: 'swap' };
+    if (T.canSwapNow(st) && here.inmate && !here.sealed && here.inmate.tier === 0) return { type: 'swap' };
     return { type: 'end' };
   },
 };

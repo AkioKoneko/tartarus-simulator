@@ -24,6 +24,9 @@
 
   const $ = (id) => document.getElementById(id);
   const L = (n) => T.cellLabel(n);
+  // The day's swap is still open: a day has a devour or a swap, not both.
+  // (An engine cached from before that rule has no canSwapNow.)
+  const canSwapNow = (st) => (T.canSwapNow ? T.canSwapNow(st) : st.used.swap < st.params.swapsPerDay);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
   const store = {
@@ -585,7 +588,9 @@
     const due = T.currentContract(st);
     const warden = st.cells[st.position];
     let lead;
-    if (!T.canDevourNow(st)) lead = 'Today’s devour is used. Swap or end the day.';
+    // A day has a devour or a swap, not both.
+    if (st.used.swap > 0) lead = `You swapped today, so there is no devour: a day has a swap or a devour, not both. ${canSwapNow(st) ? 'Swap again or end' : 'End'} the day.`;
+    else if (!T.canDevourNow(st)) lead = 'Today’s devour is used, and with it the swap: a day has one or the other. End the day.';
     else if (st.position === T.OFFICE) lead = 'The warden is in the office, so there is no devour today. Swap or end the day.';
     else if (!warden.inmate || warden.sealed) lead = `The warden's cell (${L(st.position)}) is empty, so there is no devour today. Swap or end the day.`;
     else if (devours) lead = `The ${T.describe(warden.inmate)} in the warden's cell (${L(st.position)}) can make today's devour. Select it to see its ${T.plural(devours, 'target')}, or double-click a target to devour it. It then must keep eating while it can: a single meal is taken at once, and you pick when there's a choice.`;
@@ -688,7 +693,7 @@
       const meal = target.sealed ? `the ${T.tierName(target.hidden.tier)} inmate behind the scratched door` : `the ${T.describe(target.inmate)}`;
       const extras = [];
       if (notes.length) extras.push(`Bonus: ${notes.join(', ')}.`);
-      extras.push('This is today’s devour. Afterwards the eater must keep eating while it can: a single meal is taken at once, and you pick when there’s a choice. Click the target again to devour.');
+      extras.push(`This is today’s devour${canSwapNow(st) ? ', and it uses up today’s swap' : ''}. Afterwards the eater must keep eating while it can: a single meal is taken at once, and you pick when there’s a choice. Click the target again to devour.`);
       if (saw) extras.push('Rusty Saw may add +1.');
       if (st.tools.includes('collar')) extras.push('Barbed Collar: each bite after this one has an 80% chance of +1.');
       if (revenge) extras.push("Avenger's Casket may open a new meal.");
@@ -734,6 +739,7 @@
       if (st.tools.includes('rope')) parts.push("Hangman's Noose: never Normal or Magic.");
       if (st.tools.includes('axe')) parts.push(`Gaoler's Execution Axe: if it comes out above ${T.tierName(cell.inmate.tier)}, 2 random sealed cells open.`);
       if (cell.ivory) parts.push(`Tusk cell: ${T.plural(st.params.ivoryCount, 'inmate')} then gain a tier.`);
+      if (T.canDevourNow(st)) parts.push('It uses up today’s devour: a day has a swap or a devour, not both.');
       setDecision(`Swap cell ${L(p.cell)}?`, parts.join(' '), [
         ['Swap', () => run((s) => T.swap(s, p.cell)), 'primary'],
         ['Cancel', back],
@@ -783,7 +789,7 @@
     else if (st.phase === 'manage') {
       const options = T.devourOptions(st, cell.n);
       if (cell.n !== st.position) parts.push(`Only the inmate in the warden's cell (${L(st.position)}) can start today's devour.`);
-      else if (!T.canDevourNow(st)) parts.push('Today’s devour is used.');
+      else if (!T.canDevourNow(st)) parts.push(st.used.swap > 0 ? 'You swapped today, so there is no devour: a day has one or the other.' : 'Today’s devour is used.');
       else parts.push(options.length ? `It stands in the warden's cell: ${T.plural(options.length, 'target')} highlighted. Double-click one to devour it, or click once to preview the bite.` : 'It stands in the warden’s cell but has no target right now.');
     }
     if (cell.ivory) parts.push(`Tusk cell: swapping here raises ${T.plural(st.params.ivoryCount, 'inmate')} a tier.`);
@@ -794,7 +800,7 @@
       parts.push(`${hunter ? `Hunting cell ${other ? L(other.n) : '--'}` : `Prey of the Lion in cell ${other ? L(other.n) : '--'}`}: both rise a tier on each of the next ${T.plural(link.rounds, 'morning')}.`);
     }
     if (free && st.phase === 'manage' && cell.n === st.position) {
-      const left = st.params.swapsPerDay - st.used.swap;
+      const left = canSwapNow(st) ? st.params.swapsPerDay - st.used.swap : 0;
       actions.push([`Swap (${Math.max(0, left)} left)`, () => askSwap(cell.n), null, left <= 0]);
     } else if (st.phase === 'manage') parts.push("Only the inmate in the warden's cell can be swapped.");
     actions.push(['Deselect', cancel]);
@@ -820,12 +826,13 @@
     const st = ui.state;
     const free = !blocked(st);
     const swapBtn = $('btn-swap');
-    const left = Math.max(0, st.params.swapsPerDay - st.used.swap);
+    // A day has a devour or a swap, not both.
+    const left = canSwapNow(st) ? Math.max(0, st.params.swapsPerDay - st.used.swap) : 0;
     const here = st.cells[st.position];
     const canSwap = free && st.phase === 'manage' && left > 0 && !here.sealed && !!here.inmate;
     swapBtn.textContent = `Swap (${left})`;
     swapBtn.disabled = !canSwap;
-    swapBtn.title = canSwap ? `Swap the inmate in the warden's cell (${L(st.position)}).` : "Only the inmate in the warden's cell can be swapped, after the patrol.";
+    swapBtn.title = canSwap ? `Swap the inmate in the warden's cell (${L(st.position)}).${T.canDevourNow(st) ? " It uses up today's devour." : ''}` : st.used.devour > 0 ? 'You devoured today: a day has a devour or a swap, not both.' : "Only the inmate in the warden's cell can be swapped, after the patrol.";
 
     const deliverBtn = $('btn-deliver');
     deliverBtn.hidden = st.mode !== 'challenge';

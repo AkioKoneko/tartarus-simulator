@@ -16,6 +16,9 @@
   const T = root.Tartarus || (typeof require === 'function' ? require('./engine.js') : null);
   const { BEASTS, RAINBOW } = T;
   const RAT = BEASTS.indexOf('rat');
+  // The day's swap is still open: a day has a devour or a swap, not both.
+  // (An engine cached from before that rule has no canSwapNow.)
+  const canSwapNow = (st) => (T.canSwapNow ? T.canSwapNow(st) : st.used.swap < st.params.swapsPerDay);
 
   // Strategy weights. Values are in "tier value" units, where an inmate of
   // tier t is worth tierBase^t. tools/strategy-sim.js tuned these by
@@ -38,6 +41,7 @@
     wStair: 0, // keeping a spread of beasts at each tier, so chains can go on
     minDevour: 0, // skip devours worth less than this (-1e9: never skip)
     swapMaxTier: 0, // swap the warden's inmate only at or below this tier
+    swapMargin: 0, // a day has a swap or a devour: swap only when it beats the best devour by this much
     execMargin: 0, // accept an Execution worth more than this
     acceptChain: true, // accept Chain reactions
     toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'blacklist', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'dogtag', 'keys', 'cage', 'scales', 'pestle', 'shortchain', 'axe', 'fire', 'forged', 'ironbox'], // measured: each tool held from day 1
@@ -486,7 +490,7 @@
   function patrolScores(st, ctx) {
     const P = ctx.P;
     const board = composition(st, -1);
-    const swapLeft = st.used.swap < st.params.swapsPerDay;
+    const swapLeft = canSwapNow(st);
     let fresh = null;
     const freshNow = () => (fresh === null ? (fresh = freshValue(ctx, tagged(ctx, ctx.openDist), board.comp, board.crowd + 1, swapLeft)) : fresh);
     const out = [];
@@ -613,9 +617,10 @@
 
   // A swap in the warden's cell: the new inmate's worth over the old one,
   // less any prey mark it ends, plus the Tusk bonus if the cell has one.
+  // None after today's devour: a day has one or the other.
   function swapGainHere(st, ctx) {
     const here = st.cells[st.position];
-    if (!here || here.sealed || !here.inmate || st.used.swap >= st.params.swapsPerDay) return -Infinity;
+    if (!here || here.sealed || !here.inmate || !canSwapNow(st)) return -Infinity;
     let gain = swapValue(ctx, here.inmate.tier) - linkLoss(st, ctx, here.inmate, true);
     if (ctx.need) gain += needValue(ctx, composition(st, -1).comp, [[here.inmate.tier, beastIndex(here.inmate.beast)]], swapDist(ctx, here.inmate.tier));
     if (here.ivory) {
@@ -1002,19 +1007,14 @@
       const scores = patrolScores(st, ctx);
       return scores.length ? { type: 'patrol', cell: scores[0].cell } : { type: 'end' };
     }
-    // Manage: devour, swap or end the day. Both act on the warden's cell.
-    const here = st.cells[st.position];
+    // Manage: devour, swap or end the day. Both act on the warden's cell,
+    // and a day has one or the other, not both.
     const swapGain = swapGainHere(st, ctx);
     if (T.canDevourNow(st)) {
       const devours = devourScores(st, ctx);
       if (devours.length && devours[0].score >= P.minDevour) {
-        // A swap first can be worth more than a weak devour: the new inmate
-        // may still devour today.
-        if (swapGain > -Infinity) {
-          const { comp, crowd } = composition(st, st.position);
-          const swapFirst = swapGain + P.wNow * freshActivation(ctx, swapDist(ctx, here.inmate.tier), comp, crowd, false);
-          if (swapFirst > devours[0].score) return { type: 'swap' };
-        }
+        // The swap instead, when it's worth more than the best devour.
+        if (swapGain > 0 && swapGain > devours[0].score + P.swapMargin) return { type: 'swap' };
         return { type: 'devour', to: devours[0].cell };
       }
     }
@@ -1134,7 +1134,7 @@
       const meal = o.scratch ? `the scratched door` : `the ${T.describe(target.inmate)}`;
       out.push({ action: { type: 'devour', to: o.cell }, label: `Devour ${meal} in ${T.cellLabel(o.cell)}` });
     }
-    if (st.used.swap < st.params.swapsPerDay && here && !here.sealed && here.inmate) {
+    if (canSwapNow(st) && here && !here.sealed && here.inmate) {
       out.push({ action: { type: 'swap' }, label: `Swap the ${T.describe(here.inmate)} in ${T.cellLabel(here.n)}` });
     }
     if (T.canOpenEarly(st)) out.push({ action: { type: 'early' }, label: 'Deliver the heavy contract early' });
@@ -1307,7 +1307,9 @@
       }
       case 'devour': {
         const odds = chainOdds(st, st.position, action.to);
-        return `The best first meal: picking its later meals well, its chain averages ${odds.bites.toFixed(1)} bites, with ${(100 * odds.rainbow).toFixed(0)}% to reach Rainbow.`;
+        // A day has a devour or a swap, not both.
+        const over = swapGainHere(st, ctx) > 0 ? ' It beats a swap here, and a day has one or the other.' : '';
+        return `The best first meal: picking its later meals well, its chain averages ${odds.bites.toFixed(1)} bites, with ${(100 * odds.rainbow).toFixed(0)}% to reach Rainbow.${over}`;
       }
       case 'chain': {
         const odds = chainOdds(st, st.position, action.to);
@@ -1315,10 +1317,13 @@
       }
       case 'office':
         return action.choice === 'bestow' ? 'A random inmate rises a tier now, which beats a couple of new event doors.' : 'The block is thin, so new event doors are worth more than raising it.';
-      case 'swap':
-        if (here.ivory) return 'A Tusk cell: swapping it raises other inmates a tier.';
-        if (ctx.axeDoors) return `A ${T.tierName(here.inmate.tier)} inmate is worth less than a fresh roll on average, and a higher roll makes the Gaoler's Execution Axe open ${T.plural(ctx.axeDoors, 'door')}.`;
-        return `A ${T.tierName(here.inmate.tier)} inmate is worth less than a fresh roll on average.`;
+      case 'swap': {
+        // A day has a swap or a devour, not both.
+        const over = T.startOptions(st).length ? ' That beats today’s best devour, and a day has one or the other.' : '';
+        if (here.ivory) return `A Tusk cell: swapping it raises other inmates a tier.${over}`;
+        if (ctx.axeDoors) return `A ${T.tierName(here.inmate.tier)} inmate is worth less than a fresh roll on average, and a higher roll makes the Gaoler's Execution Axe open ${T.plural(ctx.axeDoors, 'door')}.${over}`;
+        return `A ${T.tierName(here.inmate.tier)} inmate is worth less than a fresh roll on average.${over}`;
+      }
       case 'end': {
         if (!T.canDevourNow(st) || !T.startOptions(st).length) return 'Nothing left today is worth doing.';
         // A devour is skipped only when it costs more than it gains: nearly

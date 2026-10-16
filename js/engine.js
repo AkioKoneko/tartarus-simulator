@@ -396,8 +396,10 @@
   }
 
   // One devour a day, started by the inmate in the warden's cell; it then
-  // chains on by itself (see devour).
-  const canDevourNow = (state) => state.used.devour < 1;
+  // chains on by itself (see devour). A day has a devour or a swap, not
+  // both: either one uses up the other (confirmed in the live game).
+  const canDevourNow = (state) => state.used.devour < 1 && state.used.swap < 1;
+  const canSwapNow = (state) => state.used.devour < 1 && state.used.swap < state.params.swapsPerDay;
 
   function startOptions(state) {
     const cell = state.cells[state.position];
@@ -1188,6 +1190,7 @@
   function devour(state, from, to) {
     const blocked = guard(state, 'manage');
     if (blocked) return blocked;
+    if (state.used.swap > 0) return fail('You swapped today, and a day has a swap or a devour, not both. End the day.');
     if (!canDevourNow(state)) return fail('Today’s devour is used. End the day for another.');
     if (from !== state.position) return fail(`Only the inmate in the warden's cell (${cellLabel(state.position)}) can start a devour.`);
     const option = devourOptions(state, from).find((o) => o.cell === to);
@@ -1244,6 +1247,7 @@
     if (n !== state.position) return fail(`Only the inmate in the warden's cell (${cellLabel(state.position)}) can be swapped.`);
     const cell = state.cells[n];
     if (!cell || cell.sealed || !cell.inmate) return fail('The warden’s cell has no inmate to swap.');
+    if (state.used.devour > 0) return fail('You devoured today, and a day has a devour or a swap, not both. End the day.');
     if (state.used.swap >= state.params.swapsPerDay) return fail('No swaps left today.');
     const weights = state.params.tierWeights.slice();
     if (has(state, 'rope')) weights[0] = weights[1] = 0;
@@ -1886,7 +1890,7 @@
     for (const option of startOptions(state)) tips.push(devourTip(state, state.position, option, 'devour'));
     // Only the warden's cell can be swapped.
     const here = state.cells[state.position];
-    if (state.used.swap < state.params.swapsPerDay && here.ivory && !here.sealed && here.inmate) {
+    if (canSwapNow(state) && here.ivory && !here.sealed && here.inmate) {
       tips.push({ kind: 'swap', cell: here.n, score: 20 + Math.min(board.length, state.params.ivoryCount) * 6, text: `Swap the inmate in Tusk cell ${cellLabel(here.n)}: up to ${plural(state.params.ivoryCount, 'inmate')} gain a tier.` });
     }
     tips.sort((a, b) => b.score - a.score);
@@ -1977,7 +1981,7 @@
     moveWarden: bounded(moveWarden),
     addTool: bounded(addTool),
     removeTool: bounded(removeTool),
-    patrolOptions, clockwisePath, devourOptions, startOptions, chainOptions, gainFor, executionVictims, canEat, eatsOf, canDevourNow, canOpenEarly, canRefresh, canReroll,
+    patrolOptions, clockwisePath, devourOptions, startOptions, chainOptions, gainFor, executionVictims, canEat, eatsOf, canDevourNow, canSwapNow, canOpenEarly, canRefresh, canReroll,
     linkOf, cellOf, boardInmates, currentContract, deliveryCheck, bestCargo, rosterOf, advise, limits,
     toolText, toolName, eventName, describe, tierName, beastName, cellLabel, plural, stepsBetween, scarceBeasts, lowestInmates,
   };
