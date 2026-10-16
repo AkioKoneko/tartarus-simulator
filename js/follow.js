@@ -36,12 +36,17 @@
     '# Each day, once its banner closes, and after a move, once its cards come up:',
     'board | \\[S16LastDay\\] check cur=\\d+ max=[1-9] | 1500',
     'board | UI_S16_Card_Up | 1500',
-    '# After an action in the cell, once it plays out; unless the day ends,',
-    "# as a new day's banner drops a picture still waiting (skip):",
+    '# After an action in the cell, and after each bite of a consume chain',
+    '# (the next meal to pick, or the board after the chain), once it plays',
+    "# out; unless the day ends, as a new day's banner drops a picture still",
+    '# waiting (skip):',
     'board | Btn_S16Board_ActionCell | 2000',
+    'board | UI_S16_Click_Eat | 2500',
     'skip | S16BoardNewDayPop Run | 0',
-    "# The Warden's Treasure, which a Chromatic prisoner opens:",
+    "# The Warden's Treasure, which a Chromatic prisoner opens, and the board",
+    '# once it closes, with the gift taken (a consume can open two in a row):',
     'treasure | S16BoardColoredPop Run | 1500',
+    'board | S16BoardColoredPop Destory | 1500',
     "# The game's Speed-up button: no picture, it flips 'Speed-up is on' here:",
     'speed | Btn_S16Board_Top_Speed | 0',
   ].join('\n');
@@ -336,6 +341,15 @@
       if (old.full) URL.revokeObjectURL(old.full);
     }
     if (!f.frame) {
+      // The Warden's Treasure needs no picture (every gift is on offer), so
+      // the analyzer hears of it anyway.
+      if (c.kind === 'treasure' && prefs.read) {
+        const to = target();
+        if (to) {
+          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, fresh: false, after: treasureAfter(c.hits), blob: null });
+          c.sent = true;
+        }
+      }
       renderCaptures();
       return;
     }

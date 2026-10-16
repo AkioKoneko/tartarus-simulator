@@ -39,6 +39,15 @@
     const mine = ++newest;
     const before = lastKind;
     lastKind = m.kind;
+    if (m.kind === 'treasure') {
+      // The Warden's Treasure: every gift is on offer, so nothing is read
+      // (it may come with no picture at all); the advice is on the board as
+      // it is.
+      answer({ read: { ok: true, treasure: true } });
+      const asked = A.useTreasure(m.after);
+      answer({ state: 'used', asked });
+      return;
+    }
     let bitmap;
     try {
       bitmap = await createImageBitmap(m.blob);
@@ -51,15 +60,6 @@
       const read = await A.readObjective(bitmap);
       answer({ read });
       if (read.ok && mine === newest) answer({ state: 'used', asked: A.useObjective(read) });
-      return;
-    }
-    if (m.kind === 'treasure') {
-      // The Warden's Treasure: every gift is on offer, so nothing is read;
-      // the advice is on the board as it is.
-      answer({ read: { ok: true, treasure: true } });
-      if (mine !== newest) return;
-      const asked = A.useTreasure(m.after);
-      answer({ state: 'used', asked });
       return;
     }
     if (m.kind === 'instruments') {
@@ -157,7 +157,7 @@
       status = m;
       heard = Date.now();
       renderFollow();
-    } else if (m.type === 'frame' && m.to === me && m.blob) onPicture(m).catch((err) => console.error(err));
+    } else if (m.type === 'frame' && m.to === me && (m.blob || m.kind === 'treasure')) onPicture(m).catch((err) => console.error(err));
   };
   window.addEventListener('focus', () => {
     focusedAt = Date.now();
