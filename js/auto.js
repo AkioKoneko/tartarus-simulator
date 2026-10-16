@@ -33,7 +33,8 @@
   const say = (m) => {
     if (C.agreed()) channel.postMessage(Object.assign({ id: me }, m));
   };
-  const announce = () => say({ type: 'here', focusedAt });
+  // pixels: pictures may come as raw pixels rather than a PNG.
+  const announce = () => say({ type: 'here', focusedAt, pixels: true });
 
   async function onPicture(m) {
     const answer = (patch) => channel.postMessage(Object.assign({ type: 'read', to: m.from, id: m.id }, patch));
@@ -68,7 +69,8 @@
   async function readPicture(m, answer, mine, before) {
     let bitmap;
     try {
-      bitmap = await createImageBitmap(m.blob);
+      const p = m.pixels;
+      bitmap = await createImageBitmap(p ? new ImageData(new Uint8ClampedArray(p.buffer), p.width, p.height) : m.blob);
     } catch (e) {
       answer({ read: { ok: false, reason: 'the picture couldn’t be opened' } });
       return;
@@ -193,7 +195,7 @@
       status = m;
       heard = Date.now();
       renderFollow();
-    } else if (m.type === 'frame' && m.to === me && (m.blob || m.kind === 'treasure')) onPicture(m).catch((err) => console.error(err));
+    } else if (m.type === 'frame' && m.to === me && (m.pixels || m.blob || m.kind === 'treasure')) onPicture(m).catch((err) => console.error(err));
   };
   window.addEventListener('focus', () => {
     focusedAt = Date.now();

@@ -368,7 +368,23 @@
     return blob;
   }
 
-  // The whole picture, without loss, for the screenshot reader.
+  // The whole picture's pixels, without loss, for the screenshot reader:
+  // { width, height, buffer } of RGBA. They're ready at once, where a PNG
+  // of the game's window can take a second to make while the game is busy.
+  function pixels(frame) {
+    try {
+      const canvas = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(frame.width, frame.height) : Object.assign(document.createElement('canvas'), { width: frame.width, height: frame.height });
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(frame, 0, 0);
+      const data = ctx.getImageData(0, 0, frame.width, frame.height);
+      return { width: data.width, height: data.height, buffer: data.data.buffer };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // The whole picture as a PNG, for an analyzer that doesn't take pixels
+  // (a tab opened before they came in).
   async function png(frame) {
     try {
       if (typeof OffscreenCanvas === 'function') {
@@ -414,17 +430,14 @@
       renderCaptures();
       return;
     }
-    const thumb = await shrink(f.frame, 320);
-    const full = await shrink(f.frame, 1600);
-    if (thumb) c.thumb = URL.createObjectURL(thumb);
-    if (full) c.full = URL.createObjectURL(full);
-    renderCaptures();
+    // The analyzer gets the picture first; the previews here can wait.
     if (prefs.read) {
       const to = target();
       if (!to) c.note = 'Not read: open the board analyzer first.';
       else {
-        const blob = await png(f.frame);
-        if (!blob) c.note = 'Not read: the picture couldn’t be prepared.';
+        const pix = to.pixels ? pixels(f.frame) : null;
+        const blob = pix ? null : await png(f.frame);
+        if (!pix && !blob) c.note = 'Not read: the picture couldn’t be prepared.';
         else {
           // fresh: the offer that starts a run comes with the day-0 line;
           // one that comes later (an objective's reward) doesn't.
@@ -433,12 +446,17 @@
           const after = c.kind === 'treasure' ? treasureAfter(c.hits) : '';
           // treasureView: the board, seen while a Warden's Treasure waits.
           const treasureView = c.kind === 'board' && treasureViewed(c.hits);
-          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, fresh, after, treasureView, blob });
+          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, fresh, after, treasureView, pixels: pix, blob });
           c.sent = true;
         }
       }
       renderCaptures();
     }
+    const thumb = await shrink(f.frame, 320);
+    const full = await shrink(f.frame, 1600);
+    if (thumb) c.thumb = URL.createObjectURL(thumb);
+    if (full) c.full = URL.createObjectURL(full);
+    renderCaptures();
     if (typeof f.frame.close === 'function') f.frame.close();
   }
 
@@ -482,7 +500,7 @@
     channel.onmessage = (e) => {
       const m = e.data || {};
       if (m.type === 'here' && m.id) {
-        analyzers.set(m.id, { seen: Date.now(), focusedAt: m.focusedAt || 0 });
+        analyzers.set(m.id, { seen: Date.now(), focusedAt: m.focusedAt || 0, pixels: !!m.pixels });
         renderAnalyzer();
         tell();
       } else if (m.type === 'bye') {
@@ -492,7 +510,7 @@
       else if (m.type === 'capture' && m.id) {
         // The analyzer's Take a picture now: the same as the button here,
         // and the picture goes to the analyzer that asked.
-        analyzers.set(m.id, { seen: Date.now(), focusedAt: Date.now() });
+        analyzers.set(m.id, Object.assign({}, analyzers.get(m.id), { seen: Date.now(), focusedAt: Date.now() }));
         C.captureNow('manual');
       }
     };
