@@ -99,9 +99,20 @@ The two-meal chain's challenge profile had a one-round tune (5.2 million runs, 7
 
 The Chinese sim's two-meal food chain (Mammoth also eats Wolf, Lion also eats Rat) was confirmed not to be in the live game on 2026-10-15, so it was removed from the simulator and the lab. The older sections below still show the two-meal numbers measured at the time; their files are in the git history.
 
+### Second meals and the game's Cancel, measured again (2026-10-16)
+
+From Legendary up, Mammoths also eat Wolves and Lions also eat Rats (fbbc8ba), and a consume chain can be stopped at any bite (4fb3ecd). Everything was measured again on 4 threads:
+
+- **Headline, rewards on:** 2.958 Rainbows a run (±0.010), up from 2.153. With no instruments, 0.816, up from 0.627.
+- **Instruments alone,** 100,000 runs each: Iron Crown of the Prison King 2.58, Severed Iron Maiden 2.08, Kin's Coin of Fate 1.96, Scapegoat's Guillotine 1.82, Hangman's Noose 1.67, Long-Chained Shackles 1.61, then the Blacklist and the Muzzle at 1.54. The drill ranking (`toolRank`) follows this order. The Squirming Iron Box (0.45) and the Forged Key (0.57) still cost Rainbows on their own.
+- **Pairs:** 407 sets of up to 2 instruments, each to ±0.01, in 14.8M runs. The pair lab's no-instrument baseline is 0.817. The best pairs are the Maiden with the Noose (16.28), the Maiden with the Scapegoat's Guillotine (5.29) and the Crown with the Muzzle (4.01). The Crown gains most beyond its parts with the Lost Ring of Keys (+1.00) and the Muzzle (+0.70).
+- **Habits** (no instruments): never swapping now comes out about even (0.813 against 0.816), where before the second meals it was among the costliest habits. Always taking Bestow (0.590), short walks (0.651) and always accepting Executions (0.661) cost the most. The strategy page and the Trainer now say swapping is about even without tools.
+- **Stopping chains:** in the 100,000-run headline the strategy never stopped a chain (`stopMargin` 0). The live check still weighs Stop the chain (Cancel) at every bite.
+- **Contract challenge:** 93.7% pass and 51.8 points, up from 90.7% and 51.3.
+
 ### The Iron Crown of the Prison King (2026-10-16)
 
-Report 20, the card: "Iron Crown of the Prison King: Berserk Lion. Condition: When Berserk Lion Consumes. Effect: Berserk Lion can Consume any Inmate of the same rarity. +2 additional Rarity Tiers after consuming". Read like the Skewered Rat Heads, whose card names the Colossal Rat: every Lion can consume any inmate of its own rarity, and each of its bites gains +2 extra tiers, +3 in all. A Lion that re-rolls into another beast loses it until it's a Lion again. A quick check of 300 runs without other instruments gave 2.55 Rainbows a run against 0.77 without it, well above the Severed Iron Maiden, so the strategy ranks it first until it's measured properly.
+Report 20, the card: "Iron Crown of the Prison King: Berserk Lion. Condition: When Berserk Lion Consumes. Effect: Berserk Lion can Consume any Inmate of the same rarity. +2 additional Rarity Tiers after consuming". Read like the Skewered Rat Heads, whose card names the Colossal Rat: every Lion can consume any inmate of its own rarity, and each of its bites gains +2 extra tiers, +3 in all. A Lion that re-rolls into another beast loses it until it's a Lion again. Alone it makes 2.58 Rainbows a run, the best single instrument, ahead of the Severed Iron Maiden (2.08), and the strategy ranks it first. Its best partners are the Agonizing Muzzle (4.01) and the Lost Ring of Keys (3.63).
 
 ### The Burning Stake and Kin's Coin of Fate (2026-10-16)
 

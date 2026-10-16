@@ -1178,6 +1178,9 @@
     if (!action) return '';
     if (action.type === 'devour') return (vs('wait2', 'Training: consume every day you can, unless it breaks a prey mark. Waiting for a bigger chain cost Rainbows') || LESSONS.devour) + (g ? '.' : '');
     if (action.type === 'swap') {
+      // Without tools, never swapping can come out about even.
+      const never = habit('neverSwap');
+      if (full && never && full.value - never.value < 0.01) return `Training: swap a low-tier inmate in the warden’s cell when no consume there is worth more, since a day has one or the other. Without tools it came out about even with never swapping (${never.value.toFixed(2)} Rainbows per run, against ${full.value.toFixed(2)}), but swaps are what the Severed Iron Maiden, the Scapegoat’s Guillotine and the Burning Stake work on.`;
       // "The most" only while the guide's data still has never swapping as
       // the costliest habit.
       const worst = g ? g.habits.filter((h) => h.id !== 'simple' && h.id !== 'random').sort((a, b) => a.value - b.value)[0] : null;
