@@ -61,6 +61,9 @@ const TOOLS = {
   // Its card art: report 28, a player's screenshot of the card (the reader
   // had nothing for it, and read a held Dog Tag as the Skewer).
   dogtag: { name: "Felon's Dog Tag", sim: 'dogtag', card: ['report-28-felons-dog-tag-card.png', 238, 180, 180, 220] },
+  // Its card art: report 57, a player's screenshot of the card. No panel
+  // icon yet.
+  maul: { name: 'Elephant-Foot Maul: Mammoth', sim: 'maul', card: ['report-57-elephant-foot-maul-card.png', 228, 150, 170, 245] },
 };
 
 const cache = new Map();
