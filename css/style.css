@@ -1468,6 +1468,33 @@ a.menu-item {
   border-color: var(--iron-hi);
 }
 
+/* A newer version of the page is out (js/update.js). */
+.update-bar {
+  position: fixed;
+  inset: auto auto calc(18px + env(safe-area-inset-bottom, 0px)) 50%;
+  z-index: 60;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 10px 14px;
+  transform: translateX(-50%);
+  border: 1px solid var(--bone);
+  border-radius: var(--radius);
+  background: var(--slab-hi);
+  color: var(--chalk);
+  font-size: 14px;
+  box-shadow: 0 10px 30px var(--shade);
+}
+
+.update-actions {
+  display: flex;
+  gap: 8px;
+}
+
 /* ---------- Log rail ---------- */
 
 .panel-title {
