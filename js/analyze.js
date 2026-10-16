@@ -1703,10 +1703,15 @@
   // when that's clearly closer than any other. null when it isn't.
   function nameFromText(text) {
     const letters = (t) => t.toLowerCase().replace(/[^a-z]/g, '');
-    const tries = [text, ...text.split('\n')].map(letters).filter((t) => t.length >= 3);
+    // The whole text, each line, and each two lines together: a long name
+    // ("Iron Tongs of Lust: Mammoth") can wrap onto a second line.
+    const lines = text.split('\n');
+    const pairs = lines.slice(1).map((l, i) => `${lines[i]} ${l}`);
+    const tries = [text, ...lines, ...pairs].map(letters).filter((t) => t.length >= 3);
     const scores = T.TOOL_IDS.map((id) => {
-      const n = letters(T.toolName(id));
-      return { id, score: Math.min(...tries.map((t) => editDistance(t, n) / n.length), 9) };
+      // The full name, and the part before a colon ("Iron Tongs of Lust").
+      const forms = [...new Set([T.toolName(id), T.toolName(id).split(':')[0]].map(letters))];
+      return { id, score: Math.min(...forms.flatMap((n) => tries.map((t) => editDistance(t, n) / n.length)), 9) };
     }).sort((a, b) => a.score - b.score);
     const [best, next] = scores;
     return best && best.score <= 0.3 && (!next || next.score - best.score >= 0.15) ? best : null;
