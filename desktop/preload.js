@@ -39,6 +39,8 @@ contextBridge.exposeInMainWorld('TartarusDesktop', {
   // The Riot's fight has begun (true) or the prison's screens are back
   // (false), from the log (follow.html only).
   riot: (on) => ipcRenderer.send('site:riot', !!on),
+  // A trigger matched (its kind only), for the debug log (follow.html only).
+  trigger: (kind) => ipcRenderer.send('site:trigger', String(kind).slice(0, 20)),
   // The run is over (Ignore on the Riot screen), or a new one begins
   // (follow.html only): 'over' or 'new'.
   run: (what) => ipcRenderer.send('site:run', String(what)),
@@ -51,6 +53,8 @@ contextBridge.exposeInMainWorld('TartarusDesktop', {
   // only): { version, at }, or null.
   consent: () => ipcRenderer.invoke('consent:get'),
   setConsent: (value) => ipcRenderer.send('consent:set', value),
-  // The overlay's buttons and the hotkeys: 'capture', 'fix', 'recheck', 'report'.
+  // The overlay's buttons and the hotkeys: 'capture', 'fix', 'recheck',
+  // 'report', and 'debug-report' with its text.
+  onDebugReport: (fn) => listen('debug-report', fn),
   onCommand: (fn) => listen('command', fn),
 });

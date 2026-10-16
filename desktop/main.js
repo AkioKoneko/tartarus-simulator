@@ -934,6 +934,63 @@ ipcMain.on('site:run', (e, what) => {
   }
 });
 
+// Each trigger the log matched (its kind), and once a minute while the game
+// runs, how Auto Screenshot Mode is doing in numbers: for the debug log,
+// to find out why pictures don't come. Never the game log's lines.
+ipcMain.on('site:trigger', (e, kind) => {
+  if (fromPage(e, 'follow')) note('trigger:', String(kind));
+});
+let checked = null; // the counts at the last minute's note
+setInterval(() => {
+  const f = lastFollow;
+  if (!f || !game.running) return;
+  const d = f.diag || {};
+  const was = checked || { lines: 0, hits: 0, frames: 0, failed: 0 };
+  const still = d.growingAt ? Math.round((Date.now() - d.growingAt) / 1000) : null;
+  note(`check: log=${f.log} window=${f.window}${f.windowSize ? ` (${f.windowSize})` : ''}; log file ${d.logSize || '?'} bytes, ${still === null ? 'not measured' : still < 15 ? 'growing' : `unchanged for ${still} s`}; this minute: ${(f.lines || 0) - was.lines} lines read, ${(f.hits || 0) - was.hits} triggers, ${(f.frames || 0) - was.frames} pictures, ${(d.failed || 0) - was.failed} failed${d.lastNote ? `; last picture: ${d.lastNote}` : ''}`);
+  checked = { lines: f.lines || 0, hits: f.hits || 0, frames: f.frames || 0, failed: d.failed || 0 };
+}, 60000);
+
+// A report of how the app is doing, for a player to send when something
+// doesn't work: it opens the analyzer's Report form, filled in, and is also
+// copied to the clipboard. Paths under the player's own folder are shortened
+// to %USERPROFILE%. It holds no picture and no game log line.
+function debugReportText() {
+  const home = require('os').homedir();
+  const clean = (t) => String(t || '').split(home).join('%USERPROFILE%');
+  const f = lastFollow || {};
+  const d = f.diag || {};
+  const a = lastAdvice || {};
+  const ago = (t) => (t ? `${Math.round((Date.now() - t) / 1000)} s ago` : 'never');
+  const lines = [
+    `Tartarus Overlay ${app.getVersion()}${BIG_RECORD ? ' (debug)' : ''}, site ${SITE}, Windows ${require('os').release()}`,
+    `Game: ${game.running ? `running (${game.title})` : 'not running'}; log file (${logFoundBy}): ${clean(logPath) || 'not found'}`,
+    `Agreed: ${agreed}; log: ${f.log}${f.error ? ` (${clean(f.error)})` : ''}; window: ${f.window}${f.windowSize ? ` ${f.windowSize}` : ''}`,
+    `Log file: ${d.logSize || '?'} bytes, last grew ${ago(d.growingAt)}. Since connecting: ${f.lines || 0} lines read, ${f.hits || 0} triggers ${JSON.stringify(d.triggers || {})}, ${f.frames || 0} pictures, ${d.failed || 0} failed.`,
+    `Last trigger: ${d.lastTriggerKind || 'none'} ${ago(d.lastTriggerAt)}. Last picture: ${f.lastFrame ? `${f.lastFrame.kind} ${ago(f.lastFrame.at)}${f.lastFrame.ok ? '' : ` (none taken: ${f.lastFrame.why})`}` : 'none'}; on the page: ${d.lastNote || '-'}`,
+    `Analyzer: ${a.lastRead ? `last read ${ago(a.lastRead.at)}, ${a.lastRead.ok ? 'ok' : `failed: ${a.lastRead.reason}`}` : 'nothing read'}; advice: ${a.move || (a.working ? 'working' : 'none')}`,
+    'Recent debug log:',
+  ];
+  try {
+    const tail = fs.readFileSync(LOG_FILE, 'utf8').trim().split('\n').slice(-30).map((l) => clean(l).replace(/^\d{4}-\d\d-\d\dT/, ''));
+    lines.push(...tail);
+  } catch (e) {
+    lines.push('(none)');
+  }
+  return lines.join('\n');
+}
+function debugReport() {
+  const text = debugReportText();
+  try {
+    require('electron').clipboard.writeText(text);
+  } catch (e) {
+    // The form still has it.
+  }
+  note('debug report opened');
+  show('analyzer');
+  send('analyzer', 'debug-report', { name: `Desktop debug report ${app.getVersion()}`, text: text.slice(0, 2000), outcome: 'Pictures don’t come, or something else isn’t working. (Say what you saw.)' });
+}
+
 ipcMain.on('site:advice', (e, data) => {
   if (!fromPage(e, 'analyzer') || !data || !small(data)) return;
   const was = lastAdvice || {};
@@ -984,6 +1041,7 @@ function command(cmd) {
     case 'tools-ok':
     case 'treasure-now':
       return send('analyzer', 'command', cmd);
+    case 'debug-report': return debugReport();
     case 'report':
     case 'report-new':
       show('analyzer');
@@ -1122,6 +1180,7 @@ function rebuildMenu() {
     appUpdate ? { label: `Restart to update the app (${appUpdate})`, click: () => command('restart') } : { label: `Version ${app.getVersion()}${DEV ? ' (debug)' : ''}`, enabled: false },
     { label: 'Record every board and advice (testing)', type: 'checkbox', checked: settings.record, click: (i) => { settings.record = i.checked; saveSettings(); } },
     { label: `Review the record… (${BIG_RECORD ? `${Math.round(recordBytes / 1048576)} MB of ${Math.round(recordLimit() / 1048576)} MB` : `the last ${keepRuns()} runs`})`, click: () => showReview() },
+    { label: 'Send a debug report…', click: () => debugReport() },
     { label: 'Open the debug log', click: () => shell.openPath(LOG_FILE) },
     ...(DEV ? [{
       label: 'Developer tools',

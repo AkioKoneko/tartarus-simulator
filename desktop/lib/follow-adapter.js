@@ -161,10 +161,36 @@
 
   // How Auto Screenshot Mode is doing, for the overlay. Never the log's lines.
   let lastFrame = null;
+  // For finding out why pictures don't come: how many lines were read and
+  // triggers matched (by kind), whether the log file still grows, and what
+  // became of the last picture. Counts and states only, never a log line.
+  const diag = { triggers: {}, lastTriggerAt: 0, lastTriggerKind: '', failed: 0, logSize: 0, growingAt: 0, lastNote: '' };
+  const lastCaptureNote = () => {
+    const li = document.querySelector('#az-auto-caps li');
+    const notes = li ? [...li.querySelectorAll('.field-note')] : [];
+    return notes.length ? notes[notes.length - 1].textContent.trim().slice(0, 160) : '';
+  };
   const tell = () => {
     const st = C.state;
-    D.follow({ agreed: C.agreed(), log: st.log, file: st.file, window: st.window, frames: st.frames, error: st.error, note: st.note, lastFrame, logFound: !!game.log, logThere: !!(game.log && game.log.there), running: game.running });
+    diag.lastNote = lastCaptureNote();
+    D.follow({ agreed: C.agreed(), log: st.log, file: st.file, window: st.window, windowSize: st.windowSize, frames: st.frames, lines: st.lines, hits: st.hits, error: st.error, note: st.note, lastFrame, logFound: !!game.log, logThere: !!(game.log && game.log.there), running: game.running, diag });
   };
+  C.on('hit', (h) => {
+    diag.triggers[h.kind] = (diag.triggers[h.kind] || 0) + 1;
+    diag.lastTriggerAt = Date.now();
+    diag.lastTriggerKind = h.kind;
+    if (typeof D.trigger === 'function') D.trigger(h.kind);
+  });
+  // Whether the log file grows: the game writes to it every second or so
+  // while it runs, so a log that stays the same isn't the one it writes.
+  setInterval(async () => {
+    if (C.state.log !== 'on') return;
+    const st = await D.logStat();
+    if (st && st.size !== diag.logSize) {
+      diag.logSize = st.size;
+      diag.growingAt = Date.now();
+    }
+  }, 5000);
   let wasShared = false;
   C.on('status', (st) => {
     // The share ends when the game closes; it's shared again when it's back.
@@ -177,7 +203,9 @@
   });
   C.on('frame', (f) => {
     lastFrame = { at: Date.now(), kind: f.kind, ok: !!f.frame, why: f.why || '' };
+    if (!f.frame) diag.failed += 1;
     tell();
+    setTimeout(tell, 4000); // what became of it (read, or why not)
   });
 
   // In the app, steps 1 and 2 happen by themselves: say so at the top.

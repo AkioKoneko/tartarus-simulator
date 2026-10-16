@@ -41,6 +41,10 @@
     if (f.log === 'error') return line('bad', `The game log can’t be read: ${f.error || 'retrying'}.`, button('Choose it', 'pick-log'));
     if (f.log !== 'on') return line('busy', 'Connecting the game log…');
     if (f.window !== 'on') return line('busy', 'Sharing the game window…');
+    // The game writes to its log all the time: one that stopped growing
+    // isn't the one it's writing, and no pictures come.
+    const grew = f.diag && f.diag.growingAt;
+    if (grew && Date.now() - grew > 120000) return line('warn', `The game log hasn’t changed for ${Math.round((Date.now() - grew) / 60000)} minutes: it may not be the one the game writes. Choose the game’s UE_game.log.`, button('Choose it', 'pick-log'), button('Debug report', 'debug-report'));
     return null;
   }
 
@@ -124,7 +128,7 @@
       el.className = `dot ${on === true ? 'is-on' : on === false ? 'is-off' : ''}`;
       el.title = what;
     };
-    dot($('dot-log'), f ? (f.log === 'on' ? true : f.log === 'off' || f.log === 'error' ? false : null) : false, f && f.log === 'on' ? `Following ${f.file || 'the log'}` : 'The game log isn’t followed');
+    dot($('dot-log'), f ? (f.log === 'on' ? true : f.log === 'off' || f.log === 'error' ? false : null) : false, f && f.log === 'on' ? `Following ${f.file || 'the log'}: ${(f.lines || 0).toLocaleString()} new lines, ${f.hits || 0} triggers${f.diag && f.diag.lastTriggerAt ? `, the last ${ago(f.diag.lastTriggerAt)}` : ''}` : 'The game log isn’t followed');
     dot($('dot-win'), f ? (f.window === 'on' ? true : state.game.running ? null : false) : false, f && f.window === 'on' ? `Sharing the game window${f.lastFrame ? `, last picture ${ago(f.lastFrame.at)}` : ''}` : 'The game window isn’t shared');
     $('report-menu').hidden = !state.menu;
     $('report-reading').hidden = !(a && a.canReportReading);

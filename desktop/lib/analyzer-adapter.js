@@ -265,6 +265,13 @@
     el.click();
     return true;
   };
+  // A debug report from the app: the Report form, filled in, for the player
+  // to add what they saw and send.
+  if (typeof D.onDebugReport === 'function') {
+    D.onDebugReport((r) => {
+      if (window.TartarusReport && r) window.TartarusReport.open('other', { name: String(r.name || '').slice(0, 80), text: String(r.text || '').slice(0, 2000), outcome: String(r.outcome || '').slice(0, 1000) });
+    });
+  }
   D.onCommand((cmd) => {
     if (cmd === 'fix') {
       if (!click('az-fix')) {
