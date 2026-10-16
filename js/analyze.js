@@ -1033,7 +1033,7 @@
     }
     const doors = [...new Set([...ahead, ...model.dest])];
     setHTML($('az-doors'), doors
-      .map((n) => `<button type="button" class="az-doorcard" data-door="${n}" aria-pressed="${model.dest.includes(n)}"><span class="az-doorcard-arch" aria-hidden="true"></span><span class="az-doorcard-go">Go to Cell ${n + 1}</span><small>${esc(cellShort(model.cells[n]))}</small></button>`)
+      .map((n) => `<button type="button" class="az-doorcard" data-door="${n}" aria-pressed="${model.dest.includes(n)}"><span class="az-doorcard-arch" aria-hidden="true"></span><span class="az-doorcard-go">${n === T.OFFICE ? 'Go to Interrogation Room' : `Go to Cell ${n + 1}`}</span><small>${esc(cellShort(model.cells[n]))}</small></button>`)
       .join(''));
     $('az-devoured').checked = !!model.devourUsed;
     $('az-swapped').checked = !!model.swapUsed;

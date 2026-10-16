@@ -1281,8 +1281,10 @@
       for (const n of T.patrolOptions(st)) {
         const c = st.cells[n];
         const opens = st.chain ? T.clockwisePath(st, n).filter((k) => st.cells[k].sealed).length : 0;
-        const what = st.chain ? `the chain opens ${T.plural(opens, 'door')}` : c.sealed ? (c.nest ? 'the rat nest' : c.event ? 'a locked door with an event' : 'a locked door') : c.inmate ? `the ${T.describe(c.inmate)}` : 'an empty cell';
-        out.push({ action: { type: 'patrol', cell: n }, label: `Go to cell ${T.cellLabel(n)} (${what})` });
+        const what = st.chain ? `the chain opens ${T.plural(opens, 'door')}` : n === T.OFFICE ? 'Instigate or Bestow' : c.sealed ? (c.nest ? 'the rat nest' : c.event ? 'a locked door with an event' : 'a locked door') : c.inmate ? `the ${T.describe(c.inmate)}` : 'an empty cell';
+        // The office's card in the game reads "Go to Interrogation Room".
+        const where = n === T.OFFICE ? 'Interrogation Room' : `cell ${T.cellLabel(n)}`;
+        out.push({ action: { type: 'patrol', cell: n }, label: `Go to ${where} (${what})` });
       }
       return out;
     }

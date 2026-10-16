@@ -480,7 +480,7 @@
           ? `<span class="dest-face t${c.inmate.tier}" aria-hidden="true">${PORTRAITS[c.inmate.beast]}</span>`
           : `<span class="dest-door${c.sealed ? '' : ' is-open'}" aria-hidden="true"></span>`;
         const here = n === st.position ? ' (warden here)' : '';
-        return `<button type="button" class="dest-card${chosen === n ? ' is-selected' : ''}" data-dest="${n}"${usable ? '' : ' disabled'}>${face}<span class="dest-label">Go to cell ${L(n)}</span><span class="dest-meta">${esc(meta + here)}</span>${event}</button>`;
+        return `<button type="button" class="dest-card${chosen === n ? ' is-selected' : ''}" data-dest="${n}"${usable ? '' : ' disabled'}>${face}<span class="dest-label">${n === T.OFFICE ? 'Go to Interrogation Room' : `Go to cell ${L(n)}`}</span><span class="dest-meta">${esc(meta + here)}</span>${event}</button>`;
       })
       .join(''));
   }

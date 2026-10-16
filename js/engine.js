@@ -2226,7 +2226,7 @@
           why = best ? `its ${describe(c.inmate)} can then consume (${best.short})` : `its ${describe(c.inmate)} has no target from there`;
         } else if (!c.sealed) {
           score = 1;
-          why = 'an empty cell';
+          why = n === OFFICE ? 'Instigate or Bestow' : 'an empty cell';
         } else if (c.nest) {
           score = -40;
           why = `it destroys the rat nest due on day ${c.nest.due}`;
@@ -2247,7 +2247,7 @@
           score += opens * 3;
           why += `; the chain opens ${plural(opens, 'door')} on the way`;
         }
-        tips.push({ kind: 'patrol', cell: n, score, text: `Go to cell ${cellLabel(n)}: ${why}.` });
+        tips.push({ kind: 'patrol', cell: n, score, text: `Go to ${n === OFFICE ? 'Interrogation Room' : `cell ${cellLabel(n)}`}: ${why}.` });
       }
       tips.sort((a, b) => b.score - a.score);
       return tips.slice(0, 3);
