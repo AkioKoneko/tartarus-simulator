@@ -11,3 +11,10 @@ local/
 # Test files: served by the local site (tools/serve.js), never committed.
 sandbox/*
 !sandbox/README.md
+
+# The desktop overlay app (Electron): local only for now, not published.
+desktop/
+overlay.html
+js/advice.js
+js/overlay.js
+js/desktop.js
