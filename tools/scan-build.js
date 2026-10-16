@@ -47,9 +47,10 @@ const TOOLS = {
   // Severed Iron Maiden's (report 9), as PNG.
   cage: { name: 'Crowded Beastcage', sim: 'cage', card: ['report-7-crowded-beastcage.png', 16, 192, 68, 118] },
   maiden: { name: 'Severed Iron Maiden', sim: 'maiden', card: null, icons: ['report-9-severed-iron-maiden.png'] },
-  // Report 11 shows the whip's card; report 10 its panel icon (the reader
-  // took it for the Iron Box).
-  whip: { name: 'Barbed Whip', sim: 'whip', card: ['report-11-barbed-whip-card.png', 440, 160, 120, 118], icons: ['report-10-barbed-whip.png'] },
+  // Report 11 shows the whip's card. Report 10's panel icon, a red ring
+  // with a tail, was dropped: it may be the whip, the Ravenous Chains or the
+  // Barbed Collar, and as the whip it drew the user's Collar.
+  whip: { name: 'Barbed Whip', sim: 'whip', card: ['report-11-barbed-whip-card.png', 440, 160, 120, 118] },
   dogtag: { name: "Felon's Dog Tag", sim: 'dogtag', card: null },
 };
 
