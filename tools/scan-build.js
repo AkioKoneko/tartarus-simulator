@@ -45,7 +45,9 @@ const TOOLS = {
   collar: { name: "Maddened Beast's Barbed Collar", sim: 'collar', card: ['cards_2026-10-15_axe_shackles_collar.png', 1150, 235, 150, 165] },
   // From players' reports: the Beastcage's panel icon (report 7) and the
   // Severed Iron Maiden's (report 9), as PNG.
-  cage: { name: 'Crowded Beastcage', sim: 'cage', card: ['report-7-crowded-beastcage.png', 16, 192, 68, 118] },
+  // Its panel icon: report 21, a player's "Report a wrong reading" (read as
+  // the Rusty Saw), cropped to the instrument panel.
+  cage: { name: 'Crowded Beastcage', sim: 'cage', card: ['report-7-crowded-beastcage.png', 16, 192, 68, 118], icons: ['report-21-crowded-beastcage-panel.png'] },
   maiden: { name: 'Severed Iron Maiden', sim: 'maiden', card: null, icons: ['report-9-severed-iron-maiden.png'] },
   // Report 11 shows the whip's card. Report 10's panel icon, a red ring
   // with a tail, was dropped: it may be the whip, the Ravenous Chains or the
@@ -283,6 +285,15 @@ function artBox(img, x, y, w, h) {
   return x1 < 0 ? [x, y, x + w - 1, y + h - 1] : [x0, y0, x1, y1];
 }
 
+// A board placed just past the right edge of a picture cropped to the
+// instrument panel, so the reader looks for the panel's label across all of
+// it.
+function besideCrop(img) {
+  const unit = { s: 1, tx: 0, ty: 0 };
+  const left = Math.min(S.at(unit, 0, 0)[0], S.at(unit, 0, 3)[0]);
+  return { s: 1, tx: img.width + 70 - left, ty: 0 };
+}
+
 function tools() {
   const out = [];
   let icons = 0;
@@ -313,9 +324,12 @@ function tools() {
     // icon, found as the reader finds it.
     for (const file of t.icons || []) {
       const img = read(file);
-      // Reports come at any size, so the board is found as the reader finds it.
-      const loc = S.locateBoard(img, S.grayOf(img), { board: { points: board.points, width: board.width, height: board.height } });
-      const found = loc ? S.findToolIcons(img, loc) : { icons: [] };
+      // Reports come at any size, so the board is found as the reader finds
+      // it. One cropped to the instrument panel has no board: the panel's
+      // label is then looked for across the whole picture.
+      let loc = S.locateBoard(img, S.grayOf(img), { board: { points: board.points, width: board.width, height: board.height } });
+      if (!loc || loc.score < 0.65) loc = besideCrop(img);
+      const found = S.findToolIcons(img, loc);
       if (found.icons.length !== 1) {
         console.log(`  ${file}: found ${found.icons.length} icons, expected 1; skipped`);
         continue;
