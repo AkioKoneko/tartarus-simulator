@@ -1,0 +1,179 @@
+/* Tartarus Overlay: put into follow.html by the app, after the page's own
+ * scripts. Follow my game itself is the site's code (js/capture.js and
+ * js/follow.js), with its triggers, its agreement and its checks. This only
+ * does what the player does by hand in a browser: it connects the log the
+ * app found, and shares the game window, which the app picks by its title
+ * (main.js). Both wait for the player's agreement on this page, as the
+ * site's own code does. It also tells the overlay how Follow my game is
+ * doing. */
+(function () {
+  'use strict';
+
+  const D = window.TartarusDesktop;
+  const C = window.TartarusCapture;
+  if (!D || !C || window.__tartarusDesktop) return;
+  window.__tartarusDesktop = true;
+
+  // #region agreement
+  // ---------- The agreement, kept by the app ----------
+  // Agreed on this page: the app keeps it, for this version of the page.
+  // Then a copy of the page from another address (the local test site), or
+  // a new install, doesn't ask again. Turned off on this page: it's off for
+  // the app, including where an older agreement is still saved.
+  const KEY = 'tartarus-sim:auto:v1';
+  const savedPrefs = () => {
+    try {
+      return JSON.parse(localStorage.getItem(KEY) || 'null');
+    } catch (e) {
+      return null;
+    }
+  };
+  const writePrefs = (patch) => {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(Object.assign({}, savedPrefs() || {}, patch)));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
+  (async () => {
+    const app = await D.consent();
+    const saved = savedPrefs();
+    const now = new Date().toISOString();
+    if (C.agreed()) {
+      const newer = !!(saved && saved.consentAt && app && saved.consentAt > app.at);
+      if (app && app.withdrawn && !newer) {
+        // Agreed here before it was turned off in the app.
+        if (writePrefs({ enabled: false, consent: 0, consentAt: null })) location.reload();
+      } else if (!app || app.withdrawn || app.version !== C.CONSENT_VERSION) {
+        D.setConsent({ version: C.CONSENT_VERSION, at: (saved && saved.consentAt) || now });
+      }
+    } else if (saved && saved.enabled === false) {
+      if (app && !app.withdrawn) D.setConsent({ withdrawn: true, at: now });
+    } else if (app && !app.withdrawn && app.version === C.CONSENT_VERSION) {
+      if (writePrefs({ enabled: true, consent: C.CONSENT_VERSION, consentAt: app.at || now })) location.reload();
+    }
+  })();
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#agree-off')) D.setConsent({ withdrawn: true, at: new Date().toISOString() });
+  }, true);
+
+  // #endregion
+  // #region connect
+  // The log as follow.html's code expects a picked file: a handle whose
+  // file has a size and slices. The app reads it from disk, read only.
+  const handle = {
+    kind: 'file',
+    name: 'UE_game.log',
+    async getFile() {
+      const st = await D.logStat();
+      if (!st) throw new DOMException('The game log isn’t there.', 'NotFoundError');
+      return {
+        name: st.name,
+        size: st.size,
+        slice: (start, end) => ({ arrayBuffer: () => D.logRead(start, end) }),
+      };
+    },
+  };
+
+  let game = { running: false, log: null };
+  let logFor = ''; // the log path being followed
+  let sharing = false;
+  // The player stopped the log or the share on this page: they stay off
+  // until the game starts again.
+  let stoppedLog = false;
+  let stoppedWindow = false;
+  const note = (text) => {
+    const el = document.getElementById('az-auto-note');
+    if (el) el.textContent = text;
+  };
+
+  async function sync() {
+    if (!C.agreed()) return;
+    const st = C.state;
+    if (game.log && !stoppedLog && (st.log === 'off' || game.log.path !== logFor)) {
+      if (st.log !== 'off') C.stopLog();
+      try {
+        C.useHandle(handle);
+        logFor = game.log.path;
+      } catch (e) {
+        note(e.message || String(e));
+      }
+    }
+    if (game.running && !stoppedWindow && st.window !== 'on' && !sharing) {
+      sharing = true;
+      try {
+        await C.connectWindow();
+      } catch (e) {
+        // The game window closed as it was being shared: the next look retries.
+      }
+      sharing = false;
+    }
+  }
+
+  // The page's own Stop buttons are the player's: respect them.
+  document.addEventListener('click', (e) => {
+    const st = C.state;
+    if (e.target.closest('#az-auto-log')) stoppedLog = st.log === 'on' || st.log === 'starting';
+    if (e.target.closest('#az-auto-win')) stoppedWindow = st.window === 'on';
+  }, true);
+
+  // #endregion
+  // How Follow my game is doing, for the overlay. Never the log's lines.
+  let lastFrame = null;
+  const tell = () => {
+    const st = C.state;
+    D.follow({ agreed: C.agreed(), log: st.log, file: st.file, window: st.window, frames: st.frames, error: st.error, note: st.note, lastFrame, logFound: !!game.log, logThere: !!(game.log && game.log.there), running: game.running });
+  };
+  let wasShared = false;
+  C.on('status', (st) => {
+    // The share ends when the game closes; it's shared again when it's back.
+    // It also ends when the game makes a new window (a change of display
+    // mode, say) while it runs: then it's shared again shortly.
+    if (st.window === 'off' && !game.running) stoppedWindow = false;
+    if (wasShared && st.window === 'off' && game.running && !stoppedWindow) setTimeout(sync, 2500);
+    wasShared = st.window === 'on';
+    tell();
+  });
+  C.on('frame', (f) => {
+    lastFrame = { at: Date.now(), kind: f.kind, ok: !!f.frame, why: f.why || '' };
+    tell();
+  });
+
+  // In the app, steps 1 and 2 happen by themselves: say so at the top.
+  const body = document.getElementById('az-auto-body');
+  const desktopNote = body ? document.createElement('p') : null;
+  if (desktopNote) {
+    desktopNote.className = 'note';
+    desktopNote.id = 'desktop-note';
+    desktopNote.style.cssText = 'padding:10px 12px;border:1px solid var(--teal);border-radius:var(--radius);';
+    body.prepend(desktopNote);
+  }
+  function sayHow() {
+    if (!desktopNote) return;
+    desktopNote.textContent = game.log
+      ? `Tartarus Overlay connects your game log (${game.log.path}) and shares the Torchlight: Infinite window by itself, whenever the game is running. The buttons below still work.`
+      : 'Tartarus Overlay didn’t find your game log. Choose it from the tray icon’s menu (Choose the game log…), or drag it onto the box below.';
+  }
+
+  function onGame(g) {
+    const started = g.running && !game.running;
+    game = g;
+    if (started) {
+      stoppedLog = false;
+      stoppedWindow = false;
+    }
+    sayHow();
+    tell();
+    sync();
+  }
+  D.onGame(onGame);
+  D.onCommand((cmd) => {
+    if (cmd === 'capture') C.captureNow('manual');
+  });
+
+  D.game().then((g) => {
+    if (g) onGame(g);
+  });
+  setInterval(tell, 10000);
+})();

@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src file: data:">
+<title>Review the record</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --stone: #0f1216;
+    --slab: #171b21;
+    --slab-hi: #1f242c;
+    --iron: #353c47;
+    --iron-hi: #545e6d;
+    --chalk: #e3e6eb;
+    --ash: #959dab;
+    --bone: #eadfc5;
+    --blood: #e0675f;
+    --moss: #86c497;
+    --teal: #5fc4b8;
+    --check: #f1cd48;
+    --t0: #cfd4dc;
+    --t1: #6b96ff;
+    --t2: #b07cf0;
+    --t3: #f28c36;
+    --t4: #ea4f57;
+    --font-display: "Big Shoulders Stencil Display", "Arial Narrow", Impact, sans-serif;
+    --font-body: "Barlow Semi Condensed", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+    --radius: 6px;
+    color-scheme: dark;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    background: var(--stone);
+    color: var(--chalk);
+    font: 14px/1.4 var(--font-body);
+  }
+
+  .bar {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--iron);
+    background: var(--slab);
+  }
+
+  .bar h1 {
+    margin: 0 8px 0 0;
+    color: var(--teal);
+    font: 800 20px/1 var(--font-display);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  select,
+  button,
+  input[type="search"] {
+    padding: 4px 9px;
+    border: 1px solid var(--iron-hi);
+    border-radius: 4px;
+    background: var(--slab-hi);
+    color: var(--chalk);
+    font: 600 13px/1.3 var(--font-body);
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:hover {
+    border-color: var(--teal);
+  }
+
+  label.opt {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    color: var(--ash);
+  }
+
+  .count {
+    margin-left: auto;
+    color: var(--ash);
+    font: 400 12px/1 var(--font-mono);
+  }
+
+  main {
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 12px 16px 60px;
+  }
+
+  .empty {
+    color: var(--ash);
+    padding: 30px 0;
+  }
+
+  .step {
+    display: grid;
+    grid-template-columns: minmax(280px, 520px) 1fr;
+    gap: 14px;
+    margin: 0 0 14px;
+    padding: 12px;
+    border: 1px solid var(--iron);
+    border-radius: var(--radius);
+    background: var(--slab);
+  }
+
+  .step.is-open .shot {
+    grid-column: 1 / -1;
+  }
+
+  .step-head {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: baseline;
+    color: var(--ash);
+    font: 500 12px/1.3 var(--font-mono);
+  }
+
+  .step-head b {
+    color: var(--bone);
+    font: 700 15px/1 var(--font-body);
+  }
+
+  .shot img {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--iron);
+    border-radius: 4px;
+    cursor: zoom-in;
+  }
+
+  .step.is-open .shot img {
+    cursor: zoom-out;
+  }
+
+  .noshot {
+    padding: 20px;
+    border: 1px dashed var(--iron);
+    border-radius: 4px;
+    color: var(--ash);
+    text-align: center;
+  }
+
+  .items > * + * {
+    margin-top: 10px;
+  }
+
+  .item {
+    padding: 8px 10px;
+    border-left: 3px solid var(--iron-hi);
+    background: color-mix(in srgb, var(--stone) 60%, var(--slab));
+  }
+
+  .item h3 {
+    margin: 0 0 4px;
+    color: var(--ash);
+    font: 500 11px/1.2 var(--font-mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .item.is-advice {
+    border-left-color: var(--teal);
+  }
+
+  .item.is-bad {
+    border-left-color: var(--blood);
+  }
+
+  .item.is-edit {
+    border-left-color: var(--check);
+  }
+
+  .move {
+    margin: 0 0 3px;
+    color: var(--bone);
+    font: 700 19px/1.2 var(--font-body);
+  }
+
+  .item p {
+    margin: 2px 0;
+  }
+
+  .meta {
+    color: var(--ash);
+    font: 400 12px/1.4 var(--font-mono);
+  }
+
+  .warn {
+    color: var(--check);
+  }
+
+  .bad {
+    color: #f3a49e;
+  }
+
+  ul.summary {
+    margin: 2px 0 0;
+    padding-left: 18px;
+    color: var(--chalk);
+    font-size: 13px;
+  }
+
+  table.options {
+    border-collapse: collapse;
+    margin-top: 4px;
+    font-size: 13px;
+  }
+
+  table.options td {
+    padding: 2px 12px 2px 0;
+  }
+
+  table.options td:last-child {
+    color: var(--ash);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  table.options tr.is-best td:first-child {
+    color: var(--teal);
+    font-weight: 700;
+  }
+
+  ul.diff {
+    margin: 2px 0 0;
+    padding-left: 18px;
+    font-size: 13px;
+  }
+
+  /* The board, as the analyzer had it: the 16 cells clockwise round a 6×4
+     block, cell 01 (the office) top left. */
+  .board {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-rows: repeat(4, auto);
+    gap: 4px;
+    max-width: 620px;
+    margin-top: 6px;
+  }
+
+  .cell {
+    position: relative;
+    min-height: 52px;
+    padding: 3px 5px;
+    border: 1px solid var(--iron);
+    border-radius: 4px;
+    background: var(--stone);
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
+  .cell .n {
+    color: var(--ash);
+    font: 500 10.5px/1 var(--font-mono);
+  }
+
+  .cell .what {
+    display: block;
+    margin-top: 2px;
+    font-weight: 700;
+  }
+
+  .cell .tag {
+    display: inline-block;
+    margin: 2px 2px 0 0;
+    padding: 0 3px;
+    border-radius: 3px;
+    background: var(--slab-hi);
+    color: var(--ash);
+    font: 500 10px/1.4 var(--font-mono);
+  }
+
+  .cell.is-warden {
+    border: 2px solid var(--teal);
+  }
+
+  .cell.is-door {
+    border: 2px dashed var(--bone);
+  }
+
+  .cell.is-warden.is-door {
+    border-style: solid;
+  }
+
+  .cell.is-changed {
+    box-shadow: 0 0 0 2px var(--check);
+  }
+
+  .t0 { color: var(--t0); }
+  .t1 { color: var(--t1); }
+  .t2 { color: var(--t2); }
+  .t3 { color: var(--t3); }
+  .t4 { color: var(--t4); }
+
+  .court {
+    grid-column: 2 / 6;
+    grid-row: 2 / 4;
+    padding: 6px 8px;
+    border: 1px solid var(--iron);
+    border-radius: 4px;
+    color: var(--chalk);
+    font-size: 12.5px;
+  }
+
+  .court p {
+    margin: 0 0 2px;
+  }
+
+  .other {
+    color: var(--ash);
+    font-size: 13px;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>Review the record</h1>
+  <select id="session" aria-label="Session"></select>
+  <button type="button" id="reload">Reload</button>
+  <button type="button" id="folder">Open the folder</button>
+  <label class="opt"><input type="checkbox" id="show-boards" checked> Boards</label>
+  <label class="opt"><input type="checkbox" id="show-other" checked> Commands and game events</label>
+  <label class="opt"><input type="checkbox" id="only-fixes"> Only steps with fixes</label>
+  <span class="count" id="count"></span>
+</div>
+<main id="steps"></main>
+<script src="review.js"></script>
+</body>
+</html>

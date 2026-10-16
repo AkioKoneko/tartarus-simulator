@@ -1,0 +1,171 @@
+/* Tartarus Overlay: the card over the game. It shows what the board
+ * analyzer recommends, read from the analyzer's own results panel
+ * (lib/analyzer-adapter.js), and how Follow my game is doing. Everything
+ * shown here is text the site wrote; it's set as text, never as markup. */
+(function () {
+  'use strict';
+
+  const O = window.Overlay;
+  const $ = (id) => document.getElementById(id);
+  const state = { shell: {}, game: {}, follow: null, advice: null, menu: false };
+
+  // A small element maker: h('p', { class: 'x' }, 'text', child).
+  function h(tag, attrs, ...kids) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v === undefined || v === null || v === false) continue;
+      if (k === 'class') el.className = v;
+      else if (k === 'cmd') el.dataset.cmd = v;
+      else el.setAttribute(k, v);
+    }
+    for (const kid of kids.flat()) if (kid !== null && kid !== undefined && kid !== false) el.append(kid);
+    return el;
+  }
+  const button = (label, cmd, primary) => h('button', { type: 'button', class: `btn${primary ? ' is-primary' : ''}`, cmd }, label);
+  const line = (kind, content, ...buttons) => h('div', { class: `line is-${kind}` }, kind === 'busy' ? h('span', { class: 'spin' }) : null, h('p', null, content), ...buttons);
+  const key = (k) => String(k || '').replace('Control', 'Ctrl');
+  const ago = (t) => {
+    const s = Math.round((Date.now() - t) / 1000);
+    return s < 60 ? `${s} s ago` : `${Math.round(s / 60)} min ago`;
+  };
+
+  // What stops Follow my game from working, if anything.
+  function followProblem() {
+    const f = state.follow;
+    const g = state.game;
+    if (state.shell.offline) return line('bad', `Can’t reach the site (${state.shell.offline}). Retrying…`);
+    if (state.shell.agreed === false) return line('warn', 'Read and agree on the Follow my game page first.', button('Open it', 'follow', true));
+    if (!g.log) return line('bad', 'Couldn’t find your game log (UE_game.log).', button('Choose it', 'pick-log', true));
+    if (!g.running) return line('info', 'Waiting for Torchlight: Infinite…');
+    if (!f) return line('busy', 'Starting Follow my game…');
+    if (f.log === 'gone') return line('warn', 'The game log isn’t there right now. It’s followed again once the game writes it.');
+    if (f.log === 'error') return line('bad', `The game log can’t be read: ${f.error || 'retrying'}.`);
+    if (f.log !== 'on') return line('busy', 'Connecting the game log…');
+    if (f.window !== 'on') return line('busy', 'Sharing the game window…');
+    return null;
+  }
+
+  // The folded bar's one line: the advice, or what's in its way.
+  function oneLine() {
+    const a = state.advice;
+    const f = state.follow;
+    const sh = state.shell;
+    if (sh.offline) return 'Can’t reach the site';
+    if (sh.agreed === false) return 'Agree on Follow my game first';
+    if (!state.game.log) return 'Game log not found';
+    if (!state.game.running) return 'Waiting for the game';
+    if (f && (f.log !== 'on' || f.window !== 'on')) return 'Connecting…';
+    if (a && a.reading) return 'Reading the picture…';
+    if (a && a.treasureWait) return 'Treasure: press View Prison Status';
+    if (a && a.toolsConfirm) return 'Confirm your instruments';
+    if (a && a.problems && a.problems.length) return 'The board needs a fix';
+    if (a && a.working) return `Working it out${a.progress !== null && a.progress !== undefined ? `: ${a.progress}%` : '…'}`;
+    if (a && a.stale) return 'Board changed: recheck';
+    if (a && a.move) return `${a.move}${a.flagged ? ` (${a.flagged} to check)` : ''}`;
+    return 'Waiting for the next move';
+  }
+
+  function render() {
+    const a = state.advice;
+    const f = state.follow;
+    const sh = state.shell;
+    document.body.classList.toggle('is-locked', !!sh.locked);
+    document.body.classList.toggle('is-collapsed', !!sh.collapsed);
+    $('lock').setAttribute('aria-pressed', String(!!sh.locked));
+    $('lock').title = sh.locked ? `Locked: clicks go through to the game. ${key(sh.hotkeys && sh.hotkeys.lock)} unlocks it.` : `Lock: clicks go through to the game (${key(sh.hotkeys && sh.hotkeys.lock)})`;
+    $('fold').textContent = sh.collapsed ? '+' : '–';
+    $('fold').title = sh.collapsed ? 'Unfold it' : 'Fold it to a thin bar';
+    $('day').textContent = sh.collapsed ? oneLine()
+      : a && a.riot !== null && a.riot !== undefined ? `${a.riot} ${a.riot === 1 ? 'day' : 'days'} until Riot${a.step ? ` · ${a.step}` : ''}` : sh.local ? 'local site' : '';
+
+    const out = [];
+    if (sh.appUpdate) out.push(line('info', `App update ${sh.appUpdate} is ready.`, button('Restart', 'restart')));
+    if (sh.siteUpdate) out.push(line('info', 'The site was updated.', button('Reload', 'reload')));
+    const problem = followProblem();
+    if (problem) out.push(problem);
+
+    if (a && a.reading) out.push(line('busy', `Reading the ${a.reading.kind === 'board' || a.reading.kind === 'manual' ? 'picture' : a.reading.kind}…`));
+    const failed = a && a.lastRead && !a.lastRead.ok && !a.reading && Date.now() - a.lastRead.at < 120000;
+    if (failed) out.push(line('bad', `Couldn’t read the last picture: ${a.lastRead.reason || 'no board in it'}.`, button('Try again', 'capture')));
+    else if (f && f.lastFrame && !f.lastFrame.ok && Date.now() - f.lastFrame.at < 60000) out.push(line('warn', `No picture taken: ${f.lastFrame.why || 'the game window isn’t shared'}`));
+
+    if (a && a.toolsConfirm) out.push(line('warn', a.toolsConfirm, button('These are right', 'tools-ok'), button('Board', 'board')));
+    // The Warden's Treasure covers the board: the gift waits for a look at it.
+    if (a && a.treasureWait) out.push(line('warn', 'The Warden’s Treasure is open. Press View Prison Status in the game, wait a second on the board, then go back to the Treasure: the gift advice uses that board.', button('Advise anyway', 'treasure-now')));
+    if (a && a.problems && a.problems.length) {
+      out.push(line('warn', `The board needs a fix: ${a.problems[0]}`, button('Fix', 'fix', true)));
+    } else if (a && a.has && a.working) {
+      out.push(line('busy', `Working out the best move${a.progress !== null && a.progress !== undefined ? `: ${a.progress}%` : '…'}`));
+      if (a.flagged) out.push(line('warn', `${a.flagged} ${a.flagged === 1 ? 'cell' : 'cells'} to check against your game.`, button('Fix', 'fix')));
+    } else if (a && a.has && a.stale) {
+      out.push(line('warn', 'The board changed since the last advice.', button('Recheck', 'recheck', true)));
+    } else if (a && a.has && a.move) {
+      const advice = h('div', null,
+        h('p', { class: 'eyebrow' }, 'Recommended'),
+        h('p', { class: 'move' }, a.move),
+        a.why ? h('p', { class: 'why' }, a.why) : null,
+        h('p', { class: 'meta' }, [
+          a.expect.replace(/^Expected: /, '').replace(/ Rainbows in the vault by the end of day (\d+)\.?$/, ' Rainbows expected by day $1').replace(/\.$/, ''),
+          a.status.replace(/^Live check: /, '').replace(/ playouts per option$/, ' playouts each'),
+        ].filter(Boolean).join(' · ')),
+        a.chain ? h('p', { class: 'alt' }, a.chain) : null,
+        a.close && a.options[1] ? h('p', { class: 'alt' }, `About as good: ${a.options.find((o) => !o.best) ? a.options.find((o) => !o.best).label : a.options[1].label}`) : null,
+      );
+      out.push(advice);
+      if (a.flagged) out.push(line('warn', `${a.flagged} ${a.flagged === 1 ? 'cell' : 'cells'} to check against your game.`, button('Fix', 'fix'), button('Recheck', 'recheck')));
+    } else if (a && a.has && a.nothing) {
+      out.push(line('info', 'Nothing to decide on this screen.', button('Picture', 'capture')));
+    } else if (!problem && !(a && a.treasureWait)) {
+      out.push(line('info', 'Advice comes with the next move. Or take a picture now.', button('Picture', 'capture')));
+    }
+
+    $('body').replaceChildren(...out);
+    const dot = (el, on, what) => {
+      el.className = `dot ${on === true ? 'is-on' : on === false ? 'is-off' : ''}`;
+      el.title = what;
+    };
+    dot($('dot-log'), f ? (f.log === 'on' ? true : f.log === 'off' || f.log === 'error' ? false : null) : false, f && f.log === 'on' ? `Following ${f.file || 'the log'}` : 'The game log isn’t followed');
+    dot($('dot-win'), f ? (f.window === 'on' ? true : state.game.running ? null : false) : false, f && f.window === 'on' ? `Sharing the game window${f.lastFrame ? `, last picture ${ago(f.lastFrame.at)}` : ''}` : 'The game window isn’t shared');
+    $('report-menu').hidden = !state.menu;
+    $('report-reading').hidden = !(a && a.canReportReading);
+  }
+
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.id === 'report') {
+      state.menu = !state.menu;
+      render();
+      return;
+    }
+    if (b.id === 'lock') return O.command('lock');
+    if (b.id === 'fold') return O.command('collapse');
+    if (b.dataset.cmd) {
+      state.menu = false;
+      O.command(b.dataset.cmd);
+      render();
+    }
+  });
+
+  // The window takes the card's height.
+  new ResizeObserver(() => O.size($('card').getBoundingClientRect().height)).observe($('card'));
+
+  O.onShell((s) => {
+    state.shell = s || {};
+    render();
+  });
+  O.onGame((g) => {
+    state.game = g || {};
+    render();
+  });
+  O.onFollow((f) => {
+    state.follow = f;
+    render();
+  });
+  O.onAdvice((a) => {
+    state.advice = a;
+    render();
+  });
+  setInterval(render, 5000); // "s ago", and old notes going away
+  render();
+})();

@@ -1,0 +1,36 @@
+/* Tartarus Overlay: what the site's pages (follow.html, analyze.html) get
+ * from the app, as window.TartarusDesktop. The adapters in lib/ use it;
+ * the shell (main.js) checks which page asks before it answers, so only
+ * follow.html can read the log, and only the analyzer gives advice. */
+'use strict';
+
+const { contextBridge, ipcRenderer } = require('electron');
+
+const listen = (channel, fn) => {
+  if (typeof fn !== 'function') return;
+  ipcRenderer.on(channel, (e, data) => fn(data));
+};
+
+contextBridge.exposeInMainWorld('TartarusDesktop', {
+  // Whether the game runs, and where its log is: { running, title, log }.
+  game: () => ipcRenderer.invoke('game:get'),
+  onGame: (fn) => listen('game', fn),
+  // The log (follow.html only): { name, size }, or null when it isn't there.
+  logStat: () => ipcRenderer.invoke('log:stat'),
+  // Bytes start..end of the log, as an ArrayBuffer.
+  logRead: async (start, end) => {
+    const bytes = await ipcRenderer.invoke('log:read', start, end);
+    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  },
+  // To the overlay: what Follow my game is doing, and the advice.
+  follow: (data) => ipcRenderer.send('site:follow', data),
+  advice: (data) => ipcRenderer.send('site:advice', data),
+  // The test record (analyzer only): an entry, and a picture's bytes.
+  record: (entry, bytes) => ipcRenderer.send('site:record', entry, bytes),
+  // The player's agreement on follow.html, kept by the app (follow.html
+  // only): { version, at }, or null.
+  consent: () => ipcRenderer.invoke('consent:get'),
+  setConsent: (value) => ipcRenderer.send('consent:set', value),
+  // The overlay's buttons and the hotkeys: 'capture', 'fix', 'recheck', 'report'.
+  onCommand: (fn) => listen('command', fn),
+});

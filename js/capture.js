@@ -306,7 +306,7 @@
   // What follow.html saves when the player agrees (shared with js/follow.js
   // and js/auto.js), and the version of that page they agreed to.
   const SETTINGS = 'tartarus-sim:auto:v1';
-  const CONSENT_VERSION = 3;
+  const CONSENT_VERSION = 4;
 
   // Whether the player agreed to this version of follow.html. It's read
   // again every time it's needed, so turning Follow my game off on that

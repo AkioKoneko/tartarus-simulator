@@ -12,9 +12,9 @@ local/
 sandbox/*
 !sandbox/README.md
 
-# The desktop overlay app (Electron): local only for now, not published.
-desktop/
-overlay.html
-js/advice.js
-js/overlay.js
-js/desktop.js
+# The desktop app (Electron, desktop/): its packages and builds stay local.
+desktop/node_modules/
+desktop/dist/
+
+# Claude Code's working copies.
+.claude/

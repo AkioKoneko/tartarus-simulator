@@ -1,0 +1,1107 @@
+/* Tartarus Overlay: Follow my game as a desktop app, with the advice in an
+ * overlay over the game, for playing on one monitor.
+ *
+ * The app is a thin shell around the website. It loads the live site's own
+ * pages (follow.html and analyze.html), so every fix to the site reaches the
+ * app the next time those pages load, with no app update. On top of them it
+ * adds what a browser can't do:
+ *  - it finds the game's log itself (Steam's libraries, the launcher's
+ *    folder), wherever it's installed, and reads it for follow.html, read
+ *    only, one file;
+ *  - it shares the Torchlight: Infinite window with follow.html itself,
+ *    found by its title: no picker, and never another window or a screen;
+ *  - it shows the advice in a small always-on-top overlay (lib/overlay.html),
+ *    while the game is in front.
+ * Two small adapters (lib/follow-adapter.js, lib/analyzer-adapter.js) are
+ * put into those pages to connect them to the shell. Pictures and the log
+ * never leave the PC. Boards and reports are shared exactly as on the
+ * website, by the website's own code.
+ *
+ * Options: --site=URL (a local copy: --site=http://localhost:8090/),
+ * --game-title=REGEX and --log=PATH (tests), --user-data=DIR, --test (no
+ * hotkeys, balloons or updates), --dev (developer tools). */
+'use strict';
+
+const { app, BrowserWindow, Menu, Tray, desktopCapturer, dialog, globalShortcut, ipcMain, nativeImage, net, screen, session, shell, webContents } = require('electron');
+const fs = require('fs');
+const path = require('path');
+const { execFile } = require('child_process');
+
+// ---------- Options ----------
+
+const arg = (name) => {
+  const p = `--${name}=`;
+  const a = process.argv.find((x) => x.startsWith(p));
+  return a ? a.slice(p.length) : null;
+};
+const flag = (name) => process.argv.includes(`--${name}`);
+
+const LIVE_SITE = 'https://blahdot3h.github.io/tartarus-simulator/';
+let SITE = arg('site') || process.env.TARTARUS_SITE || LIVE_SITE;
+if (!SITE.endsWith('/')) SITE += '/';
+const SITE_URL = new URL(SITE);
+// #region game-title
+const GAME_TITLE = new RegExp(arg('game-title') || '^Torchlight: Infinite\\s*$');
+// #endregion
+const LOG_OVERRIDE = arg('log');
+const TEST = flag('test');
+const DEV = flag('dev') || TEST;
+// The maintainer's debug build (--dev) keeps 1 GB of recorded runs; the
+// normal build keeps the last few.
+const BIG_RECORD = flag('dev');
+const STEAM_APP = '1974050'; // Torchlight: Infinite on Steam
+const HOTKEYS = { overlay: 'Control+Alt+O', analyzer: 'Control+Alt+A', capture: 'Control+Alt+P', lock: 'Control+Alt+L' };
+const ICON = path.join(__dirname, 'build', 'icon.png');
+
+if (arg('user-data')) app.setPath('userData', path.resolve(arg('user-data')));
+app.setAppUserModelId('io.github.blahdot3h.tartarus-overlay');
+
+// ---------- Settings ----------
+
+const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
+const readJson = (file) => {
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '')); // a byte-order mark (Notepad, PowerShell) is fine
+  } catch (e) {
+    return {};
+  }
+};
+const settings = Object.assign({
+  overlayOn: true, // the player can hide it (Ctrl+Alt+O)
+  overlay: null, // { x, y }, where the player dragged it
+  overlayWidth: 360,
+  locked: false, // clicks go through to the game
+  hideFromCaptures: true, // kept out of screenshots, recordings and the shared window
+  hideBehind: false, // hidden while another window is in front of the game
+  collapsed: false, // the overlay folded to a thin bar ("–" on it)
+  record: true, // keep a record of each board and advice, for testing
+  recordLimitMB: 1024, // debug build (--dev): the record's room on disk, pictures included
+  recordRuns: 5, // normal build: the runs the record keeps
+  consent: null, // { version, at }: the player agreed on follow.html in the app, to that version
+  logPath: '', // a log the player chose, when the app didn't find it
+  analyzer: null, // the analyzer window's bounds
+}, readJson(SETTINGS_FILE));
+delete settings.onlyWithGame; // 0.1.1 hid the overlay behind other windows by default
+// Before 0.1.7 the overlay's "–" hid it for good, and that was kept; now it
+// folds the card. Anyone it hid gets the overlay back once.
+if (!(settings.v >= 2)) {
+  settings.overlayOn = true;
+  settings.v = 2;
+}
+let saveTimer = 0;
+function saveSettings() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      fs.mkdirSync(path.dirname(SETTINGS_FILE), { recursive: true });
+      fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+    } catch (e) {
+      // Kept until the app closes.
+    }
+  }, 300);
+}
+
+// ---------- The debug log ----------
+
+// What the app did, for working out what went wrong in a test: the game
+// starting and stopping, the log and window, each picture and the advice,
+// errors. With --dev, the pages' own errors and warnings too. Never the
+// game log's lines or a picture. At most 2 MB, then it starts over.
+const LOG_FILE = path.join(app.getPath('userData'), 'logs', 'overlay.log');
+function note(...parts) {
+  const text = parts.map((p) => (typeof p === 'string' ? p : JSON.stringify(p))).join(' ');
+  if (TEST) console.log(`[overlay] ${text}`);
+  try {
+    fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });
+    if (fs.existsSync(LOG_FILE) && fs.statSync(LOG_FILE).size > 2 * 1024 * 1024) fs.renameSync(LOG_FILE, LOG_FILE.replace(/\.log$/, '.old.log'));
+    fs.appendFileSync(LOG_FILE, `${new Date().toISOString()} ${text}\n`);
+  } catch (e) {
+    // No log this time.
+  }
+}
+process.on('uncaughtException', (e) => note('error', String(e && e.stack || e)));
+
+// ---------- The site's pages ----------
+
+// The site page a URL is, like 'analyze.html', or null for anything else.
+function pageOf(url) {
+  try {
+    const u = new URL(url);
+    if (u.origin !== SITE_URL.origin || !u.pathname.startsWith(SITE_URL.pathname)) return null;
+    return u.pathname.slice(SITE_URL.pathname.length) || 'index.html';
+  } catch (e) {
+    return null;
+  }
+}
+const PAGES = { follow: 'follow.html', analyzer: 'analyze.html' };
+const ADAPTERS = { follow: 'follow-adapter.js', analyzer: 'analyzer-adapter.js' };
+
+// ---------- Finding the game's log ----------
+
+function regQuery(key, value) {
+  return new Promise((resolve) => {
+    execFile('reg', ['query', key, '/v', value], { windowsHide: true }, (err, out) => {
+      const m = !err && new RegExp(`${value}\\s+REG_\\w+\\s+(.+)`).exec(out);
+      resolve(m ? m[1].trim() : null);
+    });
+  });
+}
+const statOf = (p) => {
+  try {
+    return fs.statSync(p);
+  } catch (e) {
+    return null;
+  }
+};
+
+// #region find-log
+// Where the game writes UE_game.log: under each Steam library that has the
+// game, and under the launcher's default folder. The newest log there wins.
+// Without a log yet, a folder of an installed game, where it appears once
+// the game starts.
+async function findLog() {
+  if (LOG_OVERRIDE) return path.resolve(LOG_OVERRIDE);
+  if (settings.logPath && statOf(path.dirname(settings.logPath))) return settings.logPath;
+  const roots = new Map();
+  const addRoot = (p) => p && roots.set(path.resolve(p).toLowerCase(), path.resolve(p));
+  for (const [key, value] of [['HKCU\\Software\\Valve\\Steam', 'SteamPath'], ['HKLM\\SOFTWARE\\WOW6432Node\\Valve\\Steam', 'InstallPath'], ['HKLM\\SOFTWARE\\Valve\\Steam', 'InstallPath']]) addRoot(await regQuery(key, value));
+  addRoot('C:\\Program Files (x86)\\Steam');
+  const libraries = new Map(roots);
+  for (const root of roots.values()) {
+    try {
+      const vdf = fs.readFileSync(path.join(root, 'steamapps', 'libraryfolders.vdf'), 'utf8');
+      for (const m of vdf.matchAll(/"path"\s+"([^"]+)"/g)) {
+        const lib = path.resolve(m[1].replace(/\\\\/g, '\\'));
+        libraries.set(lib.toLowerCase(), lib);
+      }
+    } catch (e) {
+      // Not a Steam folder.
+    }
+  }
+  const logs = [];
+  for (const lib of libraries.values()) {
+    try {
+      const acf = fs.readFileSync(path.join(lib, 'steamapps', `appmanifest_${STEAM_APP}.acf`), 'utf8');
+      const m = /"installdir"\s+"([^"]+)"/.exec(acf);
+      if (m) logs.push(path.join(lib, 'steamapps', 'common', m[1], 'UE_game', 'TorchLight', 'Saved', 'Logs', 'UE_game.log'));
+    } catch (e) {
+      // The game isn't in this library.
+    }
+  }
+  for (const base of ['C:\\Program Files (x86)\\Torchlight Infinite', 'C:\\Program Files\\Torchlight Infinite']) {
+    logs.push(path.join(base, 'Game', 'UE_game', 'Torchlight', 'Saved', 'Logs', 'UE_game.log'));
+  }
+  const there = logs.map((p) => ({ p, st: statOf(p) })).filter((x) => x.st && x.st.isFile()).sort((a, b) => b.st.mtimeMs - a.st.mtimeMs);
+  if (there.length) return there[0].p;
+  // UE_game\TorchLight is there: the game is installed, and writes its log on start.
+  return logs.find((p) => statOf(path.resolve(p, '..', '..', '..'))) || null;
+}
+
+// #endregion
+let logPath = null;
+async function refreshLog() {
+  const found = await findLog();
+  if (found !== logPath) {
+    logPath = found;
+    note('log file:', logPath || 'not found');
+    pushGame();
+    rebuildMenu();
+  }
+}
+
+async function pickLog() {
+  const res = await dialog.showOpenDialog({
+    title: 'Choose UE_game.log',
+    defaultPath: logPath || undefined,
+    properties: ['openFile'],
+    filters: [{ name: 'Torchlight: Infinite log', extensions: ['log'] }],
+  });
+  if (res.canceled || !res.filePaths[0]) return;
+  settings.logPath = res.filePaths[0];
+  saveSettings();
+  await refreshLog();
+}
+
+// ---------- The game window ----------
+
+// #region game-window
+// What a browser can't see: which program a window is. The game window is
+// found by its title, every few seconds.
+let game = { running: false, title: '', hwnd: 0 };
+// The game counts as closed only after its window has been missing for
+// three looks in a row: a failed look, or a moment between two windows
+// (loading screens), doesn't hide the overlay or end the share.
+let missing = 0;
+async function lookForGame() {
+  let source = null;
+  let looked = false;
+  try {
+    const sources = await desktopCapturer.getSources({ types: ['window'], thumbnailSize: { width: 0, height: 0 }, fetchWindowIcons: false });
+    source = sources.find((s) => GAME_TITLE.test(s.name)) || null;
+    looked = true;
+  } catch (e) {
+    // Try again next time.
+  }
+  missing = source ? 0 : missing + (looked ? 1 : 0);
+  if (!source && (!looked || (game.running && missing < 3))) {
+    setTimeout(lookForGame, 2000);
+    return;
+  }
+  const was = game.running;
+  game = { running: !!source, title: source ? source.name.trim() : '', hwnd: source ? Number(source.id.split(':')[1]) || 0 : 0 };
+  if (game.running !== was) {
+    note(game.running ? `game running: "${game.title}"` : 'game closed');
+    recordEvent({ type: game.running ? 'game' : 'game-closed' });
+    if (game.running && !logPath) await refreshLog();
+    if (game.running && !overlayPlaced) placeOverlay();
+    if (!game.running) checkSite();
+    pushGame();
+    rebuildMenu();
+  }
+  setTimeout(lookForGame, 2000);
+}
+
+// #endregion
+// The window in front, and window rectangles, from Windows itself. Without
+// them, the overlay shows whenever the game runs.
+const win32 = (() => {
+  try {
+    const koffi = require('koffi');
+    const user32 = koffi.load('user32.dll');
+    const RECT = koffi.struct('RECT', { left: 'long', top: 'long', right: 'long', bottom: 'long' });
+    const foreground = user32.func('__stdcall', 'GetForegroundWindow', 'intptr', []);
+    const rect = user32.func('__stdcall', 'GetWindowRect', 'bool', ['intptr', koffi.out(koffi.pointer(RECT))]);
+    const iconic = user32.func('__stdcall', 'IsIconic', 'bool', ['intptr']);
+    return {
+      foreground: () => Number(foreground()),
+      rect(hwnd) {
+        const r = {};
+        return rect(hwnd, r) ? { x: r.left, y: r.top, width: r.right - r.left, height: r.bottom - r.top } : null;
+      },
+      minimized: (hwnd) => !!iconic(hwnd),
+    };
+  } catch (e) {
+    return null;
+  }
+})();
+const hwndOf = (win) => {
+  if (!win || win.isDestroyed()) return 0;
+  const b = win.getNativeWindowHandle();
+  return b.length >= 8 ? Number(b.readBigUInt64LE(0)) : b.readUInt32LE(0);
+};
+
+// ---------- The test record ----------
+
+// #region record
+// For testing: each picture the analyzer got, what the reader made of it,
+// the board it advised on and the advice, and the player's fixes and
+// commands, one run a folder (record.jsonl and pictures/), kept on this PC.
+// The review window (lib/review.html) steps through them. The debug build
+// (--dev, the maintainer's own) keeps runs up to settings.recordLimitMB
+// (1 GB) in all; the normal build keeps the last settings.recordRuns (5).
+// The oldest go first, never the one being written.
+const RECORDS = path.join(app.getPath('userData'), 'records');
+const SESSION_NAME = /^\d{4}-\d\d-\d\dT[\d-]+$/;
+let recording = null; // { name, dir, file, pictures }
+const pictureFiles = new Map(); // picture id -> the file its entry named, until it's written
+let recordBytes = 0; // all sessions, roughly
+const recordLimit = () => Math.max(1, Number(settings.recordLimitMB) || 1024) * 1024 * 1024;
+const keepRuns = () => Math.max(1, Number(settings.recordRuns) || 5);
+function dirSize(dir) {
+  let total = 0;
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name);
+    total += e.isDirectory() ? dirSize(p) : (statOf(p) || { size: 0 }).size;
+  }
+  return total;
+}
+// Over the limit, the oldest runs go, never the one being written.
+function pruneRecords() {
+  try {
+    const sizes = fs.readdirSync(RECORDS).filter((d) => SESSION_NAME.test(d)).sort().map((d) => ({ d, size: dirSize(path.join(RECORDS, d)) }));
+    let total = sizes.reduce((sum, s) => sum + s.size, 0);
+    let left = sizes.length;
+    for (const s of sizes) {
+      if (BIG_RECORD ? total <= recordLimit() : left <= keepRuns()) break;
+      if (recording && s.d === recording.name) continue;
+      fs.rmSync(path.join(RECORDS, s.d), { recursive: true, force: true });
+      total -= s.size;
+      left -= 1;
+      note('record: removed the old run', s.d);
+    }
+    recordBytes = total;
+  } catch (e) {
+    // No records yet.
+  }
+  rebuildMenu();
+}
+function recordTo() {
+  if (recording) return recording;
+  const name = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const dir = path.join(RECORDS, name);
+  fs.mkdirSync(path.join(dir, 'pictures'), { recursive: true });
+  recording = { name, dir, file: path.join(dir, 'record.jsonl'), pictures: 0 };
+  fs.appendFileSync(recording.file, `${JSON.stringify({ type: 'session', at: new Date().toISOString(), version: app.getVersion(), site: SITE, log: logPath })}\n`);
+  pruneRecords();
+  return recording;
+}
+function addRecord(entry, bytes) {
+  if (!settings.record) return;
+  try {
+    // A new run gets its own folder: it starts with its objective, or with
+    // the instrument pick that opens it (not a re-roll of that pick).
+    if (recording && recording.pictures > 0 && entry.type === 'picture') {
+      const opens = entry.kind === 'objective' || (entry.kind === 'instruments' && entry.fresh);
+      if (opens && !['objective', 'instruments'].includes(recording.lastKind)) recording = null;
+    }
+    const s = recordTo();
+    // A picture's file, sent after the analyzer read it: written under the
+    // name its entry got, with no line of its own.
+    if (entry.type === 'picture-file') {
+      const file = pictureFiles.get(entry.id);
+      pictureFiles.delete(entry.id);
+      if (file && bytes && bytes.byteLength > 0 && bytes.byteLength < 12 * 1024 * 1024) {
+        fs.writeFileSync(file, Buffer.from(bytes));
+        recordBytes += bytes.byteLength;
+        if (BIG_RECORD && recordBytes > recordLimit()) pruneRecords();
+      }
+      return;
+    }
+    if (entry.type === 'picture') s.lastKind = entry.kind;
+    const out = Object.assign({ at: new Date().toISOString() }, entry);
+    delete out.pending;
+    if (entry.type === 'picture' && entry.pending) {
+      s.pictures += 1;
+      out.file = `pictures/${String(s.pictures).padStart(4, '0')}-${String(entry.kind || 'picture').replace(/[^a-z]/gi, '')}.webp`;
+      pictureFiles.set(entry.id, path.join(s.dir, out.file));
+      if (pictureFiles.size > 50) pictureFiles.delete(pictureFiles.keys().next().value);
+    } else if (bytes && bytes.byteLength > 0 && bytes.byteLength < 12 * 1024 * 1024) {
+      s.pictures += 1;
+      out.file = `pictures/${String(s.pictures).padStart(4, '0')}-${String(entry.kind || 'picture').replace(/[^a-z]/gi, '')}.webp`;
+      fs.writeFileSync(path.join(s.dir, out.file), Buffer.from(bytes));
+      recordBytes += bytes.byteLength;
+      if (BIG_RECORD && recordBytes > recordLimit()) pruneRecords();
+    }
+    fs.appendFileSync(s.file, `${JSON.stringify(out)}\n`);
+  } catch (e) {
+    note('record failed:', String((e && e.message) || e));
+  }
+}
+// Only while a session is open: the game starting and closing, commands.
+const recordEvent = (entry) => recording && addRecord(entry);
+
+// #endregion
+const readLines = (file) => (statOf(file) ? fs.readFileSync(file, 'utf8') : '').split('\n').filter(Boolean);
+function listSessions() {
+  try {
+    return fs.readdirSync(RECORDS).filter((d) => SESSION_NAME.test(d)).sort().reverse().map((name) => {
+      const types = readLines(path.join(RECORDS, name, 'record.jsonl')).map((l) => (/"type":"([\w-]+)"/.exec(l) || [])[1]);
+      const count = (t) => types.filter((x) => x === t).length;
+      return { name, pictures: count('picture'), advice: count('advice'), edits: count('edit') };
+    });
+  } catch (e) {
+    return [];
+  }
+}
+function loadSession(name) {
+  if (!SESSION_NAME.test(String(name))) return null;
+  const dir = path.join(RECORDS, name);
+  const file = path.join(dir, 'record.jsonl');
+  if (!statOf(file)) return null;
+  const entries = readLines(file).map((l) => {
+    try {
+      return JSON.parse(l);
+    } catch (e) {
+      return null;
+    }
+  }).filter(Boolean);
+  return { name, base: `${require('url').pathToFileURL(dir).href}/`, entries };
+}
+
+function showReview() {
+  if (wins.review && !wins.review.isDestroyed()) {
+    wins.review.show();
+    wins.review.focus();
+    return;
+  }
+  const win = new BrowserWindow({
+    width: 1400,
+    height: 950,
+    title: 'Review the record · Tartarus Overlay',
+    show: !TEST,
+    icon: ICON,
+    backgroundColor: '#0f1216',
+    autoHideMenuBar: true,
+    webPreferences: { preload: path.join(__dirname, 'lib', 'review-preload.js'), contextIsolation: true, sandbox: true },
+  });
+  win.removeMenu();
+  wins.review = win;
+  win.loadFile(path.join(__dirname, 'lib', 'review.html'));
+  win.webContents.on('will-navigate', (e) => e.preventDefault());
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  if (DEV) {
+    win.webContents.on('before-input-event', (e, input) => {
+      if (input.type === 'keyDown' && input.key === 'F12') win.webContents.toggleDevTools();
+    });
+  }
+}
+
+// ---------- Windows ----------
+
+const wins = { follow: null, analyzer: null, overlay: null, review: null };
+let quitting = false;
+let tray = null;
+
+function sitePreferences() {
+  return { preload: path.join(__dirname, 'preload.js'), backgroundThrottling: false, contextIsolation: true, sandbox: true, spellcheck: false };
+}
+
+function loadPage(name) {
+  const win = wins[name];
+  win.loadURL(SITE + PAGES[name], { extraHeaders: 'pragma: no-cache\n' }).catch(() => {
+    // did-fail-load retries.
+  });
+}
+
+function makeSiteWindow(name, opts) {
+  const win = new BrowserWindow(Object.assign({
+    show: false,
+    width: 1100,
+    height: 860,
+    backgroundColor: '#0f1216',
+    icon: ICON,
+    autoHideMenuBar: true,
+    webPreferences: sitePreferences(),
+  }, opts));
+  win.removeMenu();
+  wins[name] = win;
+  const wc = win.webContents;
+  // The adapter goes in once the page's own scripts have run.
+  wc.on('dom-ready', () => {
+    if (pageOf(wc.getURL()) !== PAGES[name]) return;
+    const code = fs.readFileSync(path.join(__dirname, 'lib', ADAPTERS[name]), 'utf8');
+    note(`${name} page loaded:`, wc.getURL());
+    wc.executeJavaScript(code, true).catch((e) => note(`${name} adapter error:`, String((e && e.message) || e)));
+  });
+  // The page's own errors (and with --dev, its warnings), for the debug log.
+  wc.on('console-message', (e, ...old) => {
+    const level = e.level !== undefined ? e.level : old[0];
+    const message = e.message !== undefined ? e.message : old[1];
+    const where = `${e.sourceId !== undefined ? e.sourceId : old[3]}:${e.lineNumber !== undefined ? e.lineNumber : old[2]}`;
+    if (/Electron Security Warning/.test(String(message))) return; // shown only when run from source
+    if (level === 'error' || level === 3 || (DEV && (level === 'warning' || level === 2))) note(`${name} console ${level}:`, String(message).slice(0, 600), where);
+  });
+  // Offline, or the site is down: try again.
+  wc.on('did-fail-load', (e, code, text, url, mainFrame) => {
+    if (!mainFrame || code === -3) return; // -3: a load replaced by another
+    note(`${name} page failed to load:`, code, text);
+    pushShell({ offline: `${PAGES[name]}: ${text}` });
+    setTimeout(() => !win.isDestroyed() && loadPage(name), 15000);
+  });
+  wc.on('did-finish-load', () => pushShell({ offline: '' }));
+  wc.on('render-process-gone', (e, details) => {
+    note(`${name} page crashed:`, details && details.reason);
+    setTimeout(() => !win.isDestroyed() && loadPage(name), 1000);
+  });
+  // Only this window's own page loads in it. Links to the other app page
+  // show that window; anything else opens in the player's browser.
+  wc.on('will-navigate', (e, url) => {
+    if (pageOf(url) === PAGES[name]) return;
+    e.preventDefault();
+    if (!route(url) && /^https?:/i.test(url)) shell.openExternal(url);
+  });
+  wc.setWindowOpenHandler(({ url }) => {
+    if (route(url)) return { action: 'deny' };
+    // A picture's preview on follow.html.
+    if (url.startsWith('blob:')) return { action: 'allow', overrideBrowserWindowOptions: { autoHideMenuBar: true, icon: ICON, webPreferences: { preload: undefined, sandbox: true, contextIsolation: true } } };
+    if (/^https?:/i.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  if (DEV) {
+    wc.on('before-input-event', (e, input) => {
+      if (input.type === 'keyDown' && input.key === 'F12') wc.toggleDevTools();
+    });
+  }
+  win.on('close', (e) => {
+    if (quitting) return;
+    e.preventDefault();
+    win.hide();
+  });
+  loadPage(name);
+  return win;
+}
+
+// A link to another app page shows that window.
+function route(url) {
+  const page = pageOf(url);
+  const name = Object.keys(PAGES).find((k) => PAGES[k] === page);
+  if (!name) return false;
+  show(name);
+  return true;
+}
+
+function show(name) {
+  const win = wins[name];
+  if (!win || win.isDestroyed()) return;
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+  redraw(win);
+}
+
+// A window made while hidden can show an old, narrow picture of its page
+// until something makes it draw again: a size nudge makes it draw at once.
+function redraw(win) {
+  if (win.isMaximized() || win.isFullScreen()) {
+    win.webContents.invalidate();
+    return;
+  }
+  const [w, h] = win.getSize();
+  win.setSize(w, h + 1);
+  setTimeout(() => {
+    if (win.isDestroyed()) return;
+    win.setSize(w, h);
+    win.webContents.invalidate();
+  }, 80);
+}
+
+function toggle(name) {
+  const win = wins[name];
+  if (!win) return;
+  if (win.isVisible() && win.isFocused()) win.hide();
+  else show(name);
+}
+
+function makeAnalyzer() {
+  const b = settings.analyzer && onScreen(settings.analyzer) ? settings.analyzer : null;
+  const win = makeSiteWindow('analyzer', Object.assign({ width: 1280, height: 900, title: 'Board analyzer · Tartarus Overlay' }, b || {}));
+  const keep = () => {
+    if (win.isMaximized() || win.isMinimized()) return;
+    settings.analyzer = win.getBounds();
+    saveSettings();
+  };
+  win.on('moved', keep);
+  win.on('resized', keep);
+  return win;
+}
+
+// ---------- The overlay ----------
+
+let overlayPlaced = false;
+
+const onScreen = (b) => screen.getAllDisplays().some((d) => {
+  const a = d.workArea;
+  return b.x + 60 > a.x && b.x < a.x + a.width - 60 && b.y >= a.y - 10 && b.y < a.y + a.height - 40;
+});
+
+// Where the player left it; at first, the game window's top right corner,
+// or the main screen's.
+function placeOverlay() {
+  const win = wins.overlay;
+  if (!win) return;
+  const w = settings.overlayWidth;
+  let at = settings.overlay && onScreen(settings.overlay) ? settings.overlay : null;
+  if (at) overlayPlaced = true;
+  else {
+    let area = screen.getPrimaryDisplay().workArea;
+    const r = game.running && win32 ? win32.rect(game.hwnd) : null;
+    if (r && r.width > 200) {
+      area = screen.screenToDipRect(null, r);
+      overlayPlaced = true;
+    }
+    at = { x: Math.round(area.x + area.width - w - 24), y: Math.round(area.y + Math.min(140, area.height / 8)) };
+  }
+  const b = win.getBounds();
+  win.setBounds({ x: at.x, y: at.y, width: w, height: b.height });
+}
+
+function makeOverlay() {
+  const win = new BrowserWindow({
+    width: settings.overlayWidth,
+    height: 150,
+    show: false,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    fullscreenable: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    focusable: false, // clicks on it don't take the game out of focus
+    hasShadow: false,
+    title: 'Tartarus Overlay',
+    icon: ICON,
+    webPreferences: { preload: path.join(__dirname, 'lib', 'overlay-preload.js'), backgroundThrottling: false, contextIsolation: true, sandbox: true },
+  });
+  wins.overlay = win;
+  win.setAlwaysOnTop(true, 'screen-saver');
+  win.setContentProtection(!!settings.hideFromCaptures);
+  win.setIgnoreMouseEvents(!!settings.locked, { forward: true });
+  win.loadFile(path.join(__dirname, 'lib', 'overlay.html'));
+  win.webContents.on('will-navigate', (e) => e.preventDefault());
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  win.webContents.on('did-finish-load', () => {
+    pushShell();
+    pushGame();
+    if (lastAdvice) send('overlay', 'advice', lastAdvice);
+    if (lastFollow) send('overlay', 'follow', lastFollow);
+  });
+  win.on('moved', () => {
+    const b = win.getBounds();
+    settings.overlay = { x: b.x, y: b.y };
+    saveSettings();
+  });
+  win.on('close', (e) => {
+    if (!quitting) e.preventDefault();
+  });
+  placeOverlay();
+  return win;
+}
+
+// Shown while the game runs, whatever is in front. With hideBehind (the
+// tray menu), only while the game itself is in front.
+let overlayShown = false;
+function overlayWanted() {
+  if (!settings.overlayOn || !game.running) return false;
+  if (!settings.hideBehind || !win32) return true;
+  const front = win32.foreground();
+  if (front === game.hwnd) return !win32.minimized(game.hwnd);
+  return front === hwndOf(wins.overlay);
+}
+function updateOverlay() {
+  const win = wins.overlay;
+  if (!win || win.isDestroyed()) return;
+  const want = overlayWanted();
+  if (want === overlayShown) return;
+  overlayShown = want;
+  if (want) {
+    win.showInactive();
+    win.setAlwaysOnTop(true, 'screen-saver');
+  } else win.hide();
+}
+
+function setLocked(on) {
+  settings.locked = !!on;
+  saveSettings();
+  if (wins.overlay) wins.overlay.setIgnoreMouseEvents(settings.locked, { forward: true });
+  pushShell();
+  rebuildMenu();
+}
+
+function setOverlayOn(on) {
+  settings.overlayOn = !!on;
+  saveSettings();
+  updateOverlay();
+  rebuildMenu();
+}
+
+// ---------- Between the pages and the overlay ----------
+
+const send = (name, channel, data) => {
+  const win = wins[name];
+  if (win && !win.isDestroyed()) win.webContents.send(channel, data);
+};
+const sender = (e, name) => !!wins[name] && !wins[name].isDestroyed() && e.sender === wins[name].webContents;
+const fromPage = (e, name) => sender(e, name) && !!e.senderFrame && pageOf(e.senderFrame.url) === PAGES[name];
+
+function gameInfo() {
+  return { running: game.running, title: game.title, log: logPath ? { path: logPath, name: path.basename(logPath), there: !!statOf(logPath) } : null };
+}
+function pushGame() {
+  const g = gameInfo();
+  send('follow', 'game', g);
+  send('overlay', 'game', g);
+}
+
+let siteUpdate = false;
+let appUpdate = '';
+let shellExtra = { offline: '' };
+let agreed = null; // whether the player agreed on follow.html, once it says
+function pushShell(patch) {
+  if (patch) Object.assign(shellExtra, patch);
+  send('overlay', 'shell', Object.assign({
+    locked: settings.locked,
+    collapsed: settings.collapsed,
+    agreed,
+    siteUpdate,
+    appUpdate,
+    hotkeys: HOTKEYS,
+    local: /^(localhost|127\.0\.0\.1)$/.test(SITE_URL.hostname),
+    version: app.getVersion(),
+  }, shellExtra));
+}
+
+let lastAdvice = null;
+let lastFollow = null;
+const small = (data) => {
+  try {
+    return JSON.stringify(data).length < 50000;
+  } catch (e) {
+    return false;
+  }
+};
+
+// #region consent
+// The agreement on follow.html belongs to the app: given once, a copy of
+// the page from another address (the local test site) or a new install
+// doesn't ask again, while the page's agreement version is the same. Turning
+// it off on the page clears it here too.
+ipcMain.handle('consent:get', (e) => (fromPage(e, 'follow') ? settings.consent : null));
+ipcMain.on('consent:set', (e, value) => {
+  if (!fromPage(e, 'follow')) return;
+  const at = value && typeof value.at === 'string' ? value.at.slice(0, 40) : new Date().toISOString();
+  const next = value && value.withdrawn === true ? { withdrawn: true, at }
+    : value && Number.isInteger(value.version) && value.version > 0 ? { version: value.version, at } : null;
+  if (JSON.stringify(next) === JSON.stringify(settings.consent)) return;
+  settings.consent = next;
+  saveSettings();
+  note(!next ? 'agreement cleared' : next.withdrawn ? 'agreement withdrawn: off for the app' : `agreement remembered for the app (version ${next.version})`);
+});
+
+// An agreement given on the live site before the app remembered agreements:
+// read once from that page, so the test copy doesn't ask again.
+async function adoptLiveAgreement() {
+  if (settings.consent || SITE === LIVE_SITE) return;
+  const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true } });
+  try {
+    await win.loadURL(`${LIVE_SITE}follow.html`);
+    const found = await win.webContents.executeJavaScript(`(() => {
+      try {
+        const s = JSON.parse(localStorage.getItem('tartarus-sim:auto:v1') || 'null');
+        const v = window.TartarusCapture && window.TartarusCapture.CONSENT_VERSION;
+        return s && s.enabled === true && s.consent === v ? { version: v, at: s.consentAt || null } : null;
+      } catch (e) {
+        return null;
+      }
+    })()`);
+    if (found) {
+      settings.consent = found;
+      saveSettings();
+      note(`agreement carried over from the live site (version ${found.version})`);
+    } else note('no agreement on the live site to carry over');
+  } catch (e) {
+    note('could not read the agreement on the live site:', String((e && e.message) || e)); // offline: the page asks
+  } finally {
+    win.destroy();
+  }
+}
+
+// #endregion
+ipcMain.handle('game:get', (e) => (sender(e, 'follow') || sender(e, 'overlay') ? gameInfo() : null));
+
+// #region read-log
+// The log, for follow.html only: its size, and the bytes it asks for.
+ipcMain.handle('log:stat', async (e) => {
+  if (!fromPage(e, 'follow') || !logPath) return null;
+  try {
+    const st = await fs.promises.stat(logPath);
+    return st.isFile() ? { name: path.basename(logPath), size: st.size } : null;
+  } catch (err) {
+    return null;
+  }
+});
+ipcMain.handle('log:read', async (e, start, end) => {
+  if (!fromPage(e, 'follow') || !logPath) throw new Error('No log.');
+  const from = Math.max(0, Math.floor(Number(start) || 0));
+  const length = Math.min(Math.max(0, Math.floor(Number(end) || 0) - from), 4 * 1024 * 1024);
+  const fh = await fs.promises.open(logPath, 'r');
+  try {
+    const buf = Buffer.alloc(length);
+    const { bytesRead } = await fh.read(buf, 0, length, from);
+    return buf.subarray(0, bytesRead);
+  } finally {
+    await fh.close();
+  }
+});
+
+// #endregion
+// What follow.html is doing, and the analyzer's advice, for the overlay.
+ipcMain.on('site:follow', (e, data) => {
+  if (!fromPage(e, 'follow') || !data || !small(data)) return;
+  const was = lastFollow || {};
+  lastFollow = data;
+  if (data.log !== was.log || data.window !== was.window || data.agreed !== was.agreed) note(`follow: agreed=${data.agreed} log=${data.log}${data.error ? ` (${data.error})` : ''} window=${data.window}`);
+  const f = data.lastFrame;
+  if (f && (!was.lastFrame || f.at !== was.lastFrame.at)) note(`picture: ${f.kind}${f.ok ? '' : ` (none taken: ${f.why})`}`);
+  if (typeof data.agreed === 'boolean' && data.agreed !== agreed) {
+    agreed = data.agreed;
+    // Before anything runs, the player reads follow.html and agrees there.
+    if (!agreed && !TEST) show('follow');
+    pushShell();
+  }
+  send('overlay', 'follow', data);
+});
+ipcMain.on('site:advice', (e, data) => {
+  if (!fromPage(e, 'analyzer') || !data || !small(data)) return;
+  const was = lastAdvice || {};
+  const r = data.lastRead;
+  if (r && (!was.lastRead || r.at !== was.lastRead.at)) {
+    const what = r.pick ? `instrument offer: ${r.names.join(', ')}` : r.objective ? `objective: ${r.name}` : r.treasure ? "Warden's Treasure" : `day ${r.day}`;
+    note(`read: ${r.ok ? what + (r.unsure ? `, ${r.unsure} to check` : '') : `failed (${r.reason})`}`);
+  }
+  const sum = (a) => (a.problems && a.problems.length ? `board problem: ${a.problems[0]}` : a.working ? 'working' : a.stale ? 'board changed' : a.move ? `advice: ${a.move}` : a.nothing ? 'nothing to decide' : '');
+  if (sum(data) !== sum(was) && sum(data) && sum(data) !== 'working') note(sum(data));
+  if (data.toolsConfirm && data.toolsConfirm !== was.toolsConfirm) note('instruments to confirm:', data.toolsConfirm);
+  lastAdvice = data;
+  send('overlay', 'advice', data);
+});
+
+// The overlay's buttons.
+ipcMain.on('overlay:command', (e, cmd) => {
+  if (sender(e, 'overlay')) command(cmd);
+});
+ipcMain.on('site:record', (e, entry, bytes) => {
+  if (!fromPage(e, 'analyzer') || !entry || typeof entry !== 'object' || typeof entry.type !== 'string') return;
+  addRecord(entry, bytes);
+});
+ipcMain.handle('record:sessions', (e) => (sender(e, 'review') ? listSessions() : []));
+ipcMain.handle('record:load', (e, name) => (sender(e, 'review') ? loadSession(name) : null));
+ipcMain.on('record:folder', (e) => {
+  if (sender(e, 'review')) shell.openPath(RECORDS);
+});
+
+ipcMain.on('overlay:size', (e, height) => {
+  if (!sender(e, 'overlay')) return;
+  const b = wins.overlay.getBounds();
+  const h = Math.max(36, Math.min(900, Math.ceil(Number(height) || 0)));
+  if (h !== b.height) wins.overlay.setBounds({ x: b.x, y: b.y, width: settings.overlayWidth, height: h });
+});
+
+function command(cmd) {
+  note('command:', cmd);
+  recordEvent({ type: 'command', cmd: String(cmd) });
+  switch (cmd) {
+    case 'board': return toggle('analyzer');
+    case 'follow': return show('follow');
+    case 'capture': return send('follow', 'command', 'capture');
+    case 'fix':
+      show('analyzer');
+      return send('analyzer', 'command', 'fix');
+    case 'recheck':
+    case 'tools-ok':
+    case 'treasure-now':
+      return send('analyzer', 'command', cmd);
+    case 'report':
+    case 'report-new':
+      show('analyzer');
+      return send('analyzer', 'command', cmd);
+    case 'hide':
+      setOverlayOn(false);
+      if (tray && !TEST) tray.displayBalloon({ title: 'Overlay hidden', content: `Press ${HOTKEYS.overlay.replace(/Control/, 'Ctrl')} to show it again, or use the tray icon.`, iconType: 'info' });
+      return undefined;
+    case 'lock': return setLocked(!settings.locked);
+    case 'collapse':
+      settings.collapsed = !settings.collapsed;
+      saveSettings();
+      return pushShell();
+    case 'review': return showReview();
+    case 'pick-log': return pickLog();
+    case 'reload': return reloadSite();
+    case 'restart': return updater && updater.quitAndInstall();
+    default: return undefined;
+  }
+}
+
+// #region share-game
+// Only follow.html may share a window, and the only window it gets is the
+// game's, found by its title. A whole screen or another window never is.
+function allowCapture() {
+  session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+    const wc = wins.follow && !wins.follow.isDestroyed() ? wins.follow.webContents : null;
+    let mine = !!wc && !!request.frame && pageOf(request.frame.url) === PAGES.follow;
+    if (mine && typeof webContents.fromFrame === 'function') mine = webContents.fromFrame(request.frame) === wc;
+    if (!mine) {
+      note('window share refused: not asked by follow.html');
+      return callback({});
+    }
+    desktopCapturer.getSources({ types: ['window'], thumbnailSize: { width: 0, height: 0 }, fetchWindowIcons: false })
+      .then((sources) => {
+        const s = sources.find((x) => GAME_TITLE.test(x.name));
+        note(s ? `window share: "${s.name.trim()}"` : 'window share refused: no game window');
+        callback(s ? { video: s } : {});
+      })
+      .catch((e) => {
+        note('window share failed:', String((e && e.message) || e));
+        callback({});
+      });
+  });
+  const allowed = new Set(['media', 'display-capture', 'clipboard-sanitized-write', 'fullscreen']);
+  const ok = (url) => !!pageOf(url || '');
+  session.defaultSession.setPermissionRequestHandler((wc, permission, cb, details) => cb(allowed.has(permission) && ok(details.requestingUrl || wc.getURL())));
+  session.defaultSession.setPermissionCheckHandler((wc, permission, origin) => allowed.has(permission) && origin === SITE_URL.origin);
+}
+
+// #endregion
+// ---------- Keeping up with the site ----------
+
+// The site's pages carry an asset tag (?v=) that changes with every update.
+// A newer one is loaded at once while the game isn't running; during a run
+// the overlay offers to reload.
+async function pageTag() {
+  try {
+    return await wins.analyzer.webContents.executeJavaScript('(() => { const s = [...document.querySelectorAll("script[src]")].map((x) => x.src).find((x) => /[?&]v=/.test(x)); return s ? new URL(s).searchParams.get("v") : null; })()');
+  } catch (e) {
+    return null;
+  }
+}
+async function checkSite() {
+  try {
+    const res = await net.fetch(SITE + PAGES.analyzer, { cache: 'no-store' });
+    const m = /[?&]v=([\w.-]+)/.exec(await res.text());
+    const mine = await pageTag();
+    if (!m || !mine || m[1] === mine) return;
+    note(`site updated: ${mine} -> ${m[1]}${game.running ? ' (offering a reload)' : ' (reloading)'}`);
+    if (!game.running) reloadSite();
+    else if (!siteUpdate) {
+      siteUpdate = true;
+      pushShell();
+    }
+  } catch (e) {
+    // Offline: next time.
+  }
+}
+function reloadSite() {
+  siteUpdate = false;
+  for (const name of Object.keys(PAGES)) {
+    const win = wins[name];
+    if (win && !win.isDestroyed()) win.webContents.reloadIgnoringCache();
+  }
+  pushShell();
+}
+
+// The app itself updates from the GitHub releases, when it's installed.
+let updater = null;
+function startUpdater() {
+  if (!app.isPackaged || TEST) return;
+  try {
+    updater = require('electron-updater').autoUpdater;
+  } catch (e) {
+    return;
+  }
+  updater.autoDownload = true;
+  updater.autoInstallOnAppQuit = true;
+  updater.on('update-downloaded', (info) => {
+    note('app update downloaded:', info.version);
+    appUpdate = info.version;
+    pushShell();
+    rebuildMenu();
+  });
+  updater.on('error', (e) => note('app update check failed:', String((e && e.message) || e).slice(0, 300)));
+  const check = () => updater.checkForUpdates().catch(() => {});
+  check();
+  setInterval(check, 6 * 3600 * 1000);
+}
+
+// ---------- Tray and hotkeys ----------
+
+const keyName = (k) => k.replace('Control', 'Ctrl');
+
+function rebuildMenu() {
+  if (!tray) return;
+  const login = app.getLoginItemSettings().openAtLogin;
+  tray.setToolTip(`Tartarus Overlay${game.running ? '' : ': waiting for Torchlight: Infinite'}`);
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: game.running ? 'Torchlight: Infinite is running' : 'Waiting for Torchlight: Infinite', enabled: false },
+    { label: logPath ? `Log: ${logPath}` : 'Log: not found', enabled: false },
+    { type: 'separator' },
+    { label: 'Show the overlay', type: 'checkbox', checked: settings.overlayOn, accelerator: HOTKEYS.overlay, click: (i) => setOverlayOn(i.checked) },
+    { label: 'Lock it (clicks go through to the game)', type: 'checkbox', checked: settings.locked, accelerator: HOTKEYS.lock, click: (i) => setLocked(i.checked) },
+    { label: 'Hide it while another window is in front', type: 'checkbox', checked: settings.hideBehind, enabled: !!win32, click: (i) => { settings.hideBehind = i.checked; saveSettings(); updateOverlay(); } },
+    { label: 'Hide it from screenshots and streams', type: 'checkbox', checked: settings.hideFromCaptures, click: (i) => { settings.hideFromCaptures = i.checked; saveSettings(); if (wins.overlay) wins.overlay.setContentProtection(i.checked); } },
+    { label: 'Put the overlay back in the corner', click: () => { settings.overlay = null; overlayPlaced = false; saveSettings(); placeOverlay(); } },
+    { type: 'separator' },
+    { label: 'Board analyzer', accelerator: HOTKEYS.analyzer, click: () => show('analyzer') },
+    { label: 'Take a picture now', accelerator: HOTKEYS.capture, click: () => command('capture') },
+    { label: 'Follow my game (status and agreement)', click: () => show('follow') },
+    { label: 'Choose the game log…', click: () => pickLog() },
+    { type: 'separator' },
+    { label: 'Start with Windows', type: 'checkbox', checked: login, click: (i) => app.setLoginItemSettings({ openAtLogin: i.checked }) },
+    { label: siteUpdate ? 'Reload the site (an update is ready)' : 'Reload the site', click: () => reloadSite() },
+    appUpdate ? { label: `Restart to update the app (${appUpdate})`, click: () => command('restart') } : { label: `Version ${app.getVersion()}${DEV ? ' (debug)' : ''}`, enabled: false },
+    { label: 'Record every board and advice (testing)', type: 'checkbox', checked: settings.record, click: (i) => { settings.record = i.checked; saveSettings(); } },
+    { label: `Review the record… (${BIG_RECORD ? `${Math.round(recordBytes / 1048576)} MB of ${Math.round(recordLimit() / 1048576)} MB` : `the last ${keepRuns()} runs`})`, click: () => showReview() },
+    { label: 'Open the debug log', click: () => shell.openPath(LOG_FILE) },
+    ...(DEV ? [{
+      label: 'Developer tools',
+      submenu: [['follow', 'Follow my game page'], ['analyzer', 'Board analyzer'], ['overlay', 'Overlay']].map(([name, label]) => ({
+        label,
+        click: () => wins[name] && wins[name].webContents.openDevTools({ mode: 'detach' }),
+      })),
+    }] : []),
+    { type: 'separator' },
+    { label: 'Quit', click: () => { quitting = true; app.quit(); } },
+  ]));
+}
+
+function makeTray() {
+  let image = nativeImage.createFromPath(ICON);
+  if (!image.isEmpty()) image = image.resize({ width: 16, height: 16 });
+  tray = new Tray(image);
+  tray.on('click', () => toggle('analyzer'));
+  rebuildMenu();
+}
+
+function registerHotkeys() {
+  if (TEST) return;
+  const actions = {
+    overlay: () => setOverlayOn(!settings.overlayOn),
+    analyzer: () => toggle('analyzer'),
+    capture: () => command('capture'),
+    lock: () => setLocked(!settings.locked),
+  };
+  for (const [name, key] of Object.entries(HOTKEYS)) {
+    try {
+      if (!globalShortcut.register(key, actions[name])) note(`hotkey ${key} is taken by another program: use the tray menu`);
+    } catch (e) {
+      // Taken by another program: the tray menu still works.
+    }
+  }
+}
+
+// ---------- Start ----------
+
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => show('analyzer'));
+  app.on('window-all-closed', () => {
+    // The app lives in the tray.
+  });
+  app.on('before-quit', () => {
+    quitting = true;
+  });
+  app.on('will-quit', () => globalShortcut.unregisterAll());
+
+  // Tests stop the app with "quit" on its input, as the tray's Quit does,
+  // so the pages' storage is written out.
+  if (TEST && process.stdin) {
+    process.stdin.on('data', (d) => {
+      if (/quit/.test(String(d))) {
+        quitting = true;
+        app.quit();
+      }
+    });
+  }
+
+  app.whenReady().then(async () => {
+    note(`start: version ${app.getVersion()}, site ${SITE}${DEV ? ', debug' : ''}${TEST ? ', test' : ''}, foreground check ${win32 ? 'on' : 'off'}`);
+    allowCapture();
+    pruneRecords();
+    await refreshLog();
+    await adoptLiveAgreement();
+    makeOverlay();
+    makeSiteWindow('follow', { width: 1000, height: 860, title: 'Follow my game · Tartarus Overlay' });
+    makeAnalyzer();
+    makeTray();
+    registerHotkeys();
+    lookForGame();
+    setInterval(updateOverlay, 250);
+    setInterval(checkSite, 10 * 60 * 1000);
+    startUpdater();
+    if (!TEST && !game.running) {
+      tray.displayBalloon({ title: 'Tartarus Overlay is running', content: 'The advice shows over Torchlight: Infinite while you play. The tray icon has the board analyzer and settings.', iconType: 'info' });
+    }
+    if (TEST) console.log(`[overlay] ready site=${SITE} log=${logPath} win32=${!!win32}`);
+  });
+}

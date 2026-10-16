@@ -1,0 +1,58 @@
+{
+  "name": "tartarus-overlay",
+  "productName": "Tartarus Overlay",
+  "version": "0.1.10",
+  "description": "Follow my game for the Tartarus board analyzer, with the advice in an overlay over the game.",
+  "author": "CoffeeBns",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "local": "electron . --site=http://localhost:8090/",
+    "dist": "electron-builder --win --publish never",
+    "release": "electron-builder --win --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.9",
+    "koffi": "2.16.3"
+  },
+  "devDependencies": {
+    "electron": "44.5.1",
+    "electron-builder": "26.16.1"
+  },
+  "build": {
+    "appId": "io.github.blahdot3h.tartarus-overlay",
+    "productName": "Tartarus Overlay",
+    "files": [
+      "main.js",
+      "preload.js",
+      "lib/**",
+      "build/icon.png",
+      "!node_modules/koffi/build/koffi/{darwin_arm64,darwin_x64,freebsd_arm64,freebsd_ia32,freebsd_x64,linux_arm64,linux_armhf,linux_ia32,linux_loong64,linux_riscv64d,linux_x64,musl_arm64,musl_x64,openbsd_ia32,openbsd_x64,win32_arm64,win32_ia32}/**",
+      "!node_modules/koffi/{src,vendor,doc}/**"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "Tartarus-Overlay-Setup-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "blahdot3h",
+        "repo": "tartarus-simulator",
+        "releaseType": "release"
+      }
+    ]
+  }
+}

@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261016zh">
+<link rel="stylesheet" href="css/style.css?v=20261016zi">
 <style>
   /* A long read in the simulator's look, like the strategy guide. */
   .guide {
@@ -379,6 +379,7 @@
       <li><b>One window, only with the log connected.</b> It takes pictures of the one window you share, never a whole screen or a browser tab. It only does so while the game log is connected: when the log shows a move, or when you press Take a picture now, here or on the board analyzer (which asks this page to take it). Nothing is recorded in between.</li>
       <li><b>Pictures stay in your browser.</b> This page hands each picture to the board analyzer open in another tab, which reads the board from it with the screenshot reader. The picture passes between the two tabs inside your browser. Pictures are kept as small previews in memory and are gone when you close the tabs. Follow my game never uploads a picture or your log.</li>
       <li><b>Boards, only if you share boards.</b> The board the analyzer reads from each picture is treated like any board you ask about. If board sharing is on (the switch under the analyzer's ask button), the board is shared for the odds study: its cells, day and tools, with no picture and nothing about you. It's shared once the next picture comes in, so a board you fixed is shared as you fixed it. Turn that switch off and nothing is shared.</li>
+      <li><b>In the desktop app.</b> Tartarus Overlay finds the log and the game window itself, with no picker, and keeps your last 5 runs' pictures, boards and advice on your PC to review. See <a href="#desktop">In the desktop app</a>.</li>
       <li><b>Off whenever you like.</b> Stop following and Stop sharing end it at once, as does your browser's own stop-sharing button. Turning it off at the bottom of this page stops it at once, and the analyzer stops taking pictures.</li>
     </ul>
   </section>
@@ -432,6 +433,35 @@
     <div class="code" data-file="js/auto.js" data-region="receive"></div>
   </section>
 
+  <section class="guide-section" id="desktop">
+    <h2>In the desktop app</h2>
+    <p>Tartarus Overlay is a Windows app that runs Follow my game for you and shows the advice in a small card over the game, so one monitor is enough. It opens this site's own pages (this page and the board analyzer) inside the app, so everything above still holds there, with the differences below. Its code is in the site's repository, under <code>desktop/</code>, and each part is shown here the same way.</p>
+
+    <h3>It finds the log itself</h3>
+    <p>You don't drag the log in. The app looks where the game writes it: in each Steam library that has the game (from Steam's own list of its libraries), and in the game launcher's default folder. It takes the newest <code>UE_game.log</code> there, or one you choose from its tray menu. Only this page can read it, and only its size and the bytes it asks for. The follower above still reads only the new lines.</p>
+    <div class="code" data-file="desktop/main.js" data-region="find-log"></div>
+    <div class="code" data-file="desktop/main.js" data-region="read-log"></div>
+
+    <h3>It shares only the game window, found by its title</h3>
+    <p>A desktop app can see which window is which. Every two seconds the app looks for the window titled Torchlight: Infinite. When this page asks to share a window, the app answers with that window only, with no picker: never a screen, a browser tab or any other window. The checks above still run. A picture is taken only while you've agreed, the log is followed and the shared window is live.</p>
+    <div class="code" data-file="desktop/main.js" data-region="game-title"></div>
+    <div class="code" data-file="desktop/main.js" data-region="game-window"></div>
+    <div class="code" data-file="desktop/main.js" data-region="share-game"></div>
+    <p>On this page, the app does what you'd do by hand: once you've agreed, it connects the log it found and shares the game window, only while the game runs. Your Stop following and Stop sharing buttons still work.</p>
+    <div class="code" data-file="desktop/lib/follow-adapter.js" data-region="connect"></div>
+
+    <h3>One agreement for the app</h3>
+    <p>You agree once in the app. It remembers which version of this page you agreed to, so it doesn't ask again when it starts or updates. If this page's agreement version changes, it asks again. Turning Follow my game off here turns it off for the app.</p>
+    <div class="code" data-file="desktop/lib/follow-adapter.js" data-region="agreement"></div>
+    <div class="code" data-file="desktop/main.js" data-region="consent"></div>
+
+    <h3>A record of your last runs, on your PC</h3>
+    <p>Unlike the browser, the app keeps a record on your PC, so you can look back at a run from its tray menu (Review the record). It holds each picture the analyzer was handed, what the reader made of it, the board and the advice, and the changes you made on the board. It keeps your last 5 runs and deletes older ones. (A test build started with <code>--dev</code> keeps up to 1 GB instead.) The record stays in the app's folder on your PC and is never uploaded. Turn it off in the tray menu: Record every board and advice. The app also keeps a short log of what it did, such as the game starting and closing, pictures taken, readings and advice, for troubleshooting. That log never holds the game log's lines or a picture.</p>
+    <div class="code" data-file="desktop/lib/analyzer-adapter.js" data-region="record"></div>
+    <div class="code" data-file="desktop/main.js" data-region="record"></div>
+    <p class="note">The overlay only shows what the analyzer's results say, and presses the analyzer's buttons for you. Boards are shared and reports sent exactly as on the website, by the website's own code: the board-sharing switch under the analyzer's ask button still decides.</p>
+  </section>
+
   <section class="guide-section">
     <h2>Check the files</h2>
     <p>These are the files shown above, as this site serves them now, with each file's SHA-256 fingerprint. A copy from GitHub with the same fingerprint is the same file, byte for byte.</p>
@@ -444,19 +474,19 @@
   <section class="guide-section" id="agree">
     <h2>Turn it on</h2>
     <div class="agree">
-      <label class="toggle"><input type="checkbox" id="agree-box"><span><strong>I've read this page.</strong><small>I agree to let Follow my game read the game log I pick and take pictures of the window I share, in this browser, as described above.</small></span></label>
+      <label class="toggle"><input type="checkbox" id="agree-box"><span><strong>I've read this page.</strong><small>I agree to let Follow my game read the game log and take pictures of the game window, as described above. In a browser, that's the log I give it and the window I share. In the desktop app, it's the log and the Torchlight: Infinite window it finds, with its record of my last runs kept on this PC.</small></span></label>
       <div class="agree-actions">
         <button type="button" class="btn btn-primary" id="agree-on" disabled>Turn on Follow my game</button>
         <button type="button" class="btn" id="agree-off" hidden>Turn it off and forget my log</button>
       </div>
       <p class="agree-status" id="agree-status" aria-live="polite"></p>
     </div>
-    <p class="note">This is agreement version <span id="consent-version">3</span>. If what Follow my game does changes, this page asks you to read it again before it turns back on.</p>
+    <p class="note">This is agreement version <span id="consent-version">4</span>. If what Follow my game does changes, this page asks you to read it again before it turns back on.</p>
   </section>
 </main>
 
-<script src="js/capture.js?v=20261016zh"></script>
-<script src="js/follow.js?v=20261016zh"></script>
+<script src="js/capture.js?v=20261016zi"></script>
+<script src="js/follow.js?v=20261016zi"></script>
 <script>
 (function () {
   'use strict';
@@ -468,6 +498,10 @@
     ['js/capture.js', 'Follows the log, checks your agreement, and takes pictures of the shared window.'],
     ['js/follow.js', 'This page’s controls: the agreement check, the triggers, and handing each picture to the analyzer tab.'],
     ['js/auto.js', 'The analyzer’s side: the agreement check, and reading each picture it’s handed into the board.'],
+    ['desktop/main.js', 'The desktop app: finds the log, shares only the game window, and keeps the agreement and the record.'],
+    ['desktop/preload.js', 'What this site’s pages get from the desktop app.'],
+    ['desktop/lib/follow-adapter.js', 'In the desktop app, on this page: connects the log and the game window, and keeps the agreement.'],
+    ['desktop/lib/analyzer-adapter.js', 'In the desktop app, on the analyzer: copies the advice to the overlay, and keeps the record.'],
   ];
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
