@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261016r">
+<link rel="stylesheet" href="css/style.css?v=20261016s">
 </head>
 <body>
 <main class="analyzer" id="analyzer">
@@ -119,6 +119,7 @@
             <button type="button" data-v="office">Instigate or Bestow</button>
             <button type="button" data-v="chain">Pick a meal</button>
             <button type="button" data-v="event">Special event</button>
+            <button type="button" data-v="ratway">Sewer Ratway: any cell</button>
             <button type="button" data-v="choice">Instrument or gift</button>
             <button type="button" data-v="window" id="az-step-window">Delivery</button>
           </div>
@@ -149,9 +150,13 @@
               <button type="button" data-v="freedom">Taste of Freedom</button>
               <button type="button" data-v="usurp1">Usurpation I</button>
               <button type="button" data-v="usurp2">Usurpation II</button>
+              <button type="button" data-v="ratway">Sewer Ratway</button>
             </div>
             <p class="field-note">The door the warden just opened held it. The inmate that came out must be in the warden's cell.</p>
             <p class="field-note">A different event? <button type="button" class="link" data-report="event">Report it with a screenshot</button>.</p>
+          </div>
+          <div class="az-stepbox" data-step="ratway">
+            <p class="field-note">After accepting the Sewer Ratway, your game asks “Select an Objective”, with every cell but the office on offer. Set the board as it is now: the analyzer ranks every cell.</p>
           </div>
           <div class="az-stepbox" data-step="choice">
             <span class="field-label">What's on offer</span>
@@ -262,6 +267,7 @@
               <button type="button" data-v="freedom">Taste of Freedom</button>
               <button type="button" data-v="usurp1">Usurpation I</button>
               <button type="button" data-v="usurp2">Usurpation II</button>
+              <button type="button" data-v="ratway">Sewer Ratway</button>
             </div>
           </fieldset>
           <label class="field az-nest" id="az-nest-field"><span class="field-label">Hatches on day</span><input type="number" id="az-nest-due" min="1" max="60" step="1"></label>
@@ -316,14 +322,14 @@
   </footer>
 </main>
 
-<script src="js/engine.js?v=20261016r"></script>
-<script src="js/board.js?v=20261016r"></script>
-<script src="js/tool-combos.js?v=20261016r"></script>
-<script src="js/solver.js?v=20261016r"></script>
-<script src="js/live.js?v=20261016r"></script>
-<script src="js/report.js?v=20261016r"></script>
-<script src="js/capture.js?v=20261016r"></script>
-<script src="js/analyze.js?v=20261016r"></script>
-<script src="js/auto.js?v=20261016r"></script>
+<script src="js/engine.js?v=20261016s"></script>
+<script src="js/board.js?v=20261016s"></script>
+<script src="js/tool-combos.js?v=20261016s"></script>
+<script src="js/solver.js?v=20261016s"></script>
+<script src="js/live.js?v=20261016s"></script>
+<script src="js/report.js?v=20261016s"></script>
+<script src="js/capture.js?v=20261016s"></script>
+<script src="js/analyze.js?v=20261016s"></script>
+<script src="js/auto.js?v=20261016s"></script>
 </body>
 </html>

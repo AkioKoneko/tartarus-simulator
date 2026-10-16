@@ -520,6 +520,7 @@
     freedom: 'Taste of Freedom waits there: 3 more locked cells open',
     usurp1: 'Usurpation I waits there: a random inmate rises a tier, and Usurpation II appears',
     usurp2: 'Usurpation II waits there: 2 random inmates rise a tier',
+    ratway: 'the Sewer Ratway waits there: a free move to any cell but the office',
   };
 
   // What each event behind a door is worth, given the block's composition.
@@ -550,6 +551,8 @@
       // A random inmate rises a tier, and Usurpation II (2 inmates) appears.
       usurp1: () => ctx.lift + 2 * ctx.lift * P.wInstigate,
       usurp2: () => 2 * ctx.lift,
+      // A second move: to the best door anywhere, worth a fresh door at least.
+      ratway: () => P.wOpen * ctx.openValue,
     };
   }
 
@@ -587,10 +590,11 @@
       // A door out of the warden's reach (a typed board with the warden in
       // the wrong cell) has no walk to count: one just behind the warden
       // would otherwise score as a walk most of the way round.
-      const steps = T.stepsBetween(st.position, n) <= range ? T.stepsBetween(st.position, n) : 0;
+      // The Sewer Ratway's move isn't a walk either.
+      const steps = !st.ratway && T.stepsBetween(st.position, n) <= range ? T.stepsBetween(st.position, n) : 0;
       let score = P.wStep * steps;
       let why;
-      if (st.chain) {
+      if (st.chain && !st.ratway) {
         const path = steps ? T.clockwisePath(st, n) : [n];
         const sealed = path.filter((k) => st.cells[k].sealed).length;
         score += P.wOpen * (sealed - (c.sealed ? 1 : 0)) * ctx.openValue + (c.sealed ? freshNow() : c.inmate ? P.wWalk * known(c) : 0);
@@ -1088,7 +1092,8 @@
       if (st.event.kind === 'chain') return { type: 'event', accept: !!P.acceptChain };
       // Ravenous Appetite, High-Risk Convict, Crow Whispers and Taste of
       // Freedom only add.
-      if (['appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2'].includes(st.event.kind)) return { type: 'event', accept: true };
+      // The Sewer Ratway's move can stay put, so it only adds too.
+      if (['appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'ratway'].includes(st.event.kind)) return { type: 'event', accept: true };
       const exec = st.cells[st.event.cell].inmate;
       if (!exec) return { type: 'event', accept: false };
       // Behind Closed Doors: a free Supreme, unless it already is one.
@@ -1445,6 +1450,7 @@
         if (st.event.kind === 'freedom') return `Free inmates: ${T.FREEDOM_CELLS} more locked cells open.`;
         if (st.event.kind === 'usurp1') return 'A random inmate rises a tier, and Usurpation II joins the events.';
         if (st.event.kind === 'usurp2') return 'Two random inmates rise a tier.';
+        if (st.event.kind === 'ratway') return 'A free move to any cell but the office: the best door or inmate on the whole block, not just the next six cells.';
         const exec = st.cells[st.event.cell].inmate;
         const victims = T.executionVictims(st, st.event.cell).length;
         return action.accept ? `The ${T.describe(exec)} removes ${T.plural(victims, 'inmate')} and rises as many tiers: it gains more than it removes.` : 'It would remove more than it gains.';
@@ -1547,7 +1553,7 @@
     if (ch1 && ch1.window && ch1.window.early && !(ch0 && ch0.window)) return { type: 'early' };
     if (before.phase === 'event') {
       if (after.phase === 'event') return null;
-      const x = recent(['skipped', 'armed', 'execution', 'trickster', 'appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2']);
+      const x = recent(['skipped', 'armed', 'execution', 'trickster', 'appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'ratway']);
       return x ? { type: 'event', accept: x.type !== 'skipped' } : null;
     }
     if (before.phase === 'office') {
@@ -1563,7 +1569,8 @@
       if (bites && bites[n]) return { type: 'chain', to: bites[n].cell };
       return !after.chaining && after.phase !== 'ended' ? { type: 'stopchain' } : null;
     }
-    if (before.phase === 'patrol') return after.stats.patrols > before.stats.patrols ? { type: 'patrol', cell: after.position } : null;
+    // The Sewer Ratway's move isn't counted as a patrol.
+    if (before.phase === 'patrol') return after.stats.patrols > before.stats.patrols || (before.ratway && !after.ratway) ? { type: 'patrol', cell: after.position } : null;
     if (after.used.devour > before.used.devour) {
       if (after.chaining) return { type: 'devour', to: after.chaining.bites[0].cell };
       const x = recent(['devour']);

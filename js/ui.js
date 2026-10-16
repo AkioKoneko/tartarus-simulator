@@ -588,7 +588,9 @@
     }
     if (st.phase === 'patrol') {
       const options = T.patrolOptions(st);
-      const parts = [`The warden stands ${wardenAt(st)}. Pick one of the ${T.plural(options.length, 'cell')} below, or double-click a glowing cell on the ring. Whichever inmate the warden ends up with makes today's consume.`];
+      const parts = st.ratway
+        ? [`Sewer Ratway: the warden can move to any cell but the office. Double-click one on the ring, or pick it below. A locked door there opens as on a patrol, and whichever inmate the warden ends up with makes today's consume.`]
+        : [`The warden stands ${wardenAt(st)}. Pick one of the ${T.plural(options.length, 'cell')} below, or double-click a glowing cell on the ring. Whichever inmate the warden ends up with makes today's consume.`];
       if (st.chain) parts.push('Chain reaction armed: every sealed door on the clockwise walk opens.');
       setDecision('Patrol: select a destination', parts.join(' '), []);
       return;
@@ -628,7 +630,7 @@
       ], true);
       return;
     }
-    if (['appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2'].includes(kind)) {
+    if (['appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'ratway'].includes(kind)) {
       let detail;
       if (kind === 'appetite') {
         const low = T.lowestInmates(st);
@@ -638,6 +640,7 @@
       else if (kind === 'freedom') detail = `Accept to open ${T.FREEDOM_CELLS} random locked cells. They trigger no other effects.`;
       else if (kind === 'usurp1') detail = 'Accept to raise 1 random inmate a tier. Usurpation I then leaves the special events, Usurpation II joins them, and one appears behind a random locked door.';
       else if (kind === 'usurp2') detail = 'Accept to raise 2 random inmates a tier each.';
+      else if (kind === 'ratway') detail = 'Accept to move the warden to any cell but the office. A locked door there opens as on a patrol, with any event behind it. The move isn’t a walk, so it adds no tiles.';
       else detail = 'Accept to open a random locked cell with a Legendary or better inmate inside. It triggers no other effects.';
       setDecision(T.eventName(kind), detail, [
         ['Accept', () => run((s) => T.resolveEvent(s, true)), 'primary'],
@@ -1140,6 +1143,7 @@
     freedom: 'Taste of Freedom opens 3 doors for free: accept it.',
     usurp1: 'Usurpation I raises an inmate for free, and brings Usurpation II: accept it.',
     usurp2: 'Usurpation II raises two inmates for free: accept it.',
+    ratway: 'The Sewer Ratway is a free move to any cell but the office: accept it, then take the best door or inmate on the whole block.',
     office: 'At the office, Bestow when a raise helps now, and Instigate when the block needs new doors with events.',
     chainPick: 'You pick each meal of a chain, or stop it with Cancel: take the meal that keeps the chain fed at the next tier, and stop only when every meal would cost more than it gains.',
     gift: 'Training: picking the gift that fits the board beat always taking the same one.',

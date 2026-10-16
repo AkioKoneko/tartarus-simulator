@@ -46,8 +46,8 @@
   const SAVE_KEY = 'tartarus-sim:save:v2';
   const PLAYOUT_BUDGET = 9600; // playouts per check, shared across the options
   const LIVE_MIN = 150; // playouts per option before the live check can lead
-  const STEPS = ['patrol', 'manage', 'office', 'chain', 'event', 'choice', 'window'];
-  const STEP_NAMES = { patrol: 'Which door to patrol', manage: 'After the patrol', office: 'Instigate or Bestow', chain: 'A meal to pick, or Cancel', event: 'A special event', choice: 'A tool or gift', window: 'A delivery' };
+  const STEPS = ['patrol', 'manage', 'office', 'chain', 'event', 'ratway', 'choice', 'window'];
+  const STEP_NAMES = { patrol: 'Which door to patrol', manage: 'After the patrol', office: 'Instigate or Bestow', chain: 'A meal to pick, or Cancel', event: 'A special event', ratway: 'Sewer Ratway: any cell', choice: 'A tool or gift', window: 'A delivery' };
   const BEAST_KEYS = { m: 'mammoth', l: 'lion', w: 'wolf', r: 'rat' };
   const TOP_TIER = T.SUPREME; // Rainbows leave for the vault, so cells hold Normal to Supreme
 
@@ -281,6 +281,14 @@
         }
         break;
       }
+      case 'ratway': {
+        // The Sewer Ratway's "Select an Objective": any cell but the office,
+        // after the day's patrol.
+        st.phase = 'patrol';
+        st.ratway = true;
+        st.destinations = st.cells.filter((c) => c.n !== T.OFFICE).map((c) => c.n);
+        break;
+      }
       case 'event': {
         const here = st.cells[st.position];
         if (!here || here.sealed || !here.inmate) problems.push("An event needs the inmate that came out of the door in the warden's cell: put the warden there and set its inmate.");
@@ -386,8 +394,8 @@
     } else if (st.chaining) m.step = 'chain';
     // The simulator offers Instigate or Bestow on walking into the office, but
     // the analyzer waits for the player (or a screenshot) to say the game does.
-    else m.step = st.phase === 'patrol' ? 'patrol' : 'manage';
-    m.dest = st.phase === 'patrol' ? st.destinations.slice() : [];
+    else m.step = st.phase === 'patrol' ? (st.ratway ? 'ratway' : 'patrol') : 'manage';
+    m.dest = st.phase === 'patrol' && !st.ratway ? st.destinations.slice() : [];
     m.devourUsed = st.used.devour > 0;
     m.swapUsed = st.used.swap > 0;
     m.consumeOffered = !!st.used.devourAfterSwap;
@@ -761,6 +769,7 @@
         btn('sealed:freedom', 'Locked door with Taste of Freedom', B.MARKS.freedom),
         btn('sealed:usurp1', 'Locked door with Usurpation I', B.MARKS.usurp1),
         btn('sealed:usurp2', 'Locked door with Usurpation II', B.MARKS.usurp2),
+        btn('sealed:ratway', 'Locked door with the Sewer Ratway', B.MARKS.ratway),
         btn('scouted', "Scouted door (Warden's Scales): set its beast and rarity in the panel below", B.MARKS.scouted),
       ]),
       row('Other', '', [btn('nest', 'Rat nest', B.MARKS.nest), btn('empty', 'Empty cell', B.MARKS.empty), btn('ivory', 'Tusk mark: toggles on the inmate here', B.MARKS.ivory)]),

@@ -209,10 +209,15 @@
     freedom: { name: 'Taste of Freedom' },
     usurp1: { name: 'Usurpation I' },
     usurp2: { name: 'Usurpation II' },
+    // A player's report (#13) and the user's screenshot (2026-10-16): "Select
+    // any 1 cell (excluding the Interrogation Room), move to that cell, and
+    // trigger subsequent content". The game then asks "Select an Objective"
+    // with every cell but the office (the Interrogation Room) on offer.
+    ratway: { name: 'Sewer Ratway' },
   };
   // The pool new events are drawn from (the game's "Prison Incidents"). It
   // changes during a run: Usurpation I trades itself for Usurpation II.
-  const EVENT_POOL = ['chain', 'execution', 'trickster', 'appetite', 'convict', 'crow', 'freedom', 'usurp1'];
+  const EVENT_POOL = ['chain', 'execution', 'trickster', 'appetite', 'convict', 'crow', 'freedom', 'usurp1', 'ratway'];
   // Taste of Freedom opens this many random locked cells.
   const FREEDOM_CELLS = 3;
   // Crow Whispers shows the rarity behind this many locked cells.
@@ -1040,15 +1045,18 @@
   function patrol(state, n) {
     const blocked = guard(state, 'patrol');
     if (blocked) return blocked;
-    if (!state.destinations.includes(n)) return fail('Patrol one of today’s destinations.');
+    if (!state.destinations.includes(n)) return fail(state.ratway ? 'The Sewer Ratway goes to any cell but the office.' : 'Patrol one of today’s destinations.');
     const events = [{ type: 'move', from: state.position, to: n }];
     const cell = state.cells[n];
-    const steps = stepsBetween(state.position, n);
-    state.stats.patrols += 1;
+    // The Sewer Ratway's move isn't a walk: no tiles, nothing seen on the way.
+    const ratway = !!state.ratway;
+    state.ratway = false;
+    const steps = ratway ? 0 : stepsBetween(state.position, n);
+    if (!ratway) state.stats.patrols += 1;
     // The doors the warden walks past are seen: any event behind them shows.
-    for (const k of clockwisePath(state, n)) if (k !== n) state.cells[k].seen = true;
+    if (!ratway) for (const k of clockwisePath(state, n)) if (k !== n) state.cells[k].seen = true;
     let event = null;
-    if (state.chain) {
+    if (state.chain && !ratway) {
       const path = clockwisePath(state, n);
       log(state, 'event', `Chain reaction: walking clockwise from cell ${cellLabel(state.position)} to cell ${cellLabel(n)} opens every sealed door on the way.`, { type: 'sweep', from: state.position, cell: n });
       for (const k of path) openCell(state, state.cells[k], 'side', events);
@@ -1064,7 +1072,7 @@
     }
     state.position = n;
     checkPrey(state);
-    walked(state, steps, events);
+    if (!ratway) walked(state, steps, events);
     if (event && state.cells[n].inmate) {
       state.phase = 'event';
       state.event = { kind: event, cell: n };
@@ -1147,6 +1155,17 @@
       state.event = null;
       state.phase = 'manage';
       log(state, 'event', `Skipped the ${name}.`, { type: 'skipped', name });
+      return ok(events);
+    }
+    if (kind === 'ratway') {
+      // Sewer Ratway: the warden moves to any cell but the office, and what's
+      // there happens as on a patrol (a locked door opens; any event behind it
+      // shows). Not a walk: no tiles, and the cells on the way stay unseen.
+      state.event = null;
+      state.phase = 'patrol';
+      state.ratway = true;
+      state.destinations = state.cells.filter((c) => c.n !== OFFICE).map((c) => c.n);
+      log(state, 'event', 'Sewer Ratway: pick any cell but the office to move to.', { type: 'ratway' });
       return ok(events);
     }
     if (kind === 'chain') {
@@ -2071,6 +2090,7 @@
       if (state.event.kind === 'crow') return [{ kind: 'event', accept: true, text: `Accept: the rarity behind the next ${CROW_CELLS} locked cells is shown.` }];
       if (state.event.kind === 'freedom') return [{ kind: 'event', accept: true, text: `Accept: ${FREEDOM_CELLS} random locked cells open.` }];
       if (state.event.kind === 'usurp1' || state.event.kind === 'usurp2') return [{ kind: 'event', accept: true, text: `Accept: ${state.event.kind === 'usurp1' ? 'a random inmate rises' : '2 random inmates rise'} a tier.` }];
+      if (state.event.kind === 'ratway') return [{ kind: 'event', accept: true, text: 'Accept: move to any cell but the office, and open it if it is locked.' }];
       const keepSmall = has(state, 'muzzle') && board.length <= 5;
       return [{ kind: 'event', accept: !keepSmall, text: keepSmall ? 'Skip: a chain would flood the block and switch off the Agonizing Muzzle.' : 'Accept: your next patrol opens every sealed cell on the way to its destination.' }];
     }
@@ -2171,6 +2191,7 @@
     // Saves from before events hid until passed showed every event.
     for (const c of data.cells) if (c.seen === undefined) c.seen = true;
     data.eventPool = Array.isArray(data.eventPool) && data.eventPool.length ? data.eventPool.filter((id) => EVENTS[id]) : EVENT_POOL.slice();
+    data.ratway = !!data.ratway && data.phase === 'patrol';
     delete data.chainConsume;
     return data;
   }
