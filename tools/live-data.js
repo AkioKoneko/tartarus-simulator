@@ -199,6 +199,20 @@ function loadRows() {
   return rows;
 }
 
+// The game's tutorial run is scripted, so its boards say nothing about the
+// odds (the user: never train on it or measure odds with it). Two of its
+// boards are known: its first, with the warden in the office, a Normal Rat
+// in 05, a Magic Lion in 08, a Rare Mammoth in 13 and one door, 03; and a
+// morning with the warden in 05 and doors 06, 08 and 14 (report 34). A run
+// with either is left out whole.
+function tutorialBoard(B) {
+  if (!B || B.step !== 'patrol') return false;
+  const at = (n, beast, tier) => !!B.cells && !!B.cells[n] && B.cells[n].kind === 'inmate' && B.cells[n].beast === beast && B.cells[n].tier === tier;
+  const dest = (B.dest || []).slice().sort((a, b) => a - b).join();
+  if (B.warden === 4 && dest === '5,7,13') return true;
+  return B.warden === 0 && dest === '2' && at(4, 'rat', 0) && at(7, 'lion', 1) && at(12, 'mammoth', 2);
+}
+
 // Consecutive boards of the same run: each pair is one confirmed step of a
 // live game, from the board before to the board after.
 function pairsOf(rows) {
@@ -210,12 +224,17 @@ function pairsOf(rows) {
   }
   const pairs = [];
   const firsts = [];
+  let tutorials = 0;
   for (const list of runs.values()) {
+    if (list.some((row) => tutorialBoard(row.board))) {
+      tutorials += 1;
+      continue;
+    }
     list.sort((a, b) => a.seq - b.seq);
     if (list[0].seq === 0) firsts.push(list[0]);
     for (let i = 1; i < list.length; i++) if (list[i].seq === list[i - 1].seq + 1) pairs.push([list[i - 1], list[i]]);
   }
-  return { runs: runs.size, pairs, firsts };
+  return { runs: runs.size - tutorials, tutorials, pairs, firsts };
 }
 
 // ---------- Observations ----------
@@ -401,7 +420,7 @@ function rates() {
 
 // Every rate the boards show, next to the simulator's values.
 function measure(rows) {
-  const { runs, pairs, firsts } = pairsOf(rows);
+  const { runs, tutorials, pairs, firsts } = pairsOf(rows);
   const obs = observe(pairs);
   const P = T.DEFAULT_PARAMS;
   const TIERS = T.TIERS;
@@ -423,6 +442,9 @@ function measure(rows) {
   }
 
   const plainSwaps = obs.swaps.filter((s) => !s.rope && !(s.fire && s.oldTier < 3));
+  // Doors without the instruments that change what's behind them: the
+  // Sorting Hook (never a Normal) and the Felon's Dog Tag (25% +1 tier).
+  const plainDoors = obs.doors.filter((d) => !d.tools.includes('hook') && !d.tools.includes('dogtag'));
   const mornings = obs.mornings.filter((m) => !m.fire);
   const offsets = {};
   for (const m of obs.mornings) for (const o of m.offsets) offsets[o] = (offsets[o] || 0) + 1;
@@ -438,13 +460,15 @@ function measure(rows) {
     counted: ALL ? 'everything, including dice and reader guesses nobody confirmed' : 'only what players set or confirmed against their game',
     boards: rows.length,
     runs,
+    tutorialRuns: tutorials,
     steps: pairs.length,
     latest: rows.reduce((m, r) => (r.received > m ? r.received : m), ''),
     leftOut: obs.unchecked,
     doors: {
-      about: 'What a patrol finds behind a sealed door (and nests). Simulator: tierWeights and beastWeights.',
-      tiers: tiers(obs.doors),
-      beasts: beasts(obs.doors),
+      about: "What a patrol finds behind a sealed door (and nests), without the Sorting Hook or the Felon's Dog Tag. Simulator: tierWeights and beastWeights.",
+      tiers: tiers(plainDoors),
+      beasts: beasts(plainDoors),
+      withTools: obs.doors.length - plainDoors.length,
     },
     swaps: {
       about: "Who comes in when the warden's inmate is swapped, without Hangman's Rope or a Burning Stake roll. The simulator uses the same odds as doors.",
@@ -514,7 +538,7 @@ function printRate(title, r) {
 }
 
 function print(o) {
-  console.log(`Live data: ${o.boards} boards in ${o.runs} runs, ${o.steps} confirmed steps (latest ${o.latest || 'none'}). Counting ${o.counted}; ${o.leftOut} unconfirmed guesses left out.`);
+  console.log(`Live data: ${o.boards} boards in ${o.runs} runs, ${o.steps} confirmed steps (latest ${o.latest || 'none'}). Counting ${o.counted}; ${o.leftOut} unconfirmed guesses left out${o.tutorialRuns ? `, and ${o.tutorialRuns} tutorial runs` : ''}.`);
   printDistribution('Door rarities', o.doors.tiers);
   printDistribution('Door beasts', o.doors.beasts);
   printDistribution('Swap rarities', o.swaps.tiers);
