@@ -200,6 +200,14 @@
     forged: icon('glow-blue',
       '<circle cx="24" cy="11" r="6" fill="none" stroke="#8d92a8" stroke-width="2.2"/><circle cx="29" cy="15" r="4.4" fill="none" stroke="#6f7488" stroke-width="1.8"/>' +
       key(20, 10) + key(29, -14)),
+    // Felon's Dog Tag: a pair of stamped tags on a ball chain, one bloodied.
+    dogtag: icon('glow-green',
+      '<path d="M9 9c5-6 18-7 25-1" fill="none" stroke="#8d92a8" stroke-width="2" stroke-dasharray="1.6 1.3" stroke-linecap="round"/>' +
+      '<rect x="20" y="13" width="16" height="26" rx="5" fill="#5d606c" stroke="#3c3e46" stroke-width="1" transform="rotate(14 28 26)"/>' +
+      '<rect x="12" y="12" width="17" height="27" rx="5" fill="#b9bcc6" stroke="#7d8089" stroke-width="1.2"/>' +
+      '<path d="M20.5 16.5L11 9" stroke="#8d92a8" stroke-width="1.6" stroke-dasharray="1.4 1.1"/><circle cx="20.5" cy="16.5" r="1.8" fill="#2c2c33"/>' +
+      '<path d="M15.5 22.5h10M15.5 26.5h10M15.5 30.5h7" stroke="#7d8089" stroke-width="1.4" stroke-linecap="round"/>' +
+      '<path d="M13 34c3 .5 5.5-.5 8 2.5" stroke="#9b1d22" stroke-width="2" fill="none" stroke-linecap="round"/>'),
     // Maddened Beast's Barbed Collar: a blood-red collar ringed with barbs.
     collar: icon('glow-red',
       spikes(24, 24, 14.5, 21.5, 14, 0, '#3a1012') +

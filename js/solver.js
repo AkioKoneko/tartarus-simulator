@@ -37,7 +37,7 @@
     swapMaxTier: 0, // swap the warden's inmate only at or below this tier
     execMargin: 0, // accept an Execution worth more than this
     acceptChain: true, // accept Chain reactions
-    toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'keys', 'scales', 'pestle', 'axe', 'fire', 'forged', 'ironbox'], // measured: each tool held from day 1
+    toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'dogtag', 'keys', 'scales', 'pestle', 'axe', 'fire', 'forged', 'ironbox'], // measured: each tool held from day 1
     toolSets: true, // pick instruments by the measured sets (js/tool-combos.js) when there are any
     office: null, // always 'bestow' or 'instigate' at the office (only to measure the habit)
     giftRank: null, // null scores the gifts on the spot; or a fixed order
@@ -59,10 +59,10 @@
   // tools/results/ (train-report.json: the drill profiles were retrained on
   // 2026-10-15).
   const PROFILES = {
-    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'keys', 'scales', 'pestle', 'axe', 'fire', 'forged', 'ironbox'] },
-    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'keys', 'scales', 'pestle', 'axe', 'fire', 'forged', 'ironbox'] },
+    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'dogtag', 'keys', 'scales', 'pestle', 'axe', 'fire', 'forged', 'ironbox'] },
+    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'dogtag', 'keys', 'scales', 'pestle', 'axe', 'fire', 'forged', 'ironbox'] },
     // The contract challenge, tuned on passing first and then points.
-    challenge: { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'shackles', 'skewer', 'revenge', 'collar', 'keys', 'ironbox', 'muzzle', 'saw', 'guillotine', 'hook', 'tongs', 'fire', 'axe', 'scales', 'pestle', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
+    challenge: { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'shackles', 'skewer', 'revenge', 'collar', 'keys', 'ironbox', 'muzzle', 'saw', 'guillotine', 'hook', 'tongs', 'dogtag', 'fire', 'axe', 'scales', 'pestle', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
   };
   const paramsFor = (st) => PROFILES[st.mode === 'challenge' ? 'challenge' : st.params.rewards ? 'rewards' : 'notools'];
 
@@ -145,6 +145,7 @@
       collar: has(st, 'collar'),
       revenge: has(st, 'revenge') && sealed > 0,
       axeDoors: has(st, 'axe') ? Math.min(2, sealed) : 0,
+      dogtag: has(st, 'dogtag'),
       lift: board.length ? lift : 0,
       shacklesLift: has(st, 'shackles') && board.length ? lift : 0,
       goalLeft: goal,
@@ -376,6 +377,15 @@
     return sum;
   }
 
+  // Felon's Dog Tag: the inmate behind a door the patrol opens rises a tier
+  // 25% of the time, so its rarity odds shift up a little.
+  function tagged(ctx, dist) {
+    if (!ctx.dogtag) return dist;
+    const out = dist.map((p) => 0.75 * p);
+    dist.forEach((p, t) => (out[Math.min(out.length - 1, t + 1)] += 0.25 * p));
+    return out;
+  }
+
   // Expected value of a new inmate behind a door: its own worth plus what it
   // could do today from the warden's cell.
   function freshValue(ctx, dist, comp, crowd, swapLeft) {
@@ -471,7 +481,7 @@
     const board = composition(st, -1);
     const swapLeft = st.used.swap < st.params.swapsPerDay;
     let fresh = null;
-    const freshNow = () => (fresh === null ? (fresh = freshValue(ctx, ctx.openDist, board.comp, board.crowd + 1, swapLeft)) : fresh);
+    const freshNow = () => (fresh === null ? (fresh = freshValue(ctx, tagged(ctx, ctx.openDist), board.comp, board.crowd + 1, swapLeft)) : fresh);
     const out = [];
     for (const n of T.patrolOptions(st)) {
       const c = st.cells[n];
@@ -491,7 +501,7 @@
         // is worth that rarity.
         const shown = c.known && c.hidden ? [0, 1, 2, 3, 4].map((t) => (t === Math.min(4, c.hidden.tier) ? 1 : 0)) : null;
         const need = needValue(ctx, board.comp, [], shown || ctx.openDist);
-        score += (shown ? freshValue(ctx, shown, board.comp, board.crowd + 1, swapLeft) : freshNow()) + need;
+        score += (shown ? freshValue(ctx, tagged(ctx, shown), board.comp, board.crowd + 1, swapLeft) : freshNow()) + need;
         why = need > 0 ? `a new inmate, who may help meet "${ctx.need.contract.name}"` : 'a new inmate, who may devour today';
         const worth = eventWorth(ctx, board.comp);
         const pool = st.eventPool || T.EVENT_POOL;

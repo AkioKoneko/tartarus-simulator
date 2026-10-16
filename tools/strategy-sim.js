@@ -676,12 +676,17 @@ async function combos() {
   const game = { rewards: false };
   const ids = T.TOOL_IDS;
   const file = path.join(RESULTS, 'tool-combos.json');
-  // Carry on from an earlier run if it played the same way.
+  // Carry on from an earlier run if it played the same way. The instrument
+  // rankings don't change how these runs play (no rewards), and a new
+  // instrument only adds sets: the ones already measured still hold.
   let out = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
-  if (out && (out.seed !== 'COMBO' || JSON.stringify(out.ids) !== JSON.stringify(ids) || JSON.stringify(out.params) !== JSON.stringify(params) || !out.sets[''])) {
+  const playing = (p) => JSON.stringify(Object.assign({}, p, { toolRank: null, giftRank: null }));
+  if (out && (out.seed !== 'COMBO' || playing(out.params) !== playing(params) || !out.sets[''] || !out.ids.every((id) => ids.includes(id)))) {
     console.log('The saved sets were played with other weights or instruments: starting over.');
     out = null;
   }
+  if (out && out.ids.length < ids.length) console.log(`New instruments since the last run: ${ids.filter((id) => !out.ids.includes(id)).join(', ')}.`);
+  if (out) Object.assign(out, { ids, params });
   if (!out) out = { seed: 'COMBO', ids, params, sets: {} };
   out.margin = margin;
   const priorRuns = out.totalRuns || 0;

@@ -117,6 +117,10 @@
     // first, which the eater takes by itself.
     collar: { name: "Maddened Beast's Barbed Collar", text: 'Each bite of a devour chain after the first: 80% chance of +1 extra tier.' },
     forged: { name: 'Forged Key', text: 'Each morning offers 1 destination fewer. When a patrol opens a door, 50% chance to open 1 more random sealed cell. That door triggers nothing else.' },
+    // The card: "There is a 25% chance to trigger after opening: +1 Rarity
+    // Tier to the current Inmate", read as the inmate in the cell the warden
+    // just opened (a player's report, 2026-10-16).
+    dogtag: { name: "Felon's Dog Tag", text: 'When a patrol opens a door, 25% chance that the inmate behind it rises a tier.' },
   };
   const TOOL_IDS = Object.keys(TOOLS);
 
@@ -489,6 +493,11 @@
     log(state, 'patrol', `Opened cell ${cellLabel(cell.n)}${extra}: ${describe(inmate)}.${lostNest ? ' The rat nest inside was destroyed.' : ''}`, { type: 'open', cell: cell.n, side: how !== 'patrol', who: snap(inmate) });
     if (event && how !== 'patrol') log(state, 'event', `The special event behind cell ${cellLabel(cell.n)} was used up without triggering.`);
     afterGrowth(state, inmate, events);
+    // Felon's Dog Tag: the inmate behind a patrolled door may rise a tier.
+    if (how === 'patrol' && has(state, 'dogtag') && cell.inmate === inmate && inmate.tier < RAINBOW && rand(state) < 0.25) {
+      log(state, 'tool', `Felon's Dog Tag: the ${describe(inmate)} in cell ${cellLabel(cell.n)} rises a tier.`, { type: 'dogtag', cell: cell.n });
+      promote(state, inmate, 1, false, events);
+    }
     // Searing Branding Iron: the inmate behind a patrolled door is copied
     // into another unopened cell, which opens with no other effect.
     if (how === 'patrol' && has(state, 'fire') && rand(state) < 0.35 && cell.inmate === inmate) {
@@ -1648,6 +1657,7 @@
       case 'shackles': return 8;
       case 'collar': return 10;
       case 'forged': return 6;
+      case 'dogtag': return 12;
       case 'wine': return board.filter((i) => i.tier < 3).length * 4;
       case 'horn': return board.filter((i) => devourOptions(state, cellOf(state, i.id).n).length).length * 6;
       case 'brand': return board.filter((i) => !devourOptions(state, cellOf(state, i.id).n).length).length * 5;
