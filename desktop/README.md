@@ -49,10 +49,20 @@ fullscreen, and a shared window there looks black.
   running, and during a run offers a Reload button on the overlay.
 - **App changes** (this folder): `electron-updater` checks GitHub Releases of
   blahdot3h/tartarus-simulator every 6 hours, downloads in the background and
-  installs on quit (the overlay offers Restart). Publish one with
-  `GH_TOKEN=$(gh auth token) npm run release` after bumping `version` in
-  package.json. Unsigned builds show SmartScreen's "Windows protected your PC"
-  on first install.
+  installs on quit (the overlay offers Restart). Unsigned builds show
+  SmartScreen's "Windows protected your PC" on first install.
+
+To publish a version:
+1. Bump `version` in package.json (and package-lock.json), commit, push.
+2. Tag it and push the tag: `git tag -a vX.Y.Z -m "Tartarus Overlay X.Y.Z"`,
+   `git push origin vX.Y.Z`. GitHub refuses a release without its tag.
+3. Create the release first, with its notes:
+   `gh release create vX.Y.Z --title "Tartarus Overlay X.Y.Z" --notes-file notes.md`.
+   Left to electron-builder, it can create the release twice at once and
+   lose files (0.2.1 did).
+4. `GH_TOKEN=$(gh auth token) npm run release` builds and uploads the
+   installer, its blockmap and latest.yml into it. Check all three are there
+   (`gh release view vX.Y.Z`): installed copies read latest.yml.
 
 ## Build
 
