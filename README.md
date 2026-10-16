@@ -51,7 +51,7 @@ The board layout follows the original Chinese tool. The rules follow the video r
 | `js/board.js` | The board's artwork (beast portraits, lantern, office), shared by every page |
 | `analyze.html`, `js/analyze.js` | The board analyzer, and the screenshot reader's page |
 | `js/report.js` | The analyzer's Report something new dialog: an event, instrument or gift the simulator doesn't have yet, with a cropped screenshot |
-| `js/capture.js`, `js/auto.js`, `follow.html` | Follow my game (beta): the analyzer follows the game log and reads pictures of the shared game window. The panel shows only with `analyze.html?auto=1`, after agreeing on `follow.html`, which explains it with its code. Nothing links to it yet |
+| `js/capture.js`, `js/auto.js`, `follow.html` | Follow my game (beta): the analyzer follows the game log and reads pictures of the shared game window. It's set up on `follow.html`, which the analyzer's header links to; the page explains it with its code, and nothing runs until the player agrees there |
 | `tools/serve.js` | A local copy of the site for testing before a push (VS Code: Run and Debug, Local site) |
 | `js/scan.js` | The screenshot reader. Pure functions on pixels, so it also runs under Node |
 | `js/scan-data.js` | The reader's reference data, made by `tools/scan-build.js` |
