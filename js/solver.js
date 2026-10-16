@@ -34,6 +34,7 @@
     wCrow: 2, // patrol: a door hiding Crow Whispers (it only shows rarities)
     wShort: 0.1, // Short-Chained Shackles: a short walk's chance of an extra door, as a share of its worth (0.1 measured best: 0.749 against 0.683 at 1)
     wCage: 1, // Crowded Beastcage: a devour's chance of reopening the meal's cell, as a share of its worth
+    rerollMargin: 0.02, // a pet's re-roll: only when a new offer's best averages this much more (Rainbows per run)
     wStair: 0, // keeping a spread of beasts at each tier, so chains can go on
     minDevour: 0, // skip devours worth less than this (-1e9: never skip)
     swapMaxTier: 0, // swap the warden's inmate only at or below this tier
@@ -918,6 +919,36 @@
     return gains;
   }
 
+  // A pet's re-roll: what the best instrument on offer adds, against what
+  // the best of a new offer of 3 adds on average (every 3 the re-roll could
+  // show, from the instruments neither held nor on offer). Null without
+  // measured sets.
+  function rerollOdds(st, options) {
+    const others = T.TOOL_IDS.filter((id) => !st.tools.includes(id) && !options.includes(id));
+    const pool = others.length >= 3 ? others : T.TOOL_IDS.filter((id) => !st.tools.includes(id));
+    const gains = toolGains(st, [...new Set([...options, ...pool])]);
+    if (!gains || pool.length < 3) return null;
+    let sum = 0;
+    let n = 0;
+    for (let i = 0; i < pool.length; i++) {
+      for (let j = i + 1; j < pool.length; j++) {
+        for (let k = j + 1; k < pool.length; k++) {
+          sum += Math.max(gains[pool[i]], gains[pool[j]], gains[pool[k]]);
+          n += 1;
+        }
+      }
+    }
+    return { now: Math.max(...options.map((id) => gains[id])), next: sum / n };
+  }
+
+  const signed = (v) => `${v >= 0 ? '+' : '\u2212'}${Math.abs(v).toFixed(2)}`;
+
+  function wantsReroll(st, P, options) {
+    if (!T.canReroll || !T.canReroll(st) || P.toolSets === false) return false;
+    const odds = rerollOdds(st, options);
+    return !!odds && odds.next > odds.now + P.rerollMargin;
+  }
+
   // The instrument to take: the one that adds the most to what's held, or
   // the trained ranking's best when there's no measured data.
   function pickTool(st, P, options) {
@@ -937,6 +968,7 @@
     if (st.pending.length) {
       const choice = st.pending[0];
       if (choice.kind === 'gift') return { type: 'choose', id: pickGift(st, ctx, choice.options, roll) };
+      if (choice.kind === 'tool' && wantsReroll(st, P, choice.options)) return { type: 'reroll' };
       return { type: 'choose', id: pickTool(st, P, choice.options) };
     }
     if (st.challenge && st.challenge.window) {
@@ -994,6 +1026,7 @@
   function apply(st, action) {
     switch (action.type) {
       case 'choose': return T.choose(st, action.id);
+      case 'reroll': return T.rerollOffer ? T.rerollOffer(st) : { ok: false };
       case 'event': return T.resolveEvent(st, action.accept);
       case 'patrol': return T.patrol(st, action.cell);
       case 'devour': return T.devour(st, st.position, action.to);
@@ -1056,6 +1089,7 @@
     if (st.phase === 'ended') return out;
     if (st.pending.length) {
       for (const id of st.pending[0].options) out.push({ action: { type: 'choose', id }, label: `Take ${T.toolName(id)}` });
+      if (T.canReroll && T.canReroll(st)) out.push({ action: { type: 'reroll' }, label: 'Re-roll the offer' });
       return out;
     }
     if (st.challenge && st.challenge.window) {
@@ -1315,10 +1349,18 @@
         if (gains && gains[action.id] !== undefined) {
           const add = gains[action.id];
           const held = st.tools.length === 1 ? `With the ${T.toolName(st.tools[0])}, it` : st.tools.length ? 'With the instruments you hold, it' : 'It';
-          return `${held} adds about ${add >= 0 ? '+' : '−'}${Math.abs(add).toFixed(2)} Rainbows per run in simulated runs.`;
+          const odds = T.canReroll && T.canReroll(st) ? rerollOdds(st, st.pending[0].options) : null;
+          const vs = odds ? ` A re-roll's best would add about ${signed(odds.next)} on average.` : '';
+          return `${held} adds about ${signed(add)} Rainbows per run in simulated runs.${vs}`;
         }
         const rank = ctx.P.toolRank.indexOf(action.id);
         return rank >= 0 ? `Ranked #${rank + 1} of ${ctx.P.toolRank.length} tools in training.` : '';
+      }
+      case 'reroll': {
+        const odds = rerollOdds(st, st.pending[0].options);
+        return odds
+          ? `The best instrument on offer adds about ${signed(odds.now)} Rainbows per run; a new offer's best adds about ${signed(odds.next)} on average.`
+          : 'A new offer is likely to hold a better instrument.';
       }
       case 'deliver': return convoyWhy(st, action, params);
       case 'skip': return 'Nothing on the block meets this contract.';

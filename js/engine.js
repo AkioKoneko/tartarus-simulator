@@ -1528,6 +1528,25 @@
     return ok(events);
   }
 
+  // A pet can re-roll an instrument offer ("Re-roll, Remaining attempts N"
+  // in the game): 3 other instruments take the place of the ones shown. The
+  // simulator's own runs have no pet; the analyzer sets the attempts left.
+  function canReroll(state) {
+    const choice = state.pending[0];
+    return !!choice && choice.kind === 'tool' && choice.rerolls > 0;
+  }
+
+  function rerollOffer(state) {
+    if (!canReroll(state)) return fail('There is no re-roll left for this offer.');
+    const choice = state.pending[0];
+    let pool = TOOL_IDS.filter((t) => !has(state, t) && !choice.options.includes(t));
+    if (pool.length < 3) pool = TOOL_IDS.filter((t) => !has(state, t));
+    choice.options = shuffle(state, pool).slice(0, 3);
+    choice.rerolls -= 1;
+    log(state, 'tool', `Re-rolled the offer: ${choice.options.map((t) => TOOLS[t].name).join(', ')}.`, { type: 'reroll' });
+    return ok([]);
+  }
+
   function canRefresh(state) {
     const choice = state.pending[0];
     if (!choice || choice.kind !== 'refit' || choice.refreshed || state.challenge.vouchers < 1) return false;
@@ -1952,12 +1971,13 @@
     cancelEarlyDelivery: bounded(cancelEarlyDelivery),
     choose: bounded(choose),
     refreshRefit: bounded(refreshRefit),
+    rerollOffer: bounded(rerollOffer),
     editCell: bounded(editCell),
     markPrey: bounded(markPrey),
     moveWarden: bounded(moveWarden),
     addTool: bounded(addTool),
     removeTool: bounded(removeTool),
-    patrolOptions, clockwisePath, devourOptions, startOptions, chainOptions, gainFor, executionVictims, canEat, eatsOf, canDevourNow, canOpenEarly, canRefresh,
+    patrolOptions, clockwisePath, devourOptions, startOptions, chainOptions, gainFor, executionVictims, canEat, eatsOf, canDevourNow, canOpenEarly, canRefresh, canReroll,
     linkOf, cellOf, boardInmates, currentContract, deliveryCheck, bestCargo, rosterOf, advise, limits,
     toolText, toolName, eventName, describe, tierName, beastName, cellLabel, plural, stepsBetween, scarceBeasts, lowestInmates,
   };
