@@ -5,126 +5,126 @@
   "habitRuns": 100000,
   "headline": {
     "games": 200000,
-    "passRate": 0.9372,
-    "passCi95": 0.0011,
-    "fullRate": 0.613,
-    "points": 51.83,
-    "pointsCi95": 0.05,
-    "pointsWhenPassed": 53.64,
-    "value": 989.02,
-    "vouchersLeft": 1.47,
+    "passRate": 0.9535,
+    "passCi95": 0.0009,
+    "fullRate": 0.6117,
+    "points": 52.51,
+    "pointsCi95": 0.04,
+    "pointsWhenPassed": 53.69,
+    "value": 1005.96,
+    "vouchersLeft": 1.43,
     "fail": {
-      "noSupreme": 0.0414,
+      "noSupreme": 0.0218,
       "rainbowStuck": 0,
       "noVouchers": 0,
-      "twoMissed": 0.0214
+      "twoMissed": 0.0248
     },
     "slots": [
       {
-        "delivered": 0.8768,
-        "points": 7.86,
+        "delivered": 0.871,
+        "points": 7.72,
         "heavyEscort": 0,
         "day": 4
       },
       {
-        "delivered": 0.7473,
-        "points": 12.38,
-        "heavyEscort": 0.0189,
+        "delivered": 0.7317,
+        "points": 12.31,
+        "heavyEscort": 0.0198,
         "day": 8
       },
       {
-        "delivered": 0.9586,
-        "points": 37.24,
-        "heavyEscort": 0.9999,
+        "delivered": 0.9782,
+        "points": 37.6,
+        "heavyEscort": 1,
         "day": 12
       }
     ],
     "earlyRate": 0,
     "earlyDay": null,
     "scoreHist": [
-      0.0007,
-      0.0033,
-      0.0058,
-      0.0143,
-      0.0116,
-      0.0047,
+      0.0006,
+      0.0019,
       0.0039,
-      0.0334,
-      0.1013,
-      0.1501,
-      0.2538,
-      0.2161,
-      0.1296,
-      0.0517,
-      0.0158,
-      0.0035,
-      0.0005,
-      0,
+      0.0075,
+      0.0052,
+      0.0021,
+      0.0036,
+      0.0349,
+      0.1053,
+      0.1567,
+      0.2536,
+      0.2167,
+      0.1311,
+      0.0551,
+      0.0172,
+      0.0039,
+      0.0007,
+      0.0001,
       0
     ],
     "loadouts": {
       "supply": {
         "games": 66667,
-        "passRate": 0.9237,
-        "fullRate": 0.7829,
-        "points": 50.8,
-        "pointsWhenPassed": 53.5
+        "passRate": 0.9637,
+        "fullRate": 0.8075,
+        "points": 52.15,
+        "pointsWhenPassed": 53.45
       },
       "lean": {
         "games": 66667,
-        "passRate": 0.9212,
-        "fullRate": 0.4933,
-        "points": 50.27,
-        "pointsWhenPassed": 52.37
+        "passRate": 0.9299,
+        "fullRate": 0.4656,
+        "points": 50.83,
+        "pointsWhenPassed": 52.47
       },
       "rats": {
         "games": 66666,
-        "passRate": 0.9666,
-        "fullRate": 0.5629,
-        "points": 54.43,
-        "pointsWhenPassed": 54.99
+        "passRate": 0.9668,
+        "fullRate": 0.5619,
+        "points": 54.54,
+        "pointsWhenPassed": 55.09
       }
     },
     "variants": {
       "cohort": {
         "games": 67034,
-        "delivered": 0.7562,
-        "points": 8.34
+        "delivered": 0.7483,
+        "points": 8.19
       },
       "muster": {
         "games": 66552,
-        "delivered": 0.5842,
-        "points": 15.34
+        "delivered": 0.548,
+        "points": 15.35
       },
       "heavy": {
         "games": 99623,
-        "delivered": 0.9584,
-        "points": 35.02
+        "delivered": 0.978,
+        "points": 35.19
       },
       "mixed": {
         "games": 66387,
-        "delivered": 0.9355,
-        "points": 7.16
+        "delivered": 0.9295,
+        "points": 6.86
       },
       "kin": {
         "games": 66791,
-        "delivered": 0.7617,
-        "points": 10.97
+        "delivered": 0.7636,
+        "points": 10.85
       },
       "bounty": {
         "games": 100377,
-        "delivered": 0.9587,
-        "points": 39.43
+        "delivered": 0.9784,
+        "points": 39.98
       },
       "elite": {
         "games": 66657,
-        "delivered": 0.8958,
-        "points": 11.65
+        "delivered": 0.8831,
+        "points": 11.68
       },
       "veteran": {
         "games": 66579,
-        "delivered": 0.9397,
-        "points": 8.16
+        "delivered": 0.9362,
+        "points": 8.2
       }
     },
     "unfinished": 0
@@ -133,196 +133,196 @@
     {
       "id": "full",
       "label": "The trained strategy",
-      "passRate": 0.9372,
-      "passCi95": 0.0011,
-      "points": 51.83,
-      "fullRate": 0.613,
-      "value": 989.02,
+      "passRate": 0.9535,
+      "passCi95": 0.0009,
+      "points": 52.51,
+      "fullRate": 0.6117,
+      "value": 1005.96,
       "fail": {
-        "noSupreme": 0.0414,
+        "noSupreme": 0.0218,
         "rainbowStuck": 0,
         "noVouchers": 0,
-        "twoMissed": 0.0214
+        "twoMissed": 0.0248
       }
     },
     {
       "id": "mostPointsAll",
       "label": "Sending the most points, even the heavy contract’s last voucher",
-      "passRate": 0.3287,
-      "passCi95": 0.0029,
-      "points": 59.39,
-      "fullRate": 0.0557,
-      "value": 388.1,
+      "passRate": 0.3506,
+      "passCi95": 0.003,
+      "points": 62.02,
+      "fullRate": 0.0503,
+      "value": 412.63,
       "fail": {
-        "noSupreme": 0.1782,
-        "rainbowStuck": 0.1948,
-        "noVouchers": 0.2912,
-        "twoMissed": 0.0071
+        "noSupreme": 0.108,
+        "rainbowStuck": 0.1706,
+        "noVouchers": 0.362,
+        "twoMissed": 0.0088
       }
     },
     {
       "id": "mostPoints",
       "label": "Sending the most points, keeping 1 voucher",
-      "passRate": 0.6947,
-      "passCi95": 0.0029,
-      "points": 59.03,
-      "fullRate": 0.3782,
-      "value": 753.76,
+      "passRate": 0.7824,
+      "passCi95": 0.0026,
+      "points": 62.02,
+      "fullRate": 0.4309,
+      "value": 844.45,
       "fail": {
-        "noSupreme": 0.1353,
-        "rainbowStuck": 0.1629,
+        "noSupreme": 0.0725,
+        "rainbowStuck": 0.1362,
         "noVouchers": 0,
-        "twoMissed": 0.0071
+        "twoMissed": 0.0088
       }
     },
     {
       "id": "lightMost",
       "label": "Most points, but by light escort only",
-      "passRate": 0.8761,
-      "passCi95": 0.002,
-      "points": 61.07,
-      "fullRate": 0.5183,
-      "value": 937.2,
+      "passRate": 0.9237,
+      "passCi95": 0.0016,
+      "points": 63.11,
+      "fullRate": 0.5389,
+      "value": 986.77,
       "fail": {
-        "noSupreme": 0.1022,
+        "noSupreme": 0.0516,
         "rainbowStuck": 0,
         "noVouchers": 0,
-        "twoMissed": 0.0217
+        "twoMissed": 0.0248
       }
     },
     {
       "id": "reserve1",
       "label": "Cheap cargo, but heavy escorts allowed early",
-      "passRate": 0.9117,
-      "passCi95": 0.0018,
-      "points": 52.28,
-      "fullRate": 0.6966,
-      "value": 964.02,
+      "passRate": 0.9386,
+      "passCi95": 0.0015,
+      "points": 53.16,
+      "fullRate": 0.7092,
+      "value": 991.74,
       "fail": {
-        "noSupreme": 0.0449,
-        "rainbowStuck": 0.0362,
+        "noSupreme": 0.0238,
+        "rainbowStuck": 0.0289,
         "noVouchers": 0,
-        "twoMissed": 0.0071
+        "twoMissed": 0.0088
       }
     },
     {
       "id": "keepHalf",
       "label": "Sending some Rares on the first two",
-      "passRate": 0.9009,
-      "passCi95": 0.0019,
-      "points": 61.97,
-      "fullRate": 0.5451,
-      "value": 962.89,
+      "passRate": 0.9373,
+      "passCi95": 0.0015,
+      "points": 63.54,
+      "fullRate": 0.5553,
+      "value": 1000.87,
       "fail": {
-        "noSupreme": 0.0774,
+        "noSupreme": 0.0379,
         "rainbowStuck": 0,
         "noVouchers": 0,
-        "twoMissed": 0.0217
+        "twoMissed": 0.0248
       }
     },
     {
       "id": "noNeed",
       "label": "Ignoring the next contract while playing",
-      "passRate": 0.9085,
-      "passCi95": 0.0018,
-      "points": 50.46,
-      "fullRate": 0.4988,
-      "value": 958.96,
+      "passRate": 0.9253,
+      "passCi95": 0.0016,
+      "points": 51.12,
+      "fullRate": 0.5069,
+      "value": 976.37,
       "fail": {
-        "noSupreme": 0.0325,
+        "noSupreme": 0.0164,
         "rainbowStuck": 0,
         "noVouchers": 0,
-        "twoMissed": 0.059
+        "twoMissed": 0.0583
       }
     },
     {
       "id": "earlyAny",
       "label": "Shipping the heavy contract as soon as it qualifies",
-      "passRate": 0.9372,
-      "passCi95": 0.0015,
-      "points": 50.73,
-      "fullRate": 0.6123,
-      "value": 987.88,
+      "passRate": 0.9539,
+      "passCi95": 0.0013,
+      "points": 51.49,
+      "fullRate": 0.611,
+      "value": 1005.41,
       "fail": {
-        "noSupreme": 0.0411,
+        "noSupreme": 0.0213,
         "rainbowStuck": 0,
         "noVouchers": 0,
-        "twoMissed": 0.0217
+        "twoMissed": 0.0248
       }
     },
     {
       "id": "earlyFull",
       "label": "Shipping the heavy contract early once its escort is full",
-      "passRate": 0.9369,
-      "passCi95": 0.0015,
-      "points": 51.9,
-      "fullRate": 0.6121,
-      "value": 988.82,
+      "passRate": 0.9538,
+      "passCi95": 0.0013,
+      "points": 52.53,
+      "fullRate": 0.611,
+      "value": 1006.36,
       "fail": {
-        "noSupreme": 0.0414,
+        "noSupreme": 0.0214,
         "rainbowStuck": 0,
         "noVouchers": 0,
-        "twoMissed": 0.0217
+        "twoMissed": 0.0248
       }
     },
     {
       "id": "drillPlay",
       "label": "Playing with the drill weights (convoys unchanged)",
-      "passRate": 0.9249,
+      "passRate": 0.9314,
       "passCi95": 0.0016,
-      "points": 50,
-      "fullRate": 0.4713,
-      "value": 974.92,
+      "points": 50.37,
+      "fullRate": 0.4718,
+      "value": 981.79,
       "fail": {
-        "noSupreme": 0.0186,
+        "noSupreme": 0.0104,
         "rainbowStuck": 0,
         "noVouchers": 0,
-        "twoMissed": 0.0565
+        "twoMissed": 0.0582
       }
     }
   ],
   "frontier": [
     {
       "keep": 0,
-      "passRate": 0.8761,
-      "points": 61.07,
-      "slot1": 16.65,
-      "slot2": 19.39
+      "passRate": 0.9237,
+      "points": 63.11,
+      "slot1": 16.64,
+      "slot2": 19.66
     },
     {
       "keep": 0.25,
-      "passRate": 0.8986,
-      "points": 62.12,
-      "slot1": 16.65,
-      "slot2": 19.33
+      "passRate": 0.9359,
+      "points": 63.76,
+      "slot1": 16.64,
+      "slot2": 19.6
     },
     {
       "keep": 0.5,
-      "passRate": 0.9009,
-      "points": 61.97,
-      "slot1": 16.52,
-      "slot2": 19.17
+      "passRate": 0.9373,
+      "points": 63.54,
+      "slot1": 16.49,
+      "slot2": 19.44
     },
     {
       "keep": 0.75,
-      "passRate": 0.9188,
-      "points": 57.9,
-      "slot1": 13.17,
-      "slot2": 15.92
+      "passRate": 0.9464,
+      "points": 58.99,
+      "slot1": 13.06,
+      "slot2": 16.01
     },
     {
       "keep": 1,
-      "passRate": 0.9368,
-      "points": 51.84,
-      "slot1": 7.86,
-      "slot2": 12.39
+      "passRate": 0.9537,
+      "points": 52.54,
+      "slot1": 7.72,
+      "slot2": 12.33
     },
     {
       "keep": 1.5,
-      "passRate": 0.9355,
-      "points": 50.49,
-      "slot1": 7.16,
-      "slot2": 11.31
+      "passRate": 0.9524,
+      "points": 51.38,
+      "slot1": 7.17,
+      "slot2": 11.39
     }
   ],
   "params": {
@@ -392,5 +392,5 @@
     "needCrit": 4
   },
   "totalRuns": 1700000,
-  "minutes": 12.1
+  "minutes": 15.1
 }
