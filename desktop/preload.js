@@ -36,6 +36,9 @@ contextBridge.exposeInMainWorld('TartarusDesktop', {
   },
   // The app's own file window, for choosing the log (follow.html only).
   pickLog: () => ipcRenderer.send('log:pick'),
+  // The Riot's fight has begun (true) or the prison's screens are back
+  // (false), from the log (follow.html only).
+  riot: (on) => ipcRenderer.send('site:riot', !!on),
   // To the overlay: what Follow my game is doing, and the advice.
   follow: (data) => ipcRenderer.send('site:follow', data),
   advice: (data) => ipcRenderer.send('site:advice', data),

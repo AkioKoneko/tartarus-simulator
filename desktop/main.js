@@ -777,6 +777,7 @@ function pushShell(patch) {
   send('overlay', 'shell', Object.assign({
     locked: settings.locked,
     collapsed: settings.collapsed,
+    riot,
     agreed,
     siteUpdate,
     appUpdate,
@@ -901,6 +902,26 @@ ipcMain.on('site:follow', (e, data) => {
   }
   send('overlay', 'follow', data);
 });
+// The Riot folds the overlay until the fight is over, unless the player
+// had it folded already; it unfolds only what it folded, and a fold or
+// unfold by the player during the fight is theirs.
+let riot = false;
+let riotFolded = false;
+ipcMain.on('site:riot', (e, on) => {
+  if (!fromPage(e, 'follow') || !!on === riot) return;
+  riot = !!on;
+  note(riot ? 'Riot: the fight is on' : 'back in the prison');
+  recordEvent({ type: riot ? 'riot' : 'riot-over' });
+  if (riot && !settings.collapsed) {
+    settings.collapsed = true;
+    riotFolded = true;
+  } else if (!riot && riotFolded) {
+    settings.collapsed = false;
+    riotFolded = false;
+  }
+  pushShell();
+});
+
 ipcMain.on('site:advice', (e, data) => {
   if (!fromPage(e, 'analyzer') || !data || !small(data)) return;
   const was = lastAdvice || {};
@@ -961,6 +982,7 @@ function command(cmd) {
       return undefined;
     case 'lock': return setLocked(!settings.locked);
     case 'collapse':
+      riotFolded = false;
       settings.collapsed = !settings.collapsed;
       saveSettings();
       return pushShell();

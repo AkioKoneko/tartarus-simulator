@@ -140,6 +140,18 @@
   }, true);
 
   // #endregion
+  // The Riot: after the last day, the screen with the monsters to fight
+  // (S16GamePlayCheckOut, with its Riot sound) folds the overlay until the
+  // fight is over; the prison's own screens unfold it again. Only these
+  // facts go to the app, never the log's lines.
+  const RIOT = /S16GamePlayCheckOut Run|UI_S16_Riot_Interface/;
+  const PRISON = /S16GamePlayEntry Run|Btn_S16GamePlay_Start|S16BoardTaskPop Run|S16BoardRelicPop Run|S16BoardMain Run/;
+  const riotWatch = (s) => {
+    if (RIOT.test(s.line)) D.riot(true);
+    else if (PRISON.test(s.line)) D.riot(false);
+  };
+  C.on('seen', riotWatch);
+
   // How Follow my game is doing, for the overlay. Never the log's lines.
   let lastFrame = null;
   const tell = () => {

@@ -54,6 +54,7 @@
     if (sh.agreed === false) return 'Agree on Follow my game first';
     if (!state.game.log) return 'Game log not found';
     if (!state.game.running) return 'Waiting for the game';
+    if (sh.riot) return 'Riot: fight on';
     if (f && (f.log !== 'on' || f.window !== 'on')) return 'Connecting…';
     if (a && a.reading) return 'Reading the picture…';
     if (a && a.treasureWait) return 'Treasure: press View Prison Status';
