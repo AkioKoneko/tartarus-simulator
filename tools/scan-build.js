@@ -38,7 +38,8 @@ const TOOLS = {
   guillotine: { name: 'Fanged Guillotine: Alpha Wolf', sim: 'guillotine', card: ['chrome_tWbki0rB4N.png', 1355, 250, 140, 140] },
   casket: { name: "Avenger's Casket", sim: 'revenge', card: ['chrome_ZjcmxiWWmC.png', 350, 235, 140, 150] },
   muzzle: { name: "Raging Beast's Agonizing Muzzle", sim: 'muzzle', card: ['chrome_ZjcmxiWWmC.png', 830, 190, 140, 150] },
-  saw: { name: 'Rusty Saw', sim: 'saw', card: ['chrome_ZjcmxiWWmC.png', 1305, 240, 140, 150] },
+  // Its panel icon: report 25, a player's "Report a wrong reading" (read as the Crowded Beastcage, whose report-21 icon it was closer to).
+  saw: { name: 'Rusty Saw', sim: 'saw', card: ['chrome_ZjcmxiWWmC.png', 1305, 240, 140, 150], icons: ['report-25-saw-days13.png'] },
   ironbox: { name: 'Squirming Iron Box: Colossal Rat', sim: 'ironbox', card: null },
   axe: { name: "Gaoler's Execution Axe", sim: 'axe', card: ['cards_2026-10-15_axe_shackles_collar.png', 222, 180, 118, 175] },
   shackles: { name: 'Long-Chained Shackles', sim: 'shackles', card: ['cards_2026-10-15_axe_shackles_collar.png', 670, 235, 153, 150] },

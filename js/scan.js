@@ -674,10 +674,18 @@
     const scale = Math.max(g.h, lineH * 0.7) / GLYPH.h;
     const cx = (g.x0 + g.x1) / 2;
     const cy = (g.y0 + g.y1) / 2;
+    // Each cell averages the pixels it covers, so a big glyph's strokes and
+    // gaps aren't missed between samples (report 25: a 3 read as an 8 at
+    // 2559 pixels wide).
+    const sub = Math.max(1, Math.min(4, Math.round(scale)));
     let mean = 0;
     for (let j = 0; j < GLYPH.h; j++) {
       for (let i = 0; i < GLYPH.w; i++) {
-        const val = sample(gray, w, h, cx + (i + 0.5 - GLYPH.w / 2) * scale, cy + (j + 0.5 - GLYPH.h / 2) * scale);
+        let val = 0;
+        for (let b = 0; b < sub; b++) {
+          for (let a = 0; a < sub; a++) val += sample(gray, w, h, cx + (i + (a + 0.5) / sub - GLYPH.w / 2) * scale, cy + (j + (b + 0.5) / sub - GLYPH.h / 2) * scale);
+        }
+        val /= sub * sub;
         v[j * GLYPH.w + i] = val;
         mean += val;
       }
@@ -867,12 +875,14 @@
   function doorCards(img, loc, gray, ref) {
     const bottom = Math.max(at(loc, 0, 3)[1], at(loc, 5, 3)[1]) + 30 * loc.s;
     let best = [];
+    const pieces = [];
     // Text size follows the UI scale, so try contrast windows of each size.
     for (const r of textRadii(img)) {
       const lines = textLines(img, 0, bottom, img.width - 1, img.height - 1, { minH: 6, maxH: Math.max(48, img.height * 0.07), r });
       const cards = [];
       for (const line of lines) {
         for (const p of line.pieces) {
+          pieces.push(p);
           const cap = p.glyphs[0].h;
           if (cap < 6 || p.glyphs.length < 4) continue;
           const span = (p.x1 - p.x0) / cap;
@@ -907,7 +917,26 @@
         }
       }
     }
-    return best.length >= 2 ? best.sort((a, b) => a.p.x0 - b.p.x0) : [];
+    // The office's card has no number: "Go to Interrogation Room" (report
+    // 26, the first seen), in the same row as the others.
+    const office = best.length ? pieces.find((p) => officeCard(p, best)) : null;
+    const out = best.length >= 2 || (best.length === 1 && office) ? best.sort((a, b) => a.p.x0 - b.p.x0) : [];
+    if (out.length && office) out.office = office;
+    return out;
+  }
+
+  // "Go to Interrogation Room": about twice as wide as a numbered card's text,
+  // its words 2, 2, 13 and 4 letters long (the long one can come apart or
+  // run together a little).
+  function officeCard(p, cards) {
+    const cap = p.glyphs[0].h;
+    const h = cards[0].h;
+    const mid = (p.y0 + p.y1) / 2;
+    if (Math.abs(cap - h) > 0.3 * h || !cards.some((c) => Math.abs(c.mid - mid) < 2.5 * h)) return false;
+    if (cards.some((c) => c.p.x0 < p.x1 && p.x0 < c.p.x1)) return false;
+    const span = (p.x1 - p.x0) / cap;
+    const words = p.words.map((w) => w.glyphs.length);
+    return span >= 12.5 && span <= 17 && words.length === 4 && Math.abs(words[0] - 2) <= 1 && Math.abs(words[1] - 2) <= 1 && words[2] >= 8 && Math.abs(words[3] - 4) <= 1;
   }
 
   // Contrast windows for finding text of any size: a fraction of the
@@ -954,7 +983,13 @@
     if (read.some((r) => !r)) return null;
     const score = read.reduce((a, r) => a + r.score, 0) / read.length;
     const cells = [...new Set(read.map((r) => r.value - 1))];
-    return { cells, conf: Math.max(0.1, Math.min(1, (score - 0.3) * 1.6)) * (cells.length === read.length ? 1 : 0.4), boxes: cards.map((c) => [c.p.x0, c.p.y0, c.p.x1, c.p.y1]) };
+    const boxes = cards.map((c) => [c.p.x0, c.p.y0, c.p.x1, c.p.y1]);
+    // The office (cell 01) as a destination.
+    if (cards.office) {
+      cells.push(0);
+      boxes.push([cards.office.x0, cards.office.y0, cards.office.x1, cards.office.y1]);
+    }
+    return { cells, conf: Math.max(0.1, Math.min(1, (score - 0.3) * 1.6)) * (cells.length === read.length + (cards.office ? 1 : 0) ? 1 : 0.4), boxes };
   }
 
   // "N day(s) until Riot" over the board: the number is the tall glyphs at
