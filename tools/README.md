@@ -110,6 +110,10 @@ Two more instruments from players' reports (#9 to #11), measured alone and in pa
 - **Barbed Whip**: one destination fewer each morning, and each bite of a devour has a 35% chance of +1 extra tier. The card was cut off after "+1 additional Rarity Tier"; the user confirmed reading it like the Rusty Saw. 0.852 alone (12th of 23): the lost door costs more than the extra chance gains (the Saw alone makes 1.005). Best with the Maiden (2.02) and the Noose (1.65).
 - **Contract challenge:** where the Maiden sits in its ranking makes no measurable difference (90.9% pass first, second or last), so it's second, after the Noose. The Whip follows the Saw.
 - **Screenshot reader:** it learned both from the reports: the Maiden's panel icon (report 9), the Whip's card (report 11) and the Whip's panel icon (report 10, which it had read as the Squirming Iron Box).
+- **The guide with both in the pool** (`guide --no-tune` and `cguide`, 100,000 runs per measurement):
+  - Rewards on: 2.153 Rainbows per run (2.160 before; within the margin), 86.8% of runs vault one. Both the Maiden and the Noose rarely come up in the same run.
+  - Gifts: judging each one on the spot (2.153) now barely beats always taking Crimson Vintage (2.145).
+  - Contract challenge: 90.7% pass with 51.3 points.
 
 ### A day has a swap or a devour, not both (2026-10-16)
 
