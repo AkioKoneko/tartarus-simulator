@@ -855,7 +855,7 @@
     let detail;
     if (model.treasureWait && !reading) {
       title = 'The Warden’s Treasure: check the board first';
-      detail = 'Press View Prison Status in the game, then return. Follow my game reads the board while you look.';
+      detail = 'Press View Prison Status in the game, wait a second on the board, then return. Follow my game reads the board while you look.';
     } else if (reading) {
       title = 'Reading the new picture…';
       detail = 'The advice follows as soon as it’s read.';
@@ -1954,7 +1954,7 @@
     model.treasureSeen = false;
     changed();
     renderScan();
-    toast(`The Warden’s Treasure is open.${how} To advise a gift on the board as it is now, press View Prison Status in the game, then return to the Treasure.`, 'ok');
+    toast(`The Warden’s Treasure is open.${how} To advise a gift on the board as it is now, press View Prison Status in the game, wait a second on the board, then return to the Treasure.`, 'ok');
     return false;
   }
 

@@ -46,7 +46,7 @@
     "# The Warden's Treasure, which a Chromatic prisoner opens, and the board",
     '# once it closes, with the gift taken (a consume can open two in a row):',
     'treasure | S16BoardColoredPop Run | 1500',
-    'board | S16BoardColoredPop Destory | 1500',
+    'board | S16BoardColoredPop Destory | 600',
     "# The game's Speed-up button: no picture, it flips 'Speed-up is on' here:",
     'speed | Btn_S16Board_Top_Speed | 0',
     '# A Cancel (a consume chain stopped), once the board settles:',

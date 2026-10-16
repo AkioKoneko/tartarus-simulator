@@ -29,6 +29,7 @@
   let lastKind = ''; // the kind of the picture before this one
   let pickFresh = false; // whether the offer on screen starts a run
   let lastBoardAt = 0; // when a board's picture was last loaded
+  let viewing = 0; // boards seen behind a Warden's Treasure, still being read
   const say = (m) => {
     if (C.agreed()) channel.postMessage(Object.assign({ id: me }, m));
   };
@@ -36,18 +37,35 @@
 
   async function onPicture(m) {
     const answer = (patch) => channel.postMessage(Object.assign({ type: 'read', to: m.from, id: m.id }, patch));
-    const mine = ++newest;
     const before = lastKind;
     lastKind = m.kind;
     if (m.kind === 'treasure') {
       // The Warden's Treasure: every gift is on offer, so nothing is read
       // (it may come with no picture at all); the advice is on the board as
-      // it is.
+      // it is. It reads nothing, so it doesn't make a board still being
+      // read out of date: back from View Prison Status before that board
+      // is read, the Treasure waits for it instead of asking again.
       answer({ read: { ok: true, treasure: true } });
+      if (viewing) {
+        answer({ state: 'used', asked: false });
+        return;
+      }
       const asked = A.useTreasure(m.after);
       answer({ state: 'used', asked });
       return;
     }
+    const mine = ++newest;
+    if (m.treasureView) viewing += 1;
+    try {
+      await readPicture(m, answer, mine, before);
+    } finally {
+      if (m.treasureView) viewing -= 1;
+    }
+  }
+
+  // A picture to read: a board, the instrument pick, the objective, or a
+  // picture the log didn't name.
+  async function readPicture(m, answer, mine, before) {
     let bitmap;
     try {
       bitmap = await createImageBitmap(m.blob);
@@ -104,6 +122,9 @@
       }
     }
     answer({ read });
+    // The board behind a Warden's Treasure that couldn't be read: say so,
+    // rather than ask for View Prison Status again.
+    if (!read.ok && m.treasureView && A.toast) A.toast('The board behind the Warden’s Treasure couldn’t be read from that picture. View it again a little longer, or press Advise with the board as it is.', 'bad');
     // The newest picture wins: an older one still being read is left.
     if (!read.ok || mine !== newest) return;
     A.useReading();
