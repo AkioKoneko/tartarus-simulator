@@ -93,6 +93,16 @@
       }
     }
     const read = await A.readFrame(bitmap);
+    // A picture the log didn't name, with no board in it: maybe the
+    // Warden's Treasure, read by its printed text.
+    if (!read.ok && !read.skipped && m.kind !== 'board' && A.readTreasure) {
+      const tr = await A.readTreasure(bitmap);
+      if (tr.ok && mine === newest) {
+        answer({ read: { ok: true, treasure: true } });
+        answer({ state: 'used', asked: A.useTreasure() });
+        return;
+      }
+    }
     answer({ read });
     // The newest picture wins: an older one still being read is left.
     if (!read.ok || mine !== newest) return;

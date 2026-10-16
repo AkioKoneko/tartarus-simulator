@@ -1564,7 +1564,14 @@
         renderScan();
         return;
       }
-      if (!result.ok) toast(`${result.reason} Try a screenshot of the prison screen, with the whole board in view.`, 'bad');
+      if (!result.ok) {
+        // Not a board: maybe the instrument pick or the Warden's Treasure.
+        const image = reader.image;
+        toast('No board here: checking for the instrument pick or the Warden’s Treasure…', 'busy');
+        otherScreen(image).then((found) => {
+          if (!found) toast(`${result.reason} Try a screenshot of the prison screen, with the whole board in view.`, 'bad');
+        });
+      }
       else {
         // The reading becomes the board at once, and the advice follows. If
         // the reader got something wrong, the player fixes it and rechecks.
@@ -1747,6 +1754,53 @@
       }
     }
     return out;
+  }
+
+  // The Warden's Treasure screen, from its printed text: its header
+  // ("Warden's Treasure obtained"), or two or more of the four gifts'
+  // names. Follow my game knows this screen from the game's log; this is
+  // for pasted pictures and Take a picture now.
+  async function readTreasure(source) {
+    const worker = await ocrWorker();
+    if (!worker) return { ok: false, treasure: true, reason: 'the text reader couldn’t load' };
+    const scale = Math.min(1, 1600 / source.width);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(source.width * scale);
+    canvas.height = Math.round(source.height * scale);
+    canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height);
+    let text = '';
+    try {
+      text = (await worker.recognize(canvas)).data.text || '';
+    } catch (e) {
+      return { ok: false, treasure: true, reason: 'the text couldn’t be read' };
+    }
+    const letters = (t) => t.toLowerCase().replace(/[^a-z]/g, '');
+    const lines = text.split('\n').map(letters).filter((l) => l.length >= 4);
+    const header = lines.some((l) => l.includes('treasureobtained') || l.includes('wardenstreasure'));
+    const gifts = T.GIFT_IDS.filter((id) => {
+      const n = letters(T.GIFTS[id].name);
+      return lines.some((l) => l.includes(n) || editDistance(l, n) / n.length <= 0.3);
+    });
+    return { ok: header || gifts.length >= 2, treasure: true, header, gifts };
+  }
+
+  // A pasted picture with no board in it: the instrument pick, or the
+  // Warden's Treasure. A pick is a fresh run's when the board before was
+  // a run's last day (or there's none); otherwise an objective's reward.
+  async function otherScreen(source) {
+    const pick = await readPick(source);
+    const second = pick.ok ? pick.cards.map((c) => c.conf).sort((a, b) => b - a)[1] : 0;
+    if (pick.ok && (pick.byName >= 2 || second >= 0.5)) {
+      const fresh = model.day >= model.maxDays || (!model.tools.length && model.day <= 1);
+      usePick(pick, fresh);
+      return true;
+    }
+    const tr = await readTreasure(source);
+    if (tr.ok) {
+      useTreasure();
+      return true;
+    }
+    return false;
   }
 
   function readPick(source) {
@@ -2643,6 +2697,7 @@
       readFrame: (bitmap) => new Promise((resolve) => readBitmap(bitmap, { quiet: true, folded: true, onRead: resolve })),
       readPick: (bitmap) => readPick(bitmap),
       usePick: (read, fresh) => usePick(read, fresh),
+      readTreasure: (bitmap) => readTreasure(bitmap),
       readObjective: (bitmap) => readObjective(bitmap),
       useObjective: (read) => useObjective(read),
       useTreasure: (after) => useTreasure(after),
