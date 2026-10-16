@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261016d">
+<link rel="stylesheet" href="css/style.css?v=20261016e">
 </head>
 <body>
 <main class="analyzer" id="analyzer">
@@ -53,6 +53,7 @@
     <div class="az-scan-links">
       <button type="button" class="link" id="az-scan-show" hidden>Show the screenshot</button>
       <button type="button" class="link" id="az-scan-back" hidden>Go back to the board before it</button>
+      <button type="button" class="link" id="az-scan-report" hidden title="The reader got your game wrong, or the advice points at something that isn't there? Send this screenshot with what the analyzer made of it.">Report a wrong reading</button>
     </div>
     <label class="toggle az-scan-always"><input type="checkbox" id="az-scan-always"><span><strong>Show screenshots after reading</strong><small>Off: a screenshot is read into the board and stays hidden, from Follow my game or pasted. Show the screenshot opens it when you want it. Remembered in this browser.</small></span></label>
     <div class="az-scan-result" id="az-scan-result" hidden>
@@ -195,6 +196,7 @@
           <div class="az-res-actions">
             <button type="button" class="btn" id="az-fix">Fix the board</button>
             <button type="button" class="btn" id="az-recheck">Recheck</button>
+            <button type="button" class="btn" id="az-report-reading" hidden title="The reader got your game wrong, or the advice points at something that isn't there? Send this screenshot with what the analyzer made of it.">Report a wrong reading</button>
           </div>
         </div>
         <div class="trainer-body" id="az-res-body"></div>
@@ -312,14 +314,14 @@
   </footer>
 </main>
 
-<script src="js/engine.js?v=20261016d"></script>
-<script src="js/board.js?v=20261016d"></script>
-<script src="js/tool-combos.js?v=20261016d"></script>
-<script src="js/solver.js?v=20261016d"></script>
-<script src="js/live.js?v=20261016d"></script>
-<script src="js/report.js?v=20261016d"></script>
-<script src="js/capture.js?v=20261016d"></script>
-<script src="js/analyze.js?v=20261016d"></script>
-<script src="js/auto.js?v=20261016d"></script>
+<script src="js/engine.js?v=20261016e"></script>
+<script src="js/board.js?v=20261016e"></script>
+<script src="js/tool-combos.js?v=20261016e"></script>
+<script src="js/solver.js?v=20261016e"></script>
+<script src="js/live.js?v=20261016e"></script>
+<script src="js/report.js?v=20261016e"></script>
+<script src="js/capture.js?v=20261016e"></script>
+<script src="js/analyze.js?v=20261016e"></script>
+<script src="js/auto.js?v=20261016e"></script>
 </body>
 </html>

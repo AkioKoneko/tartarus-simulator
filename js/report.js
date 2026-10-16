@@ -5,7 +5,11 @@
  * before sending it to the live collector (worker/), where only the
  * maintainer can read it. Pasting while the dialog is open goes to it.
  *
- *   TartarusReport.open(kind)  kind: event, tool, gift or other
+ * It also reports a wrong reading: the analyzer hands over its screenshot
+ * and what it made of it, and the player says what's wrong.
+ *
+ *   TartarusReport.open(kind, preset)  kind: event, tool, gift, other or reading;
+ *     preset: { name, text, outcome, image } (image: a canvas, bitmap or blob)
  *   TartarusReport.isOpen()
  *   TartarusReport.setup({ app, context })  context() returns { page, day, step, chain } */
 (function () {
@@ -15,10 +19,16 @@
   const KEY = 'tartarus-sim:report:v1';
   const MAX_BYTES = 150000; // the Worker takes up to 160 KB
   const MAX_SIDE = 1000; // pixels on the longer side
+  // A wrong reading keeps more of its screenshot: the reader is retrained on
+  // the whole picture, at the largest size that fits.
+  const READING_SIDE = 1600;
   const KINDS = [['event', 'Event'], ['tool', 'Instrument'], ['gift', 'Gift'], ['other', 'Something else']];
 
   let dlg = null;
   let kind = 'event';
+  // A wrong reading. The collector files it under "other", with a name of
+  // its own: it keeps only a few screenshots per name.
+  let wrong = false;
   let shot = null; // the screenshot, as an ImageBitmap
   let crop = null; // { x, y, w, h } in screenshot pixels, or the whole screenshot
   let drag = null;
@@ -60,12 +70,12 @@
     dlg.innerHTML = `
       <form class="sheet-inner" method="dialog">
         <header class="sheet-head">
-          <div><p class="eyebrow">Help the simulator</p><h2 id="rp-title">Report something new</h2></div>
+          <div><p class="eyebrow" id="rp-eyebrow">Help the simulator</p><h2 id="rp-title">Report something new</h2></div>
           <button type="button" class="x" data-rp-close aria-label="Close">×</button>
         </header>
         <div class="sheet-body">
-          <p class="field-note">Found an event, instrument or gift the simulator doesn't have yet? Paste a screenshot of it and say what it does, and I'll add it.</p>
-          <fieldset class="field">
+          <p class="field-note" id="rp-intro"></p>
+          <fieldset class="field" id="rp-kind-field">
             <legend class="field-label">What is it?</legend>
             <div class="az-seg" id="rp-kind">${KINDS.map(([v, label]) => `<button type="button" data-v="${v}" aria-pressed="false">${label}</button>`).join('')}</div>
           </fieldset>
@@ -82,16 +92,16 @@
               </div>
             </div>
           </div>
-          <div class="field">
+          <div class="field" id="rp-name-field">
             <label class="field-label" for="rp-name">Its name, as the game shows it</label>
             <input type="text" id="rp-name" maxlength="80" autocomplete="off" spellcheck="false">
           </div>
           <div class="field">
-            <label class="field-label" for="rp-text">What it says or does</label>
+            <label class="field-label" for="rp-text" id="rp-text-label">What it says or does</label>
             <textarea id="rp-text" rows="3" maxlength="2000" placeholder="Its description, or the event's choices"></textarea>
           </div>
           <div class="field">
-            <label class="field-label" for="rp-outcome">What happened (optional)</label>
+            <label class="field-label" for="rp-outcome" id="rp-outcome-label">What happened (optional)</label>
             <textarea id="rp-outcome" rows="2" maxlength="1000" placeholder="What you picked, and what it did"></textarea>
           </div>
           <p class="field-note">Crop out anything personal, like chat or player names. Reports go to the simulator's private database, with no account or address attached.</p>
@@ -150,18 +160,39 @@
     $('rp-text').placeholder = kind === 'event' ? "The event's text and its choices" : `What the ${label} says it does`;
   }
 
+  // The dialog's words: for something new, or for a wrong reading.
+  function setMode() {
+    $('rp-eyebrow').textContent = wrong ? 'Help the reader learn' : 'Help the simulator';
+    $('rp-title').textContent = wrong ? 'Report a wrong reading' : 'Report something new';
+    $('rp-intro').textContent = wrong
+      ? 'Did the reader get your game wrong, or does the advice point at something that isn’t there? Your screenshot and what the analyzer made of it are filled in. Say what’s wrong, and I’ll retrain the reader on it.'
+      : 'Found an event, instrument or gift the simulator doesn’t have yet? Paste a screenshot of it and say what it does, and I’ll add it.';
+    $('rp-kind-field').hidden = wrong;
+    $('rp-name-field').hidden = wrong;
+    $('rp-text-label').textContent = wrong ? 'What’s wrong?' : 'What it says or does';
+    if (wrong) $('rp-text').placeholder = 'What your game shows, and what the analyzer read or advised instead. Like: my Dog Tag reads as a Skewer.';
+    $('rp-outcome-label').textContent = wrong ? 'What the analyzer read and advised, sent with your report' : 'What happened (optional)';
+    $('rp-outcome').placeholder = wrong ? '' : 'What you picked, and what it did';
+    $('rp-outcome').rows = wrong ? 7 : 2;
+  }
+
   function status(text, tone) {
     const el = $('rp-status');
     el.textContent = text;
     el.className = `rp-status${tone ? ` is-${tone}` : ''}`;
   }
 
-  function open(k) {
+  let opened = 0;
+  function open(k, preset) {
     if (!dlg) build();
-    setKind(k || 'event');
-    $('rp-name').value = '';
-    $('rp-text').value = '';
-    $('rp-outcome').value = '';
+    const p = preset || {};
+    opened += 1;
+    wrong = k === 'reading';
+    setKind(wrong ? 'other' : k || 'event');
+    setMode();
+    $('rp-name').value = p.name || '';
+    $('rp-text').value = p.text || '';
+    $('rp-outcome').value = p.outcome || '';
     shot = null;
     crop = null;
     packed = null;
@@ -170,23 +201,30 @@
     status('');
     renderShot();
     dlg.showModal();
+    if (p.image) take(p.image);
   }
 
   const isOpen = () => !!dlg && dlg.open;
 
   // ---------- The screenshot ----------
 
+  // A pasted, dropped or chosen file, or the picture a page hands over.
   async function take(file) {
-    if (!file || !/^image\//.test(file.type)) {
+    if (!file || (file instanceof Blob && !/^image\//.test(file.type))) {
       status('That isn’t an image. Copy a screenshot, then paste it here.', 'bad');
       return;
     }
+    const ticket = opened;
+    let bitmap;
     try {
-      shot = await createImageBitmap(file);
+      bitmap = await createImageBitmap(file);
     } catch (e) {
       status('This browser couldn’t open that image.', 'bad');
       return;
     }
+    // The dialog was opened afresh while this one loaded.
+    if (ticket !== opened) return;
+    shot = bitmap;
     crop = whole();
     packed = null;
     status('');
@@ -265,7 +303,11 @@
   function changedCrop() {
     const whole = crop.w === shot.width && crop.h === shot.height;
     $('rp-whole').hidden = whole;
-    $('rp-size').textContent = whole ? 'Drag a box around the event or instrument to send only that part.' : 'Only the part in the box will be sent. Drag again to change it.';
+    $('rp-size').textContent = !whole
+      ? 'Only the part in the box will be sent. Drag again to change it.'
+      : wrong
+        ? 'The reader learns best from the whole screenshot. Drag a box only to leave something personal out.'
+        : 'Drag a box around the event or instrument to send only that part.';
     clearTimeout(sizeTimer);
     sizeTimer = setTimeout(async () => {
       const blob = await pack();
@@ -281,7 +323,7 @@
     if (!shot || !crop) return null;
     const key = `${crop.x},${crop.y},${crop.w},${crop.h}`;
     if (packed && packed.key === key) return packed.blob;
-    let scale = Math.min(1, MAX_SIDE / Math.max(crop.w, crop.h));
+    let scale = Math.min(1, (wrong ? READING_SIDE : MAX_SIDE) / Math.max(crop.w, crop.h));
     for (let tries = 0; tries < 8; tries++) {
       const canvas = document.createElement('canvas');
       canvas.width = Math.max(1, Math.round(crop.w * scale));
@@ -313,9 +355,16 @@
 
   async function send() {
     if (sending) return;
-    const name = $('rp-name').value.trim();
+    // Each wrong reading gets a name of its own, so the collector keeps its
+    // screenshot.
+    const name = wrong ? `Wrong reading ${randomId().slice(0, 8)}` : $('rp-name').value.trim();
     const text = $('rp-text').value.trim();
     const outcome = $('rp-outcome').value.trim();
+    if (wrong && !text) {
+      status('Say what’s wrong: what your game shows, and what the analyzer read or advised instead.', 'bad');
+      $('rp-text').focus();
+      return;
+    }
     if (!shot && !name && !text) {
       status('Paste a screenshot, or give its name and what it does.', 'bad');
       return;

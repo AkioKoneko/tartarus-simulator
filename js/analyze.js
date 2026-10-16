@@ -1043,6 +1043,7 @@
     // After a screenshot, or once the board has changed: fix it and recheck.
     $('az-res-shot').hidden = !shot && !stale;
     $('az-fix').hidden = !shot;
+    $('az-report-reading').hidden = !(shot && reader.result && reader.image && window.TartarusReport);
     $('az-recheck').classList.toggle('btn-primary', stale);
     $('az-res-shot-text').textContent = stale
       ? 'The board changed since this check. Recheck for advice on the board as it is now.'
@@ -1469,6 +1470,7 @@
     // Follow my game's pictures come every step: their screenshot stays
     // folded away, so the board doesn't move down each time.
     reader.folded = !showShots;
+    reader.follow = !!o.quiet;
     reader.id += 1;
     const id = reader.id;
     const t0 = performance.now();
@@ -1886,9 +1888,28 @@
     m.consumeOffered = false;
     m.noSwap = false;
     m.noDevour = false;
+    // Without the cards (a picture taken as they come up), a board of the
+    // same day with the warden in the same cell keeps what the board
+    // before knew. And if the warden's inmate has changed since, today's
+    // swap is done: it isn't advised again, while a consume still can be.
+    const sameVisit = m.day === base.day && m.warden === base.warden && ['manage', 'choice', 'event'].includes(base.step);
+    if (!r.decision && sameVisit && m.step === 'manage') {
+      m.swapUsed = !!base.swapUsed;
+      m.devourUsed = !!base.devourUsed;
+      m.noSwap = !!base.noSwap;
+      m.noDevour = !!base.noDevour;
+      m.consumeOffered = !!base.consumeOffered;
+      const was = base.cells[m.warden];
+      const now = m.cells[m.warden];
+      if (!m.devourUsed && was && now && was.kind === 'inmate' && now.kind === 'inmate' && (was.beast !== now.beast || was.tier !== now.tier)) {
+        m.swapUsed = true;
+        m.consumeOffered = true;
+        notes.push('The warden’s inmate changed since the board before, so today’s Replace is taken as done.');
+      }
+    }
     if (r.decision) {
       // A missing card means that move isn't on offer now, not that it was
-      // used: a used devour would rule out today's swap too.
+      // used: a used consume would rule out today's swap too.
       m.swapUsed = false;
       m.devourUsed = false;
       m.noSwap = !r.decision.replace;
@@ -1945,6 +1966,7 @@
     $('az-scan-show').hidden = !(r && reader.image && reader.folded);
     // A loaded picture can be taken back, if it was read wrong.
     $('az-scan-back').hidden = !(reader.undoable && undo.length);
+    $('az-scan-report').hidden = !(r && reader.image && window.TartarusReport);
     if (box.hidden) return;
     drawScan();
     const rd = reader.reading;
@@ -1978,6 +2000,73 @@
       c.height = Math.round(h * scale);
       c.getContext('2d').drawImage(reader.image, x0, y0, w, h, 0, 0, c.width, c.height);
     }
+  }
+
+  // A wrong reading, or advice for something that isn't in the game: the
+  // report sends the picture with what the reader made of it, what the
+  // player has changed since (most likely what was misread) and the advice,
+  // to retrain the reader on.
+  function reportReading() {
+    if (!window.TartarusReport || !reader.image || !reader.result) return;
+    TartarusReport.open('reading', { image: reader.image, outcome: readingSummary() });
+  }
+
+  // A cell in a report: "lion 3", "locked!" (an event), "nest". Tiers by
+  // number, 0 Normal to 4 Supreme.
+  function cellText(c) {
+    if (!c) return '?';
+    if (c.kind === 'inmate' || c.kind === 'scouted') return `${c.beast} ${c.tier}`;
+    if (c.kind === 'scratch' || c.kind === 'revealed') return `${c.kind} ${c.tier}`;
+    if (c.kind === 'locked' || c.kind === 'sealed') return c.nest ? 'nest' : c.event ? 'locked!' : 'locked';
+    return c.kind;
+  }
+
+  // What the reader read, up to the collector's 1000 characters: the most
+  // useful first.
+  function readingSummary() {
+    const r = reader.result;
+    const rd = reader.reading;
+    const lines = [`Reader ${SCRIPT_QUERY.replace(/^\?v=/, '') || 'local'}, ${reader.follow ? 'a Follow my game picture' : 'a screenshot'} of ${reader.image.width}×${reader.image.height}, read in ${(reader.ms / 1000).toFixed(1)} s.`];
+    if (!r.ok || !rd) {
+      lines.push(`Not read: ${r.reason || 'no result'}`);
+      return lines.join('\n');
+    }
+    const m = rd.model;
+    const sure = (x) => (x && x.conf < 0.6 ? '?' : '');
+    const today = rd.chain
+      ? `meal pick: ${rd.chain.map(L).join(', ')}`
+      : r.doors && r.doors.cells.length
+        ? `doors ${r.doors.cells.map(L).join(', ')}${sure(r.doors)}`
+        : r.decision
+          ? `buttons: ${[r.decision.replace && 'Replace', r.decision.consume && 'Consume', 'End'].filter(Boolean).join(', ')}`
+          : 'no doors or buttons';
+    lines.push(`Day ${m.day} of ${m.mode === 'challenge' ? T.CHALLENGE_DAYS : m.maxDays}${r.days ? `, ${r.days.days} days to the riot${sure(r.days)}` : ', riot not read'}; warden ${r.warden ? L(r.warden.cell) + sure(r.warden) : 'not found'}; ${today}.`);
+    lines.push(`Cells (tiers 0 Normal to 4 Supreme, ? unsure): ${r.cells.filter((c) => c.n !== T.OFFICE).map((c) => `${L(c.n)} ${cellText(c)}${c.jaws ? ' jaws' : ''}${c.ghost ? ' faded' : ''}${sure(c)}`).join(', ')}.`);
+    const icons = r.tools && r.tools.tools ? r.tools.tools : [];
+    lines.push(`Instruments read: ${icons.length ? icons.map((t) => `${t.name || t.id} ${Math.round(100 * t.conf)}%`).join(', ') : 'none'}; used: ${rd.tools.length ? rd.tools.map((t) => `${t.name || t.id}${t.kept ? ' (kept)' : ''}`).join(', ') : 'none'}.`);
+    lines.push(`Chromatic ${rd.chromatic}${r.chromatic ? '' : ' (panel not found)'}; objective ${(T.OBJECTIVES[model.objective] || { name: model.objective || 'none' }).name}.`);
+    if (rd.checks.size) lines.push(`Check: ${[...rd.checks].sort((a, b) => a - b).map(L).join(', ')}.`);
+    // What the player has changed since this reading became the board.
+    if (shot && reader.loaded === rd) {
+      const changes = [];
+      model.cells.forEach((c, n) => {
+        if (n !== T.OFFICE && cellText(c) !== cellText(m.cells[n])) changes.push(`${L(n)} ${cellText(m.cells[n])} → ${cellText(c)}`);
+      });
+      if (model.warden !== m.warden) changes.push(`warden ${L(m.warden)} → ${L(model.warden)}`);
+      const doors = (x) => [...x.dest].sort((a, b) => a - b).map(L).join(' ');
+      if (model.step === 'patrol' && m.step === 'patrol' && doors(model) !== doors(m)) changes.push(`doors ${doors(m)} → ${doors(model)}`);
+      const names = (ids) => ids.map((id) => T.toolName(id)).join(', ') || 'none';
+      const had = (m.tools || []).filter(Boolean).sort();
+      const has = model.tools.filter(Boolean).sort();
+      if (had.join() !== has.join()) changes.push(`instruments ${names(had)} → ${names(has)}`);
+      if (model.day !== m.day) changes.push(`day ${m.day} → ${model.day}`);
+      if (changes.length) lines.push(`You changed: ${changes.join('; ')}.`);
+    }
+    const rec = solver.st ? recommendation() : null;
+    lines.push(rec ? `Advice${fresh() ? '' : ' (before your changes)'}: ${rec.label}. ${(rec.why || '').slice(0, 200)}` : 'Advice: none.');
+    for (const note of rd.notes) lines.push(note);
+    const text = lines.join('\n');
+    return text.length > 1000 ? `${text.slice(0, 999)}…` : text;
   }
 
   // The screenshot with what was read drawn over it.
@@ -2050,6 +2139,7 @@
     leaveShot();
     model = normalize(rd.model);
     reader.undoable = true;
+    reader.loaded = rd;
     shot = true;
     shotTools = [...new Set(rd.tools.filter((t) => t.sim && t.conf < TOOL_SURE).map((t) => T.toolName(t.sim)))];
     flags = new Set(rd.checks);
@@ -2391,12 +2481,16 @@
       toast,
     };
     // Reports of something new carry where the player was, nothing more.
+    // The deployed collector turns away a report whose step it doesn't know
+    // (a chain's pick), so that one goes without its step.
     if (window.TartarusReport) {
       TartarusReport.setup({
         app: 'analyze-20261014a',
-        context: () => ({ page: 'analyze', day: model.day, step: model.step }),
+        context: () => ({ page: 'analyze', day: model.day, step: COLLECTOR_STEPS.includes(model.step) ? model.step : null }),
       });
     }
+    $('az-scan-report').addEventListener('click', reportReading);
+    $('az-report-reading').addEventListener('click', reportReading);
     $('az-toast-actions').addEventListener('click', (e) => {
       const b = e.target.closest('[data-toast]');
       if (!b) return;
@@ -2428,6 +2522,7 @@
       reader.result = null;
       reader.reading = null;
       renderScan();
+      $('az-report-reading').hidden = true;
       scanStatus('');
     });
     let resizeTimer = 0;
