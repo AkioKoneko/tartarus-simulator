@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261016b">
+<link rel="stylesheet" href="css/style.css?v=20261016c">
 <style>
   /* A long read in the simulator's look, like the strategy guide. */
   .guide {
@@ -412,7 +412,7 @@
     <div class="code" data-file="js/capture.js" data-region="read-log"></div>
 
     <h3>4. It watches for moves</h3>
-    <p>The triggers are patterns for the lines the game writes when something happens. Each has a kind, the pattern, and a settle time. By default there are eight. The run's objective popup, its pick of 3 instruments and each re-roll of it (also an extra pick an objective pays); the start of each day, once the new day's banner closes; after a move, when the cards come up; after an action in the cell, once it has played out; and the Warden's Treasure. One more line only cancels: the next day's banner, so an action that ends the day takes no picture of the banner. So it takes a picture of each screen where you decide something, and none in between. You can see and change the triggers at the top of this page, under Triggers and log lines.</p>
+    <p>The triggers are patterns for the lines the game writes when something happens. Each has a kind, the pattern, and a settle time. By default there are eight. The run's objective popup, its pick of 3 instruments and each re-roll of it (also an extra pick an objective pays); the start of each day, once the new day's banner closes; after a move, when the cards come up; after an action in the cell, once it has played out; and the Warden's Treasure. One more line only cancels: the next day's banner, so an action that ends the day takes no picture of the banner. So it takes a picture of each screen where you decide something, and none in between. You can add triggers of your own at the top of this page, under Triggers and log lines; the built-in ones always apply as well.</p>
     <div class="code" data-file="js/follow.js" data-region="default-triggers"></div>
     <p>When matching lines come in a burst, it waits until the log has been quiet for the settle time, so the animations finish. Then it takes one picture for the whole burst.</p>
     <div class="code" data-file="js/capture.js" data-region="triggers"></div>
@@ -454,8 +454,8 @@
   </section>
 </main>
 
-<script src="js/capture.js?v=20261016b"></script>
-<script src="js/follow.js?v=20261016b"></script>
+<script src="js/capture.js?v=20261016c"></script>
+<script src="js/follow.js?v=20261016c"></script>
 <script>
 (function () {
   'use strict';

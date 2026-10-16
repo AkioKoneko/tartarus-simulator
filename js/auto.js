@@ -128,7 +128,8 @@
       ok = status.log === 'on' && status.window === 'on';
       const l = status.last;
       const last = l ? ` Last picture ${time(l.at)}${l.kind ? ` (${esc(l.kind)})` : ''}${l.ok ? '' : `: none taken, ${esc((l.why || 'the window wasn’t shared').replace(/\.$/, ''))}`}.` : ' No pictures yet.';
-      text = `Follow my game: ${log}, ${win}.${last}${ok ? '' : ` Fix it on ${link}.`}`;
+      const trig = status.triggers ? ` ${status.triggers} triggers.` : '';
+      text = `Follow my game: ${log}, ${win}.${trig}${last}${ok ? '' : ` Fix it on ${link}.`}`;
     }
     bar.className = `az-follow ${ok ? 'is-ok' : 'is-off'}`;
     barText.innerHTML = text;

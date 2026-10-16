@@ -16,7 +16,9 @@
   const KEY = 'tartarus-sim:auto:v1';
   const CHANNEL = 'tartarus-follow';
   const KEEP = 12; // pictures listed
-  const RANK = { board: 1, instruments: 2, brushstroke: 2, open: 3, startover: 4, chest: 5, finish: 6, manual: 7 };
+  // A burst of lines makes one picture, named by its highest kind: a popup
+  // that opens right after a move or an action is the picture's subject.
+  const RANK = { board: 1, instruments: 2, brushstroke: 2, objective: 3, treasure: 3, open: 3, startover: 4, chest: 5, finish: 6, manual: 7 };
   // #region default-triggers
   // The prison is "S16" in the game's log. A run starts with a pick of 3
   // instruments, which the game logs as it opens. Then each day starts with
@@ -200,12 +202,13 @@
 
   const captures = []; // newest first: { id, time, kind, hits, frame, why, thumb, full, sent, read, state, asked, note }
   let lastPicture = null; // { at, kind, ok, why }, for the analyzer's status line
+  let triggerCount = 0; // triggers in use, for the same
 
   // This page's status, for the analyzer to show (js/auto.js).
   function tell() {
     if (!channel) return;
     const st = C.state;
-    channel.postMessage({ type: 'status', from: me, log: st.log, file: st.file, window: st.window, last: lastPicture });
+    channel.postMessage({ type: 'status', from: me, log: st.log, file: st.file, window: st.window, last: lastPicture, triggers: triggerCount });
   }
   const seen = []; // newest first: { at, line, kind }
   let nextId = 1;
@@ -400,9 +403,16 @@
   $('az-auto-rules').value = prefs.rules;
   $('az-auto-watch').value = prefs.watch;
   $('az-auto-read').checked = prefs.read;
+  // The built-in triggers always apply, and lines saved here are added to
+  // them: a list saved before a trigger was built in can't leave it out.
   const applyRules = () => {
-    const n = C.setRules(parseRules(prefs.rules));
-    $('az-auto-rules-note').textContent = `${n} ${n === 1 ? 'trigger' : 'triggers'} in use.`;
+    const rules = parseRules(DEFAULT_RULES);
+    // Lines of earlier built-in lists, still in a saved list, are left out.
+    const retired = new Set(RETIRED.flatMap((text) => parseRules(text).map((r) => r.pattern)));
+    for (const r of parseRules(prefs.rules)) if (!retired.has(r.pattern) && !rules.some((x) => x.pattern === r.pattern)) rules.push(r);
+    triggerCount = C.setRules(rules);
+    $('az-auto-rules-note').textContent = `${triggerCount} ${triggerCount === 1 ? 'trigger' : 'triggers'} in use (the built-in ones, and any added here).`;
+    tell();
   };
   applyRules();
   C.setWatch(prefs.watch);
