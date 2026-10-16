@@ -925,9 +925,11 @@
     return out;
   }
 
-  // "Go to Interrogation Room": about twice as wide as a numbered card's text,
-  // its words 2, 2, 13 and 4 letters long (the long one can come apart or
-  // run together a little).
+  // "Go to Interrogation Room", the office's card (cell 01 is always the
+  // Interrogation Room): about twice as wide as a numbered card's text, in
+  // the same row, its words 2, 2, 13 and 4 letters long. Letters can run
+  // together ("Goto") or come apart, so only the total, a long word and the
+  // last word's 4 are checked.
   function officeCard(p, cards) {
     const cap = p.glyphs[0].h;
     const h = cards[0].h;
@@ -936,7 +938,8 @@
     if (cards.some((c) => c.p.x0 < p.x1 && p.x0 < c.p.x1)) return false;
     const span = (p.x1 - p.x0) / cap;
     const words = p.words.map((w) => w.glyphs.length);
-    return span >= 12.5 && span <= 17 && words.length === 4 && Math.abs(words[0] - 2) <= 1 && Math.abs(words[1] - 2) <= 1 && words[2] >= 8 && Math.abs(words[3] - 4) <= 1;
+    const total = words.reduce((a, b) => a + b, 0);
+    return span >= 11.5 && span <= 18 && words.length >= 3 && words.length <= 5 && total >= 17 && total <= 25 && Math.max(...words) >= 8 && Math.abs(words[words.length - 1] - 4) <= 1;
   }
 
   // Contrast windows for finding text of any size: a fraction of the
