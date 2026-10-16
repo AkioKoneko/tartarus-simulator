@@ -906,7 +906,9 @@
             }
           }
           const num = p.glyphs.filter((g) => g.x0 >= start);
-          if (!num.length || num.length > 3) continue;
+          // Cells run 02-16: more than two marks after "Cell" isn't a number
+          // this card can have (a letter split in two, or a speck).
+          if (!num.length || num.length > 2) continue;
           const like = gray && ref && ref.prefix ? prefixLike(gray, img.width, img.height, p, ref.prefix) : 1;
           if (like < 0.5) continue;
           cards.push({ p, h: cap, mid: (p.y0 + p.y1) / 2, word: { glyphs: num }, fit: 1 - like });

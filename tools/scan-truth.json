@@ -66,5 +66,31 @@
     "days": 18,
     "tools": [],
     "chromatic": 0
+  },
+  "report-48-doors-10-11-13.png": {
+    "inmates": { "3": "lion/3", "4": "wolf/2", "8": "mammoth/1", "11": "lion/1" },
+    "locked": [2, 5, 6, 7, 9, 10, 12, 13, 14, 15, 16],
+    "nests": [],
+    "events": [7],
+    "jaws": [8],
+    "warden": 8,
+    "phase": "patrol",
+    "doors": [10, 11, 13],
+    "days": 14,
+    "tools": ["coin"],
+    "chromatic": 0
+  },
+  "report-58-doors-8-10-13.png": {
+    "inmates": { "7": "lion/2", "9": "rat/0", "10": "lion/0" },
+    "locked": [2, 3, 4, 5, 6, 8, 11, 12, 13, 14, 15, 16],
+    "nests": [],
+    "events": [13],
+    "jaws": [10],
+    "warden": 7,
+    "phase": "patrol",
+    "doors": [8, 10, 13],
+    "days": 18,
+    "tools": ["maiden"],
+    "chromatic": 0
   }
 }
