@@ -113,6 +113,8 @@
     { key: 'startTools', group: 'Rewards', label: 'Starting instrument picks, each from 3 random ones (the live game gives 1)', type: 'int', min: 0, max: 5 },
   ];
 
+  // Names exactly as the game prints them: the analyzer reads an instrument
+  // pick by its printed name.
   const TOOLS = {
     revenge: { name: "Avenger's Casket", text: 'After a consume, 30% chance to open a sealed cell holding a meal for the eater at its new rarity. That door triggers nothing else.' },
     muzzle: { name: "Raging Beast's Agonizing Muzzle", text: 'When 4 or fewer inmates are on the block after the meal, a consume gains +2 extra tiers.' },
@@ -121,13 +123,13 @@
     rope: { name: "Hangman's Noose", text: 'Swapped-in inmates are never Normal or Magic.' },
     // Once translated as the Burning Stake, with other rules; the live card reads as below.
     fire: { name: 'Searing Branding Iron', text: 'When a patrol opens a door, 35% chance to copy the inmate behind it into 1 random unopened cell, which opens holding the copy. That door triggers nothing else.' },
-    ironbox: { name: 'Squirming Iron Box', text: 'Each morning a sealed cell becomes a rat nest. It hatches a Rare Rat two days later.' },
-    skewer: { name: 'Skewered Rat Heads', text: "Rats can consume Rats of the same rarity, and a Rat's consume gains +1 extra tier." },
+    ironbox: { name: 'Squirming Iron Box: Colossal Rat', text: 'Each morning a sealed cell becomes a rat nest. It hatches a Rare Rat two days later.' },
+    skewer: { name: 'Skewered Rat Heads: Colossal Rat', text: "Rats can consume Rats of the same rarity, and a Rat's consume gains +1 extra tier." },
     hook: { name: 'Sorting Hook', text: 'Cells that open never hold a Normal inmate.' },
     pestle: { name: 'Iron Pestle', text: 'A swapped-in inmate keeps the beast of the one it replaced; only its rarity is re-rolled.' },
     scales: { name: "Warden's Scales", text: 'After a swap, 80% chance to scout the highest-rarity inmate behind the locked doors: its door shows its beast and rarity.' },
-    tongs: { name: 'Iron Tongs of Lust', text: 'Each morning a random Mammoth on the block gets a Tusk mark.' },
-    guillotine: { name: 'Fanged Guillotine', text: 'Wolves can also consume the beasts they eat at a lower rarity than their own.' },
+    tongs: { name: 'Iron Tongs of Lust: Mammoth', text: 'Each morning a random Mammoth on the block gets a Tusk mark.' },
+    guillotine: { name: 'Fanged Guillotine: Alpha Wolf', text: 'Wolves can also consume the beasts they eat at a lower rarity than their own.' },
     axe: { name: "Gaoler's Execution Axe", text: 'When a swap brings in a higher rarity than it replaced, 2 random sealed cells open. Those doors trigger nothing else.' },
     shackles: { name: 'Long-Chained Shackles', text: 'When a patrol walks 4 or more cells, 40% chance that 1 random inmate on the block rises a tier.' },
     // The card reads "When an Inmate Chain Consumes": the bites after the
@@ -187,7 +189,7 @@
     // Effect: Berserk Lion can Consume any Inmate of the same rarity. +2
     // additional Rarity Tiers after consuming". Read like the Skewered Rat
     // Heads, whose card names the Colossal Rat: every Lion, on each bite.
-    crown: { name: 'Iron Crown of the Prison King', text: "Lions can consume any inmate of the same rarity, and a Lion's consume gains +2 extra tiers." },
+    crown: { name: 'Iron Crown of the Prison King: Berserk Lion', text: "Lions can consume any inmate of the same rarity, and a Lion's consume gains +2 extra tiers." },
   };
   const TOOL_IDS = Object.keys(TOOLS);
 
