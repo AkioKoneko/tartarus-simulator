@@ -681,7 +681,9 @@ async function combos() {
   // instrument only adds sets: the ones already measured still hold.
   let out = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
   const playing = (p) => JSON.stringify(Object.assign({}, p, { toolRank: null, giftRank: null }));
-  if (out && (out.seed !== 'COMBO' || playing(out.params) !== playing(params) || !out.sets[''] || !out.ids.every((id) => ids.includes(id)))) {
+  // --keep carries on after a weight change that only matters for sets it
+  // doesn't touch (re-measure the sets it does, by removing them first).
+  if (out && (out.seed !== 'COMBO' || (playing(out.params) !== playing(params) && !opt('keep', false)) || !out.sets[''] || !out.ids.every((id) => ids.includes(id)))) {
     console.log('The saved sets were played with other weights or instruments: starting over.');
     out = null;
   }
@@ -968,6 +970,8 @@ async function main() {
   const t0 = Date.now();
   const games = Number(opt('games', mode === 'tune' ? 40000 : 200000));
   const game = { rewards: opt('rewards', 'off') === 'on' };
+  // --tool id: one instrument held from day 1 (eval, variants).
+  if (opt('tool', null)) game.tool = String(opt('tool'));
   console.log(`${mode}: ${games.toLocaleString()} games per test on ${THREADS} threads, seed ${SEED}${game.rewards ? ', rewards on' : ', no tools'}`);
 
   if (mode === 'tune') {

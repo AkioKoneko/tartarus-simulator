@@ -35,6 +35,12 @@
       "delta": 0.67
     },
     {
+      "id": "blacklist",
+      "name": "Executioner's Blacklist",
+      "value": 1.3619,
+      "delta": 0.6029
+    },
+    {
       "id": "saw",
       "name": "Rusty Saw",
       "value": 1.1628,
@@ -81,6 +87,18 @@
       "name": "Warden's Scales",
       "value": 0.7807,
       "delta": 0.0217
+    },
+    {
+      "id": "cage",
+      "name": "Crowded Beastcage",
+      "value": 0.7781,
+      "delta": 0.0191
+    },
+    {
+      "id": "shortchain",
+      "name": "Short-Chained Shackles",
+      "value": 0.7449,
+      "delta": -0.0141
     },
     {
       "id": "pestle",
@@ -1517,6 +1535,9 @@
     "minutes": 2.3
   },
   "toolsAdded": [
-    "dogtag"
+    "dogtag",
+    "cage",
+    "blacklist",
+    "shortchain"
   ]
 }

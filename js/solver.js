@@ -32,12 +32,14 @@
     wGoal: 1, // patrol: per tile walked toward Prison Walk, while it pays a tool
     wInstigate: 0.5, // office: an event Instigate brings, as a share of an event door's worth
     wCrow: 2, // patrol: a door hiding Crow Whispers (it only shows rarities)
+    wShort: 0.1, // Short-Chained Shackles: a short walk's chance of an extra door, as a share of its worth (0.1 measured best: 0.749 against 0.683 at 1)
+    wCage: 1, // Crowded Beastcage: a devour's chance of reopening the meal's cell, as a share of its worth
     wStair: 0, // keeping a spread of beasts at each tier, so chains can go on
     minDevour: 0, // skip devours worth less than this (-1e9: never skip)
     swapMaxTier: 0, // swap the warden's inmate only at or below this tier
     execMargin: 0, // accept an Execution worth more than this
     acceptChain: true, // accept Chain reactions
-    toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'dogtag', 'keys', 'scales', 'pestle', 'axe', 'fire', 'forged', 'ironbox'], // measured: each tool held from day 1
+    toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'blacklist', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'dogtag', 'keys', 'cage', 'scales', 'pestle', 'shortchain', 'axe', 'fire', 'forged', 'ironbox'], // measured: each tool held from day 1
     toolSets: true, // pick instruments by the measured sets (js/tool-combos.js) when there are any
     office: null, // always 'bestow' or 'instigate' at the office (only to measure the habit)
     giftRank: null, // null scores the gifts on the spot; or a fixed order
@@ -59,10 +61,10 @@
   // tools/results/ (train-report.json: the drill profiles were retrained on
   // 2026-10-15).
   const PROFILES = {
-    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'dogtag', 'keys', 'scales', 'pestle', 'axe', 'fire', 'forged', 'ironbox'] },
-    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'dogtag', 'keys', 'scales', 'pestle', 'axe', 'fire', 'forged', 'ironbox'] },
+    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'blacklist', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'dogtag', 'keys', 'cage', 'scales', 'pestle', 'shortchain', 'axe', 'fire', 'forged', 'ironbox'] },
+    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['rope', 'shackles', 'muzzle', 'skewer', 'revenge', 'blacklist', 'collar', 'saw', 'hook', 'guillotine', 'tongs', 'dogtag', 'keys', 'cage', 'scales', 'pestle', 'shortchain', 'axe', 'fire', 'forged', 'ironbox'] },
     // The contract challenge, tuned on passing first and then points.
-    challenge: { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'shackles', 'skewer', 'revenge', 'collar', 'keys', 'ironbox', 'muzzle', 'saw', 'guillotine', 'hook', 'tongs', 'dogtag', 'fire', 'axe', 'scales', 'pestle', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
+    challenge: { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'shackles', 'skewer', 'revenge', 'blacklist', 'collar', 'keys', 'cage', 'ironbox', 'muzzle', 'saw', 'guillotine', 'hook', 'tongs', 'dogtag', 'fire', 'axe', 'scales', 'pestle', 'shortchain', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
   };
   const paramsFor = (st) => PROFILES[st.mode === 'challenge' ? 'challenge' : st.params.rewards ? 'rewards' : 'notools'];
 
@@ -146,6 +148,10 @@
       revenge: has(st, 'revenge') && sealed > 0,
       axeDoors: has(st, 'axe') ? Math.min(2, sealed) : 0,
       dogtag: has(st, 'dogtag'),
+      cage: has(st, 'cage'),
+      blacklist: has(st, 'blacklist'),
+      shortchain: has(st, 'shortchain'),
+      sealed,
       lift: board.length ? lift : 0,
       shacklesLift: has(st, 'shackles') && board.length ? lift : 0,
       goalLeft: goal,
@@ -502,6 +508,9 @@
         const shown = c.known && c.hidden ? [0, 1, 2, 3, 4].map((t) => (t === Math.min(4, c.hidden.tier) ? 1 : 0)) : null;
         const need = needValue(ctx, board.comp, [], shown || ctx.openDist);
         score += (shown ? freshValue(ctx, tagged(ctx, shown), board.comp, board.crowd + 1, swapLeft) : freshNow()) + need;
+        // Executioner's Blacklist: opening this door leaves 5 or fewer locked,
+        // so 2 random inmates rise a tier.
+        if (ctx.blacklist && ctx.sealed - 1 <= 5) score += 2 * ctx.lift;
         why = need > 0 ? `a new inmate, who may help meet "${ctx.need.contract.name}"` : 'a new inmate, who may devour today';
         const worth = eventWorth(ctx, board.comp);
         const pool = st.eventPool || T.EVENT_POOL;
@@ -530,6 +539,8 @@
       }
       // Long-Chained Shackles: a walk of 4 or more may raise someone a tier.
       if (ctx.shacklesLift && steps >= 4) score += 0.4 * ctx.shacklesLift;
+      // Short-Chained Shackles: a walk of 3 or fewer may open another door.
+      if (ctx.shortchain && steps <= 3 && ctx.sealed > (c.sealed ? 1 : 0)) score += P.wShort * 0.5 * P.wOpen * ctx.openValue;
       // Prison Walk: each tile walked brings its tool closer.
       if (ctx.goalLeft) score += P.wGoal * Math.min(steps, ctx.goalLeft);
       out.push({ cell: n, score, why });
@@ -591,7 +602,10 @@
           const to = Math.min(RAINBOW, tier + T.gainFor(st, st.position, o).gain);
           need = needValue(ctx, whole, removes, [0, 1, 2, 3, 4, 5].map((t) => (t === to ? 1 : 0)));
         }
-        return { cell: o.cell, score: devourDelta(ctx, tier, beast, beastIndex(meal.beast), !!o.scratch, comp, crowd, chained) - loss + stairLoss + need };
+        // Crowded Beastcage: 40% of the time the meal's cell opens again with
+        // someone new (the chain after the first bite isn't counted).
+        const cage = ctx.cage ? ctx.P.wCage * 0.4 * ctx.P.wOpen * ctx.openValue : 0;
+        return { cell: o.cell, score: devourDelta(ctx, tier, beast, beastIndex(meal.beast), !!o.scratch, comp, crowd, chained) - loss + stairLoss + need + cage };
       })
       .sort((a, b) => b.score - a.score);
   }

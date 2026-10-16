@@ -43,6 +43,9 @@ const TOOLS = {
   axe: { name: "Gaoler's Execution Axe", sim: 'axe', card: ['cards_2026-10-15_axe_shackles_collar.png', 222, 180, 118, 175] },
   shackles: { name: 'Long-Chained Shackles', sim: 'shackles', card: ['cards_2026-10-15_axe_shackles_collar.png', 670, 235, 153, 150] },
   collar: { name: "Maddened Beast's Barbed Collar", sim: 'collar', card: ['cards_2026-10-15_axe_shackles_collar.png', 1150, 235, 150, 165] },
+  // From players' reports: the Beastcage's panel icon (report 7, as PNG).
+  cage: { name: 'Crowded Beastcage', sim: 'cage', card: ['report-7-crowded-beastcage.png', 16, 192, 68, 118] },
+  dogtag: { name: "Felon's Dog Tag", sim: 'dogtag', card: null },
 };
 
 const cache = new Map();

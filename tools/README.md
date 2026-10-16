@@ -133,6 +133,14 @@ The Trainer now takes the offered instrument that adds the most to the ones held
 
 **Felon's Dog Tag** (an 18th instrument, from a player's report on 2026-10-16: "There is a 25% chance to trigger after opening: +1 Rarity Tier to the current Inmate", read as the inmate behind the door the patrol opens). Measured with `combos`, which now keeps its sets when an instrument is added: 0.925 alone (11th of 18; no instrument 0.762), best with the Long-Chained Shackles 1.92, Hangman's Noose 1.87 and the Agonizing Muzzle 1.75. It works best beyond their parts with the Sorting Hook (+0.18), since every door then holds Magic or better.
 
+**Three more instruments** (2026-10-16, from a player's report and the user's screenshot of an instrument pick), measured alone and in pairs on 4 threads (no instrument 0.762):
+
+- **Executioner's Blacklist**: when a patrol opens a door and 5 or fewer cells are still locked, 2 random inmates rise a tier. 1.357 alone (6th of 21). With the Lost Ring of Keys 2.64, +1.25 beyond their parts, since the Ring's extra doors bring the block down to 5 locked cells sooner. It also pairs well with the Execution Axe (+0.67).
+- **Crowded Beastcage**: after an inmate is devoured, 40% chance its cell opens again at once. 0.782 (14th). Valuing that as 40% of a door (`wCage` 1) beat smaller weights; best paired with the Blacklist (+0.28).
+- **Short-Chained Shackles**: a walk of 3 cells or fewer has a 50% chance to open a random locked cell. Valued as half a door, it pulled the strategy into short walks and scored 0.683, worse than nothing. At a tenth of that (`wShort` 0.1) it scores 0.751, about neutral (17th): the extra door can use up an event or a nest. Best with the Blacklist (1.69).
+
+`combos --keep` carries on after a weight change that only matters for some sets; remove those sets from `results/tool-combos.json` first so they're measured again.
+
 Sets of 3 and 4 (the same night, 71,157,462 runs in 90 minutes; 76,323,410 with the pairs): all 680 sets of 3 within ±0.01; all 2,380 sets of 4 within ±0.03, and 481 of them refined to ±0.01. Finishing the sets of 4 to ±0.01 needs about 83 million more runs (around 2 to 3 hours); `combos --minutes N` carries on.
 
 - **Best sets of 3:** Iron Box, Avenger's Casket and Rat Heads 5.32; Iron Box, Rusty Saw and Rat Heads 5.03; Muzzle, Noose and Rat Heads 5.03; Muzzle, Noose and Shackles 5.02.

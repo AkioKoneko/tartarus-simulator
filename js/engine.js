@@ -121,6 +121,16 @@
     // Tier to the current Inmate", read as the inmate in the cell the warden
     // just opened (a player's report, 2026-10-16).
     dogtag: { name: "Felon's Dog Tag", text: 'When a patrol opens a door, 25% chance that the inmate behind it rises a tier.' },
+    // The card: "There is a 40% chance to trigger after the Inmate is
+    // Consumed: the cell occupied by this Inmate is immediately opened (does
+    // not trigger other effects)" (a player's report, 2026-10-16).
+    cage: { name: 'Crowded Beastcage', text: 'After an inmate is devoured, 40% chance its cell opens again at once with a new inmate. That door triggers nothing else.' },
+    // From the user's "Select a Torture Instrument" screenshot (2026-10-16):
+    // "When there are no more than 5 unopened cells, after opening: +1 Rarity
+    // Tier to 2 random Inmates", and "There is a 50% chance to trigger when
+    // moving no more than 3 tiles in a single movement: randomly opens 1 cell".
+    blacklist: { name: "Executioner's Blacklist", text: 'When a patrol opens a door and 5 or fewer cells are still locked, 2 random inmates rise a tier.' },
+    shortchain: { name: 'Short-Chained Shackles', text: 'When a patrol walks 3 cells or fewer, 50% chance that 1 random locked cell opens. That door triggers nothing else.' },
   };
   const TOOL_IDS = Object.keys(TOOLS);
 
@@ -497,6 +507,15 @@
     if (how === 'patrol' && has(state, 'dogtag') && cell.inmate === inmate && inmate.tier < RAINBOW && rand(state) < 0.25) {
       log(state, 'tool', `Felon's Dog Tag: the ${describe(inmate)} in cell ${cellLabel(cell.n)} rises a tier.`, { type: 'dogtag', cell: cell.n });
       promote(state, inmate, 1, false, events);
+    }
+    // Executioner's Blacklist: once 5 or fewer cells are still locked, each
+    // door the patrol opens raises 2 random inmates a tier.
+    if (how === 'patrol' && has(state, 'blacklist') && state.cells.filter((c) => c.sealed).length <= 5) {
+      const picks = shuffle(state, boardInmates(state).filter((i) => i.tier < RAINBOW)).slice(0, 2);
+      if (picks.length) {
+        log(state, 'tool', `Executioner's Blacklist: ${picks.map((who) => `the ${describe(who)} in cell ${cellLabel(cellOf(state, who.id).n)}`).join(' and ')} ${picks.length === 1 ? 'rises' : 'rise'} a tier.`, { type: 'blacklist', cells: picks.map((who) => cellOf(state, who.id).n) });
+        for (const who of picks) if (boardCellOf(state, who.id)) promote(state, who, 1, false, events);
+      }
     }
     // Searing Branding Iron: the inmate behind a patrolled door is copied
     // into another unopened cell, which opens with no other effect.
@@ -940,9 +959,18 @@
     return ok(events);
   }
 
-  // After the warden's walk: the Long-Chained Shackles reward a long one, and
-  // every cell walked counts for Prison Walk.
+  // After the warden's walk: the Long-Chained Shackles reward a long one, the
+  // Short-Chained Shackles a short one, and every cell walked counts for
+  // Prison Walk.
   function walked(state, steps, events) {
+    if (has(state, 'shortchain') && steps <= 3 && rand(state) < 0.5) {
+      const sealed = state.cells.filter((c) => c.sealed);
+      if (sealed.length) {
+        const target = pickOne(state, sealed);
+        log(state, 'tool', `Short-Chained Shackles: a ${steps}-cell walk opens cell ${cellLabel(target.n)}.`, { type: 'shortchain', cell: target.n });
+        openCell(state, target, 'side', events);
+      }
+    }
     if (has(state, 'shackles') && steps >= 4 && rand(state) < 0.4) {
       const pool = boardInmates(state).filter((i) => i.tier < RAINBOW);
       if (pool.length) {
@@ -1129,6 +1157,12 @@
         log(state, 'tool', `Avenger's Casket: cell ${cellLabel(target.n)} opens with a meal for the ${describe(eater)}.`);
         openCell(state, target, 'side', events, { beast: food, tier: eater.tier });
       }
+    }
+    // Crowded Beastcage: the eaten inmate's cell may open again at once,
+    // holding someone new.
+    if (has(state, 'cage') && mealCell.sealed && rand(state) < 0.4) {
+      log(state, 'tool', `Crowded Beastcage: cell ${cellLabel(mealCell.n)} opens again.`, { type: 'cage', cell: mealCell.n });
+      openCell(state, mealCell, 'side', events);
     }
     return bite;
   }
@@ -1658,6 +1692,9 @@
       case 'collar': return 10;
       case 'forged': return 6;
       case 'dogtag': return 12;
+      case 'cage': return 12;
+      case 'blacklist': return state.cells.filter((c) => c.sealed).length <= 7 ? 16 : 8;
+      case 'shortchain': return 10;
       case 'wine': return board.filter((i) => i.tier < 3).length * 4;
       case 'horn': return board.filter((i) => devourOptions(state, cellOf(state, i.id).n).length).length * 6;
       case 'brand': return board.filter((i) => !devourOptions(state, cellOf(state, i.id).n).length).length * 5;

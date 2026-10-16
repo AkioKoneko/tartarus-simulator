@@ -208,6 +208,30 @@
       '<path d="M20.5 16.5L11 9" stroke="#8d92a8" stroke-width="1.6" stroke-dasharray="1.4 1.1"/><circle cx="20.5" cy="16.5" r="1.8" fill="#2c2c33"/>' +
       '<path d="M15.5 22.5h10M15.5 26.5h10M15.5 30.5h7" stroke="#7d8089" stroke-width="1.4" stroke-linecap="round"/>' +
       '<path d="M13 34c3 .5 5.5-.5 8 2.5" stroke="#9b1d22" stroke-width="2" fill="none" stroke-linecap="round"/>'),
+    // Crowded Beastcage: a domed iron cage, a beast's red eyes inside.
+    cage: icon('glow-red',
+      '<circle cx="24" cy="3.6" r="2.2" fill="none" stroke="#8d92a8" stroke-width="1.6"/><path d="M24 5.8V8" stroke="#8d92a8" stroke-width="2"/>' +
+      '<path d="M10 21c0-8 6-13 14-13s14 5 14 13v20H10Z" fill="#2a1416" stroke="#5d606c" stroke-width="2"/>' +
+      '<ellipse cx="20.5" cy="26.5" rx="1.7" ry="1.2" fill="#ff3b30"/><ellipse cx="27.5" cy="26.5" rx="1.7" ry="1.2" fill="#ff3b30"/>' +
+      '<path d="M15 12.5V41M19.5 9.5V41M24 8.2V41M28.5 9.5V41M33 12.5V41" stroke="#6b6d78" stroke-width="1.5"/>' +
+      '<path d="M10 21h28M10 32h28" stroke="#7d8089" stroke-width="2"/>' +
+      '<rect x="7" y="40.5" width="34" height="4.5" rx="1" fill="#3a3b44" stroke="#6b6d78" stroke-width="1"/>'),
+    // Executioner's Blacklist: a black ledger with a winged clasp and red
+    // ribbons.
+    blacklist: icon('glow-blue',
+      '<path d="M12 9l22-3 4 32-22 4Z" fill="#e6d8bf" stroke="#9a8a6c" stroke-width="1"/>' +
+      '<path d="M9 10l23-4 4 32-23 4Z" fill="#1d1b20" stroke="#4d505b" stroke-width="1.4"/>' +
+      '<path d="M11.5 12l2.6 28" stroke="#7a1a10" stroke-width="2.2"/>' +
+      '<path d="M16 21c2.5-3 5-3 7-1 2-3 5-3 7-1-2 0-3.5 1-4 3-1-1.5-2.5-1.8-3-1-.5-1-2-1.3-3 0-.6-2-2-3-4-1Z" fill="#9b1d22"/>' +
+      '<path d="M22.5 22.5l.6 4" stroke="#c0282d" stroke-width="1.4"/>' +
+      '<path d="M27 40l1 6 2-2.5 2 2-1-6M33 39l2.5 5 1.5-2.8 2.3 1.4-2.3-4.6" fill="#b8202a"/>'),
+    // Short-Chained Shackles: an iron ball on a short chain, its cuff open.
+    shortchain: icon('glow-green',
+      '<circle cx="28" cy="18" r="12" fill="#4d4648" stroke="#2c2c33" stroke-width="1.2"/>' +
+      '<path d="M21 12c2-3 5-4 8-4" stroke="#8a7f80" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="33" cy="22" r="1.6" fill="#6e2a24"/><circle cx="24" cy="25" r="1.1" fill="#6e2a24"/>' +
+      '<path d="M37 26c1 4 0 7-3 9M31 35c-3 1-6 1-8 0" fill="none" stroke="#8d92a8" stroke-width="2.4" stroke-dasharray="3 1.5"/>' +
+      spikes(14, 36, 6.8, 9.6, 8, 0.25, '#b9bcc6') +
+      '<path d="M8.2 33.5a6.5 6.5 0 1 0 11.6 0" fill="none" stroke="#4d505b" stroke-width="3.8"/><path d="M8.2 33.5a6.5 6.5 0 1 0 11.6 0" fill="none" stroke="#9a9eaa" stroke-width="1"/>'),
     // Maddened Beast's Barbed Collar: a blood-red collar ringed with barbs.
     collar: icon('glow-red',
       spikes(24, 24, 14.5, 21.5, 14, 0, '#3a1012') +
