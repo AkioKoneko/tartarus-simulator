@@ -4,7 +4,8 @@
  * When log lines match a trigger (a move, a new screen), it waits for the
  * animations to settle, then hands the page one frame of the game. Chrome
  * and Edge only: other browsers can't re-read a file on disk. Nothing leaves
- * the browser here; the page decides what to do with each frame.
+ * the browser here; the page decides what to do with each frame (follow.html
+ * hands it to the board analyzer, in another tab of the same browser).
  *
  * The log is followed in a background worker where the browser allows it,
  * so a hidden tab keeps up; otherwise on the page.
@@ -256,10 +257,10 @@
   // ---------- When pictures may be taken ----------
 
   // #region guard
-  // What follow.html saves when the player agrees (shared with js/auto.js),
-  // and the version of that page they agreed to.
+  // What follow.html saves when the player agrees (shared with js/follow.js
+  // and js/auto.js), and the version of that page they agreed to.
   const SETTINGS = 'tartarus-sim:auto:v1';
-  const CONSENT_VERSION = 1;
+  const CONSENT_VERSION = 2;
 
   // Whether the player agreed to this version of follow.html. It's read
   // again every time it's needed, so turning Follow my game off on that

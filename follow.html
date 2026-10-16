@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Follow My Game</title>
-<meta name="description" content="What the board analyzer's Follow my game feature reads and sees, with the code that does each part, and where to turn it on.">
+<meta name="description" content="Follow my game for the board analyzer: connect your game log and share the game window, with what it reads and sees and the code that does each part.">
 <meta name="robots" content="noindex">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230f1216'/%3E%3Ccircle cx='8' cy='8' r='4.5' fill='none' stroke='%235fc4b8' stroke-width='1.6'/%3E%3Ccircle cx='8' cy='8' r='1.6' fill='%235fc4b8'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261015c">
+<link rel="stylesheet" href="css/style.css?v=20261015d">
 <style>
   /* A long read in the simulator's look, like the strategy guide. */
   .guide {
@@ -68,6 +68,10 @@
 
   .guide a:not(.btn) {
     color: var(--bone);
+  }
+
+  .guide a.btn {
+    text-decoration: none;
   }
 
   .lede {
@@ -228,18 +232,78 @@
 <main class="guide">
   <a class="guide-back" href="analyze.html">← Back to the board analyzer</a>
   <p class="eyebrow">Tartarus Simulator · Board analyzer · Beta</p>
-  <h1>What Follow my game does</h1>
-  <p class="lede">Follow my game lets the board analyzer keep up with your game by itself. It notices in the game's log when you make a move, takes a picture of the game window, reads the board from it, and updates the advice. Everything happens in your browser, on your PC. This page says exactly what it reads and what it sees, with the code that does each part. The code is loaded from the same files your browser runs, so it can't differ from what's described here.</p>
+  <h1>Follow my game</h1>
+  <p class="lede">Follow my game lets the board analyzer keep up with your game by itself. You connect the game's log and share the game window on this page. When the log shows a move, this page takes a picture of the game and hands it to the board analyzer open in another tab, which reads the board and updates the advice. Everything happens in your browser, on your PC. Below, this page says exactly what it reads and what it sees, with the code that does each part. The code is loaded from the same files your browser runs, so it can't differ from what's described here.</p>
+
+  <section class="guide-section" id="follow" aria-labelledby="follow-title">
+    <h2 id="follow-title">Your game <span class="az-auto-beta">Beta</span></h2>
+    <div class="az-auto-gate" id="az-auto-gate">
+      <p>Read this page first, then turn Follow my game on at the bottom. Until you do, nothing here can open your log or see any window.</p>
+      <a class="btn btn-report" href="#agree">Turn it on</a>
+    </div>
+    <div id="az-auto-body" hidden>
+      <p class="note">Chrome or Edge on a PC, with the game borderless or windowed. Keep this tab open while you play: it follows the log and takes the pictures, and the analyzer tab shows the board and the advice.</p>
+      <div class="az-auto-steps">
+        <div class="az-auto-step">
+          <span class="az-auto-n">1</span>
+          <div>
+            <button type="button" class="btn" id="az-auto-log">Connect the game log</button>
+            <p class="field-note" id="az-auto-log-state"></p>
+            <p class="field-note">It's <code>UE_game.log</code>, in your Steam library under <code>Torchlight Infinite\UE_game\TorchLight\Saved\Logs</code>.</p>
+          </div>
+        </div>
+        <div class="az-auto-step">
+          <span class="az-auto-n">2</span>
+          <div>
+            <button type="button" class="btn" id="az-auto-win">Share the game window</button>
+            <p class="field-note" id="az-auto-win-state"></p>
+            <p class="field-note">Pick the Torchlight: Infinite window. Only that window is seen, and only when the log shows a move.</p>
+          </div>
+        </div>
+        <div class="az-auto-step">
+          <span class="az-auto-n">3</span>
+          <div>
+            <a class="btn" id="az-auto-analyzer" href="analyze.html" target="tartarus-analyzer">Open the board analyzer</a>
+            <p class="field-note" id="az-auto-analyzer-state"></p>
+            <p class="field-note">Each picture is read into a board there, in another tab of this browser.</p>
+          </div>
+        </div>
+        <div class="az-auto-step">
+          <span class="az-auto-n">4</span>
+          <div>
+            <button type="button" class="btn" id="az-auto-now">Take a picture now</button>
+            <p class="field-note">Play as usual. Pictures also come by themselves when the log shows a move.</p>
+          </div>
+        </div>
+      </div>
+      <p class="az-auto-note" id="az-auto-note" aria-live="polite"></p>
+      <div class="az-auto-options">
+        <label class="toggle"><input type="checkbox" id="az-auto-read"><span><strong>Read each picture into the board</strong><small>Cells it's unsure of are marked Check.</small></span></label>
+        <label class="toggle"><input type="checkbox" id="az-auto-accept"><span><strong>Use each reading without asking</strong><small>Off: each time, the analyzer shows what was read and waits for Use this board.</small></span></label>
+        <label class="toggle"><input type="checkbox" id="az-auto-ask"><span><strong>Then ask what to do</strong><small>The advice refreshes after every move.</small></span></label>
+      </div>
+      <ol class="az-auto-caps" id="az-auto-caps" aria-live="polite"></ol>
+      <details class="az-auto-dev">
+        <summary>Triggers and log lines (testing)</summary>
+        <label class="field"><span class="field-label">Take a picture when a log line matches</span><textarea id="az-auto-rules" rows="7" spellcheck="false"></textarea></label>
+        <p class="field-note"><span id="az-auto-rules-note"></span> <button type="button" class="link" id="az-auto-rules-reset">Reset to the defaults</button></p>
+        <label class="field"><span class="field-label">Show log lines matching</span><input type="text" id="az-auto-watch" spellcheck="false"></label>
+        <p class="field-note" id="az-auto-watch-note"></p>
+        <div class="az-res-actions"><button type="button" class="btn" id="az-auto-seen-save">Download these lines</button><button type="button" class="btn" id="az-auto-seen-clear">Clear</button></div>
+        <ol class="az-auto-seen" id="az-auto-seen"></ol>
+      </details>
+    </div>
+  </section>
 
   <section class="guide-section">
     <h2>In short</h2>
     <ul class="facts">
-      <li><b>Nothing before you agree.</b> Until you agree at the bottom of this page, the analyzer shows only a link here. It can't open your log or see any window.</li>
+      <li><b>Nothing before you agree.</b> Until you agree at the bottom of this page, its controls stay hidden: nothing can open your log or see any window, and the board analyzer takes no pictures.</li>
       <li><b>One file, read only.</b> It reads the game log you pick (<code>UE_game.log</code>), and only the lines the game writes after you connect it. It can't open any other file, and it never changes the log.</li>
       <li><b>One window, only with the log connected.</b> It takes pictures of the one window you share, never a whole screen or a browser tab. It only does so while the game log is connected: when the log shows a move, or when you press Take a picture now. Nothing is recorded in between.</li>
-      <li><b>Nothing is uploaded.</b> The screenshot reader reads each picture inside your browser. Pictures are kept as small previews in memory and are gone when you close the tab. Follow my game never sends a picture or your log anywhere.</li>
-      <li><b>Boards, only if you share boards.</b> The board it reads from each picture is treated like any board you ask about. If board sharing is on (the switch under the ask button), the board is shared for the odds study: its cells, day and tools, with no picture and nothing about you. Turn that switch off and nothing is shared.</li>
-      <li><b>Off whenever you like.</b> Stop following and Stop sharing end it at once, as does your browser's own stop-sharing button. Turning it off at the bottom of this page stops pictures at once, even in an analyzer tab that's already open.</li>
+      <li><b>Pictures stay in your browser.</b> This page hands each picture to the board analyzer open in another tab, which reads the board from it with the screenshot reader. The picture passes between the two tabs inside your browser. Pictures are kept as small previews in memory and are gone when you close the tabs. Follow my game never uploads a picture or your log.</li>
+      <li><b>Boards, only if you share boards.</b> The board the analyzer reads from each picture is treated like any board you ask about. If board sharing is on (the switch under the analyzer's ask button), the board is shared for the odds study: its cells, day and tools, with no picture and nothing about you. Turn that switch off and nothing is shared.</li>
+      <li><b>Off whenever you like.</b> Stop following and Stop sharing end it at once, as does your browser's own stop-sharing button. Turning it off at the bottom of this page stops it at once, and the analyzer stops taking pictures.</li>
     </ul>
   </section>
 
@@ -259,8 +323,8 @@
     <p>Each step shows the code that does it, word for word, with its line numbers in the file. It's read from the site just now.</p>
 
     <h3>1. Nothing runs before you agree</h3>
-    <p>When the analyzer opens, it checks for your agreement first. Without it, the panel shows only a link to this page, and none of the code that connects the log or shares a window is set up.</p>
-    <div class="code" data-file="js/auto.js" data-region="agreement"></div>
+    <p>When this page opens, it checks for your agreement first. Without it, the controls stay hidden, and none of the code that connects the log, shares a window or passes pictures to the analyzer is set up.</p>
+    <div class="code" data-file="js/follow.js" data-region="agreement"></div>
     <p>The part that takes pictures checks again on its own, every time, right before each picture. A picture is taken only if three things hold: you agreed to this version of this page, the game log is connected and being read, and what's shared is a single window. Connecting the log or sharing a window without your agreement is refused too.</p>
     <div class="code" data-file="js/capture.js" data-region="guard"></div>
 
@@ -273,8 +337,8 @@
     <div class="code" data-file="js/capture.js" data-region="read-log"></div>
 
     <h3>4. It watches for moves</h3>
-    <p>The triggers are patterns for the lines the game writes when something happens. Each has a kind, the pattern, and a settle time. The prison's lines are added once the new season is live; until then the defaults are the Frozen Canvas's, which test the whole path. You can see and change the triggers on the analyzer, under Triggers and log lines.</p>
-    <div class="code" data-file="js/auto.js" data-region="default-triggers"></div>
+    <p>The triggers are patterns for the lines the game writes when something happens. Each has a kind, the pattern, and a settle time. The prison's lines are added once they're known; until then the defaults are the Frozen Canvas's, which test the whole path. You can see and change the triggers at the top of this page, under Triggers and log lines.</p>
+    <div class="code" data-file="js/follow.js" data-region="default-triggers"></div>
     <p>When matching lines come in a burst, it waits until the log has been quiet for the settle time, so the animations finish. Then it takes one picture for the whole burst.</p>
     <div class="code" data-file="js/capture.js" data-region="triggers"></div>
 
@@ -282,9 +346,13 @@
     <p><code>connectWindow</code> asks the browser to share a window, which you pick. <code>useStream</code> turns away a whole screen or a browser tab and stops that share at once. <code>grab</code> takes a single still frame, and only when the check from step 1 allows it. In Chrome and Edge, nothing plays the window as video in between.</p>
     <div class="code" data-file="js/capture.js" data-region="share-window"></div>
 
-    <h3>6. The picture is read into your board</h3>
-    <p>The screenshot reader, running in your browser, turns the picture into a board. A prompt shows you what it read and what would change, and waits: Use this board loads it and asks for advice, Skip drops it. If you turn on Use each reading without asking, it loads each reading straight away. Nothing is uploaded.</p>
-    <div class="code" data-file="js/auto.js" data-region="each-picture"></div>
+    <h3>6. The picture goes to your board analyzer</h3>
+    <p>This page lists each picture as a small preview, then hands it to the board analyzer you opened from here, in another tab. It travels between the tabs inside your browser, through the browser's BroadcastChannel, which reaches only this site's own pages. If no analyzer tab is open, the picture is only listed here.</p>
+    <div class="code" data-file="js/follow.js" data-region="each-picture"></div>
+
+    <h3>7. The analyzer reads it into your board</h3>
+    <p>The analyzer answers only after you've agreed, and reads only the pictures sent to it. The screenshot reader, running in your browser, turns the picture into a board. A prompt shows you what it read and what would change, and waits: Use this board loads it and asks for advice, Skip drops it. If you turn on Use each reading without asking, it loads each reading straight away. Only how the reading went goes back to this page. Nothing is uploaded.</p>
+    <div class="code" data-file="js/auto.js" data-region="receive"></div>
   </section>
 
   <section class="guide-section">
@@ -306,11 +374,12 @@
       </div>
       <p class="agree-status" id="agree-status" aria-live="polite"></p>
     </div>
-    <p class="note">This is agreement version <span id="consent-version">1</span>. If what Follow my game does changes, the analyzer asks you to read this page again.</p>
+    <p class="note">This is agreement version <span id="consent-version">2</span>. If what Follow my game does changes, this page asks you to read it again before it turns back on.</p>
   </section>
 </main>
 
-<script src="js/capture.js?v=20261015c"></script>
+<script src="js/capture.js?v=20261015d"></script>
+<script src="js/follow.js?v=20261015d"></script>
 <script>
 (function () {
   'use strict';
@@ -320,7 +389,8 @@
   const VERSION = (window.TartarusCapture && window.TartarusCapture.CONSENT_VERSION) || 1;
   const FILES = [
     ['js/capture.js', 'Follows the log, checks your agreement, and takes pictures of the shared window.'],
-    ['js/auto.js', 'The analyzer’s panel: the agreement check, the triggers, and what happens to each picture.'],
+    ['js/follow.js', 'This page’s controls: the agreement check, the triggers, and handing each picture to the analyzer tab.'],
+    ['js/auto.js', 'The analyzer’s side: the agreement check, and reading each picture it’s handed into the board.'],
   ];
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -357,16 +427,25 @@
       $('agree-status').textContent = 'This browser won’t save settings (a private window?), so it can’t be turned on here.';
       return;
     }
-    location.href = 'analyze.html?auto=1#az-auto';
+    // The controls at the top set themselves up on load, now that you agreed.
+    location.hash = 'follow';
+    location.reload();
   });
   $('agree-off').addEventListener('click', () => {
     Object.assign(prefs, { enabled: false, consent: 0, consentAt: null });
     save(prefs);
+    // Other tabs stop by themselves (js/capture.js); this one stops here.
+    if (window.TartarusCapture) {
+      window.TartarusCapture.stopLog();
+      window.TartarusCapture.stopWindow();
+    }
     try {
       indexedDB.deleteDatabase('tartarus-sim-capture'); // the remembered log
     } catch (e) {
       // Nothing to forget.
     }
+    $('az-auto-gate').hidden = false;
+    $('az-auto-body').hidden = true;
     renderAgreement();
     $('agree-status').textContent = 'Turned off, and the log you picked is forgotten.';
   });

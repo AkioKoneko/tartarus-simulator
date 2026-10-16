@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261015c">
+<link rel="stylesheet" href="css/style.css?v=20261015d">
 </head>
 <body>
 <main class="analyzer" id="analyzer">
@@ -59,62 +59,6 @@
           <button type="button" class="btn" id="az-scan-discard">Discard</button>
         </div>
       </div>
-    </div>
-  </section>
-
-  <section class="az-panel az-auto" id="az-auto" aria-labelledby="az-auto-title" hidden>
-    <div class="az-scan-head">
-      <div>
-        <h2 class="az-h2" id="az-auto-title">Follow my game <span class="az-auto-beta">Beta</span></h2>
-        <p class="az-scan-lede">Connect your game log and share the game window, and the analyzer follows along. Each time the log shows a move, it takes a picture of the game, reads the board and refreshes the advice. Chrome or Edge on a PC, with the game borderless or windowed. Pictures never leave this browser. <a href="follow.html">How it works, with its code</a>.</p>
-      </div>
-    </div>
-    <div class="az-auto-gate" id="az-auto-gate" hidden>
-      <p>Follow my game reads your game log and takes pictures of your game window. Before you turn it on, read exactly what it does, with the code that does it.</p>
-      <a class="btn btn-report" href="follow.html">Read how it works</a>
-    </div>
-    <div id="az-auto-body">
-    <div class="az-auto-steps">
-      <div class="az-auto-step">
-        <span class="az-auto-n">1</span>
-        <div>
-          <button type="button" class="btn" id="az-auto-log">Connect the game log</button>
-          <p class="field-note" id="az-auto-log-state"></p>
-          <p class="field-note">It's <code>UE_game.log</code>, in your Steam library under <code>Torchlight Infinite\UE_game\TorchLight\Saved\Logs</code>.</p>
-        </div>
-      </div>
-      <div class="az-auto-step">
-        <span class="az-auto-n">2</span>
-        <div>
-          <button type="button" class="btn" id="az-auto-win">Share the game window</button>
-          <p class="field-note" id="az-auto-win-state"></p>
-          <p class="field-note">Pick the Torchlight: Infinite window. Only that window is seen, and only when the log shows a move.</p>
-        </div>
-      </div>
-      <div class="az-auto-step">
-        <span class="az-auto-n">3</span>
-        <div>
-          <button type="button" class="btn" id="az-auto-now">Take a picture now</button>
-          <p class="field-note">Play as usual. Pictures also come by themselves when the log shows a move.</p>
-        </div>
-      </div>
-    </div>
-    <p class="az-auto-note" id="az-auto-note" aria-live="polite"></p>
-    <div class="az-auto-options">
-      <label class="toggle"><input type="checkbox" id="az-auto-read"><span><strong>Read each picture into the board</strong><small>Cells it's unsure of are marked Check.</small></span></label>
-      <label class="toggle"><input type="checkbox" id="az-auto-accept"><span><strong>Use each reading without asking</strong><small>Off: each time, you see what was read and press Use this board.</small></span></label>
-      <label class="toggle"><input type="checkbox" id="az-auto-ask"><span><strong>Then ask what to do</strong><small>The advice refreshes after every move.</small></span></label>
-    </div>
-    <ol class="az-auto-caps" id="az-auto-caps" aria-live="polite"></ol>
-    <details class="az-auto-dev">
-      <summary>Triggers and log lines (testing)</summary>
-      <label class="field"><span class="field-label">Take a picture when a log line matches</span><textarea id="az-auto-rules" rows="7" spellcheck="false"></textarea></label>
-      <p class="field-note"><span id="az-auto-rules-note"></span> <button type="button" class="link" id="az-auto-rules-reset">Reset to the defaults</button></p>
-      <label class="field"><span class="field-label">Show log lines matching</span><input type="text" id="az-auto-watch" spellcheck="false"></label>
-      <p class="field-note" id="az-auto-watch-note"></p>
-      <div class="az-res-actions"><button type="button" class="btn" id="az-auto-seen-save">Download these lines</button><button type="button" class="btn" id="az-auto-seen-clear">Clear</button></div>
-      <ol class="az-auto-seen" id="az-auto-seen"></ol>
-    </details>
     </div>
   </section>
 
@@ -354,14 +298,14 @@
   </footer>
 </main>
 
-<script src="js/engine.js?v=20261015c"></script>
-<script src="js/board.js?v=20261015c"></script>
-<script src="js/tool-combos.js?v=20261015c"></script>
-<script src="js/solver.js?v=20261015c"></script>
-<script src="js/live.js?v=20261015c"></script>
-<script src="js/report.js?v=20261015c"></script>
-<script src="js/capture.js?v=20261015c"></script>
-<script src="js/analyze.js?v=20261015c"></script>
-<script src="js/auto.js?v=20261015c"></script>
+<script src="js/engine.js?v=20261015d"></script>
+<script src="js/board.js?v=20261015d"></script>
+<script src="js/tool-combos.js?v=20261015d"></script>
+<script src="js/solver.js?v=20261015d"></script>
+<script src="js/live.js?v=20261015d"></script>
+<script src="js/report.js?v=20261015d"></script>
+<script src="js/capture.js?v=20261015d"></script>
+<script src="js/analyze.js?v=20261015d"></script>
+<script src="js/auto.js?v=20261015d"></script>
 </body>
 </html>
