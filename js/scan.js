@@ -894,18 +894,20 @@
           const span = (p.x1 - p.x0) / cap;
           if (span < 5.9 || span > 7.8) continue;
           // The number starts after the space that follows "Cell": the widest
-          // gap after a glyph ending about 5 to 5.7 cap heights in.
+          // gap after a glyph ending about 5 to 6 cap heights in (6 where the
+          // letters are drawn wide, report 58).
           let start = p.x0 + PREFIX.num * cap;
           let gapBest = 0;
           for (let i = 0; i + 1 < p.glyphs.length; i++) {
             const end = (p.glyphs[i].x1 - p.x0) / cap;
             const gap = p.glyphs[i + 1].x0 - p.glyphs[i].x1;
-            if (end >= 4.9 && end <= 5.75 && gap > gapBest) {
+            if (end >= 4.9 && end <= 6.1 && gap > gapBest) {
               gapBest = gap;
               start = p.glyphs[i + 1].x0;
             }
           }
-          const num = p.glyphs.filter((g) => g.x0 >= start);
+          // A speck after the number (the card's dot, report 58) isn't a digit.
+          const num = p.glyphs.filter((g) => g.x0 >= start && g.h >= 0.45 * cap);
           // Cells run 02-16: more than two marks after "Cell" isn't a number
           // this card can have (a letter split in two, or a speck).
           if (!num.length || num.length > 2) continue;
@@ -927,7 +929,7 @@
     }
     // The office's card has no number: "Go to Interrogation Room" (report
     // 26, the first seen), in the same row as the others.
-    const office = best.length ? pieces.find((p) => officeCard(p, best)) : null;
+    const office = best.length ? pieces.find((p) => officeCard(p, best, pieces)) : null;
     const out = best.length >= 2 || (best.length === 1 && office) ? best.sort((a, b) => a.p.x0 - b.p.x0) : [];
     if (out.length && office) out.office = office;
     return out;
@@ -937,8 +939,9 @@
   // Interrogation Room): about twice as wide as a numbered card's text, in
   // the same row, its words 2, 2, 13 and 4 letters long. Letters can run
   // together ("Goto") or come apart, so only the total, a long word and the
-  // last word's 4 are checked.
-  function officeCard(p, cards) {
+  // last word's 4 are checked. In a narrower window it wraps: "Go to
+  // Interrogation" with "Room" on the line below, under its end (report 56).
+  function officeCard(p, cards, pieces) {
     const cap = p.glyphs[0].h;
     const h = cards[0].h;
     const mid = (p.y0 + p.y1) / 2;
@@ -947,7 +950,15 @@
     const span = (p.x1 - p.x0) / cap;
     const words = p.words.map((w) => w.glyphs.length);
     const total = words.reduce((a, b) => a + b, 0);
-    return span >= 11.5 && span <= 18 && words.length >= 3 && words.length <= 5 && total >= 17 && total <= 25 && Math.max(...words) >= 8 && Math.abs(words[words.length - 1] - 4) <= 1;
+    if (span >= 11.5 && span <= 18 && words.length >= 3 && words.length <= 5 && total >= 17 && total <= 25 && Math.max(...words) >= 8 && Math.abs(words[words.length - 1] - 4) <= 1) return true;
+    // Wrapped: the first line ends in the long word, and "Room" (one word of
+    // about 4 letters, the same size) sits just below, under its end.
+    if (!(span >= 8.5 && span <= 12.5 && words.length >= 2 && words.length <= 4 && total >= 14 && total <= 19 && words[words.length - 1] >= 9)) return false;
+    return (pieces || []).some((q) => {
+      if (q === p || q.words.length !== 1 || Math.abs(q.words[0].glyphs.length - 4) > 1) return false;
+      const below = (q.y0 + q.y1) / 2 - mid;
+      return below > 0.8 * cap && below < 2.2 * cap && Math.abs(q.glyphs[0].h - cap) < 0.3 * cap && q.x0 > p.x0 && Math.abs(q.x1 - p.x1) < 1.5 * cap;
+    });
   }
 
   // Contrast windows for finding text of any size: a fraction of the
@@ -983,13 +994,15 @@
     for (let c = 2; c <= 16; c++) allowed.push(c);
     const options = cards.map((c) => {
       const glyphs = c.word.glyphs;
-      // A blob wider than any one digit (about 0.65 of the letter height)
-      // is two digits that touch, like "11" in small text.
+      const whole = readNumber(gray, img.width, img.height, c.word, c.h, ref.digits, allowed, true);
+      // A blob wider than most single digits (about 0.65 of the letter
+      // height) may be two that touch, like "11" in small text, or one wide
+      // digit, like a "4" (report 59): read both ways, the better first.
       if (glyphs.length === 1 && glyphs[0].w > 0.72 * c.h) {
         const parts = splitGlyph(gray, img.width, glyphs[0]);
-        if (parts) return readNumber(gray, img.width, img.height, { glyphs: parts }, c.h, ref.digits, allowed, true);
+        if (parts) return whole.concat(readNumber(gray, img.width, img.height, { glyphs: parts }, c.h, ref.digits, allowed, true)).sort((a, b) => b.score - a.score);
       }
-      return readNumber(gray, img.width, img.height, c.word, c.h, ref.digits, allowed, true);
+      return whole;
     });
     if (options.some((o) => !o.length)) return null;
     const read = distinctNumbers(options);
@@ -1418,6 +1431,10 @@
     // Single words, by their letters: the office's "Instigate" (9) and
     // "Bestow" (6).
     const single = [];
+    // "End" as one word, and longer labels: a row of cards can be pictured
+    // before its title shows (report 60).
+    const ends = [];
+    const lefts = [];
     // The row's title, by its words' letter counts: "Make Your Decision"
     // [4, 4, 8], or the Sewer Ratway's "Select an Objective" [6, 2, 9]
     // (a stray mark can lead).
@@ -1434,10 +1451,16 @@
           if (n >= 14 && n <= 20 && span > 7 && span < 15) {
             const words = p.words.map((w) => w.glyphs.length);
             if (near(words, [6, 2, 9]) && !near(words, [4, 4, 8])) pickCell = true;
-            else title = true; // Make Your Decision
+            // Not "Select a Destination" [6, 1, 11], over the doors (report 56).
+            else if (near(words, [4, 4, 8])) title = true; // Make Your Decision
           }
           else if (p.words.length === 1 && n >= 6 && n <= 8 && span > 3 && span < 6.5) labels.push({ x0: p.x0, x1: p.x1, mid: line.mid, h: line.h });
-          else if (n === 3 && span > 1.5 && span < 3.2) end = true;
+          else if (n === 3 && span > 1.5 && span < 3.2) {
+            end = true;
+            if (p.words.length === 1) ends.push({ x0: p.x0, mid: line.mid, h: line.h });
+          }
+          // Another card's label, for a row seen without its title.
+          if (n >= 6 && n <= 13 && span > 3 && span < 8) lefts.push({ x1: p.x1, mid: line.mid });
         }
       }
     }
@@ -1485,8 +1508,11 @@
       && single.some((b) => b.n >= 5 && b.n <= 6 && b.span > 3.3 && b.span < 5.5 && b.x0 > a.x1 && Math.abs(b.mid - a.mid) < a.h / 2 && redBy(b) < 0.01));
     // The Sewer Ratway: the player picks any cell, with no cards.
     if (pickCell && !title) return { ratway: true, replace: false, consume: false, end: false, title: false };
-    // Without its title, a stray short word isn't a row of cards.
-    if (!title) return null;
+    // Without its title, a stray short word isn't a row of cards. A row
+    // still counts with "End" as one word and another card's label to its
+    // left on the same line, and a Consume card or a Replace label.
+    const row = ends.some((e) => lefts.some((l) => Math.abs(l.mid - e.mid) < e.h / 2 && l.x1 < e.x0 && e.x0 - l.x1 < 30 * e.h));
+    if (!title && !(row && (consume || replace))) return null;
     if (office) return { office: true, replace: false, consume: false, end: false, title };
     return { replace, consume, end, title, red: Math.round(1000 * red) / 1000 };
   }
