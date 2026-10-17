@@ -99,6 +99,22 @@ The two-meal chain's challenge profile had a one-round tune (5.2 million runs, 7
 
 The Chinese sim's two-meal food chain (Mammoth also eats Wolf, Lion also eats Rat) was confirmed not to be in the live game on 2026-10-15, so it was removed from the simulator and the lab. The older sections below still show the two-meal numbers measured at the time; their files are in the git history.
 
+### Measured again with the vault cap and Instigate (2026-10-17)
+
+With the vault's 10 slots and Instigate's events (2 on a board with no event yet, else 1) in the engine, and the Filthy Claws and the Blood-Stained Trap among the instruments, the instrument pairs, the guide and the contract challenge were measured again from scratch on 4 threads (the engine and solver of bebf979).
+
+- **Headline, rewards on** (`guide --no-tune`, 100,000 runs per measurement, 5,600,000 runs in 23.6 minutes): **3.471** Rainbows a run (±0.011), against 3.493 before. 96.7% of runs vault one, the first around day 9.5, with 9.2 Replaces and 5.2 consumes per run. With no instruments, 0.896 (was 0.980), most likely Instigate's fewer events: always taking Instigate fell from 0.944 to 0.780, while always taking Bestow stayed at 0.795.
+- **Instruments alone:** Iron Crown of the Prison King 2.65, Blood-Stained Trap 2.22, Hangman's Noose 2.17, Filthy Claws 2.14, Elephant-Foot Maul 2.04, Scapegoat's Guillotine 2.03, Severed Iron Maiden 2.01, Kin's Coin of Fate 1.96, Long-Chained Shackles 1.75, Agonizing Muzzle 1.65, Executioner's Blacklist 1.57. Every one but the Squirming Iron Box (+0.03) lost 0.02 to 0.15. Worse than no instrument: the Iron Box (−0.33) and the Forged Key (−0.12); the Iron Pestle and the Gaoler's Execution Axe are level with none. The drill ranking (`toolRank`) follows this order: the Maiden now comes before Kin's Coin and the Muzzle before the Blacklist, and the Burning Stake moves up from 18th to 15th.
+- **Pairs** (`combos --max 2`, nothing carried over): 497 sets of up to 2 instruments, each to ±0.01, in 20.4M runs (105 minutes). The pair lab's no-instrument baseline is 0.898.
+  - The Maiden with the Noose makes 9.27 Rainbows a run, where the uncapped vault let it reach 15.45. It's still the best pair, 5.99 beyond its parts. Then the Maiden with the Scapegoat's Guillotine (5.82), the Iron Box with the Rat Heads (4.08), the Crown with the Muzzle (4.07) and the Crown with the Claws (4.03).
+  - Clashes: the Scapegoat's Guillotine with the Crown (−1.02), the Noose (−0.97), the Trap (−0.93) and Kin's Coin (−0.83), and the Iron Box with the Claws (−0.75).
+  - The Trap does best with the Crown (3.88), the Noose (3.69) and the Claws (3.30); the Claws with the Crown (4.03), the Muzzle (3.52) and the Maul (3.40).
+  - The best second instrument differs from the single ranking for 12 of the 31.
+- **Habits** (no instruments): always accepting Executions (0.683), never replacing (0.754), always taking Instigate (0.780), preferring short walks (0.783) and always taking Bestow (0.795) cost the most. Accepting Chain reactions measured 0.902, 0.006 above the strategy and inside the ±0.01 target, so the setting stays.
+- **Warden's Treasure:** judging each gift on the spot (3.471) beats always taking the same one: Crimson Vintage 3.29, Three-Headed Thumb Ring 3.09, Brass Horn of Strife 2.88, Brand of Original Sin 2.85.
+- **Contract challenge** (`cguide --games 200000 --habit-games 100000`, 1,700,000 runs in 12.6 minutes): 95.0% pass with 52.1 points, against 95.5% and 52.4 before. Sending the most points on every contract passes 36.2%, keeping 1 voucher 75.6%, and playing with the drill weights 93.1%. Of the 5.0% that fail, 2.1% never reach a Supreme and 2.9% miss both early contracts. The challenge's own instrument ranking wasn't measured again.
+- **Still to confirm in the game:** these numbers take the Trap's Hunt as the day's action, marking one inmate, and the Claws' scratches as letting a Wolf of that rarity consume through the door for +3. Both are the simulator's readings of the cards.
+
 ### Measured again with "Treasure" Hunt and the Elephant-Foot Maul (2026-10-16)
 
 With "Treasure" Hunt in the event pool and the Elephant-Foot Maul among the instruments, the instrument pairs, the guide and the contract challenge were measured again on 4 threads.
@@ -121,7 +137,7 @@ Report 100, the card: "Blood-Stained Trap: Berserk Lion. Condition: Stops at Ber
 - **Strategy:** it hunts when the mark (`linkValue`, at 80% for the chance it ends early) is worth more than the best consume and Replace, and it already guards marks from being eaten.
 - **Pages:** the simulator page has a Hunt button that asks which inmate to mark, and the analyzer counts a Hunt as the day's action. The reader doesn't know the game's Hunt card in the decision row yet.
 - **Measured in the pair lab** (`combos --max 2`, 31 new sets to ±0.01; the others carried over, since without the Trap the code plays 3,000 seeded runs as before): alone 2.33 Rainbows a run, second after the Crown (2.70). It does best with the Crown (3.92), the Noose (3.77) and the Claws (3.37), and clashes with the Scapegoat's Guillotine (−0.93), the Maul (−0.61) and the Avenger's Casket (−0.58). The drill ranking has it second. The challenge ranking keeps it after the Ravenous Chains.
-- **Not yet run:** the guide and the challenge. The vault's 10-Rainbow cap (the user, 2026-10-17) is coming, and with it every number is measured again.
+- **The guide and the challenge:** measured with the vault's 10-Rainbow cap, in the first section of Results.
 
 ### Filthy Claws: Alpha Wolf (2026-10-17)
 
@@ -193,7 +209,7 @@ Report 57, the card: "Elephant-Foot Maul: Mammoth. Effect: Mammoth can Consume h
 
 The user: "instigate doesn't guarantee 2 events, the sim appears to think it guarantees 2 every time". Their records hold 19 office visits. Comparing the event marks on the boards before and after each visit, the 10 Instigates each added exactly 1 event; none added 2. 5 landed on an open cell beside an inmate (the "!" that a walk into the cell sets off) and 5 on a locked cell. So that's where open-cell events come from. The other visits were Bestows (1 tier-up) or were cut short by a Treasure.
 
-The user then said it may make 2 when the board has no event yet. All 10 recorded Instigates had one already, so that's taken as the rule until their test says otherwise (`T.instigateCount`: `INSTIGATE_EVENTS_EMPTY` 2 on an event-free board). Otherwise `T.INSTIGATE_EVENTS` is 1, on a random cell from `T.instigateCells`: a locked door with no event or nest, or an open cell with an inmate and no event. Tyranny's extra Instigates make 1 each too. The solver's office value counts those cells. On 3,000 runs each, rewards on: no card 3.421 Rainbows (3.540 with 2 events behind locked doors), Tyranny 6.584 (7.267). The lab numbers need re-measuring after this (f5, with the vault cap).
+The user then said it may make 2 when the board has no event yet. All 10 recorded Instigates had one already, so that's taken as the rule until their test says otherwise (`T.instigateCount`: `INSTIGATE_EVENTS_EMPTY` 2 on an event-free board). Otherwise `T.INSTIGATE_EVENTS` is 1, on a random cell from `T.instigateCells`: a locked door with no event or nest, or an open cell with an inmate and no event. Tyranny's extra Instigates make 1 each too. The solver's office value counts those cells. On 3,000 runs each, rewards on: no card 3.421 Rainbows (3.540 with 2 events behind locked doors), Tyranny 6.584 (7.267). The lab numbers were measured again with this and the vault cap (the first section of Results).
 
 ### The vault holds 10, and Opulence's chain (2026-10-17)
 
