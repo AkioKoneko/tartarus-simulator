@@ -947,7 +947,7 @@ setInterval(() => {
   const d = f.diag || {};
   const was = checked || { lines: 0, hits: 0, frames: 0, failed: 0 };
   const still = d.growingAt ? Math.round((Date.now() - d.growingAt) / 1000) : null;
-  note(`check: log=${f.log} window=${f.window}${f.windowSize ? ` (${f.windowSize})` : ''}; log file ${d.logSize || '?'} bytes, ${still === null ? 'not measured' : still < 15 ? 'growing' : `unchanged for ${still} s`}; this minute: ${(f.lines || 0) - was.lines} lines read, ${(f.hits || 0) - was.hits} triggers, ${(f.frames || 0) - was.frames} pictures, ${(d.failed || 0) - was.failed} failed${d.lastNote ? `; last picture: ${d.lastNote}` : ''}`);
+  note(`check: log=${f.log} window=${f.window}${f.windowSize ? ` (${f.windowSize})` : ''} game log detail=${f.detail || '?'}; log file ${d.logSize || '?'} bytes, ${still === null ? 'not measured' : still < 15 ? 'growing' : `unchanged for ${still} s`}; this minute: ${(f.lines || 0) - was.lines} lines read, ${(f.hits || 0) - was.hits} triggers, ${(f.frames || 0) - was.frames} pictures, ${(d.failed || 0) - was.failed} failed${d.lastNote ? `; last picture: ${d.lastNote}` : ''}`);
   checked = { lines: f.lines || 0, hits: f.hits || 0, frames: f.frames || 0, failed: d.failed || 0 };
 }, 60000);
 
@@ -965,7 +965,7 @@ function debugReportText() {
   const lines = [
     `Tartarus Overlay ${app.getVersion()}${BIG_RECORD ? ' (debug)' : ''}, site ${SITE}, Windows ${require('os').release()}`,
     `Game: ${game.running ? `running (${game.title})` : 'not running'}; log file (${logFoundBy}): ${clean(logPath) || 'not found'}`,
-    `Agreed: ${agreed}; log: ${f.log}${f.error ? ` (${clean(f.error)})` : ''}; window: ${f.window}${f.windowSize ? ` ${f.windowSize}` : ''}`,
+    `Agreed: ${agreed}; log: ${f.log}${f.error ? ` (${clean(f.error)})` : ''}; window: ${f.window}${f.windowSize ? ` ${f.windowSize}` : ''}; game log detail (Enable Log): ${f.detail || 'not known yet'}`,
     `Log file: ${d.logSize || '?'} bytes, last grew ${ago(d.growingAt)}. Since connecting: ${f.lines || 0} lines read, ${f.hits || 0} triggers ${JSON.stringify(d.triggers || {})}, ${f.frames || 0} pictures, ${d.failed || 0} failed.`,
     `Last trigger: ${d.lastTriggerKind || 'none'} ${ago(d.lastTriggerAt)}. Last picture: ${f.lastFrame ? `${f.lastFrame.kind} ${ago(f.lastFrame.at)}${f.lastFrame.ok ? '' : ` (none taken: ${f.lastFrame.why})`}` : 'none'}; on the page: ${d.lastNote || '-'}`,
     `Analyzer: ${a.lastRead ? `last read ${ago(a.lastRead.at)}, ${a.lastRead.ok ? 'ok' : `failed: ${a.lastRead.reason}`}` : 'nothing read'}; advice: ${a.move || (a.working ? 'working' : 'none')}`,
@@ -1042,6 +1042,11 @@ function command(cmd) {
     case 'treasure-now':
       return send('analyzer', 'command', cmd);
     case 'debug-report': return debugReport();
+    case 'enable-log':
+      // The Auto Screenshot Mode page's box on turning on the game's log.
+      show('follow');
+      if (wins.follow) wins.follow.webContents.executeJavaScript("(() => { const box = document.getElementById('follow-enable-log'); if (box) box.scrollIntoView({ block: 'start' }); return true; })()").catch(() => {});
+      return undefined;
     case 'report':
     case 'report-new':
       show('analyzer');

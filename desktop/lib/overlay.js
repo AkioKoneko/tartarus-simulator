@@ -41,6 +41,9 @@
     if (f.log === 'error') return line('bad', `The game log can’t be read: ${f.error || 'retrying'}.`, button('Choose it', 'pick-log'));
     if (f.log !== 'on') return line('busy', 'Connecting the game log…');
     if (f.window !== 'on') return line('busy', 'Sharing the game window…');
+    // The game's own Enable Log is off: its log has none of the lines the
+    // triggers look for, so no pictures come (js/capture.js tells).
+    if (f.detail === 'off') return line('warn', 'The game isn’t logging its moves, so no pictures come. In the game: Settings → Account Related → Enable Log, then log out and back in.', button('How', 'enable-log'));
     // The game writes to its log all the time: one that stopped growing
     // isn't the one it's writing, and no pictures come.
     const grew = f.diag && f.diag.growingAt;
@@ -60,6 +63,7 @@
     if (sh.riot) return 'Riot: fight on';
     if (sh.runOver) return 'Run over: ready for the next';
     if (f && (f.log !== 'on' || f.window !== 'on')) return 'Connecting…';
+    if (f && f.detail === 'off') return 'Turn on Enable Log in the game';
     if (a && a.reading) return 'Reading the picture…';
     if (a && a.treasureWait) return 'Treasure: press View Prison Status';
     if (a && a.toolsConfirm) return 'Confirm your instruments';
