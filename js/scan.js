@@ -1332,7 +1332,22 @@
     }
     // Settled by the lit cells, the hidden card's own reading doesn't count.
     const shaky = lit ? read.some((r, i) => r.value - 1 !== guess && r.value !== options[i][0].value) : moved;
-    return { cells, conf: Math.max(0.1, Math.min(1, (score - 0.3) * 1.6)) * (cells.length === read.length + (cards.office ? 1 : 0) ? 1 : 0.4) * (shaky ? 0.55 : 1) * (hidden.length && !lit ? 0.4 : 1), boxes, hidden, lit };
+    return { cells, conf: Math.max(0.1, Math.min(1, (score - 0.3) * 1.6)) * (cells.length === read.length + (cards.office ? 1 : 0) ? 1 : 0.4) * (shaky ? 0.55 : 1) * (hidden.length && !lit ? 0.4 : 1), boxes, hidden, lit, targets: doorTargets(cards, read).filter(t => !hidden.includes(t.cell)) };
+  }
+
+  function doorTargets(cards, read) {
+    const counts = new Map();
+    for (const r of read) counts.set(r.value, (counts.get(r.value) || 0) + 1);
+    const targets = [];
+    const add = (cell, p) => {
+      if (!p || ![p.x0, p.y0, p.x1, p.y1].every(Number.isFinite) || p.x1 <= p.x0 || p.y1 <= p.y0) return;
+      targets.push({ cell, x: p.x0, y: p.y0, width: p.x1 - p.x0, height: p.y1 - p.y0, source: 'door-label' });
+    };
+    read.forEach((r, i) => {
+      if (Number.isInteger(r.value) && r.value >= 2 && r.value <= 16 && counts.get(r.value) === 1) add(r.value - 1, cards[i] && cards[i].p);
+    });
+    if (cards.office) add(0, cards.office);
+    return targets;
   }
 
   // Doors lead to different cells, so two cards can't read the same number
@@ -1904,6 +1919,61 @@
     return Object.assign({}, ref, { tools: ref.tools.concat(pick.icons || []), badges: (ref.badges || []).concat(pick.badges || []) });
   }
 
+  function readTreasureCards(img) {
+    const started = Date.now();
+    const forms = {
+      ring: [[5,6,5,4], [11,5,4], [12,5,4], [5,7,5,4]],
+      horn: [[5,4,2,6]], wine: [[7,7]], brand: [[5,2,8,3]],
+    };
+    const ids = Object.keys(forms);
+    const candidates = Object.fromEntries(ids.map((id) => [id, []]));
+    for (const factor of [0.01, 0.016, 0.026]) {
+      const lines = textLines(img, img.width*0.04, img.height*0.34, img.width*0.96, img.height*0.70,
+        { minH: Math.max(6,img.height*0.009), maxH: Math.max(40,img.height*0.055), r: Math.max(3,Math.round(img.height*factor)), s:0.5 });
+      for (const line of lines) for (const piece of line.pieces) {
+        const words = piece.words;
+        for (const id of ids) for (const want of forms[id]) for (let start=0; start+want.length<=words.length; start++) {
+          const outside = words.slice(0,start).concat(words.slice(start+want.length));
+          if (outside.some((w) => w.glyphs.length>2) || outside.reduce((n,w) => n+w.glyphs.length,0)>6) continue;
+          const matched = words.slice(start,start+want.length);
+          const off = matched.reduce((n,w,i) => n+Math.abs(w.glyphs.length-want[i]),0);
+          if (off>1) continue;
+          const glyphs = matched.flatMap((w) => w.glyphs);
+          const heights = glyphs.map((g) => g.h).sort((a,b) => a-b);
+          const h = heights[Math.floor(heights.length/2)];
+          if (h<img.height*0.012 || glyphs.filter((g) => g.h>=h*0.5 && g.h<=h*1.8).length<glyphs.length*0.85) continue;
+          const x0=Math.min(...glyphs.map((g) => g.x0)), x1=Math.max(...glyphs.map((g) => g.x1));
+          const y0=Math.min(...glyphs.map((g) => g.y0)), y1=Math.max(...glyphs.map((g) => g.y1));
+          if ((x1-x0)/h<glyphs.length*0.3 || (x1-x0)/h>glyphs.length*1.2 || y1-y0>h*1.8) continue;
+          const c={id,x:x0,y:y0,width:x1-x0,height:y1-y0,h,off,words:matched.map((w) => w.glyphs.length)};
+          const old=candidates[id].find((p) => Math.abs(p.x-c.x)<h && Math.abs(p.y-c.y)<h);
+          if (!old) candidates[id].push(c);
+          else if (off<old.off) Object.assign(old,c);
+        }
+      }
+    }
+    const fail = () => ({ok:false,targets:{},reason:'Four unique Treasure captions were not found in one card row.',ms:Date.now()-started});
+    if (ids.some((id) => !candidates[id].length)) return fail();
+    let best=null;
+    const choose=(i,chosen) => {
+      if (i===ids.length) {
+        const sorted=chosen.slice().sort((a,b) => a.x-b.x);
+        if (sorted.some((a,j) => j && a.x<sorted[j-1].x+sorted[j-1].width)) return;
+        const hs=chosen.map((c) => c.h), mids=chosen.map((c) => c.y+c.height/2);
+        const h=Math.max(...hs), spread=Math.max(...mids)-Math.min(...mids);
+        if (Math.min(...hs)<h*0.65 || spread>h*3) return;
+        const score=chosen.reduce((sum,c) => sum+c.off,0)*10+spread/h+(h-Math.min(...hs))/h;
+        if (!best || score<best.score) best={cards:chosen.slice(),score};
+        return;
+      }
+      for (const c of candidates[ids[i]]) choose(i+1,chosen.concat(c));
+    };
+    choose(0,[]);
+    if (!best) return fail();
+    const targets=Object.fromEntries(best.cards.map((c) => [c.id,{x:c.x,y:c.y,width:c.width,height:c.height}]));
+    return {ok:true,targets,cards:best.cards.map(({h,off,...c}) => c),ms:Date.now()-started};
+  }
+
   // ---------- The run's objective ----------
 
   // The objective popup at the start of a run ("Objective: Undercurrents"):
@@ -1973,6 +2043,9 @@
     // "Consume" (judged by its card below). The cards' icons can make seven
     // marks in a row too, but they come apart into several words.
     const labels = [];
+    const coloredLabels = [];
+    const officeLabels = [];
+    const minCaptionHeight = Math.max(6, img.height * 0.009);
     // Single words, by their letters: the office's "Instigate" (9) and
     // "Bestow" (6).
     const single = [];
@@ -1989,6 +2062,27 @@
       return tail.length === want.length && tail.reduce((a, n, i) => a + Math.abs(n - want[i]), 0) <= 2;
     };
     for (const r of textRadii(img)) {
+      // Consume's caption is red too: the pale-text pass splits its letters
+      // into separate fragments. Keep this wider color pass local to its
+      // seven-letter word shape; the card and row are validated below.
+      for (const line of textLines(img, x0, bottom, x1, img.height - 1, { minH: 6, maxH: Math.max(48, img.height * 0.07), r, s: 1.01 })) {
+        if (line.h < minCaptionHeight) continue;
+        for (const p of line.pieces) {
+          const n = p.words.reduce((sum, word) => sum + word.glyphs.length, 0);
+          const h = p.y1 - p.y0;
+          const span = (p.x1 - p.x0) / Math.max(1, h);
+          if (h < minCaptionHeight) continue;
+          const caption = { x0: p.x0, x1: p.x1, mid: (p.y0 + p.y1)/2, h };
+          // Gold office text can split into several words under the pale-text
+          // cutoff. The actual piece still supplies all of its visible bounds.
+          if (p.words.length <= 3 && n >= 5 && n <= 10) officeLabels.push({ ...caption, n, span });
+          if (p.words.length !== 1) continue;
+          if (n >= 6 && n <= 8 && span > 3 && span < 8) coloredLabels.push(caption);
+          // End is pale, but this pass can retain a full caption that the
+          // stricter saturation cutoff fragmented by a few colored pixels.
+          if (n === 3 && span > 1.5 && span < 3.2) ends.push(caption);
+        }
+      }
       for (const line of textLines(img, x0, bottom, x1, img.height - 1, { minH: 6, maxH: Math.max(48, img.height * 0.07), r })) {
         for (const p of line.pieces) {
           const n = p.words.reduce((a, w) => a + w.glyphs.length, 0);
@@ -2005,7 +2099,7 @@
           else if (p.words.length === 1 && n >= 6 && n <= 8 && span > 3 && span < 6.5) labels.push({ x0: p.x0, x1: p.x1, mid: line.mid, h: line.h });
           else if (n === 3 && span > 1.5 && span < 3.2) {
             end = true;
-            if (p.words.length === 1) ends.push({ x0: p.x0, mid: line.mid, h: line.h });
+            if (p.words.length === 1) ends.push({ x0: p.x0, x1: p.x1, mid: (p.y0 + p.y1)/2, h: p.y1 - p.y0 });
           }
           // Another card's label, for a row seen without its title.
           if (n >= 6 && n <= 13 && span > 3 && span < 8) lefts.push({ x1: p.x1, mid: line.mid });
@@ -2083,8 +2177,18 @@
     }
     // The office: "Instigate" with "Bestow" to its right on the same line,
     // neither on the Consume card's red (its jaws can read as a long word).
-    const office = single.some((a) => a.n >= 8 && a.n <= 10 && a.span > 4.3 && a.span < 6.5 && redBy(a) < 0.01
-      && single.some((b) => b.n >= 5 && b.n <= 6 && b.span > 3.3 && b.span < 5.5 && b.x0 > a.x1 && Math.abs(b.mid - a.mid) < a.h / 2 && redBy(b) < 0.01));
+    const officePairs = [];
+    for (const a of officeLabels) {
+      // Instigate includes a descender: its full observed bounds are taller
+      // than the cap height used by the old pale-text pass (span 4.0–4.13).
+      if (!(a.n >= 8 && a.n <= 10 && a.span > 3.8 && a.span < 6.5 && redBy(a) < 0.01)) continue;
+      for (const b of officeLabels) {
+        if (b.n >= 5 && b.n <= 6 && b.span > 3.3 && b.span < 5.5 && b.x0 > a.x1 && b.x0 - a.x1 < 20*a.h
+          && Math.abs(b.mid-a.mid) < a.h/2 && Math.abs(b.h-a.h) < 0.3*a.h && redBy(b) < 0.01) officePairs.push({ a, b });
+      }
+    }
+    const officePair = officePairs.sort((p, q) => Math.min(q.a.h, q.b.h) - Math.min(p.a.h, p.b.h))[0];
+    const office = !!officePair;
     // The Sewer Ratway: the player picks any cell, with no cards.
     if (pickCell && !title) return { ratway: true, replace: false, consume: false, end: false, title: false };
     // Without its title, a stray short word isn't a row of cards. A row
@@ -2093,9 +2197,25 @@
     // The Consume card's own label is red on red, which isn't read as text:
     // its red block left of "End" counts as that label (report 310).
     const row = ends.some((e) => lefts.some((l) => Math.abs(l.mid - e.mid) < e.h / 2 && l.x1 < e.x0 && e.x0 - l.x1 < 30 * e.h) || (consume && redX < e.x0 && e.x0 - redX < 30 * e.h));
-    if (!title && !(row && (consume || replace))) return null;
-    if (office) return { office: true, replace: false, consume: false, end: false, title };
-    return { replace, consume, end, title, red: Math.round(1000 * red) / 1000 };
+    if (!office && !title && !(row && (consume || replace))) return null;
+    const target = (l) => ({ x: l.x0, y: l.mid-l.h/2, width: l.x1 - l.x0, height: l.h });
+    const targets = {};
+    if (office) {
+      targets.instigate = target(officePair.a);
+      targets.bestow = target(officePair.b);
+      return { office: true, replace: false, consume: false, end: false, title, targets };
+    }
+    const fullEnds = ends.filter((l) => l.h >= minCaptionHeight);
+    const coherent = (a, b) => Math.abs(a.mid - b.mid) <= 1.5 * Math.max(a.h, b.h);
+    const meal = consume && coloredLabels.filter((l) => redBy(l) >= 0.01 && fullEnds.some((e) => e.x0 > l.x1 && coherent(l, e)))
+      .sort((a, b) => b.h - a.h || (b.x1 - b.x0) - (a.x1 - a.x0))[0];
+    const swap = replace && labels.find((l) => l.red < 0.01);
+    if (meal) targets.consume = target(meal);
+    if (swap) targets.replace = target(swap);
+    const anchors = [meal, swap].filter(Boolean);
+    const finish = fullEnds.filter((e) => !anchors.length || anchors.some((l) => e.x0 > l.x1 && coherent(l, e))).sort((a, b) => b.h - a.h)[0];
+    if (end && finish) targets.end = target(finish);
+    return { replace, consume, end, title, red: Math.round(1000 * red) / 1000, targets };
   }
 
   // ---------- Everything ----------
@@ -2169,7 +2289,7 @@
     return { ok: true, loc, cells, warden, doors, days, tools, badge, chromatic, objective, chain, decision, statusView, notes, ms: Date.now() - t0 };
   }
 
-  const api = { scan, scanPick, pickArtBox, pickRerollShown, locateBoard, readCell, findWarden, findToolIcons, readDoors, readDays, doorCards, dayNumber, prefixVector, textLines, glyphVector, faceVector, artFeature, similarity, hsv, blobs, at, gridOf, scaleAt, grayOf, blur, RING, H0, ARROW, FACE, GLYPH, locateByLabels, readChainScreen, readDecision, readChromatic, readTools, readObjectiveTitle, withPanelIcons, badgeBox, readBadge };
+  const api = { scan, scanPick, readTreasureCards, pickArtBox, pickRerollShown, locateBoard, readCell, findWarden, findToolIcons, readDoors, readDays, doorCards, doorTargets, dayNumber, prefixVector, textLines, glyphVector, faceVector, artFeature, similarity, hsv, blobs, at, gridOf, scaleAt, grayOf, blur, RING, H0, ARROW, FACE, GLYPH, locateByLabels, readChainScreen, readDecision, readChromatic, readTools, readObjectiveTitle, withPanelIcons, badgeBox, readBadge };
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.TartarusScan = api;
 })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);

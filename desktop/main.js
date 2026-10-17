@@ -1065,6 +1065,7 @@ function overlayWanted() {
   return front === hwndOf(wins.overlay);
 }
 function updateOverlay() {
+  updateHints();
   const win = wins.overlay;
   if (!win || win.isDestroyed()) return;
   const want = overlayWanted();
@@ -1122,6 +1123,48 @@ function pushShell(patch) {
 }
 
 let lastAdvice = null;
+let hintsInvalidAt = 0;
+let hintStatusKey = '';
+let hintRefreshKey = '';
+function reportHintStatus(status) {
+  const publicStatus={code:status.code,text:status.text,refreshable:!!status.refreshable};
+  const key=JSON.stringify(publicStatus);
+  if(key===hintStatusKey)return;
+  hintStatusKey=key;
+  note('targets:',status.code,status.text);
+  pushShell({hintsStatus:publicStatus});
+}
+function invalidateHints() {
+  hintsInvalidAt = Date.now();
+  if (wins.hints && !wins.hints.isDestroyed()) { send('hints','hints',{visible:false,targets:[]}); wins.hints.hide(); }
+}
+function makeHints() {
+  const win = new BrowserWindow({width:100,height:100,show:false,frame:false,transparent:true,resizable:false,alwaysOnTop:true,skipTaskbar:true,focusable:false,hasShadow:false,title:'Tartarus targets',
+    webPreferences:{preload:path.join(__dirname,'lib','hints-preload.js'),contextIsolation:true,sandbox:true,backgroundThrottling:false}});
+  wins.hints=win;
+  win.setIgnoreMouseEvents(true,{forward:true});
+  win.setAlwaysOnTop(true,'screen-saver');
+  win.setContentProtection(!!settings.hideFromCaptures);
+  win.loadFile(path.join(__dirname,'lib','hints.html'));
+  win.webContents.on('will-navigate',e=>e.preventDefault());
+  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
+}
+function updateHints() {
+  const win=wins.hints;
+  if (!win || win.isDestroyed()) return;
+  const a=lastAdvice, p=a && a.hints;
+  const status=require('./lib/hint-policy').evaluate({native:!!win32,game:game.running,on:settings.overlayOn,agreed,riot,runOver,advice:a,invalidAt:hintsInvalidAt,now:Date.now(),foreground:win32 && game.running && win32.foreground()===game.hwnd,minimized:win32 && game.running && win32.minimized(game.hwnd)});
+  if(a && a.treasureWait){status.code='treasure';status.text='View the board behind the Treasure.';status.refresh=false;status.refreshable=false;}
+  if(status.refresh && p){const key=`${p.frameId}:${p.capturedAt}`;if(key!==hintRefreshKey){hintRefreshKey=key;note('targets: requesting one fresh picture for an expired target');send('follow','command','capture');}}
+  if(status.code!=='visible'){reportHintStatus(status);if(win.isVisible())win.hide();return;}
+  const r=require('./lib/hint-geometry').transform(p,win32.frame(game.hwnd),b=>screen.screenToDipRect(null,b));
+  if(!r || !r.payload.visible){reportHintStatus({code:'geometry',text:'Game window size differs from the picture; refresh it.',refreshable:true});if(win.isVisible())win.hide();return;}
+  reportHintStatus(status);
+  const old=win.getBounds();
+  if(Object.keys(r.bounds).some(k=>r.bounds[k]!==old[k]))win.setBounds(r.bounds);
+  send('hints','hints',r.payload);
+  if(!win.isVisible()){win.showInactive();note('targets window shown:',{bounds:r.bounds,count:r.payload.targets.length});}
+}
 let lastFollow = null;
 const small = (data) => {
   try {
@@ -1286,6 +1329,7 @@ ipcMain.on('site:run', (e, what) => {
 // runs, how Auto Screenshot Mode is doing in numbers: for the debug log,
 // to find out why pictures don't come. Never the game log's lines.
 ipcMain.on('site:trigger', (e, kind) => {
+  if (fromPage(e,'follow') && !['speed'].includes(kind)) invalidateHints();
   if (fromPage(e, 'follow')) note('trigger:', String(kind));
 });
 let checked = null; // the counts at the last minute's note
@@ -1400,6 +1444,7 @@ ipcMain.on('site:advice', (e, data) => {
   if (data.toolsConfirm && data.toolsConfirm !== was.toolsConfirm) note('instruments to confirm:', data.toolsConfirm);
   lastAdvice = data;
   send('overlay', 'advice', data);
+  updateHints();
 });
 
 // The overlay's buttons.
@@ -1657,7 +1702,7 @@ function rebuildMenu() {
     { label: 'Show the overlay', type: 'checkbox', checked: settings.overlayOn, accelerator: HOTKEYS.overlay, click: (i) => setOverlayOn(i.checked) },
     { label: 'Hide it while another window is in front', type: 'checkbox', checked: settings.hideBehind, enabled: !!win32, click: (i) => { settings.hideBehind = i.checked; saveSettings(); updateOverlay(); } },
     { label: 'Share the game’s screen when Windows won’t share its window', type: 'checkbox', checked: screenAllowed(), enabled: agreed && !!win32, click: (i) => setScreenShare(i.checked) },
-    { label: 'Hide it from screenshots and streams', type: 'checkbox', checked: settings.hideFromCaptures, click: (i) => { settings.hideFromCaptures = i.checked; saveSettings(); if (wins.overlay) wins.overlay.setContentProtection(i.checked); } },
+    { label: 'Hide it from screenshots and streams', type: 'checkbox', checked: settings.hideFromCaptures, click: (i) => { settings.hideFromCaptures = i.checked; saveSettings(); for(const name of ['overlay','hints']) if(wins[name]) wins[name].setContentProtection(i.checked); } },
     { label: 'Put the overlay back in the corner', click: () => { settings.overlay = null; overlayPlaced = false; saveSettings(); placeOverlay(); } },
     { type: 'separator' },
     { label: 'Board analyzer', accelerator: HOTKEYS.analyzer, click: () => show('analyzer') },
@@ -1781,6 +1826,7 @@ if (!app.requestSingleInstanceLock()) {
     await refreshLog();
     await adoptLiveAgreement();
     makeOverlay();
+    makeHints();
     makeSiteWindow('follow', { width: 1000, height: 860, title: 'Auto Screenshot Mode · Tartarus Overlay' });
     makeAnalyzer();
     makeTray();

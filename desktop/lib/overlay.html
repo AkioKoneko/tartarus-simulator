@@ -292,6 +292,24 @@
     height: 16px;
     font-size: 12px;
   }
+  .hints-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px 8px;
+    margin: 0;
+    padding: 6px 0 0;
+    border-top: 1px solid var(--iron);
+    color: var(--ash);
+    font-size: 12.5px;
+  }
+
+  .hints-status p { flex: 1 1 190px; min-width: 0; margin: 0; overflow-wrap: anywhere; }
+  .hints-status-label { color: var(--bone); font-weight: 600; }
+  .hints-status[data-state="active"] p { color: var(--chalk); }
+  .hints-status button.btn { flex: none; font-size: 12px; }
+  #hints-status-area { width:100%; }
+  #hints-status-area:empty { display:none; }
 </style>
 </head>
 <body>
@@ -312,6 +330,7 @@
       <button type="button" class="btn" data-cmd="report-new">Something new</button>
       <button type="button" class="btn" data-cmd="debug-report" title="Something isn't working: sends the app's debug report">Not working?</button>
     </div>
+    <div id="hints-status-area"></div>
   </div>
 </div>
 <script src="overlay.js"></script>

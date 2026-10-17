@@ -14,6 +14,10 @@ self.onmessage = (e) => {
   const { id, kind, width, height, buffer, lang } = e.data;
   try {
     const img = { width, height, data: new Uint8ClampedArray(buffer) };
+    if (kind === 'treasure') {
+      self.postMessage({id,kind,result:self.TartarusScan.readTreasureCards(img)});
+      return;
+    }
     if (kind === 'objective') {
       self.postMessage({ id, kind, result: self.TartarusScan.readObjectiveTitle(img) });
       return;

@@ -23,6 +23,7 @@
   const D = window.TartarusDesktop;
   if (!D || window.__tartarusDesktop) return;
   window.__tartarusDesktop = true;
+  setTimeout(()=>{if(window.TartarusAnalyzer && TartarusAnalyzer.warmOCR)TartarusAnalyzer.warmOCR().catch(()=>{});},1200);
 
   const $ = (id) => document.getElementById(id);
   const text = (el) => (el ? el.textContent.replace(/\s+/g, ' ').trim() : '');
@@ -79,7 +80,7 @@
     // Auto Screenshot Mode hands over raw pixels (m.pixels), or a PNG (m.blob)
     // to an analyzer from before that.
     const has = !!(m.blob || (m.pixels && m.pixels.buffer));
-    record({ type: 'picture', id: m.id, kind: m.kind, fresh: !!m.fresh, after: m.after || null, pending: has });
+    record({ type: 'picture', id: m.id, kind: m.kind, fresh: !!m.fresh, after: m.after || null, gifts:m.gifts||null, treasureView:!!m.treasureView, pending: has });
     if (!has) return;
     const w = { blob: m.blob, pixels: m.pixels, timer: setTimeout(() => savePicture(m.id), 8000) };
     waitingPictures.set(m.id, w);
@@ -163,16 +164,20 @@
     const status = text($('az-res-status'));
     const played = /([\d,]+) of ([\d,]+) games played/.exec(status);
     const num = (s) => Number(String(s).replace(/,/g, ''));
+    const assist=A && typeof A.localAssist==='function' ? A.localAssist() : {};
     return {
+      plan:null,
+      hints:assist.hints||{valid:false},
       has: shown(res),
       move: rec ? rec.label : '',
+      baseMove: rec ? rec.label : '',
       why: rec ? rec.why || '' : '',
       working,
       progress: working && played ? Math.round((100 * num(played[1])) / Math.max(1, num(played[2]))) : null,
       nothing: shown(res) && !working && !rec && /^Nothing to decide/.test(move),
       stale: !!res && res.classList.contains('is-stale'),
       expect: rec ? paras.find((p) => /^Expected:/.test(p)) || '' : '',
-      chain: rec ? paras.find((p) => /^After this first bite/.test(p)) || '' : '',
+      chain: rec ? paras.find((p) => /^(After this first bite|If the chain then goes on)/.test(p)) || '' : '',
       status: rec ? status : '',
       options,
       close: /margin of error/.test(text($('az-res-note'))),
@@ -220,7 +225,7 @@
           type: 'advice',
           board,
           names: namesOf(board),
-          advice: { treasureWait: s.treasureWait, move: s.move, why: s.why, expect: s.expect, chain: s.chain, status: s.status, options: s.options, close: s.close, flagged: s.flagged, shotText: s.shotText, problems: s.problems, toolsConfirm: s.toolsConfirm, step: s.step, riot: s.riot, dayof: s.dayof },
+          advice: { treasureWait: s.treasureWait, move: s.move, baseMove:s.baseMove, plan:s.plan, why: s.why, expect: s.expect, chain: s.chain, status: s.status, options: s.options, close: s.close, flagged: s.flagged, shotText: s.shotText, problems: s.problems, toolsConfirm: s.toolsConfirm, step: s.step, riot: s.riot, dayof: s.dayof },
         });
       }
     }

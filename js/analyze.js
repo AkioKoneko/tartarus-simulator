@@ -1819,7 +1819,7 @@
       try {
         reader.worker = new Worker(`js/scan-worker.js${SCRIPT_QUERY}`);
         reader.worker.onmessage = (e) => {
-          if (e.data.kind === 'pick' || e.data.kind === 'objective') {
+          if (e.data.kind === 'pick' || e.data.kind === 'objective' || e.data.kind === 'treasure') {
             const answer = reader.picks.get(e.data.id);
             reader.picks.delete(e.data.id);
             if (answer) answer(e.data.result, e.data.error);
@@ -1867,6 +1867,7 @@
   // whose instrument offer comes next.
   let runObjective = null;
   function readObjective(source) {
+    reader.treasureScreen = null;
     const scale = Math.min(1, 2600 / source.width);
     const w = Math.round(source.width * scale);
     const h = Math.round(source.height * scale);
@@ -2130,7 +2131,7 @@
   // ("Warden's Treasure obtained"), or two or more of the four gifts'
   // names. Follow my game knows this screen from the game's log; this is
   // for pasted pictures and Take a picture now.
-  async function readTreasure(source) {
+  async function readTreasureText(source) {
     const worker = await ocrWorker();
     if (!worker) return { ok: false, treasure: true, reason: `the text reader couldn’t load (${ocrError || 'it didn’t load'})` };
     const scale = Math.min(1, 1600 / source.width);
@@ -2154,6 +2155,43 @@
     return { ok: header || gifts.length >= 2, treasure: true, header, gifts };
   }
 
+  // Keep the popup geometry with its own completed frame. The last board
+  // still owns the recommendation; it must never supply popup coordinates.
+  async function readTreasure(source, opts) {
+    const o=opts || {},scale=Math.min(1,2600/source.width);
+    const canvas=document.createElement('canvas');canvas.width=Math.round(source.width*scale);canvas.height=Math.round(source.height*scale);
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(source,0,0,canvas.width,canvas.height);
+    const id=++reader.id;
+    reader.completedId=0;
+    if(reader.pending)reader.pending.done(null,'a newer picture came in');
+    const screen={id,image:canvas,capturedAt:Date.now(),result:null};reader.treasureScreen=screen;
+    const pixels=ctx.getImageData(0,0,canvas.width,canvas.height);
+    const read=await new Promise(resolve=>{
+      setReading(true);
+      let completed=false;
+      const done=(result,error)=>{
+        if(completed)return;completed=true;setReading(false);
+        if(id!==reader.id || o.isCurrent && !o.isCurrent())return resolve({ok:false,skipped:true,treasure:true,reason:'a newer picture came in'});
+        if(!error && result && result.ok) {
+          screen.result=result;
+          return resolve(Object.assign({},result,{treasure:true,gifts:Object.keys(result.targets||{}).filter(g=>T.GIFTS[g])}));
+        }
+        resolve({ok:false,treasure:true,reason:error || 'the Treasure cards could not be located'});
+      };
+      const key=`treasure${++reader.pickId}`;
+      if(readerWorker()) {
+        reader.picks.set(key,done);const buffer=pixels.data.slice().buffer;
+        reader.worker.postMessage({id:key,kind:'treasure',width:canvas.width,height:canvas.height,buffer},[buffer]);
+      } else loadReader(false).then(()=>done(window.TartarusScan.readTreasureCards(pixels))).catch(e=>done(null,e.message));
+    });
+    if(read.ok || read.skipped)return read;
+    // A log cue identifies the popup even during its animation, but never
+    // establishes where an unread card is. Manual screenshots retain OCR fallback.
+    if(o.knownTreasure)return {ok:true,treasure:true,gifts:[],geometry:false};
+    const textRead=await readTreasureText(source);
+    return id!==reader.id || o.isCurrent && !o.isCurrent() ? {ok:false,skipped:true,treasure:true,reason:'a newer picture came in'} : textRead;
+  }
+
   // A pasted picture with no board in it: the instrument pick, or the
   // Warden's Treasure. A pick is a fresh run's when the board before was
   // a run's last day (or there's none); otherwise an objective's reward.
@@ -2175,6 +2213,7 @@
   }
 
   function readPick(source) {
+    reader.treasureScreen = null;
     const scale = Math.min(1, 2600 / source.width);
     const w = Math.round(source.width * scale);
     const h = Math.round(source.height * scale);
@@ -3314,7 +3353,7 @@
       readFrame: (bitmap, opts) => new Promise((resolve) => readBitmap(bitmap, Object.assign({},opts,{ quiet: true, folded: true, onRead: resolve }))),
       readPick: (bitmap) => readPick(bitmap),
       usePick: (read, fresh) => usePick(read, fresh),
-      readTreasure: (bitmap) => readTreasure(bitmap),
+      readTreasure: (bitmap, opts) => readTreasure(bitmap, opts),
       readObjective: (bitmap) => readObjective(bitmap),
       // The game's language (from the log: auto), and a screen the reader
       // didn't recognize on a client not in English.
@@ -3340,6 +3379,21 @@
       recommendation: () => (fresh() && settled() ? recommendation() : null),
       warmOCR: () => ocrWorker(),
       giftState: () => JSON.parse(JSON.stringify(gifts)),
+      localAssist: () => {
+        const assist=window.TartarusAssist;
+        const rec=fresh() && settled() ? recommendation() : null;
+        if(!assist || !rec || reading || model.toolsToConfirm || model.treasureWait)return {plan:null,hints:{valid:false}};
+        const plan=null;
+        const treasure=reader.treasureScreen;
+        if(treasure) {
+          if(treasure.id!==reader.id || !treasure.result || model.step!=='choice' || model.choice.kind!=='gift' || gifts.known && gifts.waiting===0)return {plan:null,hints:{valid:false}};
+          const targets=assist.buildTargets(solver.st,rec,{result:{ok:true,treasure:treasure.result}},plan);
+          return {plan,hints:{valid:targets.length>0,frameId:treasure.id,capturedAt:treasure.capturedAt,width:treasure.image.width,height:treasure.image.height,targets}};
+        }
+        if(reader.completedId!==reader.id || reader.completedImage!==reader.image || reader.loaded!==reader.reading || !reader.image || !reader.result)return {plan:null,hints:{valid:false}};
+        const targets=assist.buildTargets(solver.st,rec,{result:reader.result},plan);
+        return {plan,hints:{valid:targets.length>0,frameId:reader.id,capturedAt:reader.capturedAt||0,width:reader.image.width,height:reader.image.height,targets}};
+      },
       // What the reader made of the last picture, in full (the desktop app's
       // test record keeps it).
       readingSummary: () => (reader.result && reader.image ? readingSummary(true) : ''),
