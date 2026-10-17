@@ -1388,9 +1388,9 @@
   // Tyranny's title is one word, so a lone word counts only at a length a
   // one-word title has.
   const OBJECTIVE_WORDS = { consume: [[8, 2, 3, 7], [8, 5, 7]], incident: [[13]], king: [[4, 2, 3, 5], [4, 5, 5]], walk: [[6, 4]], cagefight: [[4, 5], [4, 4]], ironlaw: [[4, 3]], tyranny: [[7]], opulence: [[8]],
-    // "Behind Cell Doors" isn't in the simulator yet: "Another objective", not
-    // King of the Caged, three letters off (report 30).
-    other: [[6, 4, 5]] };
+    // "Behind Cell Doors" (reports 30 and 51), not King of the Caged, three
+    // letters off.
+    doors: [[6, 4, 5]] };
   const ONE_WORD = new Set(Object.values(OBJECTIVE_WORDS).flat().filter((f) => f.length === 1).map((f) => f[0]));
   function readObjectiveTitle(img) {
     let best = null;

@@ -276,6 +276,9 @@
     // analyzer uses them when the player sets them.
     consume: { name: 'Survival of the Fittest', text: 'Consume 4 times', need: 4, unit: 'Consumes', drawn: false },
     incident: { name: 'Undercurrents', text: 'Trigger a Prison Incident 2 times', need: 2, unit: 'Prison Incidents', drawn: false },
+    // Reports 30 and 51: "Objective: Behind Cell Doors. Open 10 cells".
+    // Every cell that opens counts, however it opens.
+    doors: { name: 'Behind Cell Doors', text: 'Open 10 cells', need: 10, unit: 'Cells opened', drawn: false },
     other: { name: 'Another objective', text: 'Not in the simulator yet, so no tool is assumed for it', drawn: false },
   };
   const OBJECTIVE_IDS = Object.keys(OBJECTIVES).filter((id) => OBJECTIVES[id].drawn !== false);
@@ -667,6 +670,7 @@
     const extra = how === 'patrol' ? '' : ' (extra door)';
     log(state, 'patrol', `Opened cell ${cellLabel(cell.n)}${extra}: ${describe(inmate)}.${lostNest ? ' The rat nest inside was destroyed.' : ''}`, { type: 'open', cell: cell.n, side: how !== 'patrol', who: snap(inmate) });
     if (event && how !== 'patrol') log(state, 'event', `The special event behind cell ${cellLabel(cell.n)} was used up without triggering.`);
+    countObjective(state, 'doors', 'cells opened');
     afterGrowth(state, inmate, events);
     // Felon's Dog Tag: the inmate behind a patrolled door may rise a tier.
     if (how === 'patrol' && has(state, 'dogtag') && cell.inmate === inmate && inmate.tier < RAINBOW && rand(state) < 0.25) {
