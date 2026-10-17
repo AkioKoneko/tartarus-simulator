@@ -28,6 +28,9 @@
     return s < 60 ? `${s} s ago` : `${Math.round(s / 60)} min ago`;
   };
 
+  // How to turn on the game's own log, which the triggers come from.
+  const ENABLE_LOG = 'In the game, press Esc and click Enable Log, then log out and back in.';
+
   // What stops Auto Screenshot Mode from working, if anything.
   function followProblem() {
     const f = state.follow;
@@ -43,7 +46,7 @@
     if (f.window !== 'on') return line('busy', 'Sharing the game window…');
     // The game's own Enable Log is off: its log has none of the lines the
     // triggers look for, so no pictures come (js/capture.js tells).
-    if (f.detail === 'off') return line('warn', 'The game isn’t logging its moves, so no pictures come. In the game: Settings → Account Related → Enable Log, then log out and back in.', button('How', 'enable-log'));
+    if (f.detail === 'off') return line('warn', `The game isn’t logging its moves, so no pictures come. ${ENABLE_LOG}`, button('How', 'enable-log'));
     // The game writes to its log all the time: one that stopped growing
     // isn't the one it's writing, and no pictures come.
     const grew = f.diag && f.diag.growingAt;
@@ -132,7 +135,12 @@
       el.className = `dot ${on === true ? 'is-on' : on === false ? 'is-off' : ''}`;
       el.title = what;
     };
-    dot($('dot-log'), f ? (f.log === 'on' ? true : f.log === 'off' || f.log === 'error' ? false : null) : false, f && f.log === 'on' ? `Following ${f.file || 'the log'}: ${(f.lines || 0).toLocaleString()} new lines, ${f.hits || 0} triggers${f.diag && f.diag.lastTriggerAt ? `, the last ${ago(f.diag.lastTriggerAt)}` : ''}` : 'The game log isn’t followed');
+    // Green once the log has brought a game event; yellow while it's
+    // followed but none has come yet (or the game's Enable Log is off).
+    const quiet = !!f && f.log === 'on' && (!(f.hits > 0) || f.detail === 'off');
+    dot($('dot-log'), f ? (f.log === 'on' ? (quiet ? null : true) : f.log === 'off' || f.log === 'error' ? false : null) : false,
+      quiet ? `Following the log, but no game events yet. ${ENABLE_LOG}`
+        : f && f.log === 'on' ? `Following ${f.file || 'the log'}: ${(f.lines || 0).toLocaleString()} new lines, ${f.hits || 0} triggers${f.diag && f.diag.lastTriggerAt ? `, the last ${ago(f.diag.lastTriggerAt)}` : ''}` : 'The game log isn’t followed');
     dot($('dot-win'), f ? (f.window === 'on' ? true : state.game.running ? null : false) : false, f && f.window === 'on' ? `Sharing the game window${f.lastFrame ? `, last picture ${ago(f.lastFrame.at)}` : ''}` : 'The game window isn’t shared');
     $('report-menu').hidden = !state.menu;
     $('report-reading').hidden = !(a && a.canReportReading);
