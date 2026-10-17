@@ -777,7 +777,9 @@
     const pick = solver.instant;
     const r = solver.result;
     const ranked = r ? r.options : [];
-    const live = r && ranked.length > 1 && (r.done || r.rounds >= LIVE_MIN) ? ranked[0] : null;
+    // A check cut short by the time cap (early) leads only with LIVE_MIN
+    // playouts each; with fewer, the strategy's own pick stands (f5's review).
+    const live = r && ranked.length > 1 && ((r.done && !r.early) || r.rounds >= LIVE_MIN) ? ranked[0] : null;
     const mine = pick && ranked.find((o) => S.sameAction(o.action, pick.action));
     if (!live) return pick ? Object.assign({ live: false }, pick, { option: mine || null }) : ranked.length === 1 ? { action: ranked[0].action, label: ranked[0].label, why: 'It’s the only move here.', live: true, option: ranked[0] } : null;
     if (mine && (mine === live || live.mean - mine.mean <= 1.96 * mine.gapSe)) {
