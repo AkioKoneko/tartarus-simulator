@@ -1933,8 +1933,9 @@
   }
 
   // The three cards' names, left to right, from the band under each card's
-  // art (a raised card's title sits a little higher, inside the band).
-  async function readCardNames(canvas) {
+  // art (a raised card's title sits a little higher, inside the band). ui:
+  // the cards' size the reader found (see scanPick).
+  async function readCardNames(canvas, ui) {
     const worker = await ocrWorker();
     if (!worker) {
       // No names read: why, for the reading.
@@ -1942,14 +1943,18 @@
       none.failed = ocrError || 'it didn’t load';
       return none;
     }
-    const s = canvas.height / 1080;
+    const s = ui || canvas.height / 1080;
+    const top = canvas.height / 2 - 540 * s;
     const out = [];
     for (let k = -1; k <= 1; k++) {
       const c = canvas.width / 2 + k * 480 * s;
+      // Small cards' names enlarged to their size on a 1080-pixel-high
+      // screen: the text reader misses the small ones.
+      const z = Math.max(1, 1 / s);
       const crop = document.createElement('canvas');
-      crop.width = Math.round(430 * s);
-      crop.height = Math.round(130 * s);
-      crop.getContext('2d').drawImage(canvas, Math.round(c - 215 * s), Math.round(420 * s), crop.width, crop.height, 0, 0, crop.width, crop.height);
+      crop.width = Math.round(430 * s * z);
+      crop.height = Math.round(130 * s * z);
+      crop.getContext('2d').drawImage(canvas, Math.round(c - 215 * s), Math.round(top + 420 * s), Math.round(430 * s), Math.round(130 * s), 0, 0, crop.width, crop.height);
       try {
         const { data } = await worker.recognize(crop);
         out.push(nameFromText(data.text || ''));
@@ -2027,7 +2032,7 @@
         if (!result.ok) return resolve({ ok: false, pick: true, reason: result.reason, ms });
         const cards = result.cards.map((c) => ({ sim: c.sim, name: T.toolName(c.sim), conf: c.conf, alts: c.alts, by: 'art' }));
         // Each card's printed name, read where it can be, outranks its art.
-        readCardNames(canvas).then((names) => {
+        readCardNames(canvas, result.ui).then((names) => {
           names.forEach((n, i) => {
             if (n && cards[i]) Object.assign(cards[i], { sim: n.id, name: T.toolName(n.id), conf: 1, by: 'name' });
           });

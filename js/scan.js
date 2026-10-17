@@ -1125,7 +1125,7 @@
         const ratio = (p.x1 - p.x0) / Math.max(1, line.h);
         if (Math.abs(n - letters) > 6 || Math.abs(ratio - shape) > 2.5) continue;
         const off = Math.abs(n - letters) / 3 + Math.abs(ratio - shape);
-        if (!best || off < best.off) best = { off, x0: p.x0, x1: p.x1, y0: p.y0, y1: p.y1, h: line.h };
+        if (!best || off < best.off) best = { off, x0: p.x0, x1: p.x1, y0: p.y0, y1: p.y1, h: line.h, words: p.words.map((w) => w.glyphs.length) };
       }
     }
     return best;
@@ -1235,12 +1235,15 @@
   // (Opulence: a scroll and coins). It sits at the same place in the
   // label's letter heights whatever the instruments (the user's Opulence
   // run, every board).
-  function badgeBox(label) {
+  // inner: the picture inside the ring (the ring is the same on every
+  // card), else the whole badge.
+  function badgeBox(label, inner) {
     const h = (label.x1 - label.x0) / 12.2;
     const cx = label.x0 + 2.87 * h;
     const cy = label.y1 + 32.1 * h;
-    const r = 3.9 * h;
-    return [cx - r, cy - r, cx + r, cy + r].map(Math.round);
+    const rx = (inner ? 2.6 : 3.9) * h;
+    const ry = (inner ? 2.0 : 3.9) * h;
+    return [cx - rx, cy - ry, cx + rx, cy + ry].map(Math.round);
   }
 
   // The badge there, if any: its id when it's one the reader knows.
@@ -1251,13 +1254,17 @@
     // Without a badge the wall there is dark: 0 bright pixels on every board
     // without one, 6-9% with one.
     if (colorShare(img, ...box, (h, s, v) => v > 0.3) < 0.02) return null;
-    const feat = artFeature(img, ...box);
+    // On the picture inside the ring, a card scores 0.986-1 against its own
+    // sample and at most 0.918 against another's (Opulence and Tyranny, the
+    // user's runs; on the whole badge 0.979-0.99, report 174): a card
+    // without a sample stays unknown.
+    const feat = artFeature(img, ...badgeBox(label, true));
     let best = null;
     for (const b of ref.badges || []) {
       const score = similarity(feat, b.feat);
       if (!best || score > best.score) best = { id: b.id, score };
     }
-    return { id: best && best.score > 0.85 ? best.id : null, score: best ? Math.round(best.score * 1000) / 1000 : 0, box };
+    return { id: best && best.score > 0.95 ? best.id : null, score: best ? Math.round(best.score * 1000) / 1000 : 0, box };
   }
 
   // A tool's art as a color picture on a 4x6 grid plus a hue histogram.
@@ -1319,22 +1326,74 @@
   function readChromatic(img, loc) {
     const right = Math.max(at(loc, 5, 0)[0], at(loc, 5, 3)[0]) + 60 * loc.s;
     if (right > img.width - 30) return null;
-    const label = findLabel(img, [right, 0, img.width - 1, img.height - 1], 17, 14.4);
+    // In the top half: lower down, other text can pass for it (report 178).
+    const label = findLabel(img, [right, 0, img.width - 1, Math.round(img.height / 2)], 17, 14.4);
     if (!label) return null;
-    // Sizes in the label's own UI scale, from its width (144 px at 1x).
-    const u = (label.x1 - label.x0) / 144;
-    const cx = label.x1;
+    // Sizes in the board's scale (the label is 144 px wide at 1x). The
+    // label's own width misleads: its first letter missed, or the "?"
+    // beside it joined (0.86 and 1.34 of the board's scale on the user's
+    // boards, 1.00 when read whole).
+    const u = loc.s;
+    if (label.x1 - label.x0 < 0.75 * 144 * u || label.x1 - label.x0 > 1.5 * 144 * u) return null;
+    // Its right end, unless the "?" joined it.
+    const cx = label.x1 - label.x0 > 150 * u ? label.x0 + 144 * u : label.x1;
     const cy = (label.y0 + label.y1) / 2;
-    const slots = [];
-    for (let r = 0; r < 5; r++) {
-      for (const dx of [-66, -6]) {
-        const x = cx + dx * u;
-        const y = cy + (43.5 + 70 * r) * u;
-        const share = colorShare(img, x - 14 * u, y - 14 * u, x + 14 * u, y + 14 * u, (h, s, v) => (s > 0.35 && v > 0.45) || v > 0.75);
-        slots.push({ x, y, share, filled: share > 0.18 });
+    // Lit pixels (brightness over 0.2) around the panel, summed for any box
+    // at once.
+    const X0 = Math.max(0, Math.floor(cx - 110 * u));
+    const X1 = Math.min(img.width - 1, Math.ceil(cx + 40 * u));
+    const Y0 = Math.max(0, Math.floor(cy + 10 * u));
+    const Y1 = Math.min(img.height - 1, Math.ceil(cy + 410 * u));
+    const sw = X1 - X0 + 2;
+    const sum = new Uint32Array(sw * (Y1 - Y0 + 2));
+    for (let y = Y0; y <= Y1; y++) {
+      let row = 0;
+      for (let x = X0; x <= X1; x++) {
+        const [r, g, b] = rgbAt(img, x, y);
+        if (Math.max(r, g, b) > 51) row += 1;
+        sum[(y - Y0 + 1) * sw + x - X0 + 1] = sum[(y - Y0) * sw + x - X0 + 1] + row;
       }
     }
-    return { count: slots.filter((s) => s.filled).length, slots, label, conf: 0.5 };
+    const lightShare = (x, y) => {
+      const a = Math.max(X0, Math.round(x - 18 * u));
+      const b = Math.min(X1, Math.round(x + 18 * u));
+      const c = Math.max(Y0, Math.round(y - 18 * u));
+      const d = Math.min(Y1, Math.round(y + 18 * u));
+      if (b < a || d < c) return 0;
+      const at2 = (px, py) => sum[(py - Y0) * sw + px - X0];
+      return (at2(b + 1, d + 1) - at2(a, d + 1) - at2(b + 1, c) + at2(a, c)) / ((b - a + 1) * (d - c + 1));
+    };
+    // The slots' middles, from two full panels and report 178, moved up to
+    // 20 units to fit the portraits: the label is only roughly known, and
+    // in View Prison Status "Return to Selection" over it, a little up and
+    // left, passes for it. Slots fill in order, so no empty slot has a
+    // filled one's glow below it.
+    const grid = (ox, oy) => {
+      const out = [];
+      for (let r = 0; r < 5; r++) {
+        for (const dx of [-66, -6]) out.push({ x: cx + (dx + ox) * u, y: cy + (54 + 68.5 * r + oy) * u });
+      }
+      return out;
+    };
+    let best = { ox: 0, oy: 0, total: grid(0, 0).reduce((a, q) => a + lightShare(q.x, q.y), 0) };
+    for (let oy = -20; oy <= 20; oy += 2) {
+      for (let ox = -20; ox <= 20; ox += 2) {
+        const total = grid(ox, oy).reduce((a, q) => a + lightShare(q.x, q.y), 0);
+        if (total > best.total) best = { ox, oy, total };
+      }
+    }
+    // A filled slot's portrait is mostly lit (0.54-0.98 of it, dimmed under
+    // "Return to Selection" too), an empty one dark (0.02 at most), the
+    // mouse pointer over one 0.17 (the user's boards).
+    const slots = grid(best.ox, best.oy).map((q) => {
+      const share = lightShare(q.x, q.y);
+      return { x: q.x, y: q.y, share, filled: share > 0.35 };
+    });
+    // Slots fill in order: a light one after an empty one is something
+    // else (two saved screenshots).
+    let count = 0;
+    while (count < slots.length && slots[count].filled) count += 1;
+    return { count, slots, label, conf: 0.5 };
   }
 
   // The objective text, left of the board above the instruments, as a box
@@ -1356,17 +1415,20 @@
   // ---------- The instrument pick ----------
 
   // "Select a Torture Instrument", at the start of a run: three cards side by
-  // side in the middle of the screen, in a UI scale set by the picture's
-  // height (1080 px at 1x). Each card's art and its glow sit in the middle
-  // of the card's top half, between torchlit walls, which are left out.
+  // side in the middle of the screen. u: their UI scale, pixels per unit of
+  // a 1080-unit screen they fill top to bottom (the default); on some
+  // screens they're smaller, and centered (report 182: 0.64 of that on a
+  // 1920x1080 frame). Each card's art and its glow sit in the middle of
+  // the card's top half, between torchlit walls, which are left out.
   // k is the card: -1, 0 or 1, left to right.
-  function pickArtBox(img, k) {
-    const s = img.height / 1080;
+  function pickArtBox(img, k, u = img.height / 1080) {
+    const s = u;
+    const top = img.height / 2 - 540 * s;
     const c = img.width / 2 + k * 480 * s;
     const x0 = Math.max(0, Math.round(c - 85 * s));
     const x1 = Math.min(img.width - 1, Math.round(c + 85 * s));
-    const y0 = Math.round(270 * s);
-    const y1 = Math.min(img.height - 1, Math.round(480 * s));
+    const y0 = Math.max(0, Math.round(top + 270 * s));
+    const y1 = Math.min(img.height - 1, Math.round(top + 480 * s));
     const xs = [];
     const ys = [];
     for (let y = y0; y <= y1; y++) {
@@ -1389,12 +1451,14 @@
 
   // Whether the Re-roll button shows, left of Confirm: its label's light
   // letters. Without a re-roll left, Confirm stands alone in the middle.
-  function pickRerollShown(img) {
-    const s = img.height / 1080;
+  // The buttons keep to the screen's bottom whatever the cards' size u.
+  function pickRerollShown(img, u = img.height / 1080) {
+    const s = u;
+    const bottom = img.height - 1080 * s;
     const x0 = Math.round(img.width / 2 - 330 * s);
     const x1 = Math.round(img.width / 2 - 90 * s);
     let light = 0;
-    for (let y = Math.round(940 * s); y <= Math.min(img.height - 1, Math.round(985 * s)); y++) {
+    for (let y = Math.round(bottom + 940 * s); y <= Math.min(img.height - 1, Math.round(bottom + 985 * s)); y++) {
       for (let x = Math.max(0, x0); x <= x1; x++) {
         const [, sat, v] = hsvAt(img, x, y);
         if (v > 0.55 && sat < 0.25) light += 1;
@@ -1415,8 +1479,36 @@
       const known = ref.toolNames && ref.toolNames[t.id];
       if (known && known.sim) pool.push({ sim: known.sim, feat: t.feat });
     }
+    // The cards' size: as big as the screen allows (u0), or smaller (report
+    // 182: 0.64 of it; report 110: 0.76). A size fits when each card's art
+    // box sits inside its window (at most 79 of its 85 units out from the
+    // middle at the right size, in every saved pick) instead of cut by the
+    // window's side or filling it with the card's frame. The full size when
+    // it fits (as before), else the fitting size, in 2% steps down to half,
+    // whose side cards' art is best centered; none fitting, the full size.
+    const u0 = img.height / 1080;
+    const boxesAt = (u) => [-1, 0, 1].map((k) => pickArtBox(img, k, u));
+    const offCenter = (boxes, u) => {
+      if (boxes.some((b) => !b)) return Infinity;
+      let sum = 0;
+      for (let i = 0; i < 3; i++) {
+        const dx = Math.abs((boxes[i][0] + boxes[i][2]) / 2 - (img.width / 2 + (i - 1) * 480 * u)) / u;
+        if (dx + (boxes[i][2] - boxes[i][0]) / 2 / u > 80) return Infinity;
+        if (i !== 1) sum += dx;
+      }
+      return sum;
+    };
+    let u = u0;
+    if (offCenter(boxesAt(u0), u0) === Infinity) {
+      let best = Infinity;
+      for (let i = 1; i <= 25; i++) {
+        const ui = u0 * (1 - 0.02 * i);
+        const off = offCenter(boxesAt(ui), ui);
+        if (off < best) [u, best] = [ui, off];
+      }
+    }
     const cards = [-1, 0, 1].map((k) => {
-      const box = pickArtBox(img, k);
+      const box = pickArtBox(img, k, u);
       if (!box) return null;
       const feat = artFeature(img, ...box);
       const best = new Map();
@@ -1433,7 +1525,7 @@
     const ms = Date.now() - t0;
     if (cards.some((c) => !c)) return { ok: false, reason: 'The three instrument cards weren’t found in this picture.', cards, ms };
     if (cards.every((c) => c.conf < 0.2)) return { ok: false, reason: 'This doesn’t look like the instrument pick.', cards, ms };
-    return { ok: true, cards, reroll: pickRerollShown(img), ms };
+    return { ok: true, cards, ui: u, reroll: pickRerollShown(img, u), ms };
   }
 
   // The reader's references with the panel icons from js/pick-data.js added:
@@ -1529,7 +1621,9 @@
             const words = p.words.map((w) => w.glyphs.length);
             if (near(words, [6, 2, 9]) && !near(words, [4, 4, 8])) pickCell = true;
             // Not "Select a Destination" [6, 1, 11], over the doors (report 56).
-            else if (near(words, [4, 4, 8])) title = true; // Make Your Decision
+            // "Make Your" can run together, large (report 178, 2600x1156:
+            // [9, 8] or [8, 8]); the Ratway's title ends in 9 letters.
+            else if (near(words, [4, 4, 8]) || (words.length === 2 && Math.abs(words[0] - 8) <= 1 && words[1] === 8)) title = true; // Make Your Decision
           }
           else if (p.words.length === 1 && n >= 6 && n <= 8 && span > 3 && span < 6.5) labels.push({ x0: p.x0, x1: p.x1, mid: line.mid, h: line.h });
           else if (n === 3 && span > 1.5 && span < 3.2) {
