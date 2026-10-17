@@ -61,6 +61,11 @@ const TOOLS = {
   // Its card art: report 28, a player's screenshot of the card (the reader
   // had nothing for it, and read a held Dog Tag as the Skewer).
   dogtag: { name: "Felon's Dog Tag", sim: 'dogtag', card: ['report-28-felons-dog-tag-card.png', 238, 180, 180, 220] },
+  // Its panel icon is in tools/pick-truth.json (the user's run, 2026-10-17, held
+  // with the Muzzle); its card art matched other instruments' panel icons.
+  maul: { name: 'Elephant-Foot Maul: Mammoth', sim: 'maul', card: null },
+  // Report 65. No panel icon yet (its card art isn't used for panels).
+  claws: { name: 'Filthy Claws: Alpha Wolf', sim: 'claws', card: null },
 };
 
 const cache = new Map();

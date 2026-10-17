@@ -894,7 +894,10 @@
       for (const line of lines) {
         for (const p of line.pieces) {
           pieces.push(p);
-          const cap = p.glyphs[0].h;
+          // The letter height, from the "G" that starts the text, unless something
+          // hides part of it (the mouse pointer over "Go"): then the tallest letter.
+          const tallest = Math.max(...p.glyphs.map((g) => g.h));
+          const cap = p.glyphs[0].h < 0.85 * tallest ? tallest : p.glyphs[0].h;
           if (cap < 6 || p.glyphs.length < 4) continue;
           const span = (p.x1 - p.x0) / cap;
           if (span < 5.9 || span > 7.8) continue;
@@ -917,7 +920,11 @@
           // this card can have (a letter split in two, or a speck).
           if (!num.length || num.length > 2) continue;
           const like = gray && ref && ref.prefix ? prefixLike(gray, img.width, img.height, p, ref.prefix) : 1;
-          if (like < 0.5) continue;
+          // A card partly hidden (the pointer over "Go") still has the words of
+          // "Go to Cell N": 2, 2 and 4 letters, then the number.
+          const words = p.words.map((w) => w.glyphs.length);
+          const shaped = words.length === 4 && words[0] <= 2 && words[1] === 2 && words[2] === 4 && words[3] <= 2;
+          if (like < 0.5 && !(shaped && like >= 0.2)) continue;
           cards.push({ p, h: cap, mid: (p.y0 + p.y1) / 2, word: { glyphs: num }, fit: 1 - like });
         }
       }
@@ -1119,11 +1126,21 @@
     const found = findToolIcons(img, loc);
     found.tools = found.icons.map((icon) => {
       const feat = artFeature(img, ...icon.box);
-      const ranked = ref.tools.map((t) => ({ id: t.id, score: similarity(feat, t.feat) })).sort((a, b) => b.score - a.score);
+      // A panel icon learned from a big, sharp picture (w: its width there)
+      // isn't matched against one under 60% of that size: blurred small, a
+      // hammer passed for a dark upright box (shrunk 1000 px reports).
+      const ranked = ref.tools.filter((t) => !t.w || icon.box[2] - icon.box[0] >= 0.6 * t.w).map((t) => ({ id: t.id, score: similarity(feat, t.feat) })).sort((a, b) => b.score - a.score);
       const best = ranked[0];
       const second = ranked.find((r) => r.id !== best.id);
       const margin = best.score - (second ? second.score : 0);
-      return { id: best.id, score: best.score, margin, box: icon.box, conf: Math.max(0.1, Math.min(1, (best.score - 0.6) * 2.5 + margin * 5)) };
+      // alts: the closest instruments, best first, one score each: right after
+      // a pick, the analyzer can take the best of those that were offered.
+      const alts = [];
+      for (const r of ranked) {
+        if (!alts.some((x) => x.id === r.id)) alts.push({ id: r.id, score: Math.round(r.score * 1000) / 1000 });
+        if (alts.length === 6) break;
+      }
+      return { id: best.id, score: best.score, margin, box: icon.box, conf: Math.max(0.1, Math.min(1, (best.score - 0.6) * 2.5 + margin * 5)), alts };
     });
     return found;
   }
@@ -1149,6 +1166,13 @@
       }
       return n ? sum / n : 0;
     };
+    // An open tooltip (the pointer over an instrument) lays lines of text over
+    // the slots after it: a line of 6 or more letters wider than a card, which
+    // no icon's art makes (the user's run, 2026-10-17: a Muzzle tooltip read
+    // as 4 more instruments).
+    const top = label.y1 + 1.55 * h;
+    const tipGlyphs = textLines(img, label.x0, top, left, top + 7.45 * h, { minH: 0.5 * h, maxH: 1.8 * h })
+      .flatMap((line) => line.pieces.filter((p) => p.glyphs.length >= 6 && p.x1 - p.x0 > 5.3 * h).flatMap((p) => p.glyphs));
     const out = [];
     for (let i = 0; i < 6; i++) {
       const x0 = label.x0 + (0.15 + 6.05 * i) * h;
@@ -1156,6 +1180,9 @@
       const y0 = label.y1 + 1.55 * h;
       const y1 = y0 + 7.45 * h;
       if (x1 > left) break;
+      // A slot with several of its letters is under the tooltip (a line can run
+      // into the hovered icon's art, so a letter or two isn't enough).
+      if (tipGlyphs.filter((g) => (g.x0 + g.x1) / 2 > x0 && (g.x0 + g.x1) / 2 < x1 && (g.y0 + g.y1) / 2 > y0 && (g.y0 + g.y1) / 2 < y1).length >= 4) break;
       // A card is a little lighter than the wall around it.
       const inside = mean(x0 + 0.5 * h, y0 + 0.5 * h, x1 - 0.5 * h, y1 - 0.5 * h);
       const wall = mean(x1 + 0.35 * h, y0, x1 + 1.3 * h, y1);
@@ -1191,6 +1218,35 @@
       out.push({ box: [ax0, ay0, ax1, ay1], card: [x0, y0, x1, y1], art });
     }
     return { icons: out, found: true, label };
+  }
+
+  // The run's start card hangs as a round badge under the instrument panel
+  // (Opulence: a scroll and coins). It sits at the same place in the
+  // label's letter heights whatever the instruments (the user's Opulence
+  // run, every board).
+  function badgeBox(label) {
+    const h = (label.x1 - label.x0) / 12.2;
+    const cx = label.x0 + 2.87 * h;
+    const cy = label.y1 + 32.1 * h;
+    const r = 3.9 * h;
+    return [cx - r, cy - r, cx + r, cy + r].map(Math.round);
+  }
+
+  // The badge there, if any: its id when it's one the reader knows.
+  function readBadge(img, label, ref) {
+    if (!label) return null;
+    const box = badgeBox(label);
+    if (box[0] < 0 || box[3] >= img.height) return null;
+    // Without a badge the wall there is dark: 0 bright pixels on every board
+    // without one, 6-9% with one.
+    if (colorShare(img, ...box, (h, s, v) => v > 0.3) < 0.02) return null;
+    const feat = artFeature(img, ...box);
+    let best = null;
+    for (const b of ref.badges || []) {
+      const score = similarity(feat, b.feat);
+      if (!best || score > best.score) best = { id: b.id, score };
+    }
+    return { id: best && best.score > 0.85 ? best.id : null, score: best ? Math.round(best.score * 1000) / 1000 : 0, box };
   }
 
   // A tool's art as a color picture on a 4x6 grid plus a hue histogram.
@@ -1373,8 +1429,9 @@
   // instruments as their icons look left of the board, from labeled
   // screenshots of the live game (tools/pick-build.js).
   function withPanelIcons(ref, pick) {
-    if (!pick || !pick.icons || !pick.icons.length) return ref;
-    return Object.assign({}, ref, { tools: ref.tools.concat(pick.icons) });
+    if (!pick) return ref;
+    // The start cards' badges come from the same labeled screenshots.
+    return Object.assign({}, ref, { tools: ref.tools.concat(pick.icons || []), badges: (ref.badges || []).concat(pick.badges || []) });
   }
 
   // ---------- The run's objective ----------
@@ -1552,15 +1609,21 @@
     const doors = readDoors(img, sharp, loc, ref);
     const days = readDays(img, sharp, loc, ref);
     const tools = readTools(img, loc, ref);
+    const badge = readBadge(img, tools.label, ref);
     const chromatic = readChromatic(img, loc);
     const objective = objectiveBox(img, loc, tools);
     const chain = readChainScreen(img, loc, cells, warden);
     const decision = doors || chain ? null : readDecision(img, loc);
+    // The warden in the office: no inmate there to Replace or Consume, so a
+    // row of cards is the office's Instigate and Bestow, whatever its labels
+    // read as (report 67: "Instigate" came apart, and "Bestow" passed for
+    // Replace).
+    if (decision && !decision.ratway && !decision.office && warden && warden.cell === 0) Object.assign(decision, { office: true, replace: false, consume: false, end: false });
     if (!warden) notes.push('The warden’s arrow was not found.');
-    return { ok: true, loc, cells, warden, doors, days, tools, chromatic, objective, chain, decision, notes, ms: Date.now() - t0 };
+    return { ok: true, loc, cells, warden, doors, days, tools, badge, chromatic, objective, chain, decision, notes, ms: Date.now() - t0 };
   }
 
-  const api = { scan, scanPick, pickArtBox, pickRerollShown, locateBoard, readCell, findWarden, findToolIcons, readDoors, readDays, doorCards, dayNumber, prefixVector, textLines, glyphVector, faceVector, artFeature, similarity, hsv, blobs, at, gridOf, scaleAt, grayOf, blur, RING, H0, ARROW, FACE, GLYPH, locateByLabels, readChainScreen, readDecision, readObjectiveTitle, withPanelIcons };
+  const api = { scan, scanPick, pickArtBox, pickRerollShown, locateBoard, readCell, findWarden, findToolIcons, readDoors, readDays, doorCards, dayNumber, prefixVector, textLines, glyphVector, faceVector, artFeature, similarity, hsv, blobs, at, gridOf, scaleAt, grayOf, blur, RING, H0, ARROW, FACE, GLYPH, locateByLabels, readChainScreen, readDecision, readObjectiveTitle, withPanelIcons, badgeBox, readBadge };
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.TartarusScan = api;
 })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);
