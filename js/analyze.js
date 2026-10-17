@@ -2335,6 +2335,12 @@
     // Their beasts don't show in the slots; they only matter for a bounty.
     m.vault = new Array(chromatic).fill('wolf');
     const highest = Math.max(0, ...m.cells.filter((c) => c.kind === 'inmate').map((c) => c.tier));
+    // The start card's badge under the instrument panel (Opulence so far):
+    // the run has that card, in case its popup was missed.
+    if (r.badge && r.badge.id && T.START_EVENTS && T.START_EVENTS[r.badge.id] && m.startEvent !== r.badge.id) {
+      m.startEvent = r.badge.id;
+      notes.push(`Start of run: ${T.START_EVENTS[r.badge.id].name}, from its badge under the instruments.`);
+    }
     // King of the Caged is met once a Supreme or Chromatic shows. Prison
     // Walk's tiles aren't read, so they keep what was set.
     if (m.objective === 'king') m.milestone = highest >= T.SUPREME || chromatic > 0;

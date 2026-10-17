@@ -1220,6 +1220,35 @@
     return { icons: out, found: true, label };
   }
 
+  // The run's start card hangs as a round badge under the instrument panel
+  // (Opulence: a scroll and coins). It sits at the same place in the
+  // label's letter heights whatever the instruments (the user's Opulence
+  // run, every board).
+  function badgeBox(label) {
+    const h = (label.x1 - label.x0) / 12.2;
+    const cx = label.x0 + 2.87 * h;
+    const cy = label.y1 + 32.1 * h;
+    const r = 3.9 * h;
+    return [cx - r, cy - r, cx + r, cy + r].map(Math.round);
+  }
+
+  // The badge there, if any: its id when it's one the reader knows.
+  function readBadge(img, label, ref) {
+    if (!label) return null;
+    const box = badgeBox(label);
+    if (box[0] < 0 || box[3] >= img.height) return null;
+    // Without a badge the wall there is dark: 0 bright pixels on every board
+    // without one, 6-9% with one.
+    if (colorShare(img, ...box, (h, s, v) => v > 0.3) < 0.02) return null;
+    const feat = artFeature(img, ...box);
+    let best = null;
+    for (const b of ref.badges || []) {
+      const score = similarity(feat, b.feat);
+      if (!best || score > best.score) best = { id: b.id, score };
+    }
+    return { id: best && best.score > 0.85 ? best.id : null, score: best ? Math.round(best.score * 1000) / 1000 : 0, box };
+  }
+
   // A tool's art as a color picture on a 4x6 grid plus a hue histogram.
   function artFeature(img, x0, y0, x1, y1) {
     const gx = 4;
@@ -1400,8 +1429,9 @@
   // instruments as their icons look left of the board, from labeled
   // screenshots of the live game (tools/pick-build.js).
   function withPanelIcons(ref, pick) {
-    if (!pick || !pick.icons || !pick.icons.length) return ref;
-    return Object.assign({}, ref, { tools: ref.tools.concat(pick.icons) });
+    if (!pick) return ref;
+    // The start cards' badges come from the same labeled screenshots.
+    return Object.assign({}, ref, { tools: ref.tools.concat(pick.icons || []), badges: (ref.badges || []).concat(pick.badges || []) });
   }
 
   // ---------- The run's objective ----------
@@ -1579,6 +1609,7 @@
     const doors = readDoors(img, sharp, loc, ref);
     const days = readDays(img, sharp, loc, ref);
     const tools = readTools(img, loc, ref);
+    const badge = readBadge(img, tools.label, ref);
     const chromatic = readChromatic(img, loc);
     const objective = objectiveBox(img, loc, tools);
     const chain = readChainScreen(img, loc, cells, warden);
@@ -1589,10 +1620,10 @@
     // Replace).
     if (decision && !decision.ratway && !decision.office && warden && warden.cell === 0) Object.assign(decision, { office: true, replace: false, consume: false, end: false });
     if (!warden) notes.push('The warden’s arrow was not found.');
-    return { ok: true, loc, cells, warden, doors, days, tools, chromatic, objective, chain, decision, notes, ms: Date.now() - t0 };
+    return { ok: true, loc, cells, warden, doors, days, tools, badge, chromatic, objective, chain, decision, notes, ms: Date.now() - t0 };
   }
 
-  const api = { scan, scanPick, pickArtBox, pickRerollShown, locateBoard, readCell, findWarden, findToolIcons, readDoors, readDays, doorCards, dayNumber, prefixVector, textLines, glyphVector, faceVector, artFeature, similarity, hsv, blobs, at, gridOf, scaleAt, grayOf, blur, RING, H0, ARROW, FACE, GLYPH, locateByLabels, readChainScreen, readDecision, readObjectiveTitle, withPanelIcons };
+  const api = { scan, scanPick, pickArtBox, pickRerollShown, locateBoard, readCell, findWarden, findToolIcons, readDoors, readDays, doorCards, dayNumber, prefixVector, textLines, glyphVector, faceVector, artFeature, similarity, hsv, blobs, at, gridOf, scaleAt, grayOf, blur, RING, H0, ARROW, FACE, GLYPH, locateByLabels, readChainScreen, readDecision, readObjectiveTitle, withPanelIcons, badgeBox, readBadge };
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.TartarusScan = api;
 })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);
