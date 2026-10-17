@@ -1387,7 +1387,10 @@
   // Start-of-run cards have no "Objective:" (Cage Fight, Iron Law), and
   // Tyranny's title is one word, so a lone word counts only at a length a
   // one-word title has.
-  const OBJECTIVE_WORDS = { consume: [[8, 2, 3, 7], [8, 5, 7]], incident: [[13]], king: [[4, 2, 3, 5], [4, 5, 5]], walk: [[6, 4]], cagefight: [[4, 5], [4, 4]], ironlaw: [[4, 3]], tyranny: [[7]] };
+  const OBJECTIVE_WORDS = { consume: [[8, 2, 3, 7], [8, 5, 7]], incident: [[13]], king: [[4, 2, 3, 5], [4, 5, 5]], walk: [[6, 4]], cagefight: [[4, 5], [4, 4]], ironlaw: [[4, 3]], tyranny: [[7]], opulence: [[8]],
+    // "Behind Cell Doors" isn't in the simulator yet: "Another objective", not
+    // King of the Caged, three letters off (report 30).
+    other: [[6, 4, 5]] };
   const ONE_WORD = new Set(Object.values(OBJECTIVE_WORDS).flat().filter((f) => f.length === 1).map((f) => f[0]));
   function readObjectiveTitle(img) {
     let best = null;
@@ -1401,7 +1404,8 @@
     }
     if (!best) return null;
     // "Objective:" first, then the name.
-    const name = best.words[0] >= 8 && best.words[0] <= 11 ? best.words.slice(1) : best.words;
+    // A lone word is the title itself (Opulence has 8 letters, like "Objective:").
+    const name = best.words.length > 1 && best.words[0] >= 8 && best.words[0] <= 11 ? best.words.slice(1) : best.words;
     let match = null;
     for (const [id, forms] of Object.entries(OBJECTIVE_WORDS)) {
       for (const want of forms) {

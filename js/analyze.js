@@ -1770,7 +1770,10 @@
     const imageData = ctx.getImageData(0, 0, w, h);
     return new Promise((resolve) => {
       setReading(true);
-      const done = (result, error) => (setReading(false), resolve(error || !result || !result.id ? { ok: false, objective: true, reason: error || 'the objective wasn’t one the simulator knows' } : { ok: true, objective: true, id: result.id, name: (T.OBJECTIVES[result.id] || T.START_EVENTS[result.id]).name }));
+      // A card the reader knows before the simulator does (a new start card)
+      // is one the simulator doesn't know yet.
+      const known = (result) => !!result && !!result.id && (T.OBJECTIVES[result.id] || (T.START_EVENTS || {})[result.id]);
+      const done = (result, error) => (setReading(false), resolve(error || !known(result) ? { ok: false, objective: true, reason: error || 'the objective wasn’t one the simulator knows' } : { ok: true, objective: true, id: result.id, name: known(result).name }));
       reader.pickId += 1;
       const id = `objective${reader.pickId}`;
       if (readerWorker()) {
