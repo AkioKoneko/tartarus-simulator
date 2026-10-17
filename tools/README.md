@@ -113,6 +113,10 @@ With "Treasure" Hunt in the event pool and the Elephant-Foot Maul among the inst
 - **Warden's Treasure:** judging each gift on the spot (3.435) beats always taking the same one: Crimson Vintage 3.23, Three-Headed Thumb Ring 3.06, Brass Horn of Strife 2.88, Brand of Original Sin 2.84.
 - **Contract challenge** (`cguide --games 200000 --habit-games 100000`, 1,700,000 runs in 10.3 minutes): 95.4% pass with 52.4 points, against 95.4% and 52.5 before. Sending the most points on every contract passes 35.9%, keeping 1 voucher 78.0%, and playing with the drill weights 93.1%. The Maul stays third in the challenge's ranking (its section below). A first try ended in a Node crash (a segmentation fault, no JavaScript error) partway through. Replaying the same runs went through, and the second try matches the first run for run as far as the first got.
 
+### Filthy Claws: Alpha Wolf (2026-10-17)
+
+Report 65, the card: "Filthy Claws: Alpha Wolf. Condition: At the start of each day. Effect: Randomly adds a Scratch Marks mark to 1 unopened cell". It's the 30th instrument (`claws`). Each morning, before the destinations are drawn, it scratches one random unopened cell that isn't scratched yet and isn't a rat nest. The inmate behind it is settled then, and its rarity shows. The scratch works as the simulator's Scratch marker always has: a Wolf of that rarity can consume the inmate through the door, whatever its beast, for +3, and the strategy already counts those meals. Until it's measured, the rankings put it after the Skewered Rat Heads.
+
 ### Second meals below Legendary: what the jaws show (2026-10-17)
 
 c2 noticed Rare Mammoths with jaws whose only meal at their rarity was a Rare Wolf, in the user's run 2026-10-17T04-18-38 (no start card, objective Consume 4 times, Kin's Coin only). On its picture 16, with the warden on a Rare Mammoth, the game offered Consume, and the Mammoth's only Rare prey were Rare Wolves.
