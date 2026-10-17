@@ -2309,9 +2309,17 @@
     if (r.days) {
       const left = r.days.days;
       if (m.mode === 'challenge') m.day = clamp(T.CHALLENGE_DAYS - left, 1, T.CHALLENGE_DAYS);
-      else {
-        if (left >= m.maxDays) m.maxDays = Math.min(60, left + 1);
-        m.day = Math.max(1, m.maxDays - left);
+      else if (left < m.maxDays) m.day = Math.max(1, m.maxDays - left);
+      else if (left < 30) {
+        // More days left than the run has: only Iron Law's 30-day run has
+        // that many.
+        m.maxDays = 30;
+        m.day = 30 - left;
+        notes.push(`The riot is ${T.plural(left, 'day')} away, more than this run had, so it's now a 30-day run (Iron Law). Check the day.`);
+      } else {
+        // No run is that long: a misread countdown. It mustn't stretch the
+        // run for good (one read as 38 made every later day "of 39").
+        notes.push(`The days until the riot read as ${left}, more than any run has: check the day.`);
       }
     } else notes.push('The days until the riot weren’t read: check the day.');
     r.cells.forEach((c, n) => {
