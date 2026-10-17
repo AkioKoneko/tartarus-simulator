@@ -19,10 +19,19 @@ self.onmessage = (e) => {
       return;
     }
     // Instruments' panel icons from labeled live screenshots ride along.
-    const result = self.TartarusScan.scan(img, self.TartarusScan.withPanelIcons(self.TARTARUS_SCAN, self.TARTARUS_PICK));
-    // The instruments' names and their simulator tools ride along.
+    const ref = self.TartarusScan.withPanelIcons(self.TARTARUS_SCAN, self.TARTARUS_PICK);
+    const result = self.TartarusScan.scan(img, ref);
+    // The instruments' names and their simulator tools ride along, for the
+    // runner-up matches too.
     if (result.tools && result.tools.tools) {
-      for (const t of result.tools.tools) Object.assign(t, self.TARTARUS_SCAN.toolNames[t.id] || {});
+      const names = self.TARTARUS_SCAN.toolNames;
+      for (const t of result.tools.tools) {
+        Object.assign(t, names[t.id] || {});
+        for (const a of t.alts || []) a.sim = (names[a.id] || {}).sim;
+      }
+      // The instruments the reader can tell on a panel: any other one
+      // always reads as something else.
+      result.tools.sims = [...new Set(ref.tools.map((r) => (names[r.id] || {}).sim).filter(Boolean))];
     }
     self.postMessage({ id, result });
   } catch (err) {

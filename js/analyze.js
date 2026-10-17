@@ -117,6 +117,8 @@
       // (toolsLocked), they stay for the run and aren't asked about again.
       toolsToConfirm: '',
       toolsLocked: false,
+      // Days of this run whose morning offered a door short (see scanToModel).
+      shortDays: [],
       // The game shows no Replace / Consume card now (read from a screenshot):
       // that move isn't advised, and the other one still can be.
       noSwap: false,
@@ -2258,7 +2260,9 @@
   // alike (a tooltip can cover them, too). Without anything known of the
   // run, only icons the reader is sure of count. A screenshot from an
   // earlier day than the board before starts afresh.
-  function runTools(read, base, m, notes) {
+  // sims: the instruments the reader can tell on a panel (any other reads
+  // as something else).
+  function runTools(read, base, m, notes, sims) {
     const sameRun = !(m.day < base.day);
     const known = sameRun ? (base.tools || []).filter((id) => T.TOOLS[id]) : [];
     const offer = sameRun && base.step === 'choice' && base.choice && base.choice.kind === 'tool' ? base.choice.options.filter((id) => T.TOOLS[id]) : [];
@@ -2276,17 +2280,33 @@
     if (sameRun && (known.length || offer.length || base.runStart || base.toolsLocked)) {
       if (offer.length && slots > known.length && !offer.some(has)) {
         const seen = read.filter((t) => offer.includes(t.sim)).sort((a, b) => b.conf - a.conf)[0];
+        // An icon read as an instrument that wasn't offered can still be one
+        // that was: the closest offered one among its runner-ups (report 75:
+        // the Forged Key read as the Lost Ring of Keys).
+        let alike = null;
+        if (!seen) {
+          for (const t of read) {
+            if (has(t.sim)) continue;
+            const a = (t.alts || []).find((x) => x.sim && offer.includes(x.sim) && x.score >= 0.7);
+            if (a && (!alike || a.score > alike.score)) alike = { sim: a.sim, score: a.score, as: t.sim };
+          }
+        }
         // The advice given on that offer: the board before is the offer, so
         // the analyzer's current recommendation is for it.
         const rec = base === model && fresh() ? recommendation() : null;
         const advised = rec && rec.action && rec.action.type === 'choose' && offer.includes(rec.action.id) ? rec.action.id : null;
-        const take = seen ? seen.sim : advised;
+        const take = seen ? seen.sim : alike ? alike.sim : advised;
         if (take) {
           out.push({ id: take, sim: take, name: T.toolName(take), conf: 1, kept: true });
-          if (!seen) notes.push(`Took it you chose ${T.toolName(take)}, as advised. If you took another, change it under Torture Instrument.`);
+          if (!seen && alike) notes.push(`An icon read as ${alike.as ? T.toolName(alike.as) : 'another instrument'}, which wasn't offered: taken as ${T.toolName(take)}, the closest of the offer. If you took another, change it under Torture Instrument.`);
+          else if (!seen) notes.push(`Took it you chose ${T.toolName(take)}, as advised. If you took another, change it under Torture Instrument.`);
         } else notes.push(`Your instruments show one more than before, from the offer of ${offer.map((id) => T.toolName(id)).join(', ')}: set which you took under Torture Instrument.`);
       }
-      const off = read.filter((t) => t.sim && t.conf >= TOOL_SURE && !has(t.sim));
+      // Icons read as another instrument, unless one the run has explains
+      // them: a runner-up match, or one the reader can't tell on a panel
+      // (it reads as something else; as many odd icons as those are theirs).
+      let off = read.filter((t) => t.sim && t.conf >= TOOL_SURE && !has(t.sim) && !(t.alts || []).some((a) => a.sim && has(a.sim) && a.score >= 0.7));
+      if (sims && slots <= out.length) off = off.slice(out.filter((t) => !sims.includes(t.sim)).length);
       if (base.toolsLocked) {
         if (slots > out.length) notes.push(`Your panel shows ${T.plural(slots, 'instrument')}, and this run has ${out.length}: ${out.map((t) => t.name).join(', ') || 'none'}. If you got another one, add it under Torture Instrument.`);
       } else if (slots > out.length) m.toolsToConfirm = `Your panel shows ${T.plural(slots, 'instrument')}, and the analyzer has ${out.length}: ${out.map((t) => t.name).join(', ') || 'none'}. Set the ones you hold, then press These are right.`;
@@ -2413,8 +2433,24 @@
     const read = r.tools && r.tools.tools ? r.tools.tools : [];
     const unsim = read.filter((t) => !t.sim);
     if (unsim.length) notes.push(`Not in the simulator yet, so left out: ${unsim.map((t) => t.name).join(', ')}.`);
-    const tools = runTools(read, base, m, notes);
+    const tools = runTools(read, base, m, notes, r.tools && r.tools.sims);
     m.tools = tools.map((t) => t.sim);
+    // A door short two mornings of the run, with none of the instruments
+    // that take one known: the Forged Key, Barbed Whip or Burning Stake.
+    // The reader can't tell the Forged Key on a panel, and runs that read as
+    // holding the Ring of Keys or the Dog Tag see two doors every morning
+    // (f5, from the collected boards). Mornings with the office within
+    // reach don't count: its card can be missed.
+    const takers = ['forged', 'whip', 'stake'];
+    if (m.day < base.day) m.shortDays = [];
+    const officeNear = [1, 2, 3, 4, 5, 6].some((k) => (m.warden + k) % T.CELL_COUNT === T.OFFICE);
+    const doorsDue = T.DEFAULT_PARAMS.destinations - m.tools.filter((id) => takers.includes(id)).length;
+    if (m.step === 'patrol' && !officeNear && m.dest.length && m.dest.length < doorsDue) m.shortDays = [...new Set([...(m.shortDays || []), m.day])];
+    if ((m.shortDays || []).length >= 2 && !m.tools.some((id) => takers.includes(id))) {
+      const hint = `${T.plural(m.shortDays.length, 'morning')} of this run offered a door short, as the Forged Key, Barbed Whip or Burning Stake do. If you hold one, set it under Torture Instrument${m.toolsLocked ? '' : ', then press These are right'}.`;
+      if (m.toolsLocked || m.toolsToConfirm) notes.push(hint);
+      else m.toolsToConfirm = hint;
+    }
     if (tools.some((t) => t.conf < TOOL_SURE)) notes.push('Some instruments were hard to tell apart: check them under Torture Instrument.');
     const chromatic = r.chromatic ? r.chromatic.count : 0;
     // Their beasts don't show in the slots; they only matter for a bounty.
