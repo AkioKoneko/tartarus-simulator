@@ -52,6 +52,7 @@
     toolSets: true, // pick instruments by the measured sets (js/tool-combos.js) when there are any
     office: null, // always 'bestow' or 'instigate' at the office (only to measure the habit)
     giftRank: null, // null scores the gifts on the spot; or a fixed order
+    giftChain: true, // Opulence's chain first: Horn for a Rainbow, then Thumb Ring, then Vintage (pickGift)
     // Contract challenge: convoys for the first two contracts weigh their
     // points against what the inmates sent would be worth kept on the block.
     keep1: 0, // contract 1: an inmate kept is worth this share of its tier value, in points (0: send the most points)
@@ -161,7 +162,9 @@
     const doubleFrom = T.cageFight && T.cageFight(st) ? 0 : Number.isFinite(st.params.doubleEatTier) ? st.params.doubleEatTier : T.SECOND_MEAL ? 3 : RAINBOW;
     const v = [0, 1, 2, 3, 4, 5].map((t) => P.tierBase ** t);
     const openDist = normalize(st.params.tierWeights);
-    const R = v[RAINBOW] * P.rainbowMult * (rainbowStuck(st) ? P.stuckRainbow : 1);
+    // With the vault full (T.VAULT_SLOTS), a would-be Rainbow stays Supreme.
+    const vaultFull = !!T.VAULT_SLOTS && st.vault.length >= T.VAULT_SLOTS;
+    const R = vaultFull ? v[T.SUPREME] : v[RAINBOW] * P.rainbowMult * (rainbowStuck(st) ? P.stuckRainbow : 1);
     const sealed = st.cells.filter((c) => c.sealed).length;
     // Long-Chained Shackles: what +1 tier on a random inmate is worth.
     const board = st.cells.filter((c) => !c.sealed && c.inmate && c.inmate.tier < RAINBOW);
@@ -806,6 +809,24 @@
   function pickGift(st, ctx, options, random) {
     const P = ctx.P;
     if (P.giftRank) return P.giftRank.find((id) => options.includes(id)) || options[0];
+    // Opulence's chain (the user's find): the Brass Horn when it makes a
+    // Rainbow now, as each brings 3 more picks; else the Thumb Ring while 3
+    // or more picks wait (more inmates); else Crimson Vintage while 2 or more
+    // wait (rarities line up for the Horn). On capped Opulence runs it
+    // reached 10 Rainbows in 57% of runs, against 27% for the board-value
+    // pick below; without the card it changes nothing (3.530 against 3.532).
+    if (P.giftChain) {
+      const left = st.pending.filter((p) => p.kind === 'gift').length;
+      if (options.includes('horn')) {
+        for (let i = 0; i < 3; i++) {
+          const trial = clone(st);
+          trial.rng = (random() * 4294967296) >>> 0;
+          if (T.choose(trial, 'horn').ok && trial.vault.length > st.vault.length) return 'horn';
+        }
+      }
+      if (left >= 3 && options.includes('ring') && st.cells.some((c) => c.sealed && c.n !== T.OFFICE)) return 'ring';
+      if (left >= 2 && options.includes('wine') && st.cells.some((c) => !c.sealed && c.inmate && c.inmate.tier < T.SUPREME - 1)) return 'wine';
+    }
     let best = null;
     for (const id of options) {
       let value = 0;
@@ -1215,7 +1236,9 @@
   // Plays a run to the end with the strategy. `onMove` sees each move.
   function playout(st, params, random, onMove) {
     const roll = random || Math.random;
-    for (let guard = 0; st.phase !== 'ended' && guard < 2000; guard++) {
+    // A drill's Rainbows can't grow past a full vault: the playout is done.
+    const full = () => st.mode !== 'challenge' && T.VAULT_SLOTS && st.vault.length >= T.VAULT_SLOTS;
+    for (let guard = 0; st.phase !== 'ended' && guard < 2000 && !full(); guard++) {
       const action = decide(st, params, roll);
       if (!action) break;
       const result = apply(st, action);

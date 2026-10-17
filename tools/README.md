@@ -187,6 +187,23 @@ The user's cards: Usurpation III "Randomly increase 2 Inmates' rarity by 2 tiers
 
 Report 57, the card: "Elephant-Foot Maul: Mammoth. Effect: Mammoth can Consume higher-rarity countered Inmates; after Consuming, its rarity increases to +2 tiers above the consumed target's rarity". Read like the Iron Crown, whose card names the Berserk Lion: every Mammoth, on every bite. A Mammoth can eat what it counters (Lions, and Wolves from Legendary up) at any higher rarity, and each bite takes it to 2 tiers above the meal, so a same-rarity meal gives +2 and a Normal Mammoth eating a Legendary Lion reaches Rainbow. Other instruments' extra tiers come on top, and the eater re-rolls its beast as usual. The strategy's chain math takes the higher meals (`topMeal`, the Maul's gain in `bite`, and the explanation's chain odds). Measured (the first section of Results), it makes 2.16 Rainbows a run held alone, third after the Crown and the Noose. In the contract challenge's own ranking it stays third, after the Noose and the Crown; where it sits there barely matters (200,000 runs each: 95.29% pass third, 95.24% after the Scapegoat's Guillotine, 95.16% last). The reader has no panel icon for it yet. A reference cut from the card art (report 57) was tried and pulled the same day: on held-instrument panels it beat the right icons, reading a Casket, and the Tongs with the Whip, as the Maul. It waits for a panel-icon sample.
 
+### The vault holds 10, and Opulence's chain (2026-10-17)
+
+The user: "it caps at 10, then only allows things to go up to red max". The vault panel has 10 slots. Once it's full, an inmate that would reach Rainbow stays Supreme: no vault entry and no Treasure (`T.VAULT_SLOTS`, in afterGrowth). The solver's playouts stop in a drill once the vault is full, since the score can't change. The strategy values a would-be Rainbow as a Supreme then. Uncapped, Opulence's picks could cascade without end: a one-pick look-ahead for the gifts ran to about 157 Rainbows a run.
+
+The user's chain with Opulence goes Thumb Ring, then Crimson Vintage, then the Brass Horn, whose consumes make Rainbows that each bring 3 more picks ("it guarantees 10 rainbows everytime basically"). The playouts' gift pick (`pickGift`) now follows it before the board-value pick (`giftChain`). It takes the Horn when it makes a Rainbow now (3 tries), else the Thumb Ring while 3 or more picks wait and a door is shut, else Crimson Vintage while 2 or more wait and an inmate is below Legendary. Results on capped Opulence runs, 3,000 each, same seeds:
+
+| Gift picks in playouts | Rainbows a run | Reached 10 |
+|---|---|---|
+| Board value (before) | 6.66 | 26.7% |
+| The chain (now) | 7.70 | 56.7% |
+| The chain, Ring with only 2 waiting | 7.39 | 55.0% |
+| Strictly Ring, Vintage, Horn by picks left | 6.74 | 40.3% |
+| With Brand of Original Sin in the middle | 4.99 to 6.03 | 20 to 29% |
+| One pick looked ahead (1,000 runs) | 7.45 | 46.2% |
+
+Without the card it changes nothing (20,000 runs: 3.530 against 3.532). The capped Opulence playout costs about 7 ms a run, against 37 ms uncapped. On the user's day-20 board (vault 7, 3 picks), the live check now ranks the Thumb Ring first (7.44), where the old one said Brand.
+
 ### Opulence, a start-of-run card (2026-10-17)
 
 The user's screenshot: "Opulence. You can make 2 additional choices when obtaining Warden's Treasure", and their word: each Treasure is 3 picks in a row, and a Rainbow made by a pick brings 3 more. Their game log agrees: a run with 7 Rainbows had exactly 3 confirmed picks for each, and one pick's Rainbow (04:54:46) added 3 to the 1 left. The engine queues 3 gift picks a Rainbow with the card (`T.START_EVENTS.opulence`, `picks` 3). The analyzer keeps the picks waiting on the Treasure (`model.choice.picks`, "Picks left" under the offer), and the live check plays all of them out. Before this it advised every pick as if it were the last. On the user's day 20 (vault 7, warden in 08), that meant Brand of Original Sin three times, worth about 7.0 Rainbows. A replay of that board (scratchpad opulence/replay.cjs: every first pick, with the next picks searched as well) found Three-Headed Thumb Ring first 8.19, Crimson Vintage first 8.12, Brand first 7.87 and the Horn first 7.18. The best fixed order was Thumb Ring → Vintage → Vintage (8.19). The Horn pays only twice in a row: the first makes Supremes, the second has them eat each other.

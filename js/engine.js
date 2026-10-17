@@ -17,6 +17,10 @@
   const OFFICE = 0;
   const SUPREME = 4;
   const RAINBOW = 5;
+  // The vault holds 10 Rainbows (its panel has 10 slots). Once it's full,
+  // inmates rise no higher than Supreme (the user, 2026-10-17: "it caps at
+  // 10, then only allows things to go up to red max").
+  const VAULT_SLOTS = 10;
   const LOG_LIMIT = 400;
   const CHALLENGE_DAYS = 12;
   const START_VOUCHERS = 6;
@@ -649,6 +653,7 @@
   // Applies rewards for growth: King of the Caged, and the vault for anyone
   // who reaches Rainbow.
   function afterGrowth(state, inmate, events) {
+    if (inmate.tier >= RAINBOW && state.vault.length >= VAULT_SLOTS) inmate.tier = SUPREME;
     state.stats.best = Math.max(state.stats.best, inmate.tier);
     if (state.objective.id === 'king' && !state.milestone && inmate.tier >= SUPREME) meetObjective(state, `a ${describe(inmate)}`);
     if (inmate.tier < RAINBOW) return;
@@ -2393,7 +2398,7 @@
   };
 
   const api = {
-    VERSION, CELL_COUNT, OFFICE, SUPREME, RAINBOW, TIERS, BEASTS, BEAST_INFO, FOOD_CHAIN, SECOND_MEAL, PRESSURE, ESCORTS, TOOLS, TOOL_IDS, GIFTS, GIFT_IDS,
+    VERSION, CELL_COUNT, OFFICE, SUPREME, RAINBOW, VAULT_SLOTS, TIERS, BEASTS, BEAST_INFO, FOOD_CHAIN, SECOND_MEAL, PRESSURE, ESCORTS, TOOLS, TOOL_IDS, GIFTS, GIFT_IDS,
     EVENTS, EVENT_IDS, EVENT_POOL, USURP, APPETITE_TRIES, APPETITE_ODDS, INSTIGATE_EVENTS, CROW_CELLS, HUNT_BELOW, FREEDOM_CELLS, OBJECTIVES, OBJECTIVE_IDS, START_EVENTS,
     LOADOUTS, SCENARIOS, CONTRACT_SLOTS, DEFAULT_PARAMS, PARAM_FIELDS, CHALLENGE_DAYS, START_VOUCHERS,
     newGame, randomSeed, normalizeParams, serialize, deserialize,
