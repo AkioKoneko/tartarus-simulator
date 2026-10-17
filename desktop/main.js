@@ -292,9 +292,12 @@ async function lookForGame() {
     return;
   }
   const was = game.running;
-  game = { running: !!source, title: source ? source.title.trim() : '', hwnd: source ? source.hwnd : 0 };
+  game = { running: !!source, title: source ? source.title.trim() : '', hwnd: source ? source.hwnd : 0, admin: game.admin };
   if (game.running !== was) {
-    note(game.running ? `game running: "${game.title}"` : 'game closed');
+    // Whether the game runs as administrator (see adminText): Windows cuts
+    // off at once a window share from an app that doesn't.
+    if (game.running) game.admin = win32 && game.hwnd ? win32.elevatedOf(game.hwnd) : null;
+    note(game.running ? `game running: "${game.title}"; ${adminText(game.admin)}` : 'game closed');
     recordEvent({ type: game.running ? 'game' : 'game-closed' });
     if (game.running) await refreshLog();
     if (game.running && !overlayPlaced) placeOverlay();
@@ -324,7 +327,66 @@ const win32 = (() => {
     const nextWindow = user32.func('__stdcall', 'FindWindowExW', 'intptr', ['intptr', 'intptr', 'void *', 'void *']);
     const windowText = user32.func('__stdcall', 'GetWindowTextW', 'int', ['intptr', 'void *', 'int']);
     const visible = user32.func('__stdcall', 'IsWindowVisible', 'bool', ['intptr']);
+    const advapi32 = koffi.load('advapi32.dll');
+    const openToken = advapi32.func('__stdcall', 'OpenProcessToken', 'bool', ['intptr', 'uint32', koffi.out(koffi.pointer('intptr'))]);
+    const tokenInfo = advapi32.func('__stdcall', 'GetTokenInformation', 'bool', ['intptr', 'int', 'void *', 'uint32', koffi.out(koffi.pointer('uint32'))]);
+    // Whether a process runs as administrator (TokenElevation): true, false,
+    // or null when Windows won't say, as it often won't to a program not run
+    // as administrator about one that is.
+    const elevated = (h) => {
+      const token = [0];
+      if (!openToken(h, 0x0008, token) || !Number(token[0])) return null; // TOKEN_QUERY
+      try {
+        const flag = Buffer.alloc(4);
+        return tokenInfo(token[0], 20, flag, 4, [0]) ? flag.readUInt32LE(0) !== 0 : null;
+      } finally {
+        closeHandle(token[0]);
+      }
+    };
+    // The program that started a process, from Windows' process list.
+    const ENTRY = koffi.struct('PROCESSENTRY32W', { dwSize: 'uint32', cntUsage: 'uint32', th32ProcessID: 'uint32', th32DefaultHeapID: 'uintptr_t', th32ModuleID: 'uint32', cntThreads: 'uint32', th32ParentProcessID: 'uint32', pcPriClassBase: 'int32', dwFlags: 'uint32', szExeFile: koffi.array('char16', 260, 'String') });
+    const snapshot = kernel32.func('__stdcall', 'CreateToolhelp32Snapshot', 'intptr', ['uint32', 'uint32']);
+    const firstProcess = kernel32.func('__stdcall', 'Process32FirstW', 'bool', ['intptr', koffi.inout(koffi.pointer(ENTRY))]);
+    const nextProcess = kernel32.func('__stdcall', 'Process32NextW', 'bool', ['intptr', koffi.inout(koffi.pointer(ENTRY))]);
+    const processes = () => {
+      const list = new Map();
+      const snap = snapshot(2, 0); // TH32CS_SNAPPROCESS
+      if (Number(snap) === -1 || !Number(snap)) return list;
+      try {
+        const e = { dwSize: koffi.sizeof(ENTRY) };
+        for (let ok = firstProcess(snap, e); ok; e.dwSize = koffi.sizeof(ENTRY), ok = nextProcess(snap, e)) list.set(e.th32ProcessID, { parent: e.th32ParentProcessID, name: e.szExeFile });
+      } finally {
+        closeHandle(snap);
+      }
+      return list;
+    };
+    const elevatedPid = (pid) => {
+      const h = pid ? openProcess(0x1000, false, pid) : 0;
+      if (!h) return null;
+      try {
+        return elevated(h);
+      } finally {
+        closeHandle(h);
+      }
+    };
     return {
+      // Whether the program behind a window runs as administrator: Windows
+      // cuts off at once a window share from a program that doesn't. The
+      // game's own process often won't say (its protection); a game started
+      // by a program that runs as administrator runs as one too, so that
+      // program is told as well. { game, by: { name, admin } }.
+      elevatedOf(hwnd) {
+        const pid = [0];
+        windowPid(hwnd, pid);
+        if (!pid[0]) return { game: null, by: null };
+        const game = elevatedPid(pid[0]);
+        const list = processes();
+        const me = list.get(pid[0]);
+        const parent = me && list.get(me.parent);
+        return { game, by: parent ? { name: parent.name, admin: elevatedPid(me.parent) } : null };
+      },
+      // This app itself (GetCurrentProcess's handle is -1).
+      selfElevated: () => elevated(-1),
       // The shown top-level window whose title matches, not one of this
       // app's: { title, hwnd }, or null. The one found last time is looked
       // at first. Titles only, nothing else of any window.
@@ -376,6 +438,16 @@ const win32 = (() => {
     return null;
   }
 })();
+// "As administrator", for the debug log and report: the game's, or when its
+// process won't say, the program that started it, and this app's. A game
+// run as administrator, with this app not, has its window share cut off.
+const yesNo = (v) => (v === true ? 'yes' : v === false ? 'no' : 'unknown');
+function adminText(a) {
+  const self = win32 ? win32.selfElevated() : null;
+  const by = a && a.by ? `, started by ${a.by.name} (as administrator: ${yesNo(a.by.admin)})` : '';
+  const high = a && (a.game === true || (a.game === null && a.by && a.by.admin === true));
+  return `game as administrator: ${yesNo(a ? a.game : null)}${by}; Tartarus Overlay as administrator: ${yesNo(self)}${high && self !== true ? ' (the game likely runs as administrator and this app doesn’t: Windows can stop the window share)' : ''}`;
+}
 const hwndOf = (win) => {
   if (!win || win.isDestroyed()) return 0;
   const b = win.getNativeWindowHandle();
@@ -1098,7 +1170,7 @@ function debugReportText(cores) {
   const ago = (t) => (t ? `${Math.round((Date.now() - t) / 1000)} s ago` : 'never');
   const lines = [
     `Tartarus Overlay ${app.getVersion()}${BIG_RECORD ? ' (debug)' : ''}, site ${SITE}, Windows ${require('os').release()}`,
-    `Game: ${game.running ? `running (${game.title})` : 'not running'}; log file (${logFoundBy}): ${clean(logPath) || 'not found'}`,
+    `Game: ${game.running ? `running (${game.title}); ${adminText(game.admin)}` : 'not running'}; log file (${logFoundBy}): ${clean(logPath) || 'not found'}`,
     `Agreed: ${agreed}; log: ${f.log}${f.error ? ` (${clean(f.error)})` : ''}; window: ${f.window}${f.windowSize ? ` ${f.windowSize}` : ''}; game log detail (Enable Log): ${f.detail || 'not known yet'}`,
     `Log file: ${d.logSize || '?'} bytes, last grew ${ago(d.growingAt)}. Since connecting: ${f.lines || 0} lines read, ${f.hits || 0} triggers ${JSON.stringify(d.triggers || {})}, ${f.frames || 0} pictures, ${d.failed || 0} failed.`,
     `Last trigger: ${d.lastTriggerKind || 'none'} ${ago(d.lastTriggerAt)}. Last picture: ${f.lastFrame ? `${f.lastFrame.kind} ${ago(f.lastFrame.at)}${f.lastFrame.ok ? '' : ` (none taken: ${f.lastFrame.why})`}` : 'none'}; on the page: ${d.lastNote || '-'}`,
@@ -1407,7 +1479,7 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   app.whenReady().then(async () => {
-    note(`start: version ${app.getVersion()}, site ${SITE}${DEV ? ', debug' : ''}${TEST ? ', test' : ''}, foreground check ${win32 ? 'on' : 'off'}`);
+    note(`start: version ${app.getVersion()}, site ${SITE}${DEV ? ', debug' : ''}${TEST ? ', test' : ''}, foreground check ${win32 ? 'on' : 'off'}, as administrator: ${yesNo(win32 ? win32.selfElevated() : null)}`);
     allowCapture();
     pruneRecords();
     await refreshLog();
