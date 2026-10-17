@@ -66,6 +66,8 @@ const TOOLS = {
   maul: { name: 'Elephant-Foot Maul: Mammoth', sim: 'maul', card: null },
   // Report 65. No panel icon yet (its card art isn't used for panels).
   claws: { name: 'Filthy Claws: Alpha Wolf', sim: 'claws', card: null },
+  // Report 100. No panel icon yet.
+  trap: { name: 'Blood-Stained Trap: Berserk Lion', sim: 'trap', card: null },
 };
 
 const cache = new Map();
