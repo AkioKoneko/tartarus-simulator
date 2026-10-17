@@ -475,8 +475,13 @@
     cell.face = face;
     cell.frame = frame;
     // The red jaws sit over the top of the portrait (0.24-0.32 of this box
-    // in every labeled screenshot, 0 without them).
-    cell.jaws = colorShare(img, x - 12 * k, y - 70 * k, x + 12 * k, y - 50 * k, isJaws) > 0.14;
+    // in every labeled screenshot, 0 without them). A Supreme inmate's red
+    // glow fills the box too (0.30-0.56, and as much beside it), so over a
+    // glow the jaws must stand out: 0.61-0.81, and 0.4 more than beside it
+    // (the user's run, 2026-10-17: a Supreme Wolf read as having jaws).
+    const jawsRed = colorShare(img, x - 12 * k, y - 70 * k, x + 12 * k, y - 50 * k, isJaws);
+    const glowRed = (colorShare(img, x - 30 * k, y - 70 * k, x - 18 * k, y - 50 * k, isJaws) + colorShare(img, x + 18 * k, y - 70 * k, x + 30 * k, y - 50 * k, isJaws)) / 2;
+    cell.jaws = glowRed < 0.1 ? jawsRed > 0.14 : jawsRed > 0.58 && jawsRed - glowRed > 0.3;
     // A washed-out, very bright portrait (an inmate shown through a door?).
     cell.ghost = face.brightness > 175 && face.score < 0.55;
     if (face.score > 0.42 || cell.ghost || frame.colored > 0.12) {
