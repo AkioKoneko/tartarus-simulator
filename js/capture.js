@@ -104,13 +104,6 @@
           begun = true;
           readFrom(fromFirst || gone ? 0 : file.size);
           post({ type: 'started', name: file.name || handle.name || 'UE_game.log', size: file.size });
-          // How much of the log's end is the game's own lines: whether its
-          // Enable Log is on, before any new line comes.
-          if (offset > 0) {
-            const tailText = new TextDecoder('utf-8').decode(await file.slice(Math.max(0, offset - MAX_READ), offset).arrayBuffer());
-            const old = tailText.split(/\r?\n/).slice(1, -1);
-            post({ type: 'sample', count: old.length, detail: old.filter((l) => DETAIL.test(l)).length });
-          }
         } else if (gone || file.size < offset) {
           // The game started a new log, or the deleted one is back.
           readFrom(0);
@@ -164,7 +157,8 @@
 
   // #endregion
 
-  // Whether the game writes its own lines, from the last few thousand read:
+  // Whether the game writes its own lines, from the last few thousand read
+  // (only lines written since the player connected, as follow.html says):
   // with its Enable Log on, a fifth to a half of them are (the user's logs);
   // with it off, almost none. Recent lines decide, so turning it on clears
   // the warning without a new log.
@@ -190,8 +184,7 @@
       else if (m.type === 'rotated') {
         recent = [];
         setState({ log: 'on', error: '', note: 'The game started a new log.', detail: '' });
-      } else if (m.type === 'sample') noteDetail(m.count, m.detail);
-      else if (m.type === 'gone') setState({ log: 'gone', error: '' });
+      } else if (m.type === 'gone') setState({ log: 'gone', error: '' });
       else if (m.type === 'error') setState({ log: 'error', error: m.message });
       else if (m.type === 'lines') {
         const patch = { lines: state.lines + m.count };
