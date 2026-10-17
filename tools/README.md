@@ -157,7 +157,13 @@ Then the reader went over 349 boards: the user's recorded runs, the labelled scr
 - **Only a second meal at its own rarity, no lower prey** (jaws mean the game allows it): Normal Lion 30 with jaws, 0 without; Normal Mammoth 52 and 3; Magic Lion 11 and 0; Magic Mammoth 13 and 0; Rare Lion 9 and 0; Rare Mammoth 5 and 0; Legendary Lion 9 and 0; Legendary Mammoth 15 and 2. Below Legendary, that's 120 with jaws and 3 without.
 - **Checks:** only lower-rarity prey, 2 with jaws of 404 (no Cage Fight in these runs); nothing to eat, 3 of 475; a first meal, 630 with jaws, 25 without.
 
-The user chose to keep second meals at Legendary and up (`doubleEatTier` 3), so nothing in the rules changed. The analyzer keeps marking a lower-rarity Lion or Mammoth with jaws and only a second meal as one to check. Scratch tools: read-webps.js / png-readings.js (readings), meal-summary.js (groups).
+The user chose to keep second meals at Legendary and up (`doubleEatTier` 3), so nothing in the rules changed. The analyzer keeps marking a lower-rarity Lion or Mammoth with jaws and only a second meal as one to check.
+
+Two player reports later that day went further than jaws:
+- **Report 206:** the game's meal pick ("Select an Inmate to Consume") offered a Rare Lion two Rare Rats (c2 checked the portraits: rat at 0.97 against wolf at 0.6 to 0.66), and the next board shows the Lion as a Legendary Lion with cell 07 gone. That run wasn't Cage Fight: three other consumes in it re-rolled the eater's beast. The analyzer had said it "can't find a meal".
+- **Report 208:** the game offered Consume to a Normal Mammoth with jaws whose only same-rarity food was a Normal Wolf, and the analyzer advised a Replace without weighing Consume.
+
+Rules unchanged, pending the user's word. Since then the analyzer names the case: when the warden's inmate has only second meals at its rarity, the meal pick's problem and the Consume note list them and point at Cage Fight, instead of calling the board misread. Scratch tools: read-webps.js / png-readings.js (readings), meal-summary.js (groups).
 
 ### Behind Cell Doors (2026-10-17)
 
