@@ -1115,6 +1115,7 @@ ipcMain.on('site:riot', (e, on) => {
     riotFolded = false;
   }
   pushShell();
+  if (!riot) reloadIfWaiting('back in the prison');
 });
 
 // Ignore on the Riot screen ends the run: its record is closed (the next
@@ -1131,6 +1132,7 @@ ipcMain.on('site:run', (e, what) => {
     recording = null;
     send('analyzer', 'command', 'run-over');
     pushShell();
+    reloadIfWaiting('the run is over');
   } else if (what === 'new' && runOver) {
     runOver = false;
     pushShell();
@@ -1333,6 +1335,16 @@ async function checkSite() {
     // Offline: next time.
   }
 }
+// A site update that came during play waits for a safe moment: a run's end
+// (Ignore on the Riot screen), or the prison after the Riot's fight. Not the
+// Riot screen itself, where a reload could miss the Fight or Ignore click.
+// Players left an update unloaded for hours, its fixes with it.
+function reloadIfWaiting(why) {
+  if (!siteUpdate) return;
+  note(`site update loaded (${why})`);
+  // A moment later: the analyzer clears its board at a run's end first.
+  setTimeout(() => siteUpdate && reloadSite(), 3000);
+}
 function reloadSite() {
   siteUpdate = false;
   for (const name of Object.keys(PAGES)) {
@@ -1470,6 +1482,11 @@ if (!app.requestSingleInstanceLock()) {
         app.quit();
       }
       // "hide follow": as the player closes that window with its X.
+      // "site-update": as if the site had a newer version than the pages.
+      if (/site-update/.test(text)) {
+        siteUpdate = true;
+        pushShell();
+      }
       const hide = /hide (\w+)/.exec(text);
       if (hide && wins[hide[1]] && !wins[hide[1]].isDestroyed()) wins[hide[1]].hide();
       // "cpu one": as the tray's Processor use does.

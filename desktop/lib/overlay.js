@@ -69,7 +69,7 @@
     if (f && f.detail === 'off') return 'Turn on Enable Log in the game';
     if (a && a.reading) return 'Reading the picture…';
     if (a && a.treasureWait) return 'Treasure: press View Prison Status';
-    if (a && a.toolsConfirm) return 'Confirm your instruments';
+    if (a && a.toolsConfirm) return sh.siteUpdate ? 'Confirm instruments, or Reload for the update' : 'Confirm your instruments';
     if (a && a.problems && a.problems.length) return 'The board needs a fix';
     if (a && a.working) return `Working it out${a.progress !== null && a.progress !== undefined ? `: ${a.progress}%` : '…'}`;
     if (a && a.stale) return 'Board changed: recheck';
@@ -89,7 +89,8 @@
 
     const out = [];
     if (sh.appUpdate) out.push(line('info', `App update ${sh.appUpdate} is ready.`, button('Restart', 'restart')));
-    if (sh.siteUpdate) out.push(line('info', 'The site was updated.', button('Reload', 'reload')));
+    // An update waiting while the old pages keep asking: it often fixes that.
+    if (sh.siteUpdate) out.push(line(a && a.toolsConfirm ? 'warn' : 'info', a && a.toolsConfirm ? 'The site was updated, and the update may stop questions like the one below. It loads by itself when this run ends.' : 'The site was updated. It loads by itself when this run ends.', button('Reload now', 'reload', !!(a && a.toolsConfirm))));
     const problem = followProblem();
     if (problem) out.push(problem);
 

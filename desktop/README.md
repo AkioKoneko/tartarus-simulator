@@ -61,7 +61,11 @@ Electron's main process gets no stdin on Windows.
 - **Site changes** (reader, advice, triggers, rules, reports): automatic. The
   pages load from the site; every 10 minutes the shell compares the site's
   asset tag (`?v=`) with the loaded one, reloads at once while the game isn't
-  running, and during a run offers a Reload button on the overlay.
+  running, and during play offers a Reload button on the overlay and reloads
+  by itself at the next safe moment: a run's end (Ignore on the Riot screen)
+  or back in the prison after the Riot's fight, 3 s later so the analyzer
+  clears its board first. Players otherwise kept an old page for hours. Under
+  `--test`, `site-update` in test-commands.txt acts as a newer site.
 - **App changes** (this folder): `electron-updater` checks GitHub Releases of
   blahdot3h/tartarus-simulator every 6 hours, downloads in the background and
   installs on quit (the overlay offers Restart). Unsigned builds show
