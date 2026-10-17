@@ -163,7 +163,7 @@ Two player reports later that day went further than jaws:
 - **Report 206:** the game's meal pick ("Select an Inmate to Consume") offered a Rare Lion two Rare Rats (c2 checked the portraits: rat at 0.97 against wolf at 0.6 to 0.66), and the next board shows the Lion as a Legendary Lion with cell 07 gone. That run wasn't Cage Fight: three other consumes in it re-rolled the eater's beast. The analyzer had said it "can't find a meal".
 - **Report 208:** the game offered Consume to a Normal Mammoth with jaws whose only same-rarity food was a Normal Wolf, and the analyzer advised a Replace without weighing Consume.
 
-Rules unchanged, pending the user's word. Since then the analyzer names the case: when the warden's inmate has only second meals at its rarity, the meal pick's problem and the Consume note list them and point at Cage Fight, instead of calling the board misread. Scratch tools: read-webps.js / png-readings.js (readings), meal-summary.js (groups).
+The rule stays as the user decided (Legendary and up, outside Cage Fight); these join the evidence above. Since then the analyzer names the case: when the warden's inmate has only second meals at its rarity, the meal pick's problem and the Consume note list them and point at Cage Fight, instead of calling the board misread. Scratch tools: read-webps.js / png-readings.js (readings), meal-summary.js (groups).
 
 ### Behind Cell Doors (2026-10-17)
 
