@@ -113,6 +113,14 @@ With "Treasure" Hunt in the event pool and the Elephant-Foot Maul among the inst
 - **Warden's Treasure:** judging each gift on the spot (3.435) beats always taking the same one: Crimson Vintage 3.23, Three-Headed Thumb Ring 3.06, Brass Horn of Strife 2.88, Brand of Original Sin 2.84.
 - **Contract challenge** (`cguide --games 200000 --habit-games 100000`, 1,700,000 runs in 10.3 minutes): 95.4% pass with 52.4 points, against 95.4% and 52.5 before. Sending the most points on every contract passes 35.9%, keeping 1 voucher 78.0%, and playing with the drill weights 93.1%. The Maul stays third in the challenge's ranking (its section below). A first try ended in a Node crash (a segmentation fault, no JavaScript error) partway through. Replaying the same runs went through, and the second try matches the first run for run as far as the first got.
 
+### Blood-Stained Trap: Berserk Lion (2026-10-17)
+
+Report 100, the card: "Blood-Stained Trap: Berserk Lion. Condition: Stops at Berserk Lion's cell. Effect: Adds Hunt to decision options, which can add a Prey mark to Consumable targets". It's the 31st instrument (`trap`), read like the Iron Crown, whose card names the Berserk Lion: every Lion.
+- **Hunt:** with the warden on a Lion that has no prey mark, Hunt is a third choice beside Consume and Replace (`T.hunt`, `T.huntTargets`, `T.canHuntNow`). A day has one of the three.
+- **The mark:** the Lion marks one inmate it can consume that has no prey mark either. Then the simulator's Prey marker rule applies: each morning both rise a tier, for 3 mornings, until either leaves the block or changes beast. That rule predates the live game. The card doesn't say whether Hunt uses up the day's action, or whether it marks one target or every one; this is a reading to confirm.
+- **Strategy:** it hunts when the mark (`linkValue`, at 80% for the chance it ends early) is worth more than the best consume and Replace, and it already guards marks from being eaten.
+- **Pages:** the simulator page has a Hunt button that asks which inmate to mark, and the analyzer counts a Hunt as the day's action. The reader doesn't know the game's Hunt card in the decision row yet. Until it's measured, the rankings put the Trap after the Ravenous Chains.
+
 ### Filthy Claws: Alpha Wolf (2026-10-17)
 
 Report 65, the card: "Filthy Claws: Alpha Wolf. Condition: At the start of each day. Effect: Randomly adds a Scratch Marks mark to 1 unopened cell". It's the 30th instrument (`claws`). Each morning, before the destinations are drawn, it scratches one random unopened cell that isn't scratched yet and isn't a rat nest. The inmate behind it is settled then, and its rarity shows. The scratch works as the simulator's Scratch marker always has: a Wolf of that rarity can consume the inmate through the door, whatever its beast, for +3, and the strategy already counts those meals. That rule predates the live game and isn't confirmed there.

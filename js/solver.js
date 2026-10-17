@@ -48,7 +48,7 @@
     maidenSwapTier: 3, // holding the Severed Iron Maiden, swap up to this tier (Legendary measured best)
     execMargin: 0, // accept an Execution worth more than this
     acceptChain: true, // accept Chain reactions
-    toolRank: ['crown', 'rope', 'claws', 'maul', 'scapegoat', 'coin', 'maiden', 'shackles', 'blacklist', 'muzzle', 'ravenous', 'revenge', 'skewer', 'hook', 'saw', 'collar', 'stake', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'shortchain', 'fire', 'pestle', 'axe', 'forged', 'ironbox'], // measured: each tool held from day 1
+    toolRank: ['crown', 'rope', 'claws', 'maul', 'scapegoat', 'coin', 'maiden', 'shackles', 'blacklist', 'muzzle', 'ravenous', 'trap', 'revenge', 'skewer', 'hook', 'saw', 'collar', 'stake', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'shortchain', 'fire', 'pestle', 'axe', 'forged', 'ironbox'], // measured: each tool held from day 1
     toolSets: true, // pick instruments by the measured sets (js/tool-combos.js) when there are any
     office: null, // always 'bestow' or 'instigate' at the office (only to measure the habit)
     giftRank: null, // null scores the gifts on the spot; or a fixed order
@@ -70,10 +70,10 @@
   // tools/results/ (train-report.json: the drill profiles were retrained on
   // 2026-10-15).
   const PROFILES = {
-    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['crown', 'rope', 'claws', 'maul', 'scapegoat', 'coin', 'maiden', 'shackles', 'blacklist', 'muzzle', 'ravenous', 'revenge', 'skewer', 'hook', 'saw', 'collar', 'stake', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'shortchain', 'fire', 'pestle', 'axe', 'forged', 'ironbox'] },
-    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['crown', 'rope', 'claws', 'maul', 'scapegoat', 'coin', 'maiden', 'shackles', 'blacklist', 'muzzle', 'ravenous', 'revenge', 'skewer', 'hook', 'saw', 'collar', 'stake', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'shortchain', 'fire', 'pestle', 'axe', 'forged', 'ironbox'] },
+    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['crown', 'rope', 'claws', 'maul', 'scapegoat', 'coin', 'maiden', 'shackles', 'blacklist', 'muzzle', 'ravenous', 'trap', 'revenge', 'skewer', 'hook', 'saw', 'collar', 'stake', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'shortchain', 'fire', 'pestle', 'axe', 'forged', 'ironbox'] },
+    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['crown', 'rope', 'claws', 'maul', 'scapegoat', 'coin', 'maiden', 'shackles', 'blacklist', 'muzzle', 'ravenous', 'trap', 'revenge', 'skewer', 'hook', 'saw', 'collar', 'stake', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'shortchain', 'fire', 'pestle', 'axe', 'forged', 'ironbox'] },
     // The contract challenge, tuned on passing first and then points.
-    challenge: { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'crown', 'maul', 'maiden', 'scapegoat', 'coin', 'shackles', 'ravenous', 'skewer', 'claws', 'revenge', 'blacklist', 'collar', 'keys', 'cage', 'ironbox', 'muzzle', 'saw', 'whip', 'stake', 'guillotine', 'hook', 'tongs', 'dogtag', 'fire', 'axe', 'scales', 'pestle', 'shortchain', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
+    challenge: { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'crown', 'maul', 'maiden', 'scapegoat', 'coin', 'shackles', 'ravenous', 'trap', 'skewer', 'claws', 'revenge', 'blacklist', 'collar', 'keys', 'cage', 'ironbox', 'muzzle', 'saw', 'whip', 'stake', 'guillotine', 'hook', 'tongs', 'dogtag', 'fire', 'axe', 'scales', 'pestle', 'shortchain', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
   };
   const paramsFor = (st) => PROFILES[st.mode === 'challenge' ? 'challenge' : st.params.rewards ? 'rewards' : 'notools'];
 
@@ -717,6 +717,20 @@
     return value;
   }
 
+  // The Blood-Stained Trap's best Hunt today: what its prey mark would
+  // promise, at 80% for the chance it ends early (a side leaves the block or
+  // changes beast). Null when there's no Hunt to make.
+  function bestHunt(st, ctx) {
+    if (!T.canHuntNow || !T.canHuntNow(st)) return null;
+    const lion = st.cells[st.position].inmate;
+    let best = null;
+    for (const n of T.huntTargets(st)) {
+      const value = 0.8 * linkValue(st, ctx, { lion: lion.id, prey: st.cells[n].inmate.id, rounds: st.params.preyRounds });
+      if (!best || value > best.value) best = { cell: n, value };
+    }
+    return best;
+  }
+
   // The prey mark an action would end, valued (0 if none).
   function linkLoss(st, ctx, inmate, certain) {
     const link = inmate && T.linkOf(st, inmate.id);
@@ -1158,16 +1172,20 @@
       return scores.length ? { type: 'patrol', cell: scores[0].cell } : { type: 'end' };
     }
     // Manage: devour, swap or end the day. Both act on the warden's cell,
-    // and a day has one or the other, not both.
+    // and a day has one or the other, not both. With the Blood-Stained Trap,
+    // a Hunt on a Lion is the third choice.
     const swapGain = swapGainHere(st, ctx);
+    const hunt = bestHunt(st, ctx);
     if (T.canDevourNow(st)) {
       const devours = devourScores(st, ctx);
       if (devours.length && devours[0].score >= P.minDevour) {
+        if (hunt && hunt.value > devours[0].score && hunt.value > swapGain) return { type: 'hunt', to: hunt.cell };
         // The swap instead, when it's worth more than the best devour.
         if (swapGain > 0 && swapGain > devours[0].score + P.swapMargin) return { type: 'swap' };
         return { type: 'devour', to: devours[0].cell };
       }
     }
+    if (hunt && hunt.value > 0 && hunt.value > swapGain) return { type: 'hunt', to: hunt.cell };
     if (swapGain > 0) return { type: 'swap' };
     if (st.challenge && wantsEarly(st, ctx)) return { type: 'early' };
     return { type: 'end' };
@@ -1184,6 +1202,7 @@
       case 'stopchain': return T.stopChain(st);
       case 'office': return T.officeAct(st, action.choice);
       case 'swap': return T.swap(st, st.position);
+      case 'hunt': return T.hunt(st, action.to);
       case 'end': return T.endDay(st);
       case 'deliver': return T.deliver(st, action.cells, action.vaultIds, action.escort);
       case 'skip': return T.skipDelivery(st);
@@ -1296,6 +1315,10 @@
     }
     if (canSwapNow(st) && here && !here.sealed && here.inmate) {
       out.push({ action: { type: 'swap' }, label: `Replace the ${T.describe(here.inmate)} in ${T.cellLabel(here.n)}` });
+    }
+    // The Blood-Stained Trap's Hunt: a Prey mark on an inmate the Lion here can consume.
+    if (T.canHuntNow && T.canHuntNow(st)) {
+      for (const n of T.huntTargets(st)) out.push({ action: { type: 'hunt', to: n }, label: `Hunt: a Prey mark on the ${T.describe(st.cells[n].inmate)} in ${T.cellLabel(n)}` });
     }
     if (T.canOpenEarly(st)) out.push({ action: { type: 'early' }, label: 'Deliver the heavy contract early' });
     out.push({ action: { type: 'end' }, label: st.mode === 'drill' && st.day >= st.maxDays ? 'Finish the run' : 'End the day' });
@@ -1499,6 +1522,11 @@
         if (maiden.chance > 0) return `The Severed Iron Maiden adds 3 tiers to the new inmate ${odds}, so a fresh roll beats this ${T.tierName(here.inmate.tier)} inmate on average.${over}`;
         if (ctx.axeDoors) return `A ${T.tierName(here.inmate.tier)} inmate is worth less than a fresh roll on average, and a higher roll makes the Gaoler's Execution Axe open ${T.plural(ctx.axeDoors, 'door')}.${over}`;
         return `A ${T.tierName(here.inmate.tier)} inmate is worth less than a fresh roll on average.${over}`;
+      }
+      case 'hunt': {
+        const prey = st.cells[action.to].inmate;
+        const over = T.startOptions(st).length || swapGainHere(st, ctx) > 0 ? ' That beats today’s consume or Replace, and a day has one of them.' : '';
+        return `A Prey mark: this Lion and the ${T.describe(prey)} each rise a tier every morning for ${T.plural(st.params.preyRounds, 'morning')}, as long as both stay on the block and keep their beasts.${over}`;
       }
       case 'end': {
         if (!T.canDevourNow(st) || !T.startOptions(st).length) return 'Nothing left today is worth doing.';

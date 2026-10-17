@@ -302,6 +302,16 @@
       '<path d="M22 9.5l1.6-4.5 1.6 4.5M28.5 9.5l1.6-4.5 1.6 4.5M35 9.5l1.6-4.5 1.6 4.5M22 22.5l1.6 4.5 1.6-4.5M28.5 22.5l1.6 4.5 1.6-4.5M35 22.5l1.6 4.5 1.6-4.5" fill="#9a9eaa" stroke="#2a2b31" stroke-width="0.8" stroke-linejoin="round"/>' +
       '<rect x="19" y="9" width="24" height="14" rx="4" fill="#6b6e7a" stroke="#2a2b31" stroke-width="1.3"/>' +
       '<path d="M25.5 9v14M31.5 9v14M37.5 9v14" stroke="#4a4c57" stroke-width="1.5"/></g>'),
+    // Blood-Stained Trap: Berserk Lion: an iron jaw trap, its teeth bloodied,
+    // on a short chain.
+    trap: icon('glow-red',
+      '<path d="M6 26c0-9 8-16 18-16s18 7 18 16" fill="none" stroke="#2a2b31" stroke-width="6" stroke-linecap="round"/>' +
+      '<path d="M6 26c0-9 8-16 18-16s18 7 18 16" fill="none" stroke="#6b6e7a" stroke-width="3.6" stroke-linecap="round"/>' +
+      '<path d="M10 22l3 5 3-6 3 6 3-7 2 7 3-7 3 6 3-6 3 6 3-5" fill="#e6e7ea" stroke="#2a2b31" stroke-width="0.8" stroke-linejoin="round"/>' +
+      '<path d="M15 21l1 3M24 20l0.8 3M33 21l0.6 3" stroke="#a51e24" stroke-width="1.8" stroke-linecap="round"/>' +
+      '<rect x="8" y="27" width="32" height="7" rx="2.5" fill="#4a4c57" stroke="#2a2b31" stroke-width="1.3"/>' +
+      '<circle cx="24" cy="30.5" r="2.2" fill="#9a9eaa" stroke="#2a2b31" stroke-width="0.8"/>' +
+      '<path d="M24 34v4M22 40.5a2 2 0 1 0 4 0a2 2 0 1 0-4 0M24 42.5v2" fill="none" stroke="#7d8089" stroke-width="1.6"/>'),
     // Filthy Claws: Alpha Wolf: four curved iron blades on a knuckle guard,
     // bloodied at the tips.
     claws: icon('glow-red',

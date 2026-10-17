@@ -428,7 +428,8 @@
     // the analyzer waits for the player (or a screenshot) to say the game does.
     else m.step = st.phase === 'patrol' ? (st.ratway ? 'ratway' : 'patrol') : 'manage';
     m.dest = st.phase === 'patrol' && !st.ratway ? st.destinations.slice() : [];
-    m.devourUsed = st.used.devour > 0;
+    // A Hunt (the Blood-Stained Trap) used the day's action, as a consume does.
+    m.devourUsed = st.used.devour > 0 || !!st.used.hunt;
     m.swapUsed = st.used.swap > 0;
     m.consumeOffered = !!st.used.devourAfterSwap;
     m.noSwap = !!st.used.noSwap;

@@ -777,6 +777,19 @@
       ], true);
       return;
     }
+    if (p.kind === 'hunt') {
+      const targets = T.huntTargets(st);
+      if (!targets.length) {
+        ui.pending = null;
+        renderDecision();
+        return;
+      }
+      setDecision('Hunt: which inmate gets the Prey mark?', `The Lion in cell ${L(st.position)} and its prey each rise a tier every morning for ${T.plural(st.params.preyRounds, 'morning')}, while both stay on the block and keep their beasts. It uses up today’s consume or Replace.`, [
+        ...targets.map((n) => [`The ${T.describe(st.cells[n].inmate)} in ${L(n)}`, () => run((s) => T.hunt(s, n), { select: st.position }), 'primary']),
+        ['Cancel', back],
+      ], true);
+      return;
+    }
     if (p.kind === 'end') {
       const lead = p.last ? `Day ${st.day} is the last day. Ending it closes the run.` : p.deliveryDay ? 'Ending today opens the delivery window.' : '';
       setDecision(p.last ? 'Finish the run?' : `End day ${st.day}?`, [lead, ...p.warnings].filter(Boolean).join(' '), [
@@ -865,6 +878,12 @@
     swapBtn.textContent = `Replace (${left})`;
     swapBtn.disabled = !canSwap;
     swapBtn.title = canSwap ? `Replace the inmate in the warden's cell (${L(st.position)}).${T.canDevourNow(st) ? " It uses up today's consume." : ''}` : st.used.devour > 0 ? 'You consumed today: a day has a consume or a Replace, not both.' : "Only the inmate in the warden's cell can be replaced, after the patrol.";
+    // The Blood-Stained Trap's Hunt, the day's third choice on a Lion.
+    const huntBtn = $('btn-hunt');
+    const canHunt = free && !!T.canHuntNow && T.canHuntNow(st);
+    huntBtn.hidden = !st.tools.includes('trap');
+    huntBtn.disabled = !canHunt;
+    huntBtn.title = canHunt ? "Blood-Stained Trap: the Lion in the warden's cell puts a Prey mark on an inmate it can consume. It uses up today's consume or Replace." : "With the Blood-Stained Trap, a Hunt works when the warden stands on a Lion that has an inmate to consume, before today's consume or Replace.";
 
     const deliverBtn = $('btn-deliver');
     deliverBtn.hidden = st.mode !== 'challenge';
@@ -1648,6 +1667,7 @@
     cellEls.forEach((el, n) => el.btn.classList.toggle('is-hint', n === cell));
     for (const card of document.querySelectorAll('#dest-cards [data-dest]')) card.classList.toggle('is-hint', Number(card.dataset.dest) === cell);
     $('btn-swap').classList.toggle('is-hint', !!a && a.type === 'swap');
+    $('btn-hunt').classList.toggle('is-hint', !!a && a.type === 'hunt');
     $('btn-end').classList.toggle('is-hint', !!a && a.type === 'end');
   }
 
@@ -2337,6 +2357,11 @@
       }
     });
     $('btn-swap').addEventListener('click', () => askSwap(ui.state && ui.state.position));
+    $('btn-hunt').addEventListener('click', () => {
+      if (!ui.state || !T.canHuntNow || !T.canHuntNow(ui.state)) return;
+      ui.pending = { kind: 'hunt' };
+      render();
+    });
     $('btn-deliver').addEventListener('click', () => openDeliver());
     $('btn-undo').addEventListener('click', undo);
     $('btn-end').addEventListener('click', askEndDay);

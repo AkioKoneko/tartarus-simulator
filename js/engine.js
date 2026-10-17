@@ -212,6 +212,13 @@
     // Scratch Marks mark to 1 unopened cell". A scratched door shows the
     // rarity inside, and a Wolf of that rarity can consume through it.
     claws: { name: 'Filthy Claws: Alpha Wolf', text: 'At the start of each day, Scratch Marks go on 1 random unopened cell: it shows the rarity inside, and a Wolf of that rarity can consume the inmate through the door for +3.' },
+    // A player's report (#100, 2026-10-17), the card: "Blood-Stained Trap:
+    // Berserk Lion. Condition: Stops at Berserk Lion's cell. Effect: Adds
+    // Hunt to decision options, which can add a Prey mark to Consumable
+    // targets". Read as: with the warden on a Lion, Hunt is a choice beside
+    // Consume and Replace (a day has one of them), and the Lion marks one
+    // inmate it can consume as its prey (the Prey marker's rule).
+    trap: { name: 'Blood-Stained Trap: Berserk Lion', text: "With the warden on a Lion's cell, Hunt joins the day's choices: the Lion puts a Prey mark on one inmate it can consume, and each morning both rise a tier, for 3 mornings. A day has a Consume, a Replace or a Hunt." },
   };
   const TOOL_IDS = Object.keys(TOOLS);
 
@@ -561,8 +568,18 @@
   // used.noDevour / used.noSwap: the game shows no Consume / Replace card
   // today (the analyzer reads them), so that one isn't on offer, while the
   // other still is.
-  const canDevourNow = (state) => state.used.devour < 1 && !state.used.noDevour && (state.used.swap < 1 || !!state.used.devourAfterSwap);
-  const canSwapNow = (state) => state.used.devour < 1 && !state.used.noSwap && state.used.swap < state.params.swapsPerDay;
+  // A Hunt (the Blood-Stained Trap) uses the day's action too.
+  const canDevourNow = (state) => state.used.devour < 1 && !state.used.hunt && !state.used.noDevour && (state.used.swap < 1 || !!state.used.devourAfterSwap);
+  const canSwapNow = (state) => state.used.devour < 1 && !state.used.hunt && !state.used.noSwap && state.used.swap < state.params.swapsPerDay;
+
+  // Blood-Stained Trap: with the warden on a Lion that has no prey mark, a
+  // Hunt can mark any inmate the Lion can consume that has none either.
+  function huntTargets(state) {
+    const here = state.cells[state.position];
+    if (!has(state, 'trap') || !here || here.sealed || !here.inmate || here.inmate.beast !== 'lion' || linkOf(state, here.inmate.id)) return [];
+    return boardCells(state).filter((c) => c.n !== here.n && canEat(state, here.inmate, c.inmate) && !linkOf(state, c.inmate.id)).map((c) => c.n);
+  }
+  const canHuntNow = (state) => state.phase === 'manage' && !state.chaining && state.used.devour < 1 && state.used.swap < 1 && !state.used.hunt && huntTargets(state).length > 0;
 
   function startOptions(state) {
     const cell = state.cells[state.position];
@@ -2027,6 +2044,22 @@
     return ok([]);
   }
 
+  // The Blood-Stained Trap's Hunt: the Lion in the warden's cell puts a Prey
+  // mark on an inmate it can consume. It's the day's action.
+  function hunt(state, to) {
+    const blocked = guard(state, 'manage');
+    if (blocked) return blocked;
+    if (!has(state, 'trap')) return fail('Only the Blood-Stained Trap offers a Hunt.');
+    if (state.used.devour > 0 || state.used.swap > 0 || state.used.hunt) return fail('A day has a Consume, a Replace or a Hunt. End the day.');
+    if (!huntTargets(state).includes(to)) return fail("A Hunt marks an inmate the Lion in the warden's cell can consume, when neither has a prey mark.");
+    const lion = state.cells[state.position].inmate;
+    const prey = state.cells[to].inmate;
+    state.used.hunt = 1;
+    state.prey.push({ lion: lion.id, prey: prey.id, preyBeast: prey.beast, rounds: state.params.preyRounds, next: state.day + 1 });
+    log(state, 'tool', `Blood-Stained Trap, Hunt: the ${describe(lion)} in cell ${cellLabel(state.position)} puts a Prey mark on the ${describe(prey)} in cell ${cellLabel(to)}. Each morning both rise a tier, for ${plural(state.params.preyRounds, 'morning')}.`, { type: 'trap', cell: to });
+    return ok([]);
+  }
+
   function markPrey(state, lionCell, targetCell) {
     const blocked = labCheck(state);
     if (blocked) return blocked;
@@ -2093,6 +2126,7 @@
       case 'tongs': return board.some((i) => i.beast === 'mammoth') ? 8 : 3;
       case 'guillotine': return board.filter((i) => i.beast === 'wolf').length * 6;
       case 'claws': return 6 + board.filter((i) => i.beast === 'wolf').length * 5;
+      case 'trap': return 4 + board.filter((i) => i.beast === 'lion').length * 6;
       case 'axe': return 10;
       case 'shackles': return 8;
       case 'collar': return 10;
@@ -2370,6 +2404,7 @@
     stopChain: bounded(stopChain),
     officeAct: bounded(officeAct),
     swap: bounded(swap),
+    hunt: bounded(hunt),
     endDay: bounded(endDay),
     endRun: bounded(endRun),
     deliver: bounded(deliver),
@@ -2384,7 +2419,7 @@
     moveWarden: bounded(moveWarden),
     addTool: bounded(addTool),
     removeTool: bounded(removeTool),
-    patrolOptions, clockwisePath, devourOptions, startOptions, chainOptions, canStopChain, cageFight, gainFor, executionVictims, canEat, eatsOf, canDevourNow, canSwapNow, canOpenEarly, canRefresh, canReroll,
+    patrolOptions, clockwisePath, devourOptions, startOptions, chainOptions, canStopChain, cageFight, gainFor, executionVictims, canEat, eatsOf, canDevourNow, canSwapNow, canHuntNow, huntTargets, canOpenEarly, canRefresh, canReroll,
     linkOf, cellOf, boardInmates, currentContract, deliveryCheck, bestCargo, rosterOf, advise, limits,
     toolText, toolName, eventName, describe, tierName, beastName, cellLabel, plural, stepsBetween, scarceBeasts, lowestInmates,
   };
