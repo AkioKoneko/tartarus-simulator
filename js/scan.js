@@ -441,7 +441,7 @@
     if (colored < 0.025 * samples) return { tier: 0, conf: colored < 0.008 * samples ? 0.85 : bright > 0.04 * samples ? 0.8 : 0.55, colored: colored / samples };
     let tier = 0;
     for (let t = 1; t < bins.length; t++) if (bins[t] > bins[tier]) tier = t;
-    return { tier, conf: Math.min(1, 0.5 + bins[tier] / colored / 2), colored: colored / samples };
+    return { tier, conf: Math.min(1, 0.5 + bins[tier] / colored / 2), colored: colored / samples, bins, samples };
   }
 
   // Share of pixels in a box that pass a color test.
@@ -1718,6 +1718,17 @@
     const chromatic = readChromatic(img, loc);
     const objective = objectiveBox(img, loc, tools);
     const chain = readChainScreen(img, loc, cells, warden);
+    // On a meal pick, each meal's fangs are red, as a Supreme's frame is:
+    // a blue or purple frame shows through them (report 206: two purple
+    // frames read as Supreme, the fangs about half their color). The fangs'
+    // orange edges pass for gold, so a gold frame can't be told there.
+    for (const n of chain ? chain.targets : []) {
+      const c = cells[n];
+      if (c.kind !== 'inmate' || !c.frame || c.frame.tier !== 4) continue;
+      const b = c.frame.bins;
+      const t = b[2] > b[1] ? 2 : 1;
+      if (b[t] >= 0.025 * c.frame.samples) c.tier = t;
+    }
     const decision = doors || chain ? null : readDecision(img, loc);
     // The warden in the office: no inmate there to Replace or Consume, so a
     // row of cards is the office's Instigate and Bestow, whatever its labels
