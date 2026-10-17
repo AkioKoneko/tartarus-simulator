@@ -529,6 +529,7 @@
 
   const solver = { workers: null, failed: false, id: 0, st: null, key: '', instant: null, result: null, shares: null, meta: null, goal: '', reused: null, reuseReady: false };
   let localPlanCache = null; // branch/chain previews run once per settled board and action
+  let riskChoice = null; // Player preference for this exact observed board only.
   // The live check runs on a worker for every core but one, or on fewer when
   // the page is told (setCores: the desktop app's processor setting), each
   // playing its share of the rounds with its own dice. It runs for a few
@@ -753,7 +754,7 @@
 
   // The strategy's instant pick, unless the live check finds a clearly better
   // move (by more than its paired margin), so the advice doesn't flicker.
-  function recommendation() {
+  function rawRecommendation() {
     if (!solver.st) return null;
     if (solver.reused) return solver.reused;
     const pick = solver.instant;
@@ -771,11 +772,32 @@
 
   // Recorded live outcomes contradict the Maiden/Guillotine simulation.
   // Keep the model's estimate available, but make its destructive trade explicit.
+  function replacementRisk(rec) {
+    if(!fresh() || !settled() || !rec || rec.action.type!=='swap' || model.step!=='manage' ||
+      !model.tools.includes('maiden') || !model.tools.includes('scapegoat'))return null;
+    const others=solver.st.cells.filter(c=>c.n!==solver.st.position && !c.sealed && c.inmate);
+    const preserve=(solver.result && solver.result.options || []).find(o=>o.action.type==='end');
+    if(others.length<2 || !preserve)return null;
+    const selected=riskChoice && riskChoice.key===modelKey()?riskChoice.mode:'pending';
+    const high=others.some(c=>c.inmate.tier>=T.SUPREME);
+    return {id:'maiden-scapegoat',title:'Unverified instrument interaction',
+      message:`This Replace removes 2 random other inmates${high?', possibly including a Supreme':''}. The simulator expects a Maiden bonus that did not occur in recorded live play. Its estimate can overrate Replace. Choose an option to show click targets.`,
+      selected,simulationLabel:rec.label,preserveLabel:preserve.label,preserve};
+  }
 
+  function recommendation() {
+    const rec=rawRecommendation(),risk=replacementRisk(rec);
+    if(!risk)return rec;
+    if(risk.selected!=='preserve')return Object.assign({},rec,{why:`Unverified simulator estimate: ${rec.why || ''}`});
+    return {action:risk.preserve.action,label:risk.preserve.label,
+      why:'Your choice: keep the current inmates and skip this unverified Replace.',
+      live:rec.live,rounds:rec.rounds,option:risk.preserve};
+  }
 
-
-
-
+  function chooseReplacementRisk(mode) {
+    if(!['preserve','simulate'].includes(mode) || !replacementRisk(rawRecommendation()))return false;
+    riskChoice={key:modelKey(),mode};localPlanCache=null;render();return true;
+  }
 
   function fmtOption(goal, o, st) {
     if (goal === 'contract') return `${Math.round(100 * o.pass)}% pass · ${o.points.toFixed(0)} pts`;
@@ -3246,6 +3268,12 @@
       useReading: (read) => useScan(read),
       ask: () => ask(true),
       recommendation: () => (fresh() && settled() ? recommendation() : null),
+      replacementRisk: () => {
+        const risk=replacementRisk(rawRecommendation());
+        if(!risk)return null;
+        const {preserve,...display}=risk;return display;
+      },
+      chooseReplacementRisk: (mode) => chooseReplacementRisk(mode),
       localAssist: () => {
         const assist=window.TartarusAssist;
         const rec=fresh() && settled() ? recommendation() : null;
@@ -3260,7 +3288,8 @@
           return {plan,hints:{valid:targets.length>0,frameId:treasure.id,capturedAt:treasure.capturedAt,width:treasure.image.width,height:treasure.image.height,targets}};
         }
         if(reader.completedId!==reader.id || reader.completedImage!==reader.image || reader.loaded!==reader.reading || !reader.image || !reader.result)return {plan:null,hints:{valid:false}};
-        const targets=assist.buildTargets(solver.st,plan.headline?Object.assign({},rec,{label:plan.headline}):rec,{result:reader.result,allowChain:flags.size===0 && !reader.loaded.ruleMismatches},plan);
+        const risk=replacementRisk(rawRecommendation());
+        const targets=risk && risk.selected==='pending'?[]:assist.buildTargets(solver.st,plan.headline?Object.assign({},rec,{label:plan.headline}):rec,{result:reader.result,allowChain:flags.size===0 && !reader.loaded.ruleMismatches},plan);
         return {plan,hints:{valid:targets.length>0,frameId:reader.id,capturedAt:reader.capturedAt||0,width:reader.image.width,height:reader.image.height,targets}};
       },
       warmOCR: () => ocrWorker(),

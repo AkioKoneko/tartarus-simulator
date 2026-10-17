@@ -167,6 +167,7 @@
     const assist=A && typeof A.localAssist==='function' ? A.localAssist() : {};
     return {
       plan:assist.plan||null,
+      risk:A && typeof A.replacementRisk==='function'?A.replacementRisk():null,
       hints:assist.hints||{valid:false},
       has: shown(res),
       move: rec ? assist.plan && assist.plan.headline || rec.label : '',
@@ -214,7 +215,7 @@
     // confirm, with the exact board it's for.
     if (s.move || s.problems.length || s.toolsConfirm || s.treasureWait) {
       const board = boardNow();
-      const what = JSON.stringify([s.move, s.problems, s.toolsConfirm, s.treasureWait, board]);
+      const what = JSON.stringify([s.move, s.risk, s.problems, s.toolsConfirm, s.treasureWait, board]);
       if (what !== advised) {
         advised = what;
         keep(board);
@@ -222,7 +223,7 @@
           type: 'advice',
           board,
           names: namesOf(board),
-          advice: { treasureWait: s.treasureWait, move: s.move, baseMove:s.baseMove, plan:s.plan, why: s.why, expect: s.expect, chain: s.chain, status: s.status, options: s.options, close: s.close, flagged: s.flagged, shotText: s.shotText, problems: s.problems, toolsConfirm: s.toolsConfirm, step: s.step, riot: s.riot, dayof: s.dayof },
+          advice: { treasureWait: s.treasureWait, move: s.move, baseMove:s.baseMove, plan:s.plan, risk:s.risk, why: s.why, expect: s.expect, chain: s.chain, status: s.status, options: s.options, close: s.close, flagged: s.flagged, shotText: s.shotText, problems: s.problems, toolsConfirm: s.toolsConfirm, step: s.step, riot: s.riot, dayof: s.dayof },
         });
       }
     }
@@ -278,7 +279,9 @@
     });
   }
   D.onCommand((cmd) => {
-    if (cmd === 'fix') {
+    if(cmd==='risk-preserve' || cmd==='risk-simulate') {
+      if(window.TartarusAnalyzer && TartarusAnalyzer.chooseReplacementRisk)TartarusAnalyzer.chooseReplacementRisk(cmd==='risk-preserve'?'preserve':'simulate');
+    } else if (cmd === 'fix') {
       if (!click('az-fix')) {
         const target = shown($('az-problems')) ? $('az-problems') : $('az-game');
         if (target) target.scrollIntoView({ block: 'center', behavior: 'smooth' });

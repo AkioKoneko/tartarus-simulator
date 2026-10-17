@@ -14,6 +14,7 @@ function evaluate(s) {
   if(a.reading) return out('reading','Reading the new picture.');
   if(a.working) return out('working','Calculating the next action.');
   if(a.stale) return out('stale','Recheck the changed board.');
+  if(a.risk && a.risk.selected==='pending')return out('risk','Choose whether to preserve the inmates or use the risky Replace.');
   if(!p || !p.valid) return out('no-target','No verified target for this screen.',true);
   if(!(p.capturedAt>s.invalidAt)) return out('changed','Waiting for the picture after your move.');
   const front=s.foreground && !s.minimized;
