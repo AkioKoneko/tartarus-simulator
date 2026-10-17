@@ -115,7 +115,13 @@ With "Treasure" Hunt in the event pool and the Elephant-Foot Maul among the inst
 
 ### Filthy Claws: Alpha Wolf (2026-10-17)
 
-Report 65, the card: "Filthy Claws: Alpha Wolf. Condition: At the start of each day. Effect: Randomly adds a Scratch Marks mark to 1 unopened cell". It's the 30th instrument (`claws`). Each morning, before the destinations are drawn, it scratches one random unopened cell that isn't scratched yet and isn't a rat nest. The inmate behind it is settled then, and its rarity shows. The scratch works as the simulator's Scratch marker always has: a Wolf of that rarity can consume the inmate through the door, whatever its beast, for +3, and the strategy already counts those meals. Until it's measured, the rankings put it after the Skewered Rat Heads.
+Report 65, the card: "Filthy Claws: Alpha Wolf. Condition: At the start of each day. Effect: Randomly adds a Scratch Marks mark to 1 unopened cell". It's the 30th instrument (`claws`). Each morning, before the destinations are drawn, it scratches one random unopened cell that isn't scratched yet and isn't a rat nest. The inmate behind it is settled then, and its rarity shows. The scratch works as the simulator's Scratch marker always has: a Wolf of that rarity can consume the inmate through the door, whatever its beast, for +3, and the strategy already counts those meals. That rule predates the live game and isn't confirmed there.
+
+Measured on 4 threads. The 435 sets without it carried over: without the Claws, the code plays 3,000 seeded runs move for move as before.
+- **Alone:** 2.19 Rainbows a run (guide, 100,000 runs; 2.196 in the pair lab). That's third, after the Crown (2.70) and the Noose (2.23), and just ahead of the Maul and the Scapegoat's Guillotine (2.16 each). The drill ranking (`toolRank`) has it third.
+- **Pairs** (`combos --max 2`, 465 sets to ±0.01): best with the Crown (4.05), the Agonizing Muzzle (3.53, the most beyond their parts, +0.60) and the Maul (3.46). It clashes with the Squirming Iron Box (−0.71; the nests and the scratches want the same locked cells), the Noose (−0.23) and the Blacklist (−0.21).
+- **Headline, rewards on:** 3.493 Rainbows a run (±0.011), up from 3.435 now that the Claws are among the picks. 97.4% of runs vault one.
+- **Contract challenge:** 95.5% pass with 52.4 points (was 95.4% and 52.4). In the challenge's own ranking it stays tenth, where it was. Where it sits there barely matters (200,000 runs each: 95.45% after the Crown, 95.42% tenth, 95.32% last).
 
 ### Second meals below Legendary: what the jaws show (2026-10-17)
 
