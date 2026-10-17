@@ -42,6 +42,20 @@ the Riot's fight folds it by itself.
 Run the game **borderless or windowed**: nothing can draw over exclusive
 fullscreen, and a shared window there looks black.
 
+**Processor and memory.** The tray's Processor use sets how many workers the
+analyzer's live check may use: every core but one, half (the default), a
+quarter, or one. The site pages run below normal priority, so the game gets
+the processor first (tray: "Let the game go first"). The workers are let go
+a minute after the last check, and their memory with them. The game window
+is found through Windows' own window list (about 2 ms a look), not the
+capture's list (about 0.3 s of processor time a look). Once a minute while
+the game runs, and every 10 minutes otherwise, the debug log notes the app's
+memory and processor use (`use:`); the debug report carries it too.
+
+Under `--test`, the app takes commands from `test-commands.txt` in its user
+data folder (`quit`, `hide <window>`, `cpu <most|half|quarter|one>`):
+Electron's main process gets no stdin on Windows.
+
 ## Updates
 
 - **Site changes** (reader, advice, triggers, rules, reports): automatic. The

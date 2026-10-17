@@ -80,6 +80,8 @@ const settings = Object.assign({
   hideFromCaptures: true, // kept out of screenshots, recordings and the shared window
   hideBehind: false, // hidden while another window is in front of the game
   collapsed: false, // the overlay folded to a thin bar ("–" on it)
+  cpu: 'half', // the analyzer's share of the processor (tray: Processor use)
+  gameFirst: true, // the site pages run below normal priority, so the game comes first
   record: true, // keep a record of each board and advice, for testing
   recordLimitMB: 1024, // debug build (--dev): the record's room on disk, pictures included
   recordRuns: 5, // normal build: the runs the record keeps
@@ -266,12 +268,20 @@ let game = { running: false, title: '', hwnd: 0 };
 // three looks in a row: a failed look, or a moment between two windows
 // (loading screens), doesn't hide the overlay or end the share.
 let missing = 0;
+// Windows' own list of its windows, read for their titles only: a look takes
+// about 2 ms. Without it, the capture's list of windows, which takes about
+// 0.3 s of processor time a look.
+async function findGameWindow() {
+  if (win32) return win32.findWindow(GAME_TITLE, game.hwnd);
+  const sources = await desktopCapturer.getSources({ types: ['window'], thumbnailSize: { width: 0, height: 0 }, fetchWindowIcons: false });
+  const s = sources.find((x) => GAME_TITLE.test(x.name));
+  return s ? { title: s.name, hwnd: Number(s.id.split(':')[1]) || 0 } : null;
+}
 async function lookForGame() {
   let source = null;
   let looked = false;
   try {
-    const sources = await desktopCapturer.getSources({ types: ['window'], thumbnailSize: { width: 0, height: 0 }, fetchWindowIcons: false });
-    source = sources.find((s) => GAME_TITLE.test(s.name)) || null;
+    source = await findGameWindow();
     looked = true;
   } catch (e) {
     // Try again next time.
@@ -282,7 +292,7 @@ async function lookForGame() {
     return;
   }
   const was = game.running;
-  game = { running: !!source, title: source ? source.name.trim() : '', hwnd: source ? Number(source.id.split(':')[1]) || 0 : 0 };
+  game = { running: !!source, title: source ? source.title.trim() : '', hwnd: source ? source.hwnd : 0 };
   if (game.running !== was) {
     note(game.running ? `game running: "${game.title}"` : 'game closed');
     recordEvent({ type: game.running ? 'game' : 'game-closed' });
@@ -311,7 +321,34 @@ const win32 = (() => {
     const openProcess = kernel32.func('__stdcall', 'OpenProcess', 'intptr', ['uint32', 'bool', 'uint32']);
     const imageName = kernel32.func('__stdcall', 'QueryFullProcessImageNameW', 'bool', ['intptr', 'uint32', 'void *', koffi.inout(koffi.pointer('uint32'))]);
     const closeHandle = kernel32.func('__stdcall', 'CloseHandle', 'bool', ['intptr']);
+    const nextWindow = user32.func('__stdcall', 'FindWindowExW', 'intptr', ['intptr', 'intptr', 'void *', 'void *']);
+    const windowText = user32.func('__stdcall', 'GetWindowTextW', 'int', ['intptr', 'void *', 'int']);
+    const visible = user32.func('__stdcall', 'IsWindowVisible', 'bool', ['intptr']);
     return {
+      // The shown top-level window whose title matches, not one of this
+      // app's: { title, hwnd }, or null. The one found last time is looked
+      // at first. Titles only, nothing else of any window.
+      findWindow(re, known) {
+        const buf = Buffer.alloc(1024);
+        const fits = (h) => {
+          if (!visible(h)) return null;
+          const n = windowText(h, buf, 512);
+          const title = n > 0 ? buf.toString('utf16le', 0, n * 2) : '';
+          if (!re.test(title)) return null;
+          const pid = [0];
+          windowPid(h, pid);
+          return pid[0] === process.pid ? null : { title, hwnd: h };
+        };
+        if (known) {
+          const again = fits(known);
+          if (again) return again;
+        }
+        for (let h = Number(nextWindow(0, 0, null, null)); h; h = Number(nextWindow(0, h, null, null))) {
+          const found = fits(h);
+          if (found) return found;
+        }
+        return null;
+      },
       // Where the program behind a window is: only its file's name
       // (PROCESS_QUERY_LIMITED_INFORMATION reads nothing else of it).
       programOf(hwnd) {
@@ -502,6 +539,99 @@ function showReview() {
   }
 }
 
+// ---------- Processor use ----------
+
+// How much of the processor the analyzer's live check may use (tray:
+// Processor use): its workers, a share of the cores. The site pages also
+// run below normal priority (settings.gameFirst), so whenever the game and
+// the app both want the processor, the game gets it. Workers run inside
+// their page's process, so they're below normal too.
+const CORES = require('os').availableParallelism();
+const CPU_USE = {
+  most: { label: 'Fastest: every core but one', workers: Math.max(1, CORES - 1) },
+  half: { label: 'Balanced: half the cores', workers: Math.max(1, Math.round(CORES / 2)) },
+  quarter: { label: 'Light: a quarter of the cores', workers: Math.max(1, Math.round(CORES / 4)) },
+  one: { label: 'Lightest: one core', workers: 1 },
+};
+const cpuUse = () => CPU_USE[settings.cpu] || CPU_USE.half;
+function tunePage(name) {
+  const win = wins[name];
+  if (!win || win.isDestroyed()) return;
+  const wc = win.webContents;
+  try {
+    const os = require('os');
+    const pid = wc.getOSProcessId();
+    os.setPriority(pid, settings.gameFirst ? os.constants.priority.PRIORITY_BELOW_NORMAL : os.constants.priority.PRIORITY_NORMAL);
+    note(`${name} page: ${settings.gameFirst ? 'below normal' : 'normal'} priority (process ${pid})`);
+  } catch (e) {
+    note(`${name} page priority not set:`, String((e && e.message) || e));
+  }
+  // The analyzer's API may come a moment after the page.
+  if (name === 'analyzer' && pageOf(wc.getURL()) === PAGES.analyzer) {
+    wc.executeJavaScript(`(function cap(n, tries) {
+      if (window.TartarusAnalyzer && TartarusAnalyzer.setCores) return TartarusAnalyzer.setCores(n);
+      if (tries > 0) setTimeout(() => cap(n, tries - 1), 1000);
+      return null;
+    })(${cpuUse().workers}, 30)`).then((n) => n && note(`analyzer: at most ${n} ${n === 1 ? 'worker' : 'workers'}`)).catch(() => {});
+  }
+}
+function setCpu(key) {
+  if (!CPU_USE[key]) return;
+  settings.cpu = key;
+  saveSettings();
+  note(`processor use: ${CPU_USE[key].label}, ${CPU_USE[key].workers} of ${CORES}`);
+  tunePage('analyzer');
+  rebuildMenu();
+}
+function setGameFirst(on) {
+  settings.gameFirst = !!on;
+  saveSettings();
+  note(`game first: ${settings.gameFirst ? 'on' : 'off'}`);
+  tunePage('follow');
+  tunePage('analyzer');
+  rebuildMenu();
+}
+// The analyzer's workers right now: { cap, use, most, running }, or null.
+function coresNow() {
+  const wc = wins.analyzer && !wins.analyzer.isDestroyed() ? wins.analyzer.webContents : null;
+  if (!wc || pageOf(wc.getURL()) !== PAGES.analyzer) return Promise.resolve(null);
+  const ask = wc.executeJavaScript('window.TartarusAnalyzer && TartarusAnalyzer.cores ? TartarusAnalyzer.cores() : null').catch(() => null);
+  return Promise.race([ask, new Promise((r) => setTimeout(() => r(null), 2000))]);
+}
+
+// The app's memory and processor use over all its processes, for the debug
+// log and report: memory in use now, in MB, and the processor as a share of
+// one core, since this caller's last look (since each process started, the
+// first time).
+const usageWas = {};
+function usage(caller) {
+  const names = new Map();
+  for (const [name, win] of Object.entries(wins)) if (win && !win.isDestroyed()) names.set(win.webContents.getOSProcessId(), name);
+  const now = Date.now();
+  const was = usageWas[caller];
+  const seconds = new Map();
+  let mb = 0;
+  let used = 0;
+  let span = 0;
+  const each = [];
+  for (const m of app.getAppMetrics()) {
+    const one = Math.round(m.memory.workingSetSize / 1024);
+    const cpu = (m.cpu && m.cpu.cumulativeCPUUsage) || 0;
+    mb += one;
+    seconds.set(m.pid, cpu);
+    each.push(`${names.get(m.pid) || String(m.type).toLowerCase()} ${one}`);
+    if (was) used += Math.max(0, cpu - (was.seconds.get(m.pid) || 0));
+    else {
+      used += cpu;
+      span = Math.max(span, (now - m.creationTime) / 1000);
+    }
+  }
+  if (was) span = (now - was.at) / 1000;
+  usageWas[caller] = { at: now, seconds };
+  return { mb, cpu: span > 0 ? Math.round((used / span) * 100) : null, since: was ? 'last note' : 'start', each };
+}
+const usageText = (u, c) => `app ${u.mb} MB (${u.each.join(', ')})${u.cpu === null ? '' : `, ${u.cpu}% of one core since the ${u.since}`}; analyzer workers: ${c ? `${c.running} running, ${c.use} allowed of ${c.most + 1}` : 'not known'}`;
+
 // ---------- Windows ----------
 
 const wins = { follow: null, analyzer: null, overlay: null, review: null };
@@ -538,6 +668,7 @@ function makeSiteWindow(name, opts) {
     const code = fs.readFileSync(path.join(__dirname, 'lib', ADAPTERS[name]), 'utf8');
     note(`${name} page loaded:`, wc.getURL());
     wc.executeJavaScript(code, true).catch((e) => note(`${name} adapter error:`, String((e && e.message) || e)));
+    tunePage(name);
   });
   // The page's own errors (and with --dev, its warnings), for the debug log.
   wc.on('console-message', (e, ...old) => {
@@ -941,7 +1072,10 @@ ipcMain.on('site:trigger', (e, kind) => {
   if (fromPage(e, 'follow')) note('trigger:', String(kind));
 });
 let checked = null; // the counts at the last minute's note
-setInterval(() => {
+let minutes = 0;
+setInterval(async () => {
+  minutes += 1;
+  if (game.running || minutes % 10 === 0) note(`use: ${usageText(usage('minute'), await coresNow())}`);
   const f = lastFollow;
   if (!f || !game.running) return;
   const d = f.diag || {};
@@ -955,7 +1089,7 @@ setInterval(() => {
 // doesn't work: it opens the analyzer's Report form, filled in, and is also
 // copied to the clipboard. Paths under the player's own folder are shortened
 // to %USERPROFILE%. It holds no picture and no game log line.
-function debugReportText() {
+function debugReportText(cores) {
   const home = require('os').homedir();
   const clean = (t) => String(t || '').split(home).join('%USERPROFILE%');
   const f = lastFollow || {};
@@ -969,6 +1103,7 @@ function debugReportText() {
     `Log file: ${d.logSize || '?'} bytes, last grew ${ago(d.growingAt)}. Since connecting: ${f.lines || 0} lines read, ${f.hits || 0} triggers ${JSON.stringify(d.triggers || {})}, ${f.frames || 0} pictures, ${d.failed || 0} failed.`,
     `Last trigger: ${d.lastTriggerKind || 'none'} ${ago(d.lastTriggerAt)}. Last picture: ${f.lastFrame ? `${f.lastFrame.kind} ${ago(f.lastFrame.at)}${f.lastFrame.ok ? '' : ` (none taken: ${f.lastFrame.why})`}` : 'none'}; on the page: ${d.lastNote || '-'}`,
     `Analyzer: ${a.lastRead ? `last read ${ago(a.lastRead.at)}, ${a.lastRead.ok ? 'ok' : `failed: ${a.lastRead.reason}`}` : 'nothing read'}; advice: ${a.move || (a.working ? 'working' : 'none')}`,
+    `Processor use: ${cpuUse().label}, ${cpuUse().workers} of ${CORES}; game first: ${settings.gameFirst ? 'on' : 'off'}. Use: ${usageText(usage('report'), cores)}`,
     'Recent debug log:',
   ];
   try {
@@ -979,8 +1114,8 @@ function debugReportText() {
   }
   return lines.join('\n');
 }
-function debugReport() {
-  const text = debugReportText();
+async function debugReport() {
+  const text = debugReportText(await coresNow());
   try {
     require('electron').clipboard.writeText(text);
   } catch (e) {
@@ -1179,6 +1314,14 @@ function rebuildMenu() {
     { label: 'Take a picture now', accelerator: HOTKEYS.capture, click: () => command('capture') },
     { label: 'Auto Screenshot Mode (status and agreement)', click: () => show('follow') },
     { label: 'Choose the game log…', click: () => pickLog() },
+    {
+      label: 'Processor use',
+      submenu: [
+        ...Object.entries(CPU_USE).map(([key, c]) => ({ label: `${c.label} (${c.workers} of ${CORES})`, type: 'radio', checked: cpuUse() === c, click: () => setCpu(key) })),
+        { type: 'separator' },
+        { label: 'Let the game go first (lower priority)', type: 'checkbox', checked: settings.gameFirst, click: (i) => setGameFirst(i.checked) },
+      ],
+    },
     { type: 'separator' },
     { label: 'Start with Windows', type: 'checkbox', checked: login, click: (i) => app.setLoginItemSettings({ openAtLogin: i.checked }) },
     { label: siteUpdate ? 'Reload the site (an update is ready)' : 'Reload the site', click: () => reloadSite() },
@@ -1237,19 +1380,30 @@ if (!app.requestSingleInstanceLock()) {
   });
   app.on('will-quit', () => globalShortcut.unregisterAll());
 
-  // Tests stop the app with "quit" on its input, as the tray's Quit does,
-  // so the pages' storage is written out.
-  if (TEST && process.stdin) {
-    process.stdin.on('data', (d) => {
-      const text = String(d);
+  // Tests give the app commands in a file in its user data folder (the main
+  // process gets no input on Windows). "quit" stops it as the tray's Quit
+  // does, so the pages' storage is written out.
+  if (TEST) {
+    const COMMANDS = path.join(app.getPath('userData'), 'test-commands.txt');
+    setInterval(() => {
+      let text = '';
+      try {
+        text = fs.readFileSync(COMMANDS, 'utf8');
+        fs.rmSync(COMMANDS);
+      } catch (e) {
+        return;
+      }
       if (/quit/.test(text)) {
         quitting = true;
         app.quit();
       }
       // "hide follow": as the player closes that window with its X.
-      const hide = /hide (w+)/.exec(text);
+      const hide = /hide (\w+)/.exec(text);
       if (hide && wins[hide[1]] && !wins[hide[1]].isDestroyed()) wins[hide[1]].hide();
-    });
+      // "cpu one": as the tray's Processor use does.
+      const cpu = /cpu (\w+)/.exec(text);
+      if (cpu) setCpu(cpu[1]);
+    }, 300);
   }
 
   app.whenReady().then(async () => {

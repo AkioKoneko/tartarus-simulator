@@ -500,10 +500,42 @@
   // ---------- Analysis ----------
 
   const solver = { workers: null, failed: false, id: 0, st: null, key: '', instant: null, result: null, shares: null, meta: null, goal: '' };
-  // The live check runs on a worker for every core but one, each playing its
-  // share of the rounds with its own dice. It runs for a few seconds after
-  // each board, then they all wait.
-  const WORKERS = Math.max(1, (navigator.hardwareConcurrency || 2) - 1);
+  // The live check runs on a worker for every core but one, or on fewer when
+  // the page is told (setCores: the desktop app's processor setting), each
+  // playing its share of the rounds with its own dice. It runs for a few
+  // seconds after each board. A minute after the last check the workers are
+  // let go, and their memory with them; the next check starts new ones.
+  const MOST_WORKERS = Math.max(1, (navigator.hardwareConcurrency || 2) - 1);
+  const WORKERS_IDLE_MS = 60000;
+  let coreCap = 0; // 0: every core but one
+  const workerCount = () => (coreCap ? Math.min(MOST_WORKERS, coreCap) : MOST_WORKERS);
+  let idleTimer = 0;
+  const poolBusy = () => !!(solver.workers && solver.shares && !solver.shares.every((s) => s.done));
+  function releaseWorkers() {
+    clearTimeout(idleTimer);
+    idleTimer = 0;
+    if (!solver.workers) return;
+    for (const w of solver.workers) w.terminate();
+    solver.workers = null;
+    solver.shares = null;
+  }
+  // Let the workers go once they've been idle a minute; a check still
+  // playing keeps them.
+  function idleLater() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => (poolBusy() ? idleLater() : releaseWorkers()), WORKERS_IDLE_MS);
+  }
+  // How many workers the live check may use (0: every core but one). A
+  // check under way starts over on the new number.
+  function setCores(n) {
+    coreCap = Math.max(0, Math.floor(Number(n) || 0));
+    if (solver.workers && solver.workers.length !== workerCount()) {
+      const again = poolBusy() && solver.st ? { id: solver.id, st: solver.st, rollouts: solver.target } : null;
+      releaseWorkers();
+      if (again) startCheck(again.id, again.st, again.rollouts);
+    }
+    return workerCount();
+  }
 
   // fresh: a new run's instrument offer (usePick). The last run's board is
   // done with, and this one, not seen yet, isn't shared: the next board
@@ -568,7 +600,7 @@
     const state = JSON.parse(JSON.stringify(st));
     if (!solver.workers && !solver.failed) {
       try {
-        solver.workers = Array.from({ length: WORKERS }, (_, k) => {
+        solver.workers = Array.from({ length: workerCount() }, (_, k) => {
           const worker = new Worker(`js/solver-worker.js${SCRIPT_QUERY}`);
           worker.onmessage = (e) => onShare(k, e.data);
           worker.onerror = () => {
@@ -593,6 +625,7 @@
       solver.meta = null;
       solver.shares = solver.workers.map((w, k) => ({ target: Math.floor(rollouts / n) + (k < rollouts % n ? 1 : 0), rounds: 0, done: false, rows: null }));
       solver.workers.forEach((w, k) => w.postMessage({ id, state, rollouts: solver.shares[k].target, stream: k, raw: true }));
+      idleLater();
       return;
     }
     const job = S.solve(state, { rollouts: Math.min(rollouts, 300), seed: (id * 7919 + 1) >>> 0 });
@@ -628,6 +661,7 @@
     if (solver.shares.every((s) => s.done)) {
       clearTimeout(mergeTimer);
       merge();
+      idleLater();
     } else if (!mergeTimer) mergeTimer = setTimeout(merge, 100);
   }
 
@@ -2888,6 +2922,10 @@
       // What the reader made of the last picture, in full (the desktop app's
       // test record keeps it).
       readingSummary: () => (reader.result && reader.image ? readingSummary(true) : ''),
+      // The live check's workers: how many it may use (setCores, 0 for every
+      // core but one) and how many are running now (0 once let go).
+      setCores: (n) => setCores(n),
+      cores: () => ({ cap: coreCap, use: workerCount(), most: MOST_WORKERS, running: solver.workers ? solver.workers.length : 0 }),
       day: () => model.day,
       toast,
     };
