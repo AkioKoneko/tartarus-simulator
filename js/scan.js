@@ -574,7 +574,10 @@
           nearest = c.n;
         }
       }
-      if (dist > 35 && dist < 95) out.add(nearest);
+      // A real "!" sits 45-55 from its cell, on every saved picture (590 marks
+      // with their dot to show it). The mouse pointer's gold edge passes the
+      // tests too, further off (reports 68, 133: events on cells that had none).
+      if (dist > 42 && dist < 58) out.add(nearest);
     }
     return out;
   }
