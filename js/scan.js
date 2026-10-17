@@ -181,7 +181,7 @@
   // Matches the board's fixed frame (walls, office, courtyard, cell numbers)
   // at every scale and position, coarse to fine. Returns { s, tx, ty, score }:
   // an image point is s * (reference point) + (tx, ty).
-  function locateBoard(img, gray, ref) {
+  function locateBoard(img, gray, ref, cached) {
     const W = img.width;
     const H = img.height;
     const pts = ref.board.points;
@@ -236,6 +236,11 @@
       const varx = sxx - (sx * sx) / n;
       return varx > 1e-6 ? sxt / Math.sqrt(varx) : -1;
     };
+    if (cached && cached.width === W && cached.height === H) {
+      const sc = score(levels[0], cached.loc.s, cached.loc.tx, cached.loc.ty, false);
+      // Validate the actual fixed frame every time; changed scenes fall back to full search.
+      if (sc >= 0.80) return Object.assign({}, cached.loc, { score: sc, cached: true });
+    }
     // Coarse: every scale the board could appear at, on a small level, with
     // a quarter of the points. The board spans most of a screenshot's width
     // when cropped to it, and about half in a full-screen one.
@@ -1042,6 +1047,8 @@
     return { cells, conf: Math.max(0.1, Math.min(1, (score - 0.3) * 1.6)) * (cells.length === read.length + (cards.office ? 1 : 0) ? 1 : 0.4) * (moved ? 0.55 : 1), boxes };
   }
 
+
+
   // Doors lead to different cells, so two cards can't read the same number
   // (a small "3" can pass for this font's footed "1"). From each card's
   // readings, best first: the set of different numbers with the best total.
@@ -1135,6 +1142,9 @@
   // left of the board, each matched to the instrument it shows.
   function readTools(img, loc, ref) {
     const found = findToolIcons(img, loc);
+    found.slots = found.icons.length;
+    found.complete = !!found.found && !found.obscured;
+    found.conf = found.complete ? 0.8 : 0.3;
     found.tools = found.icons.map((icon) => {
       const feat = artFeature(img, ...icon.box);
       // A panel icon learned from a big, sharp picture (w: its width there)
@@ -1142,6 +1152,7 @@
       // hammer passed for a dark upright box (shrunk 1000 px reports).
       const ranked = ref.tools.filter((t) => !t.w || icon.box[2] - icon.box[0] >= 0.6 * t.w).map((t) => ({ id: t.id, score: similarity(feat, t.feat) })).sort((a, b) => b.score - a.score);
       const best = ranked[0];
+      if (!best) return { id: null, sim: null, conf: 0, box: icon.box, alts: [] };
       const second = ranked.find((r) => r.id !== best.id);
       const margin = best.score - (second ? second.score : 0);
       // alts: the closest instruments, best first, one score each: right after
@@ -1151,7 +1162,7 @@
         if (!alts.some((x) => x.id === r.id)) alts.push({ id: r.id, score: Math.round(r.score * 1000) / 1000 });
         if (alts.length === 6) break;
       }
-      return { id: best.id, score: best.score, margin, box: icon.box, conf: Math.max(0.1, Math.min(1, (best.score - 0.6) * 2.5 + margin * 5)), alts };
+      return { id: margin >= 0.025 ? best.id : null, sim: null, unknown: margin < 0.025, score: best.score, margin, box: icon.box, conf: Math.max(0.1, Math.min(1, (best.score - 0.6) * 2.5 + margin * 5)), alts };
     });
     return found;
   }
@@ -1185,26 +1196,49 @@
     const tipGlyphs = textLines(img, label.x0, top, left, top + 7.45 * h, { minH: 0.5 * h, maxH: 1.8 * h })
       .flatMap((line) => line.pieces.filter((p) => p.glyphs.length >= 6 && p.x1 - p.x0 > 5.3 * h).flatMap((p) => p.glyphs));
     const out = [];
+    let obscured = false;
+    // A real card has a continuous raised left frame. Wall highlights can
+    // contain more bright pixels than a dark tool, so brightness alone cannot
+    // establish that another slot exists. Search only around the panel pitch.
+    const frameAt = (x, y0, y1) => {
+      let sum = 0, aligned = 0, n = 0;
+      const gap = Math.max(2, Math.round(0.13 * h));
+      for (let y = Math.round(y0 + 0.65*h); y < y1 - 0.9*h; y++) {
+        const a = rgbAt(img, x, y), b = rgbAt(img, x-gap, y);
+        const d = (a[0]+a[1]+a[2]-b[0]-b[1]-b[2])/3;
+        sum += d; aligned += d > 4 ? 1 : 0; n++;
+      }
+      return { mean: n ? sum/n : 0, share: n ? aligned/n : 0 };
+    };
+    let previousX = null;
     for (let i = 0; i < 6; i++) {
-      const x0 = label.x0 + (0.15 + 6.05 * i) * h;
-      const x1 = x0 + 4.45 * h;
+      const expected = previousX === null ? label.x0 + 0.15*h : previousX + 5.1*h;
       const y0 = label.y1 + 1.55 * h;
       const y1 = y0 + 7.45 * h;
-      if (x1 > left) break;
+      let edge = null;
+      for (let x = Math.round(expected - 0.45*h); x <= expected + 0.45*h; x++) {
+        const frame = frameAt(x, y0, y1);
+        if (frame.share >= 0.60 && frame.mean >= 3.5 && (!edge || frame.mean > edge.mean)) edge = { x, ...frame };
+      }
+      if (!edge) break;
+      const x0 = edge.x;
+      const x1 = x0 + 4.45*h;
+      previousX = x0;
+      if (x1 > left) { obscured = true; break; }
       // A slot with several of its letters is under the tooltip (a line can run
       // into the hovered icon's art, so a letter or two isn't enough).
-      if (tipGlyphs.filter((g) => (g.x0 + g.x1) / 2 > x0 && (g.x0 + g.x1) / 2 < x1 && (g.y0 + g.y1) / 2 > y0 && (g.y0 + g.y1) / 2 < y1).length >= 4) break;
+      if (tipGlyphs.filter((g) => (g.x0 + g.x1) / 2 > x0 && (g.x0 + g.x1) / 2 < x1 && (g.y0 + g.y1) / 2 > y0 && (g.y0 + g.y1) / 2 < y1).length >= 4) { obscured = true; break; }
       // A card is a little lighter than the wall around it.
       const inside = mean(x0 + 0.5 * h, y0 + 0.5 * h, x1 - 0.5 * h, y1 - 0.5 * h);
       const wall = mean(x1 + 0.35 * h, y0, x1 + 1.3 * h, y1);
       // Art: pixels well above the card's own darkness.
-      const thr = Math.max(0.16, inside * 1.9);
+      const thr = Math.max(0.16, inside * 1.5);
       let ax0 = Infinity;
       let ay0 = Infinity;
       let ax1 = -1;
       let ay1 = -1;
       let art = 0;
-      for (let y = Math.round(y0 + 0.4 * h); y <= y1 - 0.4 * h; y++) {
+      for (let y = Math.round(y0 + 1.3 * h); y <= y1 - 0.8 * h; y++) {
         for (let x = Math.round(x0 + 0.4 * h); x <= x1 - 0.4 * h; x++) {
           const [, s, v] = hsvAt(img, x, y);
           if (v > thr && (s > 0.2 || v > thr * 1.3)) {
@@ -1218,7 +1252,7 @@
       }
       // A card holds art; past the last instrument there's only wall. A dark
       // card with little art still counts if it's lighter than the wall.
-      if (art < 1.0 * h * h && !(art > 0.5 * h * h && inside > wall + 0.012)) break;
+      if (art < 0.6 * h * h && !(art > 0.4 * h * h && inside > wall + 0.012)) break;
       // An open tooltip spills its text over the next slots. Text is thin
       // strokes spread through a tall box, or a flat strip, where an icon is
       // a solid drawing (at least 7% of its box, never much wider than
@@ -1226,9 +1260,9 @@
       const bw = ax1 - ax0 + 1;
       const bh = ay1 - ay0 + 1;
       if (art / (bw * bh) < 0.065 || bw > 2 * bh) break;
-      out.push({ box: [ax0, ay0, ax1, ay1], card: [x0, y0, x1, y1], art });
+      out.push({ box: [ax0, ay0, ax1, ay1], card: [x0, y0, x1, y1], art, frame: { mean: edge.mean, share: edge.share } });
     }
-    return { icons: out, found: true, label };
+    return { icons: out, found: true, label, obscured };
   }
 
   // The run's start card hangs as a round badge under the instrument panel
@@ -1249,7 +1283,23 @@
   // The badge there, if any: its id when it's one the reader knows.
   function readBadge(img, label, ref) {
     if (!label) return null;
-    const box = badgeBox(label);
+    const nominal = badgeBox(label);
+    const h=(label.x1-label.x0)/12.2;
+    let match=null;
+    for(let dy=-8;dy<=1;dy+=0.5) {
+      const dx=0;
+      const box=nominal.map((v,i)=>Math.round(v+(i%2?dy:dx)*h));
+      if(box[0]<0 || box[3]>=img.height)continue;
+      if(colorShare(img,...box,(h,s,v)=>v>0.3)<0.02)continue;
+      const inner=badgeBox(label,true).map((v,i)=>Math.round(v+(i%2?dy:dx)*h));
+      const feat=artFeature(img,...inner);
+      for(const b of ref.badges || []) {
+        const score=similarity(feat,b.feat);
+        if(score>0.95 && (!match || score>match.score))match={id:b.id,score,box};
+      }
+    }
+    if(match)return match;
+    const box = nominal;
     if (box[0] < 0 || box[3] >= img.height) return null;
     // Without a badge the wall there is dark: 0 bright pixels on every board
     // without one, 6-9% with one.
@@ -1537,6 +1587,8 @@
     return Object.assign({}, ref, { tools: ref.tools.concat(pick.icons || []), badges: (ref.badges || []).concat(pick.badges || []) });
   }
 
+
+
   // ---------- The run's objective ----------
 
   // The objective popup at the start of a run ("Objective: Undercurrents"):
@@ -1690,10 +1742,11 @@
 
   // ---------- Everything ----------
 
+  let boardCache = null;
   function scan(img, ref) {
     const t0 = Date.now();
     const gray = grayOf(img);
-    let loc = locateBoard(img, gray, ref);
+    let loc = locateBoard(img, gray, ref, boardCache);
     // Real boards match their frame at 0.81 or more at every size tested;
     // instrument picks, popups and other screens stay near 0.5 or under. A
     // darkened board (a devour's meal pick) also matches weakly, but its
@@ -1704,6 +1757,7 @@
     }
     const notes = [];
     if (!loc || (!loc.byLabels && loc.score < 0.65)) return { ok: false, reason: 'No Tartarus prison board found in this picture.', loc, ms: Date.now() - t0 };
+    boardCache = !loc.byLabels && loc.score >= 0.80 ? { width: img.width, height: img.height, loc } : null;
     const sharp = blur(gray, img.width, img.height, 1);
     const cells = [];
     for (let n = 0; n < 16; n++) cells.push(readCell(img, sharp, loc, n, ref));
@@ -1739,7 +1793,7 @@
     return { ok: true, loc, cells, warden, doors, days, tools, badge, chromatic, objective, chain, decision, notes, ms: Date.now() - t0 };
   }
 
-  const api = { scan, scanPick, pickArtBox, pickRerollShown, locateBoard, readCell, findWarden, findToolIcons, readDoors, readDays, doorCards, dayNumber, prefixVector, textLines, glyphVector, faceVector, artFeature, similarity, hsv, blobs, at, gridOf, scaleAt, grayOf, blur, RING, H0, ARROW, FACE, GLYPH, locateByLabels, readChainScreen, readDecision, readObjectiveTitle, withPanelIcons, badgeBox, readBadge };
+  const api = { scan, scanPick, pickArtBox, pickRerollShown, locateBoard, readCell, findWarden, findToolIcons, readDoors, readDays, doorCards, dayNumber, prefixVector, textLines, glyphVector, faceVector, artFeature, similarity, hsv, blobs, at, gridOf, scaleAt, grayOf, blur, RING, H0, ARROW, FACE, GLYPH, locateByLabels, readChainScreen, readDecision, readChromatic, readTools, readObjectiveTitle, withPanelIcons, badgeBox, readBadge };
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.TartarusScan = api;
 })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);
