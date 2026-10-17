@@ -1133,7 +1133,14 @@
       const best = ranked[0];
       const second = ranked.find((r) => r.id !== best.id);
       const margin = best.score - (second ? second.score : 0);
-      return { id: best.id, score: best.score, margin, box: icon.box, conf: Math.max(0.1, Math.min(1, (best.score - 0.6) * 2.5 + margin * 5)) };
+      // alts: the closest instruments, best first, one score each: right after
+      // a pick, the analyzer can take the best of those that were offered.
+      const alts = [];
+      for (const r of ranked) {
+        if (!alts.some((x) => x.id === r.id)) alts.push({ id: r.id, score: Math.round(r.score * 1000) / 1000 });
+        if (alts.length === 6) break;
+      }
+      return { id: best.id, score: best.score, margin, box: icon.box, conf: Math.max(0.1, Math.min(1, (best.score - 0.6) * 2.5 + margin * 5)), alts };
     });
     return found;
   }
@@ -1159,6 +1166,13 @@
       }
       return n ? sum / n : 0;
     };
+    // An open tooltip (the pointer over an instrument) lays lines of text over
+    // the slots after it: a line of 6 or more letters wider than a card, which
+    // no icon's art makes (the user's run, 2026-10-17: a Muzzle tooltip read
+    // as 4 more instruments).
+    const top = label.y1 + 1.55 * h;
+    const tipGlyphs = textLines(img, label.x0, top, left, top + 7.45 * h, { minH: 0.5 * h, maxH: 1.8 * h })
+      .flatMap((line) => line.pieces.filter((p) => p.glyphs.length >= 6 && p.x1 - p.x0 > 5.3 * h).flatMap((p) => p.glyphs));
     const out = [];
     for (let i = 0; i < 6; i++) {
       const x0 = label.x0 + (0.15 + 6.05 * i) * h;
@@ -1166,6 +1180,9 @@
       const y0 = label.y1 + 1.55 * h;
       const y1 = y0 + 7.45 * h;
       if (x1 > left) break;
+      // A slot with several of its letters is under the tooltip (a line can run
+      // into the hovered icon's art, so a letter or two isn't enough).
+      if (tipGlyphs.filter((g) => (g.x0 + g.x1) / 2 > x0 && (g.x0 + g.x1) / 2 < x1 && (g.y0 + g.y1) / 2 > y0 && (g.y0 + g.y1) / 2 < y1).length >= 4) break;
       // A card is a little lighter than the wall around it.
       const inside = mean(x0 + 0.5 * h, y0 + 0.5 * h, x1 - 0.5 * h, y1 - 0.5 * h);
       const wall = mean(x1 + 0.35 * h, y0, x1 + 1.3 * h, y1);
