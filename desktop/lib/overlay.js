@@ -5,11 +5,11 @@
 (function () {
   'use strict';
 
-  const O = window.Overlay;
-  const REFRESH_WAIT_MS = 20000;
-  let refreshWait = null;
+  const O = window.TartarusOverlay || window.Overlay;
   const $ = (id) => document.getElementById(id);
   const state = { shell: {}, game: {}, follow: null, advice: null, menu: false };
+  const REFRESH_WAIT_MS = 20000;
+  let refreshWait = null;
 
   // A small element maker: h('p', { class: 'x' }, 'text', child).
   function h(tag, attrs, ...kids) {
@@ -98,7 +98,9 @@
     const sh = state.shell;
     document.body.classList.toggle('is-collapsed', !!sh.collapsed);
     $('fold').textContent = sh.collapsed ? '+' : '–';
-    $('fold').title = sh.collapsed ? 'Unfold it' : 'Fold it to a thin bar';
+    $('fold').title = 'Collapse to an icon';
+    $('orb').title = `Expand Tartarus advice · ${oneLine()} · drag to move`;
+    $('orb').setAttribute('aria-label', `Expand Tartarus advice: ${oneLine()}`);
     $('day').textContent = sh.collapsed ? oneLine()
       : a && a.riot !== null && a.riot !== undefined ? `${a.riot} ${a.riot === 1 ? 'day' : 'days'} until Riot${a.step ? ` · ${a.step}` : ''}` : sh.local ? 'local site' : '';
 
@@ -175,6 +177,53 @@
     $('report-reading').hidden = !(a && a.canReportReading);
   }
 
+
+
+
+
+  // screen coordinates stay stable when main moves this window during a drag.
+  const orb = $('orb');
+  let drag = null;
+  let suppressClickUntil = 0;
+  let idleTimer = 0;
+  function wakeIcon() {
+    clearTimeout(idleTimer);
+    orb.classList.remove('is-idle');
+    if (!state.shell.collapsed) return;
+    idleTimer = setTimeout(() => {
+      if (!drag && !orb.matches(':hover, :focus-visible')) orb.classList.add('is-idle');
+    }, 15000);
+  }
+  for (const event of ['pointerenter', 'pointermove', 'pointerleave', 'focus', 'blur', 'keydown']) orb.addEventListener(event, wakeIcon);
+  orb.addEventListener('pointerdown', (e) => {
+    wakeIcon();
+    if (e.button !== 0 || !e.isPrimary) return;
+    drag = { id: e.pointerId, x: e.screenX, y: e.screenY, startX: e.screenX, startY: e.screenY, moved: false };
+    orb.setPointerCapture(e.pointerId);
+  });
+  orb.addEventListener('pointermove', (e) => {
+    if (!drag || drag.id !== e.pointerId) return;
+    if (!drag.moved && Math.hypot(e.screenX - drag.startX, e.screenY - drag.startY) < 4) return;
+    drag.moved = true;
+    orb.classList.add('is-dragging');
+    const dx = e.screenX - drag.x;
+    const dy = e.screenY - drag.y;
+    drag.x = e.screenX;
+    drag.y = e.screenY;
+    if (typeof O.drag === 'function' && (dx || dy)) O.drag({ dx, dy });
+  });
+  function finishDrag(e) {
+    if (!drag || drag.id !== e.pointerId) return;
+    if (drag.moved) suppressClickUntil = Date.now() + 500;
+    drag = null;
+    orb.classList.remove('is-dragging');
+    if (orb.hasPointerCapture(e.pointerId)) orb.releasePointerCapture(e.pointerId);
+    wakeIcon();
+  }
+  orb.addEventListener('pointerup', finishDrag);
+  orb.addEventListener('pointercancel', finishDrag);
+  orb.addEventListener('lostpointercapture', finishDrag);
+
   document.addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;
@@ -183,7 +232,8 @@
       render();
       return;
     }
-    if (b.id === 'fold') return O.command('collapse');
+    if (b.id === 'orb' && e.detail !== 0 && Date.now() < suppressClickUntil) return;
+    if (b.id === 'fold' || b.id === 'orb') return O.command('collapse');
     if (b.dataset.cmd) {
       if(b.id==='hints-refresh')refreshWait=null;
       state.menu = false;
@@ -193,11 +243,13 @@
   });
 
   // The window takes the card's height.
-  new ResizeObserver(() => O.size($('card').getBoundingClientRect().height)).observe($('card'));
+  new ResizeObserver(() => O.size({ collapsed:!!state.shell.collapsed, width: state.shell.collapsed ? 56 : undefined, height: $('card').getBoundingClientRect().height })).observe($('card'));
 
   O.onShell((s) => {
+    const wasCollapsed = !!state.shell.collapsed;
     state.shell = s || {};
     render();
+    if (wasCollapsed !== !!state.shell.collapsed) wakeIcon();
   });
   O.onGame((g) => {
     state.game = g || {};

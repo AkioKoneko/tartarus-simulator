@@ -7,7 +7,7 @@ const listen = (channel, fn) => {
   if (typeof fn === 'function') ipcRenderer.on(channel, (e, data) => fn(data));
 };
 
-contextBridge.exposeInMainWorld('Overlay', {
+const bridge = {
   onShell: (fn) => listen('shell', fn),
   onGame: (fn) => listen('game', fn),
   onFollow: (fn) => listen('follow', fn),
@@ -15,5 +15,10 @@ contextBridge.exposeInMainWorld('Overlay', {
   // board, follow, capture, fix, recheck, report, report-new, hide, lock,
   // pick-log, reload, restart
   command: (name) => ipcRenderer.send('overlay:command', String(name)),
-  size: (height) => ipcRenderer.send('overlay:size', Number(height)),
-});
+  size: (size) => ipcRenderer.send('overlay:size', typeof size === 'number' ? size : { width: size.width, height: size.height, collapsed:size.collapsed }),
+  drag: ({ dx, dy }) => {
+    if (Number.isFinite(dx) && Number.isFinite(dy)) ipcRenderer.send('overlay:drag', { dx, dy });
+  },
+};
+contextBridge.exposeInMainWorld('Overlay', bridge);
+contextBridge.exposeInMainWorld('TartarusOverlay', bridge);
