@@ -21,7 +21,9 @@
   const POLL_MS = 1000;
   const IDB = 'tartarus-sim-capture';
   const listeners = { status: [], hit: [], seen: [], frame: [] };
-  const state = { log: 'off', file: '', window: 'off', windowSize: '', lines: 0, hits: 0, frames: 0, note: '', error: '' };
+  // detail: whether the game writes the detail lines the triggers come from
+  // ('on', 'off', or '' while it isn't clear yet).
+  const state = { log: 'off', file: '', window: 'off', windowSize: '', lines: 0, hits: 0, frames: 0, note: '', error: '', detail: '' };
   let rules = []; // [{ kind, re, settle, rank }]
   let watch = null; // log lines worth showing while finding triggers
   let burst = null; // matched lines waiting for the animations to settle
@@ -57,6 +59,9 @@
     const MAX_READ = 1024 * 1024; // bytes per look: anything older is skipped
     const MAX_LINE = 8192; // characters of one line that are checked
     const MAX_HITS = 200; // lines reported per look: the newest
+    // The game's own lines, which every trigger is: with the game's Enable
+    // Log off, it writes almost none (a player's log: 42 in all).
+    const DETAIL = /\b(TLLua|TLGame):/;
     let handle = null;
     let offset = 0;
     let decoder = null;
@@ -99,6 +104,13 @@
           begun = true;
           readFrom(fromFirst || gone ? 0 : file.size);
           post({ type: 'started', name: file.name || handle.name || 'UE_game.log', size: file.size });
+          // How much of the log's end is the game's own lines: whether its
+          // Enable Log is on, before any new line comes.
+          if (offset > 0) {
+            const tailText = new TextDecoder('utf-8').decode(await file.slice(Math.max(0, offset - MAX_READ), offset).arrayBuffer());
+            const old = tailText.split(/\r?\n/).slice(1, -1);
+            post({ type: 'sample', count: old.length, detail: old.filter((l) => DETAIL.test(l)).length });
+          }
         } else if (gone || file.size < offset) {
           // The game started a new log, or the deleted one is back.
           readFrom(0);
@@ -115,15 +127,17 @@
           const lines = (rest + decoder.decode(buf, { stream: true })).split(/\r?\n/);
           rest = lines.pop().slice(-MAX_LINE);
           const hits = [];
+          let detail = 0;
           for (const whole of lines) {
             // A line can only be this long if the log was cleared while the
             // game wrote on: its text is at the end.
             const line = whole.length > MAX_LINE ? whole.slice(-MAX_LINE) : whole;
+            if (DETAIL.test(line)) detail += 1;
             const rule = triggers.findIndex((re) => re && re.test(line));
             if (rule >= 0) hits.push({ rule, line: line.slice(0, 400) });
             else if (watching && watching.test(line)) hits.push({ rule: -1, line: line.slice(0, 400) });
           }
-          post({ type: 'lines', count: lines.length, hits: hits.slice(-MAX_HITS) });
+          post({ type: 'lines', count: lines.length, detail, hits: hits.slice(-MAX_HITS) });
         }
       } catch (e) {
         fail(e);
@@ -150,6 +164,21 @@
 
   // #endregion
 
+  // Whether the game writes its own lines, from the last few thousand read:
+  // with its Enable Log on, a fifth to a half of them are (the user's logs);
+  // with it off, almost none. Recent lines decide, so turning it on clears
+  // the warning without a new log.
+  let recent = []; // [lines, detail lines] for each look, newest last
+  function noteDetail(count, detail) {
+    if (!count) return;
+    recent.push([count, detail]);
+    let lines = recent.reduce((a, r) => a + r[0], 0);
+    while (recent.length > 1 && lines - recent[0][0] >= 3000) lines -= recent.shift()[0];
+    const shown = recent.reduce((a, r) => a + r[1], 0);
+    const verdict = shown >= 50 && shown >= 0.05 * lines ? 'on' : lines >= 2000 && shown < 0.02 * lines ? 'off' : state.detail;
+    if (verdict !== state.detail) setState({ detail: verdict });
+  }
+
   // The follower in a worker: a hidden tab throttles the page's timers, but
   // not a worker's. File handles can be sent to a worker; test objects can't,
   // and those are followed on the page.
@@ -158,13 +187,17 @@
     const onMessage = (m) => {
       if (stopIfOff()) return;
       if (m.type === 'started') setState({ log: 'on', file: m.name, error: '', note: '' });
-      else if (m.type === 'rotated') setState({ log: 'on', error: '', note: 'The game started a new log.' });
+      else if (m.type === 'rotated') {
+        recent = [];
+        setState({ log: 'on', error: '', note: 'The game started a new log.', detail: '' });
+      } else if (m.type === 'sample') noteDetail(m.count, m.detail);
       else if (m.type === 'gone') setState({ log: 'gone', error: '' });
       else if (m.type === 'error') setState({ log: 'error', error: m.message });
       else if (m.type === 'lines') {
         const patch = { lines: state.lines + m.count };
         if (state.log === 'error') Object.assign(patch, { log: 'on', error: '' });
         setState(patch);
+        noteDetail(m.count, m.detail || 0);
         for (const h of m.hits) onLine(h);
       }
     };
@@ -417,7 +450,8 @@
 
   function useHandle(handle) {
     mustAgree();
-    setState({ log: 'starting', file: handle.name || '', error: '', lines: 0, hits: 0 });
+    recent = [];
+    setState({ log: 'starting', file: handle.name || '', error: '', lines: 0, hits: 0, detail: '' });
     startFollower(handle);
   }
 

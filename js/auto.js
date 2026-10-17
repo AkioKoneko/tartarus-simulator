@@ -163,11 +163,14 @@
       const file = esc(status.file || 'the game log');
       const log = { on: `following ${file}`, starting: 'opening the game log', gone: `${file} isn’t there`, error: 'the game log can’t be read' }[status.log] || 'the game log isn’t connected';
       const win = status.window === 'on' ? 'sharing the game window' : 'the game window isn’t shared';
-      ok = status.log === 'on' && status.window === 'on';
+      // The game's Enable Log is off: no triggers can come.
+      const off = status.log === 'on' && status.detail === 'off';
+      ok = status.log === 'on' && status.window === 'on' && !off;
       const l = status.last;
       const last = l ? ` Last picture ${time(l.at)}${l.kind ? ` (${esc(l.kind)})` : ''}${l.ok ? '' : `: none taken, ${esc((l.why || 'the window wasn’t shared').replace(/\.$/, ''))}`}.` : ' No pictures yet.';
       const trig = status.triggers ? ` ${status.triggers} triggers.` : '';
-      text = `Auto Screenshot Mode: ${log}, ${win}.${trig}${last}${ok ? '' : ` Fix it on ${link}.`}`;
+      const detail = off ? ' The game isn’t writing the lines it needs: turn on <a href="follow.html#follow-enable-log" target="tartarus-follow">the game’s log</a> (Settings, Account Related, Enable Log), then log out and back in.' : '';
+      text = `Auto Screenshot Mode: ${log}, ${win}.${trig}${last}${detail}${ok || off ? '' : ` Fix it on ${link}.`}`;
     }
     bar.className = `az-follow ${ok ? 'is-ok' : 'is-off'}`;
     barText.innerHTML = text;

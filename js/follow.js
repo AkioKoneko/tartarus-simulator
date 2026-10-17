@@ -307,7 +307,7 @@
   function tell() {
     if (!channel) return;
     const st = C.state;
-    channel.postMessage({ type: 'status', from: me, log: st.log, file: st.file, window: st.window, last: lastPicture, triggers: triggerCount });
+    channel.postMessage({ type: 'status', from: me, log: st.log, file: st.file, window: st.window, last: lastPicture, triggers: triggerCount, detail: st.detail });
   }
   const seen = []; // newest first: { at, line, kind }
   let nextId = 1;
@@ -321,7 +321,12 @@
         : st.log === 'gone' ? `${esc(st.file || 'The log')} isn’t there any more: it was deleted or moved. It’s followed again as soon as the game writes a new one, or drag it here again.`
           : st.log === 'error' ? `The log can’t be read right now (${esc(st.error)}). Retrying…`
             : st.file ? `Not following ${esc(st.file)} yet.` : 'Not connected.';
-    $('az-auto-log-state').innerHTML = log;
+    // The game's Enable Log is off: the log has none of the lines the
+    // triggers are, so pictures come only from Take a picture now.
+    const off = st.log === 'on' && st.detail === 'off'
+      ? ' <strong>The game isn’t writing the lines Auto Screenshot Mode needs: its log detail is off.</strong> <a href="#follow-enable-log">Turn on the game’s log</a> (Settings, Account Related, Enable Log), then log out and back in.'
+      : '';
+    $('az-auto-log-state').innerHTML = log + off;
     $('az-auto-win-state').textContent = st.window === 'on' ? `Sharing the game window${st.windowSize ? ` (${st.windowSize})` : ''}: ${st.frames} pictures taken.` : 'Not sharing.';
     $('az-auto-log').textContent = st.log === 'on' || st.log === 'starting' ? 'Stop following'
       : st.log === 'off' && st.file && resumable ? `Follow ${st.file} again` : 'Or choose the file';
