@@ -191,16 +191,36 @@
       diag.growingAt = Date.now();
     }
   }, 5000);
+  // While the game runs and its window isn't shared, the share is tried
+  // again: 2.5 s after it ends, then every 5 s, waiting twice as long after
+  // each try that doesn't hold (up to a minute). A game that restarts within
+  // the app's few seconds of grace never counts as started again, and its
+  // new window may not be up for the first try (report 145). A share that
+  // Windows cuts off at once (a game run as administrator) is retried
+  // slowly, not every few seconds.
   let wasShared = false;
+  let retryAt = 0;
+  let retryWait = 5000;
+  let onSince = 0;
   C.on('status', (st) => {
     // The share ends when the game closes; it's shared again when it's back.
-    // It also ends when the game makes a new window (a change of display
-    // mode, say) while it runs: then it's shared again shortly.
     if (st.window === 'off' && !game.running) stoppedWindow = false;
-    if (wasShared && st.window === 'off' && game.running && !stoppedWindow) setTimeout(sync, 2500);
+    if (wasShared && st.window === 'off' && game.running && !stoppedWindow) retryAt = Math.max(retryAt, Date.now() + 2500);
     wasShared = st.window === 'on';
     tell();
   });
+  setInterval(() => {
+    if (C.state.window === 'on') {
+      if (!onSince) onSince = Date.now();
+      if (Date.now() - onSince > 10000) retryWait = 5000; // it held
+      return;
+    }
+    onSince = 0;
+    if (!C.agreed() || !game.running || stoppedWindow || sharing || Date.now() < retryAt) return;
+    retryAt = Date.now() + retryWait;
+    retryWait = Math.min(60000, retryWait * 2);
+    sync();
+  }, 1000);
   C.on('frame', (f) => {
     lastFrame = { at: Date.now(), kind: f.kind, ok: !!f.frame, why: f.why || '' };
     if (!f.frame) diag.failed += 1;
