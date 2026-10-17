@@ -2857,7 +2857,7 @@
         // through them. A newly visible tier must invalidate cached advice.
         const f=raw.frame, b=f && f.bins;
         const t=b && (b[2]>b[1]?2:1);
-        const tierSeen=offered.includes(n) && f && f.tier===4 && b && b[t]>=0.025*f.samples;
+        const tierSeen=f && ((offered.includes(n) && f.tier===4 && b && b[t]>=0.025*f.samples) || ([1,2].includes(f.tier) && f.conf>=0.75));
         if (tierSeen && raw.tier!==before.tier) return null;
       } else if (before.kind==='empty') {
         if (raw.kind!=='empty') return null;
