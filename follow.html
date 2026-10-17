@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261016zzc">
+<link rel="stylesheet" href="css/style.css?v=20261016zzh">
 <style>
   /* A long read in the simulator's look, like the strategy guide. */
   .guide {
@@ -317,6 +317,18 @@
     margin-bottom: 0;
   }
 
+  /* Following the log, but no game events yet (js/follow.js): yellow, and
+     its title says how to turn on the game's log. */
+  .field-note.is-quiet {
+    color: var(--check);
+    cursor: help;
+  }
+
+  .field-note.is-quiet::before {
+    content: "●";
+    margin-right: 6px;
+  }
+
   @media (max-width: 600px) {
     .files thead {
       display: none;
@@ -348,13 +360,13 @@
       <h3>First, turn on the game's log</h3>
       <p>Auto Screenshot Mode takes a picture when the game's log shows a move, and the game writes those lines only once its log is turned on:</p>
       <ol>
-        <li>In the game, open Settings and find <b>Account Related</b>.</li>
-        <li>Press <b>Enable Log</b>.</li>
+        <li>In the game, press <b>Esc</b> and find <b>Account Related</b>.</li>
+        <li>Click <b>Enable Log</b>.</li>
         <li>Log out and back in. The game starts writing its log only after you log in again.</li>
       </ol>
       <figure>
-        <img src="img/enable-log.webp?v=20261016zzc" width="803" height="395" alt="The game's Settings, under Account Related: Account Center, Redeem Code, Player Service, and the Enable Log button.">
-        <figcaption>Enable Log, in the game's Settings under Account Related.</figcaption>
+        <img src="img/enable-log.webp?v=20261016zzh" width="803" height="395" alt="The game's Esc menu, under Account Related: Account Center, Redeem Code, Player Service, and the Enable Log button.">
+        <figcaption>Press Esc in the game: Enable Log is under Account Related.</figcaption>
       </figure>
       <p class="note">If pictures come only when you press Take a picture now, the game's log is still off: turn it on here, then log out and back in.</p>
     </div>
@@ -484,7 +496,7 @@
 
     <h3>7. The analyzer reads it into your board</h3>
     <p>The analyzer answers only after you've agreed, and reads only the pictures sent to it. The screenshot reader, running in your browser, turns the picture into a board, which becomes your board straight away, and the analyzer gives its advice. Cells the reader is unsure of are marked Check. If anything doesn't match your game, fix it on the board and press Recheck. A picture of the objective popup sets the run's objective, read from its title. A picture of the instrument pick is read as that instead: the analyzer starts a fresh run at the offer, with the three instruments it read and whether a re-roll is left, and says which to take, or to re-roll. The instruments are read by their printed names first, with an OCR engine (Tesseract) that the analyzer downloads once from jsDelivr, a public code host, and runs in your browser: the picture itself isn’t sent anywhere. Where a name isn’t clear, the card’s art is used. An instrument it's unsure of is named for you to check. Only how the reading went goes back to this page. Nothing is uploaded.</p>
-    <p>The analyzer also shows, at its top, whether Auto Screenshot Mode is running. This page tells it whether the log is followed and the window shared, and when its last picture was taken and of what. It never sends the log's lines that way.</p>
+    <p>The analyzer also shows, at its top, whether Auto Screenshot Mode is running. This page tells it whether the log is followed and the window shared, whether the game is writing the lines Auto Screenshot Mode needs, how many moves the log has shown, and when its last picture was taken and of what. It never sends the log's lines that way. While the log is followed but has shown no move yet, the bar is yellow, and pointing at it says how to turn on the game's log.</p>
     <div class="code" data-file="js/auto.js" data-region="receive"></div>
   </section>
 
@@ -540,8 +552,8 @@
   </section>
 </main>
 
-<script src="js/capture.js?v=20261016zzc"></script>
-<script src="js/follow.js?v=20261016zzc"></script>
+<script src="js/capture.js?v=20261016zzh"></script>
+<script src="js/follow.js?v=20261016zzh"></script>
 <script>
 (function () {
   'use strict';

@@ -4847,6 +4847,12 @@ textarea {
   border-left-color: var(--blood);
 }
 
+/* Following the log, but no game events yet: maybe the game's Enable Log
+   is off. The bar's title says how to turn it on (js/auto.js). */
+.az-follow.is-warn {
+  border-left-color: var(--check);
+}
+
 .az-follow a {
   color: var(--bone);
 }

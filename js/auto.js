@@ -148,6 +148,7 @@
   const now = document.getElementById('az-follow-now');
   let status = null;
   let heard = 0;
+  const NO_EVENTS = 'No game events in the log yet. In the game, press Esc and click Enable Log (under Account Related), then log out and back in.';
   const time = (t) => new Date(t).toLocaleTimeString();
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   function renderFollow() {
@@ -156,6 +157,8 @@
     if (bar.hidden) return;
     const link = '<a href="follow.html#follow" target="tartarus-follow">the Auto Screenshot Mode page</a>';
     let ok = false;
+    let warn = false;
+    let quiet = false;
     let text;
     if (!running()) {
       text = `Auto Screenshot Mode isn’t running. Open ${link} to connect your game log and share the game window.`;
@@ -165,14 +168,22 @@
       const win = status.window === 'on' ? 'sharing the game window' : 'the game window isn’t shared';
       // The game's Enable Log is off: no triggers can come.
       const off = status.log === 'on' && status.detail === 'off';
-      ok = status.log === 'on' && status.window === 'on' && !off;
+      // Following, but no trigger has matched yet: the bar is yellow, and
+      // its title says how to turn on the game's log. (An older Auto
+      // Screenshot Mode page sends no hits.)
+      const waiting = status.log === 'on' && !off && status.hits === 0;
+      quiet = off || waiting;
+      ok = status.log === 'on' && status.window === 'on' && !quiet;
+      warn = status.log === 'on' && status.window === 'on' && quiet;
       const l = status.last;
       const last = l ? ` Last picture ${time(l.at)}${l.kind ? ` (${esc(l.kind)})` : ''}${l.ok ? '' : `: none taken, ${esc((l.why || 'the window wasn’t shared').replace(/\.$/, ''))}`}.` : ' No pictures yet.';
       const trig = status.triggers ? ` ${status.triggers} triggers.` : '';
-      const detail = off ? ' The game isn’t writing the lines it needs: turn on <a href="follow.html#follow-enable-log" target="tartarus-follow">the game’s log</a> (Settings, Account Related, Enable Log), then log out and back in.' : '';
-      text = `Auto Screenshot Mode: ${log}, ${win}.${trig}${last}${detail}${ok || off ? '' : ` Fix it on ${link}.`}`;
+      const detail = off ? ' The game isn’t writing the lines it needs: turn on <a href="follow.html#follow-enable-log" target="tartarus-follow">the game’s log</a> (press Esc, then Enable Log), then log out and back in.'
+        : waiting ? ' No game events yet: pictures come by themselves once the log shows a move.' : '';
+      text = `Auto Screenshot Mode: ${log}, ${win}.${trig}${last}${detail}${ok || warn ? '' : ` Fix it on ${link}.`}`;
     }
-    bar.className = `az-follow ${ok ? 'is-ok' : 'is-off'}`;
+    bar.className = `az-follow ${ok ? 'is-ok' : warn ? 'is-warn' : 'is-off'}`;
+    bar.title = quiet ? NO_EVENTS : '';
     barText.innerHTML = text;
     // A picture can be taken from here while the game window is shared.
     now.disabled = !(running() && status.window === 'on');

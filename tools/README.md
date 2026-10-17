@@ -113,6 +113,24 @@ With "Treasure" Hunt in the event pool and the Elephant-Foot Maul among the inst
 - **Warden's Treasure:** judging each gift on the spot (3.435) beats always taking the same one: Crimson Vintage 3.23, Three-Headed Thumb Ring 3.06, Brass Horn of Strife 2.88, Brand of Original Sin 2.84.
 - **Contract challenge** (`cguide --games 200000 --habit-games 100000`, 1,700,000 runs in 10.3 minutes): 95.4% pass with 52.4 points, against 95.4% and 52.5 before. Sending the most points on every contract passes 35.9%, keeping 1 voucher 78.0%, and playing with the drill weights 93.1%. The Maul stays third in the challenge's ranking (its section below). A first try ended in a Node crash (a segmentation fault, no JavaScript error) partway through. Replaying the same runs went through, and the second try matches the first run for run as far as the first got.
 
+### Filthy Claws: Alpha Wolf (2026-10-17)
+
+Report 65, the card: "Filthy Claws: Alpha Wolf. Condition: At the start of each day. Effect: Randomly adds a Scratch Marks mark to 1 unopened cell". It's the 30th instrument (`claws`). Each morning, before the destinations are drawn, it scratches one random unopened cell that isn't scratched yet and isn't a rat nest. The inmate behind it is settled then, and its rarity shows. The scratch works as the simulator's Scratch marker always has: a Wolf of that rarity can consume the inmate through the door, whatever its beast, for +3, and the strategy already counts those meals. Until it's measured, the rankings put it after the Skewered Rat Heads.
+
+### Second meals below Legendary: what the jaws show (2026-10-17)
+
+c2 noticed Rare Mammoths with jaws whose only meal at their rarity was a Rare Wolf, in the user's run 2026-10-17T04-18-38 (no start card, objective Consume 4 times, Kin's Coin only). On its picture 16, with the warden on a Rare Mammoth, the game offered Consume, and the Mammoth's only Rare prey were Rare Wolves.
+
+Then the reader went over 349 boards: the user's recorded runs, the labelled screenshots and the report pictures, never the tutorial. It counted the inmates with jaws markers on their boards, leaving out Supremes, whose glow was read as jaws until 3c5f194:
+- **Only a second meal at its own rarity, no lower prey** (jaws mean the game allows it): Normal Lion 30 with jaws, 0 without; Normal Mammoth 52 and 3; Magic Lion 11 and 0; Magic Mammoth 13 and 0; Rare Lion 9 and 0; Rare Mammoth 5 and 0; Legendary Lion 9 and 0; Legendary Mammoth 15 and 2. Below Legendary, that's 120 with jaws and 3 without.
+- **Checks:** only lower-rarity prey, 2 with jaws of 404 (no Cage Fight in these runs); nothing to eat, 3 of 475; a first meal, 630 with jaws, 25 without.
+
+The user chose to keep second meals at Legendary and up (`doubleEatTier` 3), so nothing in the rules changed. The analyzer keeps marking a lower-rarity Lion or Mammoth with jaws and only a second meal as one to check. Scratch tools: read-webps.js / png-readings.js (readings), meal-summary.js (groups).
+
+### Behind Cell Doors (2026-10-17)
+
+Reports 30 and 51: "Objective: Behind Cell Doors. Open 10 cells", paying another instrument pick (and a Warden's Cache at the riot, not simulated), like Survival of the Fittest. It counts like that one does (`countObjective`), here in `openCell`: every cell that opens counts, however it opens (a patrol, a chain, the Lost Ring of Keys, a hatching nest), since the card doesn't say. Like the other live objectives, it isn't drawn in simulated runs; the analyzer has it in its objective list, and the reader takes its title (word lengths 6, 4, 5), which it first read as King of the Caged.
+
 ### "Treasure" Hunt (2026-10-16)
 
 Report 41, a card with only Confirm: "Reveals all unopened cells with rarity below Rare". A revealed door shows its rarity with a "?" portrait, as with Crow Whispers, so the player can tell that the locked doors left dark hold Rare or better. The engine marks those (`atLeast`, cleared when the cell opens or empties): the solver values such a door at the door odds from Rare up, and re-rolls what's behind it only from Rare up. Nests are passed over, as Crow Whispers does. It's the 10th event in the pool. The analyzer has it as an event and a door mark, and a "left dark" door kind (Rare or better); a screenshot keeps a door's shown rarity and its Rare-or-better floor while the door stays locked, since the reader takes a "?" portrait for a plain lock.

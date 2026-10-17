@@ -207,6 +207,11 @@
     // target's rarity". Read like the Iron Crown: every Mammoth, on each
     // bite, same-rarity meals included (+2 for those).
     maul: { name: 'Elephant-Foot Maul: Mammoth', text: "Mammoths can consume the beasts they counter at a higher rarity too, and a Mammoth's consume takes it to 2 tiers above its meal." },
+    // A player's report (#65, 2026-10-17), the card: "Filthy Claws: Alpha
+    // Wolf. Condition: At the start of each day. Effect: Randomly adds a
+    // Scratch Marks mark to 1 unopened cell". A scratched door shows the
+    // rarity inside, and a Wolf of that rarity can consume through it.
+    claws: { name: 'Filthy Claws: Alpha Wolf', text: 'At the start of each day, Scratch Marks go on 1 random unopened cell: it shows the rarity inside, and a Wolf of that rarity can consume the inmate through the door for +3.' },
   };
   const TOOL_IDS = Object.keys(TOOLS);
 
@@ -276,6 +281,9 @@
     // analyzer uses them when the player sets them.
     consume: { name: 'Survival of the Fittest', text: 'Consume 4 times', need: 4, unit: 'Consumes', drawn: false },
     incident: { name: 'Undercurrents', text: 'Trigger a Prison Incident 2 times', need: 2, unit: 'Prison Incidents', drawn: false },
+    // Reports 30 and 51: "Objective: Behind Cell Doors. Open 10 cells".
+    // Every cell that opens counts, however it opens.
+    doors: { name: 'Behind Cell Doors', text: 'Open 10 cells', need: 10, unit: 'Cells opened', drawn: false },
     other: { name: 'Another objective', text: 'Not in the simulator yet, so no tool is assumed for it', drawn: false },
   };
   const OBJECTIVE_IDS = Object.keys(OBJECTIVES).filter((id) => OBJECTIVES[id].drawn !== false);
@@ -667,6 +675,7 @@
     const extra = how === 'patrol' ? '' : ' (extra door)';
     log(state, 'patrol', `Opened cell ${cellLabel(cell.n)}${extra}: ${describe(inmate)}.${lostNest ? ' The rat nest inside was destroyed.' : ''}`, { type: 'open', cell: cell.n, side: how !== 'patrol', who: snap(inmate) });
     if (event && how !== 'patrol') log(state, 'event', `The special event behind cell ${cellLabel(cell.n)} was used up without triggering.`);
+    countObjective(state, 'doors', 'cells opened');
     afterGrowth(state, inmate, events);
     // Felon's Dog Tag: the inmate behind a patrolled door may rise a tier.
     if (how === 'patrol' && has(state, 'dogtag') && cell.inmate === inmate && inmate.tier < RAINBOW && rand(state) < 0.25) {
@@ -955,6 +964,18 @@
         const cell = pickOne(state, mammoths);
         cell.ivory = true;
         log(state, 'tool', `Iron Tongs of Lust: the Mammoth in cell ${cellLabel(cell.n)} gets a Tusk mark.`);
+      }
+    }
+    // Filthy Claws: Scratch Marks on 1 random unopened cell, which then
+    // shows the rarity inside.
+    if (has(state, 'claws')) {
+      const free = state.cells.filter((c) => c.sealed && !c.scratch && !c.nest);
+      if (free.length) {
+        const cell = pickOne(state, free);
+        const who = hiddenOf(state, cell);
+        cell.scratch = true;
+        cell.known = Math.max(cell.known, 1);
+        log(state, 'tool', `Filthy Claws: Scratch Marks on cell ${cellLabel(cell.n)}, which holds a ${tierName(who.tier)} inmate.`, { type: 'claws', cell: cell.n });
       }
     }
     if (has(state, 'ironbox')) {
@@ -2064,6 +2085,7 @@
       case 'scales': return 6;
       case 'tongs': return board.some((i) => i.beast === 'mammoth') ? 8 : 3;
       case 'guillotine': return board.filter((i) => i.beast === 'wolf').length * 6;
+      case 'claws': return 6 + board.filter((i) => i.beast === 'wolf').length * 5;
       case 'axe': return 10;
       case 'shackles': return 8;
       case 'collar': return 10;

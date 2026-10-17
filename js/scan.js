@@ -475,8 +475,13 @@
     cell.face = face;
     cell.frame = frame;
     // The red jaws sit over the top of the portrait (0.24-0.32 of this box
-    // in every labeled screenshot, 0 without them).
-    cell.jaws = colorShare(img, x - 12 * k, y - 70 * k, x + 12 * k, y - 50 * k, isJaws) > 0.14;
+    // in every labeled screenshot, 0 without them). A Supreme inmate's red
+    // glow fills the box too (0.30-0.56, and as much beside it), so over a
+    // glow the jaws must stand out: 0.61-0.81, and 0.4 more than beside it
+    // (the user's run, 2026-10-17: a Supreme Wolf read as having jaws).
+    const jawsRed = colorShare(img, x - 12 * k, y - 70 * k, x + 12 * k, y - 50 * k, isJaws);
+    const glowRed = (colorShare(img, x - 30 * k, y - 70 * k, x - 18 * k, y - 50 * k, isJaws) + colorShare(img, x + 18 * k, y - 70 * k, x + 30 * k, y - 50 * k, isJaws)) / 2;
+    cell.jaws = glowRed < 0.1 ? jawsRed > 0.14 : jawsRed > 0.58 && jawsRed - glowRed > 0.3;
     // A washed-out, very bright portrait (an inmate shown through a door?).
     cell.ghost = face.brightness > 175 && face.score < 0.55;
     if (face.score > 0.42 || cell.ghost || frame.colored > 0.12) {
@@ -1382,7 +1387,10 @@
   // Start-of-run cards have no "Objective:" (Cage Fight, Iron Law), and
   // Tyranny's title is one word, so a lone word counts only at a length a
   // one-word title has.
-  const OBJECTIVE_WORDS = { consume: [[8, 2, 3, 7], [8, 5, 7]], incident: [[13]], king: [[4, 2, 3, 5], [4, 5, 5]], walk: [[6, 4]], cagefight: [[4, 5], [4, 4]], ironlaw: [[4, 3]], tyranny: [[7]] };
+  const OBJECTIVE_WORDS = { consume: [[8, 2, 3, 7], [8, 5, 7]], incident: [[13]], king: [[4, 2, 3, 5], [4, 5, 5]], walk: [[6, 4]], cagefight: [[4, 5], [4, 4]], ironlaw: [[4, 3]], tyranny: [[7]], opulence: [[8]],
+    // "Behind Cell Doors" (reports 30 and 51), not King of the Caged, three
+    // letters off.
+    doors: [[6, 4, 5]] };
   const ONE_WORD = new Set(Object.values(OBJECTIVE_WORDS).flat().filter((f) => f.length === 1).map((f) => f[0]));
   function readObjectiveTitle(img) {
     let best = null;
@@ -1396,7 +1404,8 @@
     }
     if (!best) return null;
     // "Objective:" first, then the name.
-    const name = best.words[0] >= 8 && best.words[0] <= 11 ? best.words.slice(1) : best.words;
+    // A lone word is the title itself (Opulence has 8 letters, like "Objective:").
+    const name = best.words.length > 1 && best.words[0] >= 8 && best.words[0] <= 11 ? best.words.slice(1) : best.words;
     let match = null;
     for (const [id, forms] of Object.entries(OBJECTIVE_WORDS)) {
       for (const want of forms) {

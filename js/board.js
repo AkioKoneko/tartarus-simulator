@@ -302,6 +302,15 @@
       '<path d="M22 9.5l1.6-4.5 1.6 4.5M28.5 9.5l1.6-4.5 1.6 4.5M35 9.5l1.6-4.5 1.6 4.5M22 22.5l1.6 4.5 1.6-4.5M28.5 22.5l1.6 4.5 1.6-4.5M35 22.5l1.6 4.5 1.6-4.5" fill="#9a9eaa" stroke="#2a2b31" stroke-width="0.8" stroke-linejoin="round"/>' +
       '<rect x="19" y="9" width="24" height="14" rx="4" fill="#6b6e7a" stroke="#2a2b31" stroke-width="1.3"/>' +
       '<path d="M25.5 9v14M31.5 9v14M37.5 9v14" stroke="#4a4c57" stroke-width="1.5"/></g>'),
+    // Filthy Claws: Alpha Wolf: four curved iron blades on a knuckle guard,
+    // bloodied at the tips.
+    claws: icon('glow-red',
+      '<path d="M7 5c2 9 6 15 12 19M14 3c1 9 5 15 10 19M21 3c0 8 3 14 8 17M28 5c-1 7 1 13 5 15" fill="none" stroke="#2a2b31" stroke-width="4" stroke-linecap="round"/>' +
+      '<path d="M7 5c2 9 6 15 12 19M14 3c1 9 5 15 10 19M21 3c0 8 3 14 8 17M28 5c-1 7 1 13 5 15" fill="none" stroke="#c9ccd4" stroke-width="2" stroke-linecap="round"/>' +
+      '<path d="M7 5l1 4M14 3l0.6 4M21 3l0.2 4M28 5l-0.4 3.5" stroke="#a51e24" stroke-width="2.2" stroke-linecap="round"/>' +
+      '<rect x="17" y="20" width="22" height="13" rx="4" transform="rotate(-20 28 26.5)" fill="#4a4c57" stroke="#2a2b31" stroke-width="1.3"/>' +
+      '<path d="M21 28.5l14-5" stroke="#6b6e7a" stroke-width="1.4"/>' +
+      '<path d="M31 34l9 9" stroke="#5e3a2c" stroke-width="5" stroke-linecap="round"/>'),
     // Maddened Beast's Barbed Collar: a blood-red collar ringed with barbs.
     collar: icon('glow-red',
       spikes(24, 24, 14.5, 21.5, 14, 0, '#3a1012') +
