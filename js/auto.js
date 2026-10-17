@@ -29,9 +29,6 @@
   let lastKind = ''; // the kind of the picture before this one
   let pickFresh = false; // whether the offer on screen starts a run
   let lastBoardAt = 0; // when a board's picture was last loaded
-  let viewing = 0; // boards seen behind a Warden's Treasure, still being read
-  let giftsAt = 0; // when the Warden's Treasure last showed, or its counts last moved
-  let giftsSeen = '';
   const say = (m) => {
     if (C.agreed()) channel.postMessage(Object.assign({ id: me }, m));
   };
@@ -42,42 +39,12 @@
     const answer = (patch) => channel.postMessage(Object.assign({ type: 'read', to: m.from, id: m.id }, patch));
     const before = lastKind;
     lastKind = m.kind;
-    // The Treasure's picks still waiting (Opulence gives 3 a Treasure),
-    // from the log's counts. A board between two picks is the board behind
-    // the next one, like one seen with View Prison Status (and a board just
-    // after a Rainbow, the one its Treasure's first pick goes on). With no
-    // Treasure and no count moving for a while, a tally still waiting has
-    // gone stale.
-    const counts = m.gifts ? `${m.gifts.rainbows}/${m.gifts.taken}` : '';
-    if (m.kind === 'treasure' || (counts && counts !== giftsSeen)) giftsAt = Date.now();
-    if (counts) giftsSeen = counts;
-    const waiting = m.gifts && A.giftCounts ? A.giftCounts(m.gifts) : null;
-    if (m.kind === 'board' && waiting > 0 && !m.treasureView) {
-      if (Date.now() - giftsAt < 30000) m.treasureView = true;
-      else if (A.giftsDone) A.giftsDone();
-    }
-    if (m.kind === 'treasure') {
-      // The Warden's Treasure: every gift is on offer, so nothing is read
-      // (it may come with no picture at all); the advice is on the board as
-      // it is. It reads nothing, so it doesn't make a board still being
-      // read out of date: back from View Prison Status before that board
-      // is read, the Treasure waits for it instead of asking again.
-      answer({ read: { ok: true, treasure: true } });
-      if (viewing) {
-        answer({ state: 'used', asked: false });
-        return;
-      }
-      const asked = A.useTreasure(m.after);
-      answer({ state: 'used', asked });
-      return;
-    }
     const mine = ++newest;
-    if (m.treasureView) viewing += 1;
-    try {
-      await readPicture(m, answer, mine, before);
-    } finally {
-      if (m.treasureView) viewing -= 1;
-    }
+    const waiting = m.gifts && A.giftCounts ? A.giftCounts(m.gifts) : null;
+    m.giftWaiting = waiting;
+    // Only an explicit popup-close cue establishes a view behind a pending gift.
+    m.treasureView = !!m.treasureView && waiting !== 0;
+    await readPicture(m, answer, mine, before);
   }
 
   // A picture to read: a board, the instrument pick, the objective, or a
@@ -90,6 +57,13 @@
     } catch (e) {
       answer({ read: { ok: false, reason: 'the picture couldn’t be opened' } });
       return;
+    }
+    if(m.kind==='treasure') {
+      const read=await A.readTreasure(bitmap,{knownTreasure:true,requestId:mine,isCurrent:()=>mine===newest});
+      bitmap.close();answer({read});
+      if(read.skipped || mine!==newest)return;
+      const asked=m.giftWaiting===0?false:A.useTreasure(m.after);
+      answer({state:'used',asked});return;
     }
     if (m.kind === 'objective') {
       // The run's objective popup: which objective, from its title.
@@ -132,20 +106,21 @@
         answer({ read: pick });
         if (mine !== newest) return;
         lastKind = 'instruments';
-        pickFresh = Date.now() - lastBoardAt > 300000;
+        const activeRun=typeof A.hasLiveRun==='function' ? A.hasLiveRun() : typeof A.day==='function' && A.day()>1;
+        pickFresh = !activeRun && Date.now() - lastBoardAt > 300000;
         const asked = A.usePick(pick, pickFresh);
         answer({ state: 'used', asked });
         return;
       }
     }
-    const read = await A.readFrame(bitmap);
+    const read = await A.readFrame(bitmap, { requestId: mine, isCurrent: () => mine === newest });
     // Neither an offer nor a board: an offer in another language, maybe.
     if (!read.ok && offerMissed && A.langMissed) A.langMissed('instrument offer', bitmap, offerMissed);
     // A picture with no board in it: maybe the Warden's Treasure, read by
     // its printed text. A board's picture can catch it too (report 55).
     if (!read.ok && !read.skipped && A.readTreasure) {
       const tr = await A.readTreasure(bitmap);
-      if (tr.ok && mine === newest) {
+      if (tr.ok && mine === newest && (!m.gifts || m.giftWaiting !== 0)) {
         answer({ read: { ok: true, treasure: true } });
         answer({ state: 'used', asked: A.useTreasure() });
         return;
@@ -154,10 +129,10 @@
     answer({ read });
     // The board behind a Warden's Treasure that couldn't be read: say so,
     // rather than ask for View Prison Status again.
-    if (!read.ok && m.treasureView && A.toast) A.toast('The board behind the Warden’s Treasure couldn’t be read from that picture. View it again a little longer, or press Advise with the board as it is.', 'bad');
+    if (!read.ok && mine === newest && m.treasureView && A.toast) A.toast('The board behind the Warden’s Treasure couldn’t be read from that picture. View it again a little longer, or press Advise with the board as it is.', 'bad');
     // The newest picture wins: an older one still being read is left.
     if (!read.ok || mine !== newest) return;
-    A.useReading();
+    A.useReading(read);
     if (A.langBoard) A.langBoard(bitmap);
     lastBoardAt = Date.now();
     answer({ state: 'used' });
