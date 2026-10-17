@@ -464,11 +464,12 @@ const win32 = (() => {
 // process won't say, the program that started it, and this app's. A game
 // run as administrator, with this app not, has its window share cut off.
 const yesNo = (v) => (v === true ? 'yes' : v === false ? 'no' : 'unknown');
+// The game likely runs as administrator and this app doesn't.
+const adminBlocks = (a) => !!a && (a.game === true || (a.game === null && !!a.by && a.by.admin === true)) && !(win32 && win32.selfElevated() === true);
 function adminText(a) {
   const self = win32 ? win32.selfElevated() : null;
   const by = a && a.by ? `, started by ${a.by.name} (as administrator: ${yesNo(a.by.admin)})` : '';
-  const high = a && (a.game === true || (a.game === null && a.by && a.by.admin === true));
-  return `game as administrator: ${yesNo(a ? a.game : null)}${by}; Tartarus Overlay as administrator: ${yesNo(self)}${high && self !== true ? ' (the game likely runs as administrator and this app doesn’t: Windows can stop the window share)' : ''}`;
+  return `game as administrator: ${yesNo(a ? a.game : null)}${by}; Tartarus Overlay as administrator: ${yesNo(self)}${adminBlocks(a) ? ' (the game likely runs as administrator and this app doesn’t: Windows can stop the window share)' : ''}`;
 }
 const hwndOf = (win) => {
   if (!win || win.isDestroyed()) return 0;
@@ -977,7 +978,7 @@ const sender = (e, name) => !!wins[name] && !wins[name].isDestroyed() && e.sende
 const fromPage = (e, name) => sender(e, name) && !!e.senderFrame && pageOf(e.senderFrame.url) === PAGES[name];
 
 function gameInfo() {
-  return { running: game.running, title: game.title, log: logPath ? { path: logPath, name: path.basename(logPath), there: !!statOf(logPath) } : null };
+  return { running: game.running, title: game.title, adminBlock: game.running && adminBlocks(game.admin), log: logPath ? { path: logPath, name: path.basename(logPath), there: !!statOf(logPath) } : null };
 }
 function pushGame() {
   const g = gameInfo();
@@ -1170,6 +1171,9 @@ ipcMain.on('site:trigger', (e, kind) => {
   if (fromPage(e, 'follow')) note('trigger:', String(kind));
 });
 let checked = null; // the counts at the last minute's note
+// A count since the last note; one smaller than then started over (a new
+// game log after a restart, or a reloaded page), so it all counts.
+const since = (now, then) => ((now || 0) >= then ? (now || 0) - then : now || 0);
 let minutes = 0;
 setInterval(async () => {
   minutes += 1;
@@ -1179,7 +1183,7 @@ setInterval(async () => {
   const d = f.diag || {};
   const was = checked || { lines: 0, hits: 0, frames: 0, failed: 0 };
   const still = d.growingAt ? Math.round((Date.now() - d.growingAt) / 1000) : null;
-  note(`check: log=${f.log} window=${f.window}${f.windowSize ? ` (${f.windowSize})` : ''} game log detail=${f.detail || '?'}; log file ${d.logSize || '?'} bytes, ${still === null ? 'not measured' : still < 15 ? 'growing' : `unchanged for ${still} s`}; this minute: ${(f.lines || 0) - was.lines} lines read, ${(f.hits || 0) - was.hits} triggers, ${(f.frames || 0) - was.frames} pictures, ${(d.failed || 0) - was.failed} failed${d.lastNote ? `; last picture: ${d.lastNote}` : ''}`);
+  note(`check: log=${f.log} window=${f.window}${f.windowSize ? ` (${f.windowSize})` : ''} game log detail=${f.detail || '?'}; log file ${d.logSize || '?'} bytes, ${still === null ? 'not measured' : still < 15 ? 'growing' : `unchanged for ${still} s`}; this minute: ${since(f.lines, was.lines)} lines read, ${since(f.hits, was.hits)} triggers, ${since(f.frames, was.frames)} pictures, ${since(d.failed, was.failed)} failed${d.lastNote ? `; last picture: ${d.lastNote}` : ''}`);
   checked = { lines: f.lines || 0, hits: f.hits || 0, frames: f.frames || 0, failed: d.failed || 0 };
 }, 60000);
 
@@ -1521,6 +1525,11 @@ if (!app.requestSingleInstanceLock()) {
       }
       const hide = /hide (\w+)/.exec(text);
       if (hide && wins[hide[1]] && !wins[hide[1]].isDestroyed()) wins[hide[1]].hide();
+      // "admin-game": as if the game ran as administrator (and this app not).
+      if (/admin-game/.test(text)) {
+        game.admin = { game: true, by: null };
+        pushGame();
+      }
       // "unlisted": the capture's list leaves the game window out.
       if (/unlisted/.test(text)) testUnlisted = true;
       // "cpu one": as the tray's Processor use does.

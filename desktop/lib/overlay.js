@@ -43,6 +43,9 @@
     if (f.log === 'gone') return line('warn', 'The game log isn’t there right now. It’s followed again once the game writes it.', button('Choose it', 'pick-log'));
     if (f.log === 'error') return line('bad', `The game log can’t be read: ${f.error || 'retrying'}.`, button('Choose it', 'pick-log'));
     if (f.log !== 'on') return line('busy', 'Connecting the game log…');
+    // Windows stops a window share from an app that isn't run as
+    // administrator when the game is (report 214).
+    if (f.window !== 'on' && g.adminBlock) return line('warn', 'The game runs as administrator, so Windows won’t let the app share its window. Quit Tartarus Overlay from its tray icon, then start it with right-click → Run as administrator.');
     if (f.window !== 'on') return line('busy', 'Sharing the game window…');
     // The game's own Enable Log is off: its log has none of the lines the
     // triggers look for, so no pictures come (js/capture.js tells).
@@ -65,6 +68,7 @@
     if (!state.game.running) return 'Waiting for the game';
     if (sh.riot) return 'Riot: fight on';
     if (sh.runOver) return 'Run over: ready for the next';
+    if (f && f.window !== 'on' && state.game.adminBlock) return 'Run the app as administrator';
     if (f && (f.log !== 'on' || f.window !== 'on')) return 'Connecting…';
     if (f && f.detail === 'off') return 'Turn on Enable Log in the game';
     if (a && a.reading) return 'Reading the picture…';
