@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261016zz">
+<link rel="stylesheet" href="css/style.css?v=20261016zza">
 <style>
   /* A long read in the simulator's look, like the strategy guide. */
   .guide {
@@ -276,6 +276,47 @@
     background: color-mix(in srgb, var(--teal) 10%, var(--slab));
   }
 
+  /* The game's own log switch (Settings, Account Related, Enable Log).
+     Without it the log has none of the lines the triggers match. */
+  .log-setup {
+    margin-top: 12px;
+    padding: 16px 18px;
+    border: 1px solid color-mix(in srgb, var(--check) 55%, var(--iron));
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--check) 6%, var(--slab));
+  }
+
+  .log-setup h3 {
+    margin-top: 0;
+  }
+
+  .log-setup ol {
+    margin: 0 0 14px;
+    padding-left: 22px;
+  }
+
+  .log-setup figure {
+    margin: 0 0 10px;
+  }
+
+  .log-setup img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--iron);
+    border-radius: var(--radius);
+  }
+
+  .log-setup figcaption {
+    margin-top: 6px;
+    color: var(--ash);
+    font-size: 13.5px;
+  }
+
+  .log-setup .note {
+    margin-bottom: 0;
+  }
+
   @media (max-width: 600px) {
     .files thead {
       display: none;
@@ -303,6 +344,20 @@
 
   <section class="guide-section" id="follow" aria-labelledby="follow-title">
     <h2 id="follow-title">Your game <span class="az-auto-beta">Beta</span></h2>
+    <div class="log-setup" id="follow-enable-log">
+      <h3>First, turn on the game's log</h3>
+      <p>Auto Screenshot Mode takes a picture when the game's log shows a move, and the game writes those lines only once its log is turned on:</p>
+      <ol>
+        <li>In the game, open Settings and find <b>Account Related</b>.</li>
+        <li>Press <b>Enable Log</b>.</li>
+        <li>Log out and back in. The game starts writing its log only after you log in again.</li>
+      </ol>
+      <figure>
+        <img src="img/enable-log.webp?v=20261016zza" width="803" height="395" alt="The game's Settings, under Account Related: Account Center, Redeem Code, Player Service, and the Enable Log button.">
+        <figcaption>Enable Log, in the game's Settings under Account Related.</figcaption>
+      </figure>
+      <p class="note">If pictures come only when you press Take a picture now, the game's log is still off: turn it on here, then log out and back in.</p>
+    </div>
     <div class="az-auto-gate" id="az-auto-gate">
       <p>Read this page first, then turn Auto Screenshot Mode on at the bottom. Until you do, nothing here can open your log or see any window.</p>
       <a class="btn btn-report" href="#agree">Turn it on</a>
@@ -349,7 +404,7 @@
           <span class="az-auto-n">4</span>
           <div>
             <button type="button" class="btn" id="az-auto-now">Take a picture now</button>
-            <p class="field-note">Play as usual. Pictures also come by themselves when the log shows a move.</p>
+            <p class="field-note">Play as usual. Pictures also come by themselves when the log shows a move. If they never do, <a href="#follow-enable-log">turn on the game's log</a>.</p>
           </div>
         </div>
       </div>
@@ -485,8 +540,8 @@
   </section>
 </main>
 
-<script src="js/capture.js?v=20261016zz"></script>
-<script src="js/follow.js?v=20261016zz"></script>
+<script src="js/capture.js?v=20261016zza"></script>
+<script src="js/follow.js?v=20261016zza"></script>
 <script>
 (function () {
   'use strict';
