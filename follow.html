@@ -553,6 +553,7 @@
 </main>
 
 <script src="js/capture.js?v=20261017d"></script>
+<script src="js/follow-state.js?v=20261017d"></script>
 <script src="js/follow.js?v=20261017d"></script>
 <script>
 (function () {
@@ -563,6 +564,7 @@
   const VERSION = (window.TartarusCapture && window.TartarusCapture.CONSENT_VERSION) || 1;
   const FILES = [
     ['js/capture.js', 'Follows the log, checks your agreement, and takes pictures of the shared window.'],
+    ['js/follow-state.js', 'Pure event counter for Rainbow cues and confirmed gifts.'],
     ['js/follow.js', 'This page’s controls: the agreement check, the triggers, and handing each picture to the analyzer tab.'],
     ['js/auto.js', 'The analyzer’s side: the agreement check, and reading each picture it’s handed into the board.'],
     ['desktop/main.js', 'The desktop app: finds the log, shares only the game window, and keeps the agreement and the record.'],

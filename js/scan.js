@@ -181,7 +181,7 @@
   // Matches the board's fixed frame (walls, office, courtyard, cell numbers)
   // at every scale and position, coarse to fine. Returns { s, tx, ty, score }:
   // an image point is s * (reference point) + (tx, ty).
-  function locateBoard(img, gray, ref) {
+  function locateBoard(img, gray, ref, cached) {
     const W = img.width;
     const H = img.height;
     const pts = ref.board.points;
@@ -236,6 +236,11 @@
       const varx = sxx - (sx * sx) / n;
       return varx > 1e-6 ? sxt / Math.sqrt(varx) : -1;
     };
+    if (cached && cached.width === W && cached.height === H) {
+      const sc = score(levels[0], cached.loc.s, cached.loc.tx, cached.loc.ty, false);
+      // Validate the actual fixed frame every time; changed scenes fall back to full search.
+      if (sc >= 0.80) return Object.assign({}, cached.loc, { score: sc, cached: true });
+    }
     // Coarse: every scale the board could appear at, on a small level, with
     // a quarter of the points. The board spans most of a screenshot's width
     // when cropped to it, and about half in a full-screen one.
@@ -1039,7 +1044,22 @@
     }
     // A card moved off its first reading, or two still alike, is worth a check.
     const moved = read.some((r, i) => r.value !== options[i][0].value);
-    return { cells, conf: Math.max(0.1, Math.min(1, (score - 0.3) * 1.6)) * (cells.length === read.length + (cards.office ? 1 : 0) ? 1 : 0.4) * (moved ? 0.55 : 1), boxes };
+    return { cells, conf: Math.max(0.1, Math.min(1, (score - 0.3) * 1.6)) * (cells.length === read.length + (cards.office ? 1 : 0) ? 1 : 0.4) * (moved ? 0.55 : 1), boxes, targets: doorTargets(cards, read) };
+  }
+
+  function doorTargets(cards, read) {
+    const counts = new Map();
+    for (const r of read) counts.set(r.value, (counts.get(r.value) || 0) + 1);
+    const targets = [];
+    const add = (cell, p) => {
+      if (!p || ![p.x0, p.y0, p.x1, p.y1].every(Number.isFinite) || p.x1 <= p.x0 || p.y1 <= p.y0) return;
+      targets.push({ cell, x: p.x0, y: p.y0, width: p.x1 - p.x0, height: p.y1 - p.y0, source: 'door-label' });
+    };
+    read.forEach((r, i) => {
+      if (Number.isInteger(r.value) && r.value >= 2 && r.value <= 16 && counts.get(r.value) === 1) add(r.value - 1, cards[i] && cards[i].p);
+    });
+    if (cards.office) add(0, cards.office);
+    return targets;
   }
 
   // Doors lead to different cells, so two cards can't read the same number
@@ -1135,6 +1155,9 @@
   // left of the board, each matched to the instrument it shows.
   function readTools(img, loc, ref) {
     const found = findToolIcons(img, loc);
+    found.slots = found.icons.length;
+    found.complete = !!found.found && !found.obscured;
+    found.conf = found.complete ? 0.8 : 0.3;
     found.tools = found.icons.map((icon) => {
       const feat = artFeature(img, ...icon.box);
       // A panel icon learned from a big, sharp picture (w: its width there)
@@ -1142,6 +1165,7 @@
       // hammer passed for a dark upright box (shrunk 1000 px reports).
       const ranked = ref.tools.filter((t) => !t.w || icon.box[2] - icon.box[0] >= 0.6 * t.w).map((t) => ({ id: t.id, score: similarity(feat, t.feat) })).sort((a, b) => b.score - a.score);
       const best = ranked[0];
+      if (!best) return { id: null, sim: null, conf: 0, box: icon.box, alts: [] };
       const second = ranked.find((r) => r.id !== best.id);
       const margin = best.score - (second ? second.score : 0);
       // alts: the closest instruments, best first, one score each: right after
@@ -1151,7 +1175,7 @@
         if (!alts.some((x) => x.id === r.id)) alts.push({ id: r.id, score: Math.round(r.score * 1000) / 1000 });
         if (alts.length === 6) break;
       }
-      return { id: best.id, score: best.score, margin, box: icon.box, conf: Math.max(0.1, Math.min(1, (best.score - 0.6) * 2.5 + margin * 5)), alts };
+      return { id: margin >= 0.025 ? best.id : null, sim: null, unknown: margin < 0.025, score: best.score, margin, box: icon.box, conf: Math.max(0.1, Math.min(1, (best.score - 0.6) * 2.5 + margin * 5)), alts };
     });
     return found;
   }
@@ -1185,26 +1209,49 @@
     const tipGlyphs = textLines(img, label.x0, top, left, top + 7.45 * h, { minH: 0.5 * h, maxH: 1.8 * h })
       .flatMap((line) => line.pieces.filter((p) => p.glyphs.length >= 6 && p.x1 - p.x0 > 5.3 * h).flatMap((p) => p.glyphs));
     const out = [];
+    let obscured = false;
+    // A real card has a continuous raised left frame. Wall highlights can
+    // contain more bright pixels than a dark tool, so brightness alone cannot
+    // establish that another slot exists. Search only around the panel pitch.
+    const frameAt = (x, y0, y1) => {
+      let sum = 0, aligned = 0, n = 0;
+      const gap = Math.max(2, Math.round(0.13 * h));
+      for (let y = Math.round(y0 + 0.65*h); y < y1 - 0.9*h; y++) {
+        const a = rgbAt(img, x, y), b = rgbAt(img, x-gap, y);
+        const d = (a[0]+a[1]+a[2]-b[0]-b[1]-b[2])/3;
+        sum += d; aligned += d > 4 ? 1 : 0; n++;
+      }
+      return { mean: n ? sum/n : 0, share: n ? aligned/n : 0 };
+    };
+    let previousX = null;
     for (let i = 0; i < 6; i++) {
-      const x0 = label.x0 + (0.15 + 6.05 * i) * h;
-      const x1 = x0 + 4.45 * h;
+      const expected = previousX === null ? label.x0 + 0.15*h : previousX + 5.1*h;
       const y0 = label.y1 + 1.55 * h;
       const y1 = y0 + 7.45 * h;
-      if (x1 > left) break;
+      let edge = null;
+      for (let x = Math.round(expected - 0.45*h); x <= expected + 0.45*h; x++) {
+        const frame = frameAt(x, y0, y1);
+        if (frame.share >= 0.60 && frame.mean >= 3.5 && (!edge || frame.mean > edge.mean)) edge = { x, ...frame };
+      }
+      if (!edge) break;
+      const x0 = edge.x;
+      const x1 = x0 + 4.45*h;
+      previousX = x0;
+      if (x1 > left) { obscured = true; break; }
       // A slot with several of its letters is under the tooltip (a line can run
       // into the hovered icon's art, so a letter or two isn't enough).
-      if (tipGlyphs.filter((g) => (g.x0 + g.x1) / 2 > x0 && (g.x0 + g.x1) / 2 < x1 && (g.y0 + g.y1) / 2 > y0 && (g.y0 + g.y1) / 2 < y1).length >= 4) break;
+      if (tipGlyphs.filter((g) => (g.x0 + g.x1) / 2 > x0 && (g.x0 + g.x1) / 2 < x1 && (g.y0 + g.y1) / 2 > y0 && (g.y0 + g.y1) / 2 < y1).length >= 4) { obscured = true; break; }
       // A card is a little lighter than the wall around it.
       const inside = mean(x0 + 0.5 * h, y0 + 0.5 * h, x1 - 0.5 * h, y1 - 0.5 * h);
       const wall = mean(x1 + 0.35 * h, y0, x1 + 1.3 * h, y1);
       // Art: pixels well above the card's own darkness.
-      const thr = Math.max(0.16, inside * 1.9);
+      const thr = Math.max(0.16, inside * 1.5);
       let ax0 = Infinity;
       let ay0 = Infinity;
       let ax1 = -1;
       let ay1 = -1;
       let art = 0;
-      for (let y = Math.round(y0 + 0.4 * h); y <= y1 - 0.4 * h; y++) {
+      for (let y = Math.round(y0 + 1.3 * h); y <= y1 - 0.8 * h; y++) {
         for (let x = Math.round(x0 + 0.4 * h); x <= x1 - 0.4 * h; x++) {
           const [, s, v] = hsvAt(img, x, y);
           if (v > thr && (s > 0.2 || v > thr * 1.3)) {
@@ -1218,7 +1265,7 @@
       }
       // A card holds art; past the last instrument there's only wall. A dark
       // card with little art still counts if it's lighter than the wall.
-      if (art < 1.0 * h * h && !(art > 0.5 * h * h && inside > wall + 0.012)) break;
+      if (art < 0.6 * h * h && !(art > 0.4 * h * h && inside > wall + 0.012)) break;
       // An open tooltip spills its text over the next slots. Text is thin
       // strokes spread through a tall box, or a flat strip, where an icon is
       // a solid drawing (at least 7% of its box, never much wider than
@@ -1226,9 +1273,9 @@
       const bw = ax1 - ax0 + 1;
       const bh = ay1 - ay0 + 1;
       if (art / (bw * bh) < 0.065 || bw > 2 * bh) break;
-      out.push({ box: [ax0, ay0, ax1, ay1], card: [x0, y0, x1, y1], art });
+      out.push({ box: [ax0, ay0, ax1, ay1], card: [x0, y0, x1, y1], art, frame: { mean: edge.mean, share: edge.share } });
     }
-    return { icons: out, found: true, label };
+    return { icons: out, found: true, label, obscured };
   }
 
   // The run's start card hangs as a round badge under the instrument panel
@@ -1249,7 +1296,23 @@
   // The badge there, if any: its id when it's one the reader knows.
   function readBadge(img, label, ref) {
     if (!label) return null;
-    const box = badgeBox(label);
+    const nominal = badgeBox(label);
+    const h=(label.x1-label.x0)/12.2;
+    let match=null;
+    for(let dy=-8;dy<=1;dy+=0.5) {
+      const dx=0;
+      const box=nominal.map((v,i)=>Math.round(v+(i%2?dy:dx)*h));
+      if(box[0]<0 || box[3]>=img.height)continue;
+      if(colorShare(img,...box,(h,s,v)=>v>0.3)<0.02)continue;
+      const inner=badgeBox(label,true).map((v,i)=>Math.round(v+(i%2?dy:dx)*h));
+      const feat=artFeature(img,...inner);
+      for(const b of ref.badges || []) {
+        const score=similarity(feat,b.feat);
+        if(score>0.95 && (!match || score>match.score))match={id:b.id,score,box};
+      }
+    }
+    if(match)return match;
+    const box = nominal;
     if (box[0] < 0 || box[3] >= img.height) return null;
     // Without a badge the wall there is dark: 0 bright pixels on every board
     // without one, 6-9% with one.
@@ -1537,6 +1600,61 @@
     return Object.assign({}, ref, { tools: ref.tools.concat(pick.icons || []), badges: (ref.badges || []).concat(pick.badges || []) });
   }
 
+  function readTreasureCards(img) {
+    const started = Date.now();
+    const forms = {
+      ring: [[5,6,5,4], [11,5,4], [12,5,4], [5,7,5,4]],
+      horn: [[5,4,2,6]], wine: [[7,7]], brand: [[5,2,8,3]],
+    };
+    const ids = Object.keys(forms);
+    const candidates = Object.fromEntries(ids.map((id) => [id, []]));
+    for (const factor of [0.01, 0.016, 0.026]) {
+      const lines = textLines(img, img.width*0.04, img.height*0.34, img.width*0.96, img.height*0.70,
+        { minH: Math.max(6,img.height*0.009), maxH: Math.max(40,img.height*0.055), r: Math.max(3,Math.round(img.height*factor)), s:0.5 });
+      for (const line of lines) for (const piece of line.pieces) {
+        const words = piece.words;
+        for (const id of ids) for (const want of forms[id]) for (let start=0; start+want.length<=words.length; start++) {
+          const outside = words.slice(0,start).concat(words.slice(start+want.length));
+          if (outside.some((w) => w.glyphs.length>2) || outside.reduce((n,w) => n+w.glyphs.length,0)>6) continue;
+          const matched = words.slice(start,start+want.length);
+          const off = matched.reduce((n,w,i) => n+Math.abs(w.glyphs.length-want[i]),0);
+          if (off>1) continue;
+          const glyphs = matched.flatMap((w) => w.glyphs);
+          const heights = glyphs.map((g) => g.h).sort((a,b) => a-b);
+          const h = heights[Math.floor(heights.length/2)];
+          if (h<img.height*0.012 || glyphs.filter((g) => g.h>=h*0.5 && g.h<=h*1.8).length<glyphs.length*0.85) continue;
+          const x0=Math.min(...glyphs.map((g) => g.x0)), x1=Math.max(...glyphs.map((g) => g.x1));
+          const y0=Math.min(...glyphs.map((g) => g.y0)), y1=Math.max(...glyphs.map((g) => g.y1));
+          if ((x1-x0)/h<glyphs.length*0.3 || (x1-x0)/h>glyphs.length*1.2 || y1-y0>h*1.8) continue;
+          const c={id,x:x0,y:y0,width:x1-x0,height:y1-y0,h,off,words:matched.map((w) => w.glyphs.length)};
+          const old=candidates[id].find((p) => Math.abs(p.x-c.x)<h && Math.abs(p.y-c.y)<h);
+          if (!old) candidates[id].push(c);
+          else if (off<old.off) Object.assign(old,c);
+        }
+      }
+    }
+    const fail = () => ({ok:false,targets:{},reason:'Four unique Treasure captions were not found in one card row.',ms:Date.now()-started});
+    if (ids.some((id) => !candidates[id].length)) return fail();
+    let best=null;
+    const choose=(i,chosen) => {
+      if (i===ids.length) {
+        const sorted=chosen.slice().sort((a,b) => a.x-b.x);
+        if (sorted.some((a,j) => j && a.x<sorted[j-1].x+sorted[j-1].width)) return;
+        const hs=chosen.map((c) => c.h), mids=chosen.map((c) => c.y+c.height/2);
+        const h=Math.max(...hs), spread=Math.max(...mids)-Math.min(...mids);
+        if (Math.min(...hs)<h*0.65 || spread>h*3) return;
+        const score=chosen.reduce((sum,c) => sum+c.off,0)*10+spread/h+(h-Math.min(...hs))/h;
+        if (!best || score<best.score) best={cards:chosen.slice(),score};
+        return;
+      }
+      for (const c of candidates[ids[i]]) choose(i+1,chosen.concat(c));
+    };
+    choose(0,[]);
+    if (!best) return fail();
+    const targets=Object.fromEntries(best.cards.map((c) => [c.id,{x:c.x,y:c.y,width:c.width,height:c.height}]));
+    return {ok:true,targets,cards:best.cards.map(({h,off,...c}) => c),ms:Date.now()-started};
+  }
+
   // ---------- The run's objective ----------
 
   // The objective popup at the start of a run ("Objective: Undercurrents"):
@@ -1597,6 +1715,9 @@
     // "Consume" (judged by its card below). The cards' icons can make seven
     // marks in a row too, but they come apart into several words.
     const labels = [];
+    const coloredLabels = [];
+    const officeLabels = [];
+    const minCaptionHeight = Math.max(6, img.height * 0.009);
     // Single words, by their letters: the office's "Instigate" (9) and
     // "Bestow" (6).
     const single = [];
@@ -1612,6 +1733,27 @@
       return tail.length === want.length && tail.reduce((a, n, i) => a + Math.abs(n - want[i]), 0) <= 2;
     };
     for (const r of textRadii(img)) {
+      // Consume's caption is red too: the pale-text pass splits its letters
+      // into separate fragments. Keep this wider color pass local to its
+      // seven-letter word shape; the card and row are validated below.
+      for (const line of textLines(img, x0, bottom, x1, img.height - 1, { minH: 6, maxH: Math.max(48, img.height * 0.07), r, s: 1.01 })) {
+        if (line.h < minCaptionHeight) continue;
+        for (const p of line.pieces) {
+          const n = p.words.reduce((sum, word) => sum + word.glyphs.length, 0);
+          const h = p.y1 - p.y0;
+          const span = (p.x1 - p.x0) / Math.max(1, h);
+          if (h < minCaptionHeight) continue;
+          const caption = { x0: p.x0, x1: p.x1, mid: (p.y0 + p.y1)/2, h };
+          // Gold office text can split into several words under the pale-text
+          // cutoff. The actual piece still supplies all of its visible bounds.
+          if (p.words.length <= 3 && n >= 5 && n <= 10) officeLabels.push({ ...caption, n, span });
+          if (p.words.length !== 1) continue;
+          if (n >= 6 && n <= 8 && span > 3 && span < 8) coloredLabels.push(caption);
+          // End is pale, but this pass can retain a full caption that the
+          // stricter saturation cutoff fragmented by a few colored pixels.
+          if (n === 3 && span > 1.5 && span < 3.2) ends.push(caption);
+        }
+      }
       for (const line of textLines(img, x0, bottom, x1, img.height - 1, { minH: 6, maxH: Math.max(48, img.height * 0.07), r })) {
         for (const p of line.pieces) {
           const n = p.words.reduce((a, w) => a + w.glyphs.length, 0);
@@ -1621,14 +1763,12 @@
             const words = p.words.map((w) => w.glyphs.length);
             if (near(words, [6, 2, 9]) && !near(words, [4, 4, 8])) pickCell = true;
             // Not "Select a Destination" [6, 1, 11], over the doors (report 56).
-            // "Make Your" can run together, large (report 178, 2600x1156:
-            // [9, 8] or [8, 8]); the Ratway's title ends in 9 letters.
             else if (near(words, [4, 4, 8]) || (words.length === 2 && Math.abs(words[0] - 8) <= 1 && words[1] === 8)) title = true; // Make Your Decision
           }
           else if (p.words.length === 1 && n >= 6 && n <= 8 && span > 3 && span < 6.5) labels.push({ x0: p.x0, x1: p.x1, mid: line.mid, h: line.h });
           else if (n === 3 && span > 1.5 && span < 3.2) {
             end = true;
-            if (p.words.length === 1) ends.push({ x0: p.x0, mid: line.mid, h: line.h });
+            if (p.words.length === 1) ends.push({ x0: p.x0, x1: p.x1, mid: (p.y0 + p.y1)/2, h: p.y1 - p.y0 });
           }
           // Another card's label, for a row seen without its title.
           if (n >= 6 && n <= 13 && span > 3 && span < 8) lefts.push({ x1: p.x1, mid: line.mid });
@@ -1675,25 +1815,52 @@
     }
     // The office: "Instigate" with "Bestow" to its right on the same line,
     // neither on the Consume card's red (its jaws can read as a long word).
-    const office = single.some((a) => a.n >= 8 && a.n <= 10 && a.span > 4.3 && a.span < 6.5 && redBy(a) < 0.01
-      && single.some((b) => b.n >= 5 && b.n <= 6 && b.span > 3.3 && b.span < 5.5 && b.x0 > a.x1 && Math.abs(b.mid - a.mid) < a.h / 2 && redBy(b) < 0.01));
+    const officePairs = [];
+    for (const a of officeLabels) {
+      // Instigate includes a descender: its full observed bounds are taller
+      // than the cap height used by the old pale-text pass (span 4.0–4.13).
+      if (!(a.n >= 8 && a.n <= 10 && a.span > 3.8 && a.span < 6.5 && redBy(a) < 0.01)) continue;
+      for (const b of officeLabels) {
+        if (b.n >= 5 && b.n <= 6 && b.span > 3.3 && b.span < 5.5 && b.x0 > a.x1 && b.x0 - a.x1 < 20*a.h
+          && Math.abs(b.mid-a.mid) < a.h/2 && Math.abs(b.h-a.h) < 0.3*a.h && redBy(b) < 0.01) officePairs.push({ a, b });
+      }
+    }
+    const officePair = officePairs.sort((p, q) => Math.min(q.a.h, q.b.h) - Math.min(p.a.h, p.b.h))[0];
+    const office = !!officePair;
     // The Sewer Ratway: the player picks any cell, with no cards.
     if (pickCell && !title) return { ratway: true, replace: false, consume: false, end: false, title: false };
     // Without its title, a stray short word isn't a row of cards. A row
     // still counts with "End" as one word and another card's label to its
     // left on the same line, and a Consume card or a Replace label.
     const row = ends.some((e) => lefts.some((l) => Math.abs(l.mid - e.mid) < e.h / 2 && l.x1 < e.x0 && e.x0 - l.x1 < 30 * e.h));
-    if (!title && !(row && (consume || replace))) return null;
-    if (office) return { office: true, replace: false, consume: false, end: false, title };
-    return { replace, consume, end, title, red: Math.round(1000 * red) / 1000 };
+    if (!office && !title && !(row && (consume || replace))) return null;
+    const target = (l) => ({ x: l.x0, y: l.mid-l.h/2, width: l.x1 - l.x0, height: l.h });
+    const targets = {};
+    if (office) {
+      targets.instigate = target(officePair.a);
+      targets.bestow = target(officePair.b);
+      return { office: true, replace: false, consume: false, end: false, title, targets };
+    }
+    const fullEnds = ends.filter((l) => l.h >= minCaptionHeight);
+    const coherent = (a, b) => Math.abs(a.mid - b.mid) <= 1.5 * Math.max(a.h, b.h);
+    const meal = consume && coloredLabels.filter((l) => redBy(l) >= 0.01 && fullEnds.some((e) => e.x0 > l.x1 && coherent(l, e)))
+      .sort((a, b) => b.h - a.h || (b.x1 - b.x0) - (a.x1 - a.x0))[0];
+    const swap = replace && labels.find((l) => l.red < 0.01);
+    if (meal) targets.consume = target(meal);
+    if (swap) targets.replace = target(swap);
+    const anchors = [meal, swap].filter(Boolean);
+    const finish = fullEnds.filter((e) => !anchors.length || anchors.some((l) => e.x0 > l.x1 && coherent(l, e))).sort((a, b) => b.h - a.h)[0];
+    if (end && finish) targets.end = target(finish);
+    return { replace, consume, end, title, red: Math.round(1000 * red) / 1000, targets };
   }
 
   // ---------- Everything ----------
 
+  let boardCache = null;
   function scan(img, ref) {
     const t0 = Date.now();
     const gray = grayOf(img);
-    let loc = locateBoard(img, gray, ref);
+    let loc = locateBoard(img, gray, ref, boardCache);
     // Real boards match their frame at 0.81 or more at every size tested;
     // instrument picks, popups and other screens stay near 0.5 or under. A
     // darkened board (a devour's meal pick) also matches weakly, but its
@@ -1704,6 +1871,7 @@
     }
     const notes = [];
     if (!loc || (!loc.byLabels && loc.score < 0.65)) return { ok: false, reason: 'No Tartarus prison board found in this picture.', loc, ms: Date.now() - t0 };
+    boardCache = !loc.byLabels && loc.score >= 0.80 ? { width: img.width, height: img.height, loc } : null;
     const sharp = blur(gray, img.width, img.height, 1);
     const cells = [];
     for (let n = 0; n < 16; n++) cells.push(readCell(img, sharp, loc, n, ref));
@@ -1739,7 +1907,7 @@
     return { ok: true, loc, cells, warden, doors, days, tools, badge, chromatic, objective, chain, decision, notes, ms: Date.now() - t0 };
   }
 
-  const api = { scan, scanPick, pickArtBox, pickRerollShown, locateBoard, readCell, findWarden, findToolIcons, readDoors, readDays, doorCards, dayNumber, prefixVector, textLines, glyphVector, faceVector, artFeature, similarity, hsv, blobs, at, gridOf, scaleAt, grayOf, blur, RING, H0, ARROW, FACE, GLYPH, locateByLabels, readChainScreen, readDecision, readObjectiveTitle, withPanelIcons, badgeBox, readBadge };
+  const api = { scan, scanPick, readTreasureCards, pickArtBox, pickRerollShown, locateBoard, readCell, findWarden, findToolIcons, readDoors, readDays, doorCards, doorTargets, dayNumber, prefixVector, textLines, glyphVector, faceVector, artFeature, similarity, hsv, blobs, at, gridOf, scaleAt, grayOf, blur, RING, H0, ARROW, FACE, GLYPH, locateByLabels, readChainScreen, readDecision, readChromatic, readTools, readObjectiveTitle, withPanelIcons, badgeBox, readBadge };
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.TartarusScan = api;
 })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);

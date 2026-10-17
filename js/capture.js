@@ -18,7 +18,7 @@
 (function () {
   'use strict';
 
-  const POLL_MS = 1000;
+  const POLL_MS = 200;
   const IDB = 'tartarus-sim-capture';
   const listeners = { status: [], hit: [], seen: [], frame: [] };
   // detail: whether the game writes the detail lines the triggers come from
