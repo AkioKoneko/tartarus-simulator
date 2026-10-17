@@ -1688,6 +1688,7 @@
   // Reads a picture of the game (a pasted screenshot, or a frame from Follow
   // my game). opts.quiet skips the prompts; opts.onRead hears how it went.
   function readBitmap(source, opts) {
+    reader.capturedAt = Date.now();
     // Very large screenshots are scaled down; the reader works at any size.
     const scale = Math.min(1, 2600 / source.width);
     const w = Math.round(source.width * scale);
@@ -1708,12 +1709,19 @@
     reader.folded = !showShots;
     reader.follow = !!o.quiet;
     reader.id += 1;
+    reader.treasureScreen = null;
+    reader.completedId = 0;
     const id = reader.id;
+    const previous=reader.pending;
+    if(previous && previous.id!==id) previous.done(null,'a newer picture came in');
     const t0 = performance.now();
     setReading(true);
+    let completed=false;
     const done = (result, error) => {
-      if (id === reader.id) setReading(false);
-      if (id !== reader.id) {
+      if(completed)return;
+      completed=true;
+      setReading(false);
+      if (id !== reader.id || (o.isCurrent && !o.isCurrent())) {
         if (o.onRead) o.onRead({ ok: false, skipped: true, reason: 'a newer picture came in' });
         return;
       }
@@ -1727,9 +1735,11 @@
         return;
       }
       reader.result = result;
-      reader.reading = result.ok ? scanToModel(result, model) : null;
+      reader.reading = result.ok ? scanToModel(result, model._simulated && reader.liveModel ? reader.liveModel : model) : null;
+      reader.completedId = id;
+      reader.completedImage = reader.image;
       scanStatus(result.ok ? `Read in ${(reader.ms / 1000).toFixed(1)} s.` : `${result.reason} Try a screenshot of the prison screen, with the whole board in view.`, !result.ok);
-      if (o.onRead) o.onRead(result.ok ? { ok: true, day: reader.reading.model.day, unsure: reader.reading.checks.size, ms: reader.ms } : { ok: false, reason: result.reason, ms: reader.ms });
+      if (o.onRead) o.onRead(result.ok ? { ok: true, day: reader.reading.model.day, unsure: reader.reading.checks.size, ms: reader.ms, _readerId:id, _requestId:o.requestId } : { ok: false, reason: result.reason, ms: reader.ms });
       if (o.quiet) {
         renderScan();
         return;
@@ -2127,12 +2137,18 @@
   // (js/follow.js); the picks waiting are each new Rainbow's picks less each
   // one confirmed. The first counts this page hears only start the tally.
   const picksPer = () => ((T.START_EVENTS || {})[model.startEvent] || {}).picks || 1;
-  const gifts = { log: null, waiting: 0, board: null };
+  const gifts = { log: null, waiting: 0, board: null, known: false };
   function giftCounts(c) {
     if (!c || !Number.isFinite(c.rainbows) || !Number.isFinite(c.taken)) return null;
     const was = gifts.log;
-    if (was && c.rainbows >= was.rainbows && c.taken >= was.taken) gifts.waiting = Math.max(0, gifts.waiting + (c.rainbows - was.rainbows) * picksPer() - (c.taken - was.taken));
-    gifts.log = { rainbows: c.rainbows, taken: c.taken };
+    const reset = was && c.epoch != null && c.epoch !== was.epoch;
+    if (!was || reset) {
+      gifts.waiting = Math.max(0,c.rainbows*picksPer()-c.taken);
+      gifts.board = null;
+    } else if (c.rainbows >= was.rainbows && c.taken >= was.taken) gifts.waiting = Math.max(0, gifts.waiting + (c.rainbows - was.rainbows) * picksPer() - (c.taken - was.taken));
+    gifts.known = c.epoch != null || c.rainbows===0 || !!was;
+    gifts.log = { rainbows: c.rainbows, taken: c.taken, epoch:c.epoch };
+    if(gifts.known && gifts.waiting===0 && model.treasureWait){model.treasureWait=false;model.treasureSeen=false;solver.st=null;}
     return gifts.waiting;
   }
   // A pick confirmed, or a Rainbow, since the board behind the Treasure was
@@ -2143,7 +2159,7 @@
   function picksNow() {
     // A Treasure the tally missed the Rainbow of (this page opened during
     // it): the card's picks, as a guess for this screen only.
-    if (gifts.log) return gifts.waiting > 0 ? gifts.waiting : picksPer();
+    if (gifts.log) return gifts.known ? gifts.waiting : Math.max(gifts.waiting,picksPer());
     return model.step === 'choice' && model.choice.kind === 'gift' ? model.choice.picks || 1 : picksPer();
   }
 
@@ -2154,6 +2170,7 @@
   // Rainbow, so it's in the vault and its cell locked again; after a
   // consume, today's consume is used.
   function useTreasure(after) {
+    if(gifts.known && gifts.waiting===0) return false;
     const gift = () => {
       const picks = picksNow();
       model.step = 'choice';
@@ -2178,7 +2195,7 @@
     // unless a pick was confirmed since (Opulence's next pick).
     if (model.step === 'choice' && model.choice.kind === 'gift' && model.treasureSeen && !pickedSinceBoard()) {
       const picks = picksNow();
-      if (picks === model.choice.picks) return fresh() && settled() ? true : ask(true);
+      if (picks === model.choice.picks) return fresh() ? true : ask(true);
       // A pick's Rainbow brought more picks: the advice weighs them.
       model.choice = Object.assign({}, model.choice, { picks });
       changed();
@@ -2741,7 +2758,9 @@
   }
 
   // Loads the reading as the board. The caller then asks what to do.
-  function useScan() {
+  function useScan(read) {
+    if(read && typeof read==='object' && (read.skipped || read.ok===false)) return false;
+    if(read && read._readerId != null && read._readerId!==reader.id) return false;
     const rd = reader.reading;
     if (!rd) return;
     undo.push({ model: JSON.parse(JSON.stringify(model)), selected, shot });
@@ -3093,7 +3112,7 @@
     // Follow my game (js/auto.js, beta): read frames of the game, load
     // them, and ask, without the toasts a pasted screenshot gets.
     window.TartarusAnalyzer = {
-      readFrame: (bitmap) => new Promise((resolve) => readBitmap(bitmap, { quiet: true, folded: true, onRead: resolve })),
+      readFrame: (bitmap, opts) => new Promise((resolve) => readBitmap(bitmap, Object.assign({},opts,{ quiet: true, folded: true, onRead: resolve }))),
       readPick: (bitmap) => readPick(bitmap),
       usePick: (read, fresh) => usePick(read, fresh),
       readTreasure: (bitmap) => readTreasure(bitmap),
@@ -3106,10 +3125,14 @@
       giftCounts: (c) => giftCounts(c),
       giftsDone: () => {
         gifts.waiting = 0;
+        gifts.known = true;
+        model.treasureWait=false;
+        model.treasureSeen=false;
       },
-      useReading: () => useScan(),
+      useReading: (read) => useScan(read),
       ask: () => ask(true),
       recommendation: () => (fresh() && settled() ? recommendation() : null),
+      giftState: () => JSON.parse(JSON.stringify(gifts)),
       // What the reader made of the last picture, in full (the desktop app's
       // test record keeps it).
       readingSummary: () => (reader.result && reader.image ? readingSummary(true) : ''),
@@ -3118,6 +3141,7 @@
       setCores: (n) => setCores(n),
       cores: () => ({ cap: coreCap, use: workerCount(), most: MOST_WORKERS, running: solver.workers ? solver.workers.length : 0, onPage: !!solver.failed }),
       day: () => model.day,
+      hasLiveRun: () => !!model.runStart && !model.ended && (model.day>1 || model.tools.length>0),
       toast,
     };
     // In the desktop app, the link to download it has no use.
