@@ -6,6 +6,8 @@
   'use strict';
 
   const O = window.Overlay;
+  const REFRESH_WAIT_MS = 20000;
+  let refreshWait = null;
   const $ = (id) => document.getElementById(id);
   const state = { shell: {}, game: {}, follow: null, advice: null, menu: false };
 
@@ -132,6 +134,17 @@
     }
 
     $('body').replaceChildren(...out);
+    // Keep diagnostics below the advice and normal controls. A transient gap
+    // between game screens must not immediately offer another capture.
+    const hs=sh.hintsStatus;
+    const eligible=hs && hs.refreshable===true && !(a && (a.reading || a.working));
+    const waitKey=eligible ? JSON.stringify([hs.code,a && a.hints && a.hints.frameId,a && a.hints && a.hints.capturedAt]) : null;
+    if(!eligible)refreshWait=null;
+    else if(!refreshWait || refreshWait.key!==waitKey)refreshWait={key:waitKey,since:Date.now()};
+    const refreshReady=refreshWait && Date.now()-refreshWait.since>=REFRESH_WAIT_MS;
+    $('hints-status-area').replaceChildren(...(hs && typeof hs.text==='string' && hs.text.trim() ? [h('div', { id:'hints-status',class:'hints-status',role:'status','data-state':hs.code==='visible'?'active':'waiting' },
+      h('p',null,h('span',{class:'hints-status-label'},'Target hints: '),hs.text),
+      refreshReady ? h('button',{type:'button',class:'btn',cmd:'capture',id:'hints-refresh'},'Refresh picture') : null)] : []));
     const dot = (el, on, what) => {
       el.className = `dot ${on === true ? 'is-on' : on === false ? 'is-off' : ''}`;
       el.title = what;
@@ -157,6 +170,7 @@
     }
     if (b.id === 'fold') return O.command('collapse');
     if (b.dataset.cmd) {
+      if(b.id==='hints-refresh')refreshWait=null;
       state.menu = false;
       O.command(b.dataset.cmd);
       render();
