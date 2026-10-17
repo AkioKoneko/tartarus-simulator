@@ -119,7 +119,9 @@ Report 100, the card: "Blood-Stained Trap: Berserk Lion. Condition: Stops at Ber
 - **Hunt:** with the warden on a Lion that has no prey mark, Hunt is a third choice beside Consume and Replace (`T.hunt`, `T.huntTargets`, `T.canHuntNow`). A day has one of the three.
 - **The mark:** the Lion marks one inmate it can consume that has no prey mark either. Then the simulator's Prey marker rule applies: each morning both rise a tier, for 3 mornings, until either leaves the block or changes beast. That rule predates the live game. The card doesn't say whether Hunt uses up the day's action, or whether it marks one target or every one; this is a reading to confirm.
 - **Strategy:** it hunts when the mark (`linkValue`, at 80% for the chance it ends early) is worth more than the best consume and Replace, and it already guards marks from being eaten.
-- **Pages:** the simulator page has a Hunt button that asks which inmate to mark, and the analyzer counts a Hunt as the day's action. The reader doesn't know the game's Hunt card in the decision row yet. Until it's measured, the rankings put the Trap after the Ravenous Chains.
+- **Pages:** the simulator page has a Hunt button that asks which inmate to mark, and the analyzer counts a Hunt as the day's action. The reader doesn't know the game's Hunt card in the decision row yet.
+- **Measured in the pair lab** (`combos --max 2`, 31 new sets to ±0.01; the others carried over, since without the Trap the code plays 3,000 seeded runs as before): alone 2.33 Rainbows a run, second after the Crown (2.70). It does best with the Crown (3.92), the Noose (3.77) and the Claws (3.37), and clashes with the Scapegoat's Guillotine (−0.93), the Maul (−0.61) and the Avenger's Casket (−0.58). The drill ranking has it second. The challenge ranking keeps it after the Ravenous Chains.
+- **Not yet run:** the guide and the challenge. The vault's 10-Rainbow cap (the user, 2026-10-17) is coming, and with it every number is measured again.
 
 ### Filthy Claws: Alpha Wolf (2026-10-17)
 
