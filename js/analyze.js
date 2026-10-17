@@ -46,6 +46,12 @@
   const SAVE_KEY = 'tartarus-sim:save:v2';
   const PLAYOUT_BUDGET = 9600; // playouts per check, shared across the options
   const LIVE_MIN = 150; // playouts per option before the live check can lead
+  // The check ends early once the leader is ahead of every other move by
+  // CLEAR_SE of its paired margins (after LIVE_MIN playouts each), and in any
+  // case after CHECK_MS, with what it has then. The user: a decision within a
+  // second of the picture, "faster is way better".
+  const CLEAR_SE = 3;
+  const CHECK_MS = 700;
   const STEPS = ['patrol', 'manage', 'office', 'chain', 'event', 'ratway', 'choice', 'window'];
   const STEP_NAMES = { patrol: 'Which door to patrol', manage: 'After the patrol', office: 'Instigate or Bestow', chain: 'A meal to pick, or Cancel', event: 'A special event', ratway: 'Sewer Ratway: any cell', choice: 'A tool or gift', window: 'A delivery' };
   const BEAST_KEYS = { m: 'mammoth', l: 'lion', w: 'wolf', r: 'rat' };
@@ -117,6 +123,10 @@
       // (toolsLocked), they stay for the run and aren't asked about again.
       toolsToConfirm: '',
       toolsLocked: false,
+      // The panel's count at the last confirmation (toolsSeen) and in the
+      // last picture (toolsPanel): only a panel showing more asks again.
+      toolsSeen: 0,
+      toolsPanel: 0,
       // Days of this run whose morning offered a door short (see scanToModel).
       shortDays: [],
       // The game shows no Replace / Consume card now (read from a screenshot):
@@ -618,6 +628,7 @@
     const options = S.candidates(st).length;
     const rollouts = clamp(Math.round(PLAYOUT_BUDGET / Math.max(1, options)), 400, 1600);
     solver.target = rollouts;
+    solver.startedAt = Date.now();
     startCheck(solver.id, st, rollouts);
     render();
     if (quiet !== true) $('az-results').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -672,7 +683,8 @@
   // merged result is redrawn at most every 100 ms, and once all are done.
   let mergeTimer = 0;
   function onShare(k, m) {
-    if (m.id !== solver.id || !solver.shares) return;
+    // A check that settled early keeps its answer: late rounds are dropped.
+    if (m.id !== solver.id || !solver.shares || (solver.result && solver.result.early)) return;
     const share = solver.shares[k];
     if (m.meta && !solver.meta) solver.meta = m.meta;
     if (!share.rows) share.rows = m.rows.map(() => ({ vals: [], pass: 0, points: 0, best: 0 }));
@@ -712,6 +724,14 @@
     });
     const rounds = solver.shares.reduce((sum, s) => sum + s.rounds, 0);
     solver.result = Object.assign(S.summarize(rows, rounds, solver.target, solver.goal), { done: solver.shares.every((s) => s.done) });
+    // Settled early: the workers stop, and their share of the processor with them.
+    if (!solver.result.done && settled() && solver.workers) {
+      for (const w of solver.workers) w.postMessage({ stop: true });
+      for (const share of solver.shares) share.done = true;
+      solver.result.done = true;
+      solver.result.early = true;
+      idleLater();
+    }
     renderResults();
     renderBoard();
     renderCourt();
@@ -721,7 +741,16 @@
   // Whether the advice is final: the live check has finished, or there's
   // nothing to compare. Until then no move is advised, so the advice never
   // changes its mind a moment after it's shown.
-  const settled = () => !!solver.result && (solver.result.done || solver.result.options.length <= 1);
+  function settled() {
+    const r = solver.result;
+    if (!r) return false;
+    if (r.done || r.options.length <= 1) return true;
+    const [top, ...rest] = r.options;
+    if (r.rounds >= LIVE_MIN && rest.every((o) => o.gapSe > 0 && top.mean - o.mean > CLEAR_SE * o.gapSe)) return true;
+    // Out of time: the advice is the check's leader once it has LIVE_MIN
+    // playouts each, else the strategy's own pick (recommendation()).
+    return Date.now() - solver.startedAt >= CHECK_MS;
+  }
   // A picture being read (the reader shows it on the board's card).
   let reading = 0;
   function setReading(on) {
@@ -2322,14 +2351,20 @@
     const out = known.map((id) => ({ id, sim: id, name: T.toolName(id), conf: 1, kept: true }));
     const has = (id) => out.some((t) => t.sim === id);
     const slots = read.length;
-    // Once the run's instruments are known, they're locked: icons never
-    // change them. The player is asked to confirm them only when the panel
-    // shows more than the run has, and once confirmed (m.toolsLocked) never
-    // again this run (the user: "if these have already been confirmed once,
-    // they cannot change"). Until then, an icon that's clearly another
-    // instrument asks too; after, two icons looking alike change nothing.
+    // A set run: once the run's instruments are known (the offers the
+    // analyzer saw and advised, or the player's confirmation), they're
+    // presumed and locked (m.toolsLocked), and icons never change them. The
+    // user: "once the instruments have been recommended and selected, it
+    // should presume those are the instruments and not say anything unless
+    // it sees more total instruments than it already had". So the only
+    // question is a panel showing more than the run has and than the count
+    // last confirmed (m.toolsSeen).
     m.toolsToConfirm = '';
-    if (!sameRun) m.toolsLocked = false;
+    m.toolsPanel = slots;
+    if (!sameRun) {
+      m.toolsLocked = false;
+      m.toolsSeen = 0;
+    }
     if (sameRun && (known.length || offer.length || base.runStart || base.toolsLocked)) {
       if (offer.length && slots > known.length && !offer.some(has)) {
         const seen = read.filter((t) => offer.includes(t.sim)).sort((a, b) => b.conf - a.conf)[0];
@@ -2355,15 +2390,8 @@
           else if (!seen) notes.push(`Took it you chose ${T.toolName(take)}, as advised. If you took another, change it under Torture Instrument.`);
         } else notes.push(`Your instruments show one more than before, from the offer of ${offer.map((id) => T.toolName(id)).join(', ')}: set which you took under Torture Instrument.`);
       }
-      // Icons read as another instrument, unless one the run has explains
-      // them: a runner-up match, or one the reader can't tell on a panel
-      // (it reads as something else; as many odd icons as those are theirs).
-      let off = read.filter((t) => t.sim && t.conf >= TOOL_SURE && !has(t.sim) && !(t.alts || []).some((a) => a.sim && has(a.sim) && a.score >= 0.7));
-      if (sims && slots <= out.length) off = off.slice(out.filter((t) => !sims.includes(t.sim)).length);
-      if (base.toolsLocked) {
-        if (slots > out.length) notes.push(`Your panel shows ${T.plural(slots, 'instrument')}, and this run has ${out.length}: ${out.map((t) => t.name).join(', ') || 'none'}. If you got another one, add it under Torture Instrument.`);
-      } else if (slots > out.length) m.toolsToConfirm = `Your panel shows ${T.plural(slots, 'instrument')}, and the analyzer has ${out.length}: ${out.map((t) => t.name).join(', ') || 'none'}. Set the ones you hold, then press These are right.`;
-      else if (off.length) m.toolsToConfirm = `An icon on your panel looks like ${off.map((t) => T.toolName(t.sim)).join(' and ')}, which isn’t one the analyzer has for this run (${out.map((t) => t.name).join(', ')}). Check your instruments, then press These are right.`;
+      if (out.length) m.toolsLocked = true;
+      if (slots > Math.max(out.length, base.toolsSeen || 0)) m.toolsToConfirm = `Your panel shows ${T.plural(slots, 'instrument')}, and the analyzer has ${out.length}: ${out.map((t) => t.name).join(', ') || 'none'}. Set the ones you hold, then press These are right.`;
       return out;
     }
     // Nothing known of the run yet: only icons the reader is sure of, and
@@ -2901,6 +2929,8 @@
     $('az-tools-ok').addEventListener('click', () => {
       model.toolsToConfirm = '';
       model.toolsLocked = true;
+      // The panel's count now: only more than this asks again.
+      model.toolsSeen = Math.max(model.tools.length, model.toolsPanel || 0);
       changed();
       ask();
     });
