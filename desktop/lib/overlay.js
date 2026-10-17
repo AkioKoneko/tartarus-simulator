@@ -121,6 +121,8 @@
     if (a && a.langMiss && Date.now() - a.langMiss.at < 120000) out.push(line('warn', a.langMiss.what === 'board' ? `Your game is in ${a.langMiss.lang}: check today's doors, and set the Replace and Consume decisions by hand on the board analyzer, and send it this board's screenshot once, to help it learn your language.` : `The ${a.langMiss.what} wasn't read (your game is in ${a.langMiss.lang}). Set it on the board analyzer, and send the screenshot from there.`, button('Board', 'board')));
     // The Warden's Treasure covers the board: the gift waits for a look at it.
     if (a && a.treasureWait) out.push(line('warn', 'The Warden’s Treasure is open. Press View Prison Status in the game, wait a second on the board, then go back to the Treasure: the gift advice uses that board.', button('Advise anyway', 'treasure-now')));
+    const risk = a && renderRisk(a.risk);
+    if (risk) out.push(risk);
     if (a && a.problems && a.problems.length) {
       out.push(line('warn', `The board needs a fix: ${a.problems[0]}`, button('Fix', 'fix', true)));
     } else if (a && a.has && a.working) {
@@ -140,7 +142,7 @@
         a.close && a.options && a.options[1] ? h('p', { class: 'alt' }, `About as good: ${a.options.find((o) => !o.best) ? a.options.find((o) => !o.best).label : a.options[1].label}`) : null,
       ];
       const advice = h('div', null,
-        sequence || h('div',null,h('p',{class:'eyebrow'},'Recommended'),h('p',{class:'move'},a.move)),
+        sequence || h('div',null,h('p',{class:'eyebrow'},a.risk ? a.risk.selected==='preserve'?'Your choice':'Simulation option':'Recommended'),h('p',{class:'move'},a.move)),
         sequence ? h('details',{class:'advice-details'},h('summary',null,'Calculation and alternatives'),explanation) : explanation,
       );
       out.push(advice);
@@ -180,7 +182,20 @@
     $('report-reading').hidden = !(a && a.canReportReading);
   }
 
-
+  function renderRisk(risk) {
+    if (!risk || risk.id !== 'maiden-scapegoat' || typeof risk.title !== 'string' ||
+      typeof risk.message !== 'string' || !['pending', 'simulate', 'preserve'].includes(risk.selected)) return null;
+    const preserve = h('button', { type: 'button', class: `btn${risk.selected === 'preserve' ? ' is-primary' : ''}`,
+      cmd: 'risk-preserve', 'aria-pressed': String(risk.selected === 'preserve'),
+      title: typeof risk.preserveLabel === 'string' ? risk.preserveLabel : null }, 'Keep inmates today');
+    const simulate = h('button', { type: 'button', class: 'btn', cmd: 'risk-simulate',
+      'aria-pressed': String(risk.selected === 'simulate'),
+      title: typeof risk.simulationLabel === 'string' ? risk.simulationLabel : null }, 'Use risky Replace');
+    return h('section', { id: 'advice-risk', class: 'advice-risk', 'aria-labelledby': 'advice-risk-title', 'data-selected': risk.selected },
+      h('p', { id: 'advice-risk-title', class: 'risk-title' }, risk.title),
+      h('p', { class: 'risk-message' }, risk.message),
+      h('div', { class: 'risk-actions', role: 'group', 'aria-label': 'Instrument interaction options' }, preserve, simulate));
+  }
 
   function renderPlan(plan, currentMove) {
     if (!plan || !Array.isArray(plan.steps)) return null;

@@ -1518,6 +1518,8 @@ function command(cmd) {
     case 'recheck':
     case 'tools-ok':
     case 'treasure-now':
+    case 'risk-preserve':
+    case 'risk-simulate':
       return send('analyzer', 'command', cmd);
     case 'debug-report': return debugReport();
     case 'enable-log':
