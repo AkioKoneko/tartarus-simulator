@@ -894,7 +894,10 @@
       for (const line of lines) {
         for (const p of line.pieces) {
           pieces.push(p);
-          const cap = p.glyphs[0].h;
+          // The letter height, from the "G" that starts the text, unless something
+          // hides part of it (the mouse pointer over "Go"): then the tallest letter.
+          const tallest = Math.max(...p.glyphs.map((g) => g.h));
+          const cap = p.glyphs[0].h < 0.85 * tallest ? tallest : p.glyphs[0].h;
           if (cap < 6 || p.glyphs.length < 4) continue;
           const span = (p.x1 - p.x0) / cap;
           if (span < 5.9 || span > 7.8) continue;
@@ -917,7 +920,11 @@
           // this card can have (a letter split in two, or a speck).
           if (!num.length || num.length > 2) continue;
           const like = gray && ref && ref.prefix ? prefixLike(gray, img.width, img.height, p, ref.prefix) : 1;
-          if (like < 0.5) continue;
+          // A card partly hidden (the pointer over "Go") still has the words of
+          // "Go to Cell N": 2, 2 and 4 letters, then the number.
+          const words = p.words.map((w) => w.glyphs.length);
+          const shaped = words.length === 4 && words[0] <= 2 && words[1] === 2 && words[2] === 4 && words[3] <= 2;
+          if (like < 0.5 && !(shaped && like >= 0.2)) continue;
           cards.push({ p, h: cap, mid: (p.y0 + p.y1) / 2, word: { glyphs: num }, fit: 1 - like });
         }
       }
@@ -1119,7 +1126,10 @@
     const found = findToolIcons(img, loc);
     found.tools = found.icons.map((icon) => {
       const feat = artFeature(img, ...icon.box);
-      const ranked = ref.tools.map((t) => ({ id: t.id, score: similarity(feat, t.feat) })).sort((a, b) => b.score - a.score);
+      // A panel icon learned from a big, sharp picture (w: its width there)
+      // isn't matched against one under 60% of that size: blurred small, a
+      // hammer passed for a dark upright box (shrunk 1000 px reports).
+      const ranked = ref.tools.filter((t) => !t.w || icon.box[2] - icon.box[0] >= 0.6 * t.w).map((t) => ({ id: t.id, score: similarity(feat, t.feat) })).sort((a, b) => b.score - a.score);
       const best = ranked[0];
       const second = ranked.find((r) => r.id !== best.id);
       const margin = best.score - (second ? second.score : 0);
@@ -1556,6 +1566,11 @@
     const objective = objectiveBox(img, loc, tools);
     const chain = readChainScreen(img, loc, cells, warden);
     const decision = doors || chain ? null : readDecision(img, loc);
+    // The warden in the office: no inmate there to Replace or Consume, so a
+    // row of cards is the office's Instigate and Bestow, whatever its labels
+    // read as (report 67: "Instigate" came apart, and "Bestow" passed for
+    // Replace).
+    if (decision && !decision.ratway && !decision.office && warden && warden.cell === 0) Object.assign(decision, { office: true, replace: false, consume: false, end: false });
     if (!warden) notes.push('The warden’s arrow was not found.');
     return { ok: true, loc, cells, warden, doors, days, tools, chromatic, objective, chain, decision, notes, ms: Date.now() - t0 };
   }

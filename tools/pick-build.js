@@ -59,7 +59,9 @@ for (const [file, ids] of Object.entries(TRUTH.panels || {})) {
   }
   ids.forEach((sim, i) => {
     if (!readerId[sim]) throw new Error(`${file}: ${sim} has no reader id in js/scan-data.js`);
-    icons.push({ id: readerId[sim], from: 'panel', feat: pack(S.artFeature(img, ...found[i].box)) });
+    // w: the icon's width in this picture; js/scan.js matches it only to icons
+    // at least 60% that wide.
+    icons.push({ id: readerId[sim], from: 'panel', w: Math.round(found[i].box[2] - found[i].box[0]), feat: pack(S.artFeature(img, ...found[i].box)) });
   });
 }
 
