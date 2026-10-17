@@ -269,6 +269,15 @@
     // A "speed" line (the game's Speed-up button) takes no picture: the page
     // hears it as a hit, and sets the pace.
     if (rule.kind === 'speed') return;
+    // The board after the Warden's Treasure's popup closes (View Prison
+    // Status pressed quickly, or a gift taken) gets its own picture: the
+    // Treasure still waiting goes at once, as it needs none (d8: a press
+    // within 1.5 s of the popup merged into it, and the board was never
+    // pictured).
+    if (burst && burst.kind === 'treasure' && rule.kind === 'board') {
+      clearTimeout(burst.timer);
+      fire();
+    }
     // Lines in a burst become one frame, once the log has been quiet for the
     // longest settle time among them.
     if (!burst) burst = { kind: rule.kind, rank: rule.rank, settle: 0, hits: [], timer: 0 };
