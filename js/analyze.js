@@ -799,6 +799,7 @@
     if (undo.length > 30) undo.shift();
     leaveShot();
     model = modelFrom(st, before);
+    model._simulated = true;
     flags = new Set(model.cells.map((c, n) => (cellSig(c) !== cellSig(before.cells[n]) ? n : -1)).filter((n) => n >= 0));
     applied = { label, changed: [...flags], newDay: model.day !== before.day, doors: model.step === 'patrol' ? model.dest.slice() : [], ended: !!model.ended, step: model.step, office: st.phase === 'office', more, toNextDay: !!toNextDay };
     const filled = [...flags].map((n) => `c${n}`);
@@ -2487,20 +2488,31 @@
   // sims: the instruments the reader can tell on a panel (any other reads
   // as something else).
   function runTools(read, base, m, notes, sims) {
-    const sameRun = !(m.day < base.day);
+    // A correction from a simulated day back to the live day is not a run start.
+    // Explicit objective/opening-offer events already create a blank model.
+    const sameRun = !base.ended;
     const known = sameRun ? (base.tools || []).filter((id) => T.TOOLS[id]) : [];
     const offer = sameRun && base.step === 'choice' && base.choice && base.choice.kind === 'tool' ? base.choice.options.filter((id) => T.TOOLS[id]) : [];
     const out = known.map((id) => ({ id, sim: id, name: T.toolName(id), conf: 1, kept: true }));
     const has = (id) => out.some((t) => t.sim === id);
-    const slots = read.length;
-    // A set run: once the run's instruments are known (the offers the
-    // analyzer saw and advised, or the player's confirmation), they're
-    // presumed and locked (m.toolsLocked), and icons never change them. The
-    // user: "once the instruments have been recommended and selected, it
-    // should presume those are the instruments and not say anything unless
-    // it sees more total instruments than it already had". So the only
-    // question is a panel showing more than the run has and than the count
-    // last confirmed (m.toolsSeen).
+    const slots = Math.max(read.length,Number(m.observedToolSlots)||0);
+    m.toolsPanel = slots;
+    // An earlier bad panel read could be confirmed with missing instruments.
+    // Recover only a complete, unambiguous panel that preserves every known ID.
+    if(base.toolsLocked && slots>known.length && read.length===slots &&
+      read.every(t=>t.sim && T.TOOLS[t.sim] && t.conf>=0.9) && new Set(read.map(t=>t.sim)).size===slots &&
+      known.every(id=>read.some(t=>t.sim===id))) {
+      out.push(...read.filter(t=>!has(t.sim)).map(t=>Object.assign({},t,{kept:true})));
+      m.toolsToConfirm='';
+      notes.push('Recovered the missing confirmed instruments from a complete high-confidence panel reading.');
+      return out;
+    }
+    // Once the run's instruments are known, they're locked: icons never
+    // change them. The player is asked to confirm them only when the panel
+    // shows more than the run has, and once confirmed (m.toolsLocked) never
+    // again this run (the user: "if these have already been confirmed once,
+    // they cannot change"). Until then, an icon that's clearly another
+    // instrument asks too; after, two icons looking alike change nothing.
     m.toolsToConfirm = '';
     m.toolsPanel = slots;
     if (!sameRun) {
@@ -2521,15 +2533,10 @@
             if (a && (!alike || a.score > alike.score)) alike = { sim: a.sim, score: a.score, as: t.sim };
           }
         }
-        // The advice given on that offer: the board before is the offer, so
-        // the analyzer's current recommendation is for it.
-        const rec = base === model && fresh() ? recommendation() : null;
-        const advised = rec && rec.action && rec.action.type === 'choose' && offer.includes(rec.action.id) ? rec.action.id : null;
-        const take = seen ? seen.sim : alike ? alike.sim : advised;
+        const take = seen ? seen.sim : alike ? alike.sim : null;
         if (take) {
           out.push({ id: take, sim: take, name: T.toolName(take), conf: 1, kept: true });
           if (!seen && alike) notes.push(`An icon read as ${alike.as ? T.toolName(alike.as) : 'another instrument'}, which wasn't offered: taken as ${T.toolName(take)}, the closest of the offer. If you took another, change it under Torture Instrument.`);
-          else if (!seen) notes.push(`Took it you chose ${T.toolName(take)}, as advised. If you took another, change it under Torture Instrument.`);
         } else notes.push(`Your instruments show one more than before, from the offer of ${offer.map((id) => T.toolName(id)).join(', ')}: set which you took under Torture Instrument.`);
       }
       if (out.length) m.toolsLocked = true;
@@ -2713,6 +2720,7 @@
       m.consumeOffered = !!r.decision.consume;
     }
     const read = r.tools && r.tools.tools ? r.tools.tools : [];
+    m.observedToolSlots = r.tools ? Math.max(read.length,Number(r.tools.slots)||0) : (base.observedToolSlots || 0);
     const unsim = read.filter((t) => !t.sim);
     if (unsim.length) notes.push(`Not in the simulator yet, so left out: ${unsim.map((t) => t.name).join(', ')}.`);
     const tools = runTools(read, base, m, notes, r.tools && r.tools.sims);
@@ -2738,46 +2746,33 @@
       else m.toolsToConfirm = hint;
     }
     if (tools.some((t) => t.conf < TOOL_SURE)) notes.push('Some instruments were hard to tell apart: check them under Torture Instrument.');
-    const chromatic = r.chromatic ? r.chromatic.count : 0;
-    // Their beasts don't show in the slots, and nothing depends on them.
+    const observedChromatic = r.chromatic ? Math.max(0,Math.min(10,r.chromatic.count)) : 0;
+    const chromatic = base.ended ? observedChromatic : Math.max((base.vault || []).length,observedChromatic);
+    if(chromatic>observedChromatic) notes.push(`Kept ${chromatic} confirmed Chromatic prisoners: this picture read only ${observedChromatic}.`);
+    // Their beasts don't show in the slots; they only matter for a bounty.
     m.vault = new Array(chromatic).fill('wolf');
     const highest = Math.max(0, ...m.cells.filter((c) => c.kind === 'inmate').map((c) => c.tier));
-    // The start card's badge under the instrument panel: the run has that
-    // card, in case its popup was missed. Only while no card is set: one the
-    // player or a popup set stands (report 358: a Cage Fight badge read as
-    // Tyranny undid the player's choice on every picture).
-    if (r.badge && r.badge.id && T.START_EVENTS && T.START_EVENTS[r.badge.id] && (!m.startEvent || m.startEvent === 'none')) {
+    // The start card's badge under the instrument panel (Opulence so far):
+    // the run has that card, in case its popup was missed.
+    // A small badge is a fallback for a missed popup. It cannot replace a
+    // known run card or the player's correction with a lookalike icon.
+    if ((!m.startEvent || m.startEvent === 'none') && r.badge && r.badge.id && T.START_EVENTS && T.START_EVENTS[r.badge.id]) {
       m.startEvent = r.badge.id;
       notes.push(`Start of run: ${T.START_EVENTS[r.badge.id].name}, from its badge under the instruments.`);
     }
     // King of the Caged is met once a Supreme or Chromatic shows. Prison
     // Walk's tiles aren't read, so they keep what was set.
     if (m.objective === 'king') m.milestone = highest >= T.SUPREME || chromatic > 0;
-    // The jaws marker shows on every inmate with something to eat. Cells that
-    // disagree were probably misread. A washed-out portrait takes the beast
-    // that makes the jaws fit.
+    // Target markers are observations, not proof that the simulator's food
+    // rules match the live game. Never change a portrait to fit those rules.
     const hasTarget = (state, n) => !state.cells[n].sealed && state.cells[n].inmate && T.devourOptions(state, n).length > 0;
-    r.cells.forEach((c, n) => {
-      if (!c.ghost || m.cells[n].kind !== 'inmate') return;
-      let best = null;
-      for (const beast of T.BEASTS) {
-        const trial = JSON.parse(JSON.stringify(m));
-        trial.cells[n].beast = beast;
-        const s2 = buildState(Object.assign({}, trial, { step: 'manage' })).st;
-        const fit = r.cells.filter((d, k) => d.kind === 'inmate' && d.jaws !== null && hasTarget(s2, k) === !!d.jaws).length;
-        if (!best || fit > best.fit) best = { beast, fit };
-      }
-      m.cells[n].beast = best.beast;
-    });
     const { st: final } = buildState(Object.assign({}, m, { step: 'manage' }));
     const oddCells = [];
     r.cells.forEach((c, n) => {
       if (c.kind !== 'inmate' || m.cells[n].kind !== 'inmate') return;
-      // Jaws over a Supreme's red glow aren't known (null): no check.
-      if (c.jaws !== null && hasTarget(final, n) !== !!c.jaws) {
-        checks.add(n);
-        oddCells.push(n);
-      }
+      // Supreme glow can hide jaws: unknown is a third observation state.
+      if (c.jaws === null || (c.jawsConfidence != null && c.jawsConfidence < 0.7)) return;
+      if (hasTarget(final, n) !== !!c.jaws) oddCells.push(n);
     });
     // The game shows Consume only when the warden's inmate has a meal. With
     // none on the board as read, the advice can't weigh Consume: say why,
@@ -2789,7 +2784,7 @@
       notes.push(`Your game offers Consume, but the board as read has no meal for the ${T.describe(m.cells[w])} in ${L(w)}, so the advice can’t weigh Consume: check it and the inmates it could eat.`);
     }
     const odd = oddCells.filter((n) => !(noMeal && n === w)).length;
-    if (odd) notes.push(odd === 1 ? '1 inmate’s jaws marker doesn’t fit what was read: check it and the inmates around.' : `${odd} inmates’ jaws markers don’t fit what was read: check them and the inmates around.`);
+    if (odd) notes.push(`${odd} observed target ${odd===1?'marker differs':'markers differ'} from the simulator rules. This alone does not mean the portrait or rarity was misread.`);
     // Cage Fight set for this run while the game's jaws fit better without
     // it (report 311: a Legendary Wolf showed no jaws over a Rare Rat that
     // Cage Fight would let it eat, and the advice had a Legendary Lion eat
@@ -2805,7 +2800,7 @@
         notes.push(`Cage Fight is set for this run, but your game shows no jaws on the ${T.describe(m.cells[n])} in ${L(n)}, which Cage Fight would let eat the ${T.describe(m.cells[meal])} in ${L(meal)}. If this run doesn’t have Cage Fight, set Start of run to No card.`);
       }
     }
-    return { model: m, checks, notes, chromatic, tools, unsim, huntPick };
+    return { model: m, checks, notes, chromatic, tools, unsim, huntPick, ruleMismatches: odd + (noMeal ? 1 : 0) };
   }
 
   function renderScan() {
@@ -2997,6 +2992,8 @@
     if (undo.length > 30) undo.shift();
     leaveShot();
     model = normalize(rd.model);
+    model._simulated=false;
+    reader.liveModel=JSON.parse(JSON.stringify(model));
     reader.undoable = true;
     reader.loaded = rd;
     shot = true;
@@ -3341,6 +3338,7 @@
       useReading: (read) => useScan(read),
       ask: () => ask(true),
       recommendation: () => (fresh() && settled() ? recommendation() : null),
+      warmOCR: () => ocrWorker(),
       giftState: () => JSON.parse(JSON.stringify(gifts)),
       // What the reader made of the last picture, in full (the desktop app's
       // test record keeps it).
