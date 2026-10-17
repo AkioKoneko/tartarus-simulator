@@ -564,7 +564,7 @@
       return;
     }
     if (st.phase === 'office') {
-      setDecision("The warden's office", `Choose one. Instigate: ${T.INSTIGATE_EVENTS === 1 ? 'a new special event appears' : `${T.INSTIGATE_EVENTS} new special events appear`} on a random cell, a locked door or an inmate's. Bestow: 1 random inmate on the block rises a tier.`, [
+      setDecision("The warden's office", `Choose one. Instigate: a new special event appears on a random cell, a locked door or an inmate's (2 when the board has none). Bestow: 1 random inmate on the block rises a tier.`, [
         ['Instigate', () => run((s) => T.officeAct(s, 'instigate')), 'primary'],
         ['Bestow', () => run((s) => T.officeAct(s, 'bestow')), 'primary'],
       ], true);
@@ -691,7 +691,7 @@
       } else if (!c.sealed && c.inmate) {
         const count = T.devourOptions(st, p.cell).length;
         parts.push(`The warden walks to the ${T.describe(c.inmate)} in cell ${L(p.cell)}. It then makes today's consume${count ? ` (${T.plural(count, 'target')} from there)` : ', but it has no target from there'}.`);
-      } else if (p.cell === T.OFFICE) parts.push(`The warden's office: there you choose Instigate (${T.INSTIGATE_EVENTS === 1 ? 'a new special event' : `${T.INSTIGATE_EVENTS} new special events`} on a random cell) or Bestow (1 random inmate rises a tier).`);
+      } else if (p.cell === T.OFFICE) parts.push(`The warden's office: there you choose Instigate (a new special event (2 when the board has none) on a random cell) or Bestow (1 random inmate rises a tier).`);
       else if (!c.sealed) parts.push('An empty cell: the warden walks there.');
       else if (c.nest) parts.push(`This destroys the rat nest due on day ${c.nest.due}.`);
       else if (c.known === 2) parts.push(`A ${T.describe(c.hidden)} waits inside.`);
@@ -804,7 +804,7 @@
     const actions = [];
     const free = !blocked(st);
     if (cell.n === T.OFFICE) {
-      setDecision(`Cell ${L(cell.n)}: the warden's office`, `Every run starts here, and no inmate, marker or event is ever held in it. It can be one of the morning's destinations: walking here, you choose Instigate (${T.INSTIGATE_EVENTS === 1 ? 'a new special event' : `${T.INSTIGATE_EVENTS} new special events`} on a random cell) or Bestow (1 random inmate rises a tier).`, [['Deselect', cancel]]);
+      setDecision(`Cell ${L(cell.n)}: the warden's office`, `Every run starts here, and no inmate, marker or event is ever held in it. It can be one of the morning's destinations: walking here, you choose Instigate (a new special event (2 when the board has none) on a random cell) or Bestow (1 random inmate rises a tier).`, [['Deselect', cancel]]);
       return;
     }
     if (cell.sealed) {

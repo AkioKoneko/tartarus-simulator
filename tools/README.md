@@ -193,7 +193,7 @@ Report 57, the card: "Elephant-Foot Maul: Mammoth. Effect: Mammoth can Consume h
 
 The user: "instigate doesn't guarantee 2 events, the sim appears to think it guarantees 2 every time". Their records hold 19 office visits. Comparing the event marks on the boards before and after each visit, the 10 Instigates each added exactly 1 event; none added 2. 5 landed on an open cell beside an inmate (the "!" that a walk into the cell sets off) and 5 on a locked cell. So that's where open-cell events come from. The other visits were Bestows (1 tier-up) or were cut short by a Treasure.
 
-`T.INSTIGATE_EVENTS` is now 1, on a random cell from `T.instigateCells`: a locked door with no event or nest, or an open cell with an inmate and no event. Tyranny's extra Instigates make 1 each too. The solver's office value counts those cells. On 3,000 runs each, rewards on: no card 3.421 Rainbows (3.540 with 2 events behind locked doors), Tyranny 6.584 (7.267). The lab numbers need re-measuring after this (f5, with the vault cap).
+The user then said it may make 2 when the board has no event yet. All 10 recorded Instigates had one already, so that's taken as the rule until their test says otherwise (`T.instigateCount`: `INSTIGATE_EVENTS_EMPTY` 2 on an event-free board). Otherwise `T.INSTIGATE_EVENTS` is 1, on a random cell from `T.instigateCells`: a locked door with no event or nest, or an open cell with an inmate and no event. Tyranny's extra Instigates make 1 each too. The solver's office value counts those cells. On 3,000 runs each, rewards on: no card 3.421 Rainbows (3.540 with 2 events behind locked doors), Tyranny 6.584 (7.267). The lab numbers need re-measuring after this (f5, with the vault cap).
 
 ### The vault holds 10, and Opulence's chain (2026-10-17)
 

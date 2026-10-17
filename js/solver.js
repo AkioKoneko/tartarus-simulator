@@ -612,8 +612,11 @@
     // Tyranny (a start card): every stop at the office also triggers 3 more
     // Bestows and 3 more Instigates by themselves.
     const extra = st.startEvent === 'tyranny' && T.START_EVENTS.tyranny ? T.START_EVENTS.tyranny.extra : 0;
-    const tyranny = extra ? extra * bestow + Math.min(extra * T.INSTIGATE_EVENTS, free) * each * ctx.P.wInstigate : 0;
-    return { bestow, instigate: Math.min(T.INSTIGATE_EVENTS, free) * each * ctx.P.wInstigate, tyranny };
+    // An Instigate on a board with no event makes 2 (T.instigateCount);
+    // after Tyranny's, the board has some.
+    const first = T.instigateCount ? T.instigateCount(st) : T.INSTIGATE_EVENTS;
+    const tyranny = extra ? extra * bestow + Math.min(first + (extra - 1) * T.INSTIGATE_EVENTS, free) * each * ctx.P.wInstigate : 0;
+    return { bestow, instigate: Math.min(extra ? T.INSTIGATE_EVENTS : first, free) * each * ctx.P.wInstigate, tyranny };
   }
 
   // Scores today's destinations. Returns [{ cell, score, why }], best first.
@@ -673,7 +676,7 @@
       } else if (n === T.OFFICE) {
         const office = officeValues(st, ctx, board.comp);
         score += Math.max(office.bestow, office.instigate) + office.tyranny;
-        why = office.bestow >= office.instigate ? 'the office: Bestow raises 1 random inmate a tier' : `the office: Instigate brings ${T.INSTIGATE_EVENTS === 1 ? 'a new special event' : `${T.INSTIGATE_EVENTS} new special events`}`;
+        why = office.bestow >= office.instigate ? 'the office: Bestow raises 1 random inmate a tier' : `the office: Instigate brings ${(T.instigateCount ? T.instigateCount(st) : T.INSTIGATE_EVENTS) === 1 ? 'a new special event' : `${T.instigateCount ? T.instigateCount(st) : T.INSTIGATE_EVENTS} new special events`}`;
         if (office.tyranny) why += `, and Tyranny adds ${T.START_EVENTS.tyranny.extra} of each`;
       } else if (c.inmate) {
         score += P.wWalk * known(c);
@@ -1305,7 +1308,7 @@
     }
     if (st.phase === 'office') {
       out.push({ action: { type: 'office', choice: 'bestow' }, label: 'Bestow: 1 random inmate rises a tier' });
-      out.push({ action: { type: 'office', choice: 'instigate' }, label: `Instigate: ${T.INSTIGATE_EVENTS === 1 ? 'a new special event' : `${T.INSTIGATE_EVENTS} new special events`}` });
+      out.push({ action: { type: 'office', choice: 'instigate' }, label: `Instigate: ${(T.instigateCount ? T.instigateCount(st) : T.INSTIGATE_EVENTS) === 1 ? 'a new special event' : `${T.instigateCount ? T.instigateCount(st) : T.INSTIGATE_EVENTS} new special events`}` });
       return out;
     }
     if (st.phase === 'event' && st.event) {
