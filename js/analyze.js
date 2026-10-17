@@ -3007,7 +3007,7 @@
       // The live check's workers: how many it may use (setCores, 0 for every
       // core but one) and how many are running now (0 once let go).
       setCores: (n) => setCores(n),
-      cores: () => ({ cap: coreCap, use: workerCount(), most: MOST_WORKERS, running: solver.workers ? solver.workers.length : 0 }),
+      cores: () => ({ cap: coreCap, use: workerCount(), most: MOST_WORKERS, running: solver.workers ? solver.workers.length : 0, onPage: !!solver.failed }),
       day: () => model.day,
       toast,
     };
