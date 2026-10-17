@@ -307,8 +307,9 @@
   function tell() {
     if (!channel) return;
     const st = C.state;
-    channel.postMessage({ type: 'status', from: me, log: st.log, file: st.file, window: st.window, last: lastPicture, triggers: triggerCount, detail: st.detail });
+    channel.postMessage({ type: 'status', from: me, log: st.log, file: st.file, window: st.window, last: lastPicture, triggers: triggerCount, detail: st.detail, hits: st.hits });
   }
+  const NO_EVENTS = 'No game events in the log yet. In the game, press Esc and click Enable Log (under Account Related), then log out and back in.';
   const seen = []; // newest first: { at, line, kind }
   let nextId = 1;
   let resumable = true; // whether the log from last time may still open
@@ -324,9 +325,15 @@
     // The game's Enable Log is off: the log has none of the lines the
     // triggers are, so pictures come only from Take a picture now.
     const off = st.log === 'on' && st.detail === 'off'
-      ? ' <strong>The game isn’t writing the lines Auto Screenshot Mode needs: its log detail is off.</strong> <a href="#follow-enable-log">Turn on the game’s log</a> (Settings, Account Related, Enable Log), then log out and back in.'
+      ? ' <strong>The game isn’t writing the lines Auto Screenshot Mode needs: its log detail is off.</strong> <a href="#follow-enable-log">Turn on the game’s log</a> (press Esc, then Enable Log), then log out and back in.'
       : '';
-    $('az-auto-log-state').innerHTML = log + off;
+    // Following, but no trigger has matched yet: yellow, and its title
+    // says how to turn on the game's log.
+    const quiet = st.log === 'on' && (!st.hits || st.detail === 'off');
+    const logState = $('az-auto-log-state');
+    logState.innerHTML = log + off;
+    logState.classList.toggle('is-quiet', quiet);
+    logState.title = quiet ? NO_EVENTS : '';
     $('az-auto-win-state').textContent = st.window === 'on' ? `Sharing the game window${st.windowSize ? ` (${st.windowSize})` : ''}: ${st.frames} pictures taken.` : 'Not sharing.';
     $('az-auto-log').textContent = st.log === 'on' || st.log === 'starting' ? 'Stop following'
       : st.log === 'off' && st.file && resumable ? `Follow ${st.file} again` : 'Or choose the file';
