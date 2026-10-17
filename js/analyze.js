@@ -527,7 +527,8 @@
 
   // ---------- Analysis ----------
 
-  const solver = { workers: null, failed: false, id: 0, st: null, key: '', instant: null, result: null, shares: null, meta: null, goal: '' };
+  const solver = { workers: null, failed: false, id: 0, st: null, key: '', instant: null, result: null, shares: null, meta: null, goal: '', reused: null, reuseReady: false };
+  let localPlanCache = null; // branch/chain previews run once per settled board and action
   // The live check runs on a worker for every core but one, or on fewer when
   // the page is told (setCores: the desktop app's processor setting), each
   // playing its share of the rounds with its own dice. It runs for a few
@@ -578,6 +579,15 @@
     const { st, problems } = buildState(model);
     showProblems(problems);
     if (problems.length) return false;
+    // Loading the first target picker has not taken a bite. Its verified
+    // recommendation belongs to this same board; no new experiment is needed.
+    if (solver.reuseReady && solver.st && solver.key === modelKey() && solver.reused) {
+      solver.reuseReady = false;
+      render();
+      return true;
+    }
+    solver.reused = null;
+    solver.reuseReady = false;
     if (SHARE && (fresh || (model.runStart && model.step === 'choice'))) {
       shareHeld();
       SHARE.reset('manual');
@@ -745,6 +755,7 @@
   // move (by more than its paired margin), so the advice doesn't flicker.
   function recommendation() {
     if (!solver.st) return null;
+    if (solver.reused) return solver.reused;
     const pick = solver.instant;
     const r = solver.result;
     const ranked = r ? r.options : [];
@@ -757,6 +768,14 @@
     }
     return { action: live.action, label: live.label, why: `The playouts found a better move than the strategy’s pick${pick ? ` (${pick.label})` : ''}.`, live: true, rounds: r.rounds, option: live };
   }
+
+  // Recorded live outcomes contradict the Maiden/Guillotine simulation.
+  // Keep the model's estimate available, but make its destructive trade explicit.
+
+
+
+
+
 
   function fmtOption(goal, o, st) {
     if (goal === 'contract') return `${Math.round(100 * o.pass)}% pass · ${o.points.toFixed(0)} pts`;
@@ -1277,6 +1296,7 @@
     const options = working ? c.moves : r ? r.options : [];
     const status = $('az-res-status');
     if (working) status.textContent = `Playing out ${T.plural(c.moves.length, 'move')}, ${c.each.toLocaleString()} games each: ${c.played.toLocaleString()} of ${c.total.toLocaleString()} games played`;
+    else if (solver.reused) status.textContent = 'Reusing the completed check before Consume: no bite has happened yet.';
     else if (!r) status.textContent = 'Live check: starting…';
     else if (options.length <= 1) status.textContent = options.length ? 'Only one move here.' : 'Nothing to decide right now.';
     else status.textContent = r.done ? `Live check: ${r.rounds.toLocaleString()} playouts per option` : `Live check: ${r.rounds.toLocaleString()} playouts per option so far…`;
@@ -2791,11 +2811,56 @@
   }
 
   // Loads the reading as the board. The caller then asks what to do.
+  // A chain banner also describes the first target picker, before any bite.
+  // The dark board inherits data, so model equality alone is insufficient:
+  // check the raw occupants, eater and the entire offered target set as well.
+  function firstPickerRecommendation(rd) {
+    const r = reader.result;
+    if (!fresh() || !settled() || solver.reused || reading || reader.completedId !== reader.id || reader.completedImage !== reader.image ||
+        !rd || rd.checks.size || flags.size || model._simulated || model.step !== 'manage' || rd.model.step !== 'manage' ||
+        model.toolsToConfirm || model.treasureWait || pendingForReuse(solver.st) || !r || !r.ok || !r.chain || !r.warden || r.doors || r.decision) return null;
+    const rec = recommendation();
+    if (!rec || !rec.action || rec.action.type !== 'devour' || r.warden.cell !== model.warden) return null;
+    const eater = r.cells[model.warden], old = model.cells[model.warden];
+    if (!eater || eater.kind !== 'inmate' || !old || old.kind !== 'inmate' || eater.beast !== old.beast || eater.tier !== old.tier) return null;
+    const offered = [...new Set(r.chain.targets)].sort((a,b)=>a-b);
+    const expected = T.startOptions(solver.st).map(o=>o.cell).sort((a,b)=>a-b);
+    if (!offered.includes(rec.action.to) || JSON.stringify(offered) !== JSON.stringify(expected)) return null;
+    for (let n=1;n<T.CELL_COUNT;n++) {
+      const raw=r.cells[n], before=model.cells[n];
+      if (!raw || !before) return null;
+      if (before.kind==='inmate') {
+        if (raw.kind!=='inmate' || raw.beast!==before.beast) return null;
+        // The fangs can hide gold, but upstream observes blue/purple
+        // through them. A newly visible tier must invalidate cached advice.
+        const f=raw.frame, b=f && f.bins;
+        const t=b && (b[2]>b[1]?2:1);
+        const tierSeen=f && ((offered.includes(n) && f.tier===4 && b && b[t]>=0.025*f.samples) || ([1,2].includes(f.tier) && f.conf>=0.75));
+        if (tierSeen && raw.tier!==before.tier) return null;
+      } else if (before.kind==='empty') {
+        if (raw.kind!=='empty') return null;
+      } else if (raw.kind!=='locked') return null;
+    }
+    // All game fields must match. Only the local simulation marker is not
+    // gameplay state; normalize supplies the same defaults on both sides.
+    const key=m=>{const c=normalize(JSON.parse(JSON.stringify(m)));delete c._simulated;return JSON.stringify(c);};
+    if (key(model)!==key(rd.model)) return null;
+    const built=buildState(rd.model);
+    if (built.problems.length || !T.startOptions(built.st).some(o=>o.cell===rec.action.to)) return null;
+    // Preserve the actual completed statistics together with their pick.
+    // Every result consumer (court, rows, expected value, Do it here) then
+    // observes the same valid solver packet. The semantic board is equal;
+    // these are prior measured samples, not a newly fabricated live check.
+    return { st:built.st, rec:JSON.parse(JSON.stringify(rec)), result:solver.result };
+  }
+  const pendingForReuse = st => !st || !!(st.pending && st.pending.length) || !!st.event || !!st.chaining || !!(st.challenge && st.challenge.window);
+
   function useScan(read) {
     if(read && typeof read==='object' && (read.skipped || read.ok===false)) return false;
     if(read && read._readerId != null && read._readerId!==reader.id) return false;
     const rd = reader.reading;
     if (!rd) return;
+    const reuse = firstPickerRecommendation(rd);
     undo.push({ model: JSON.parse(JSON.stringify(model)), selected, shot });
     if (undo.length > 30) undo.shift();
     leaveShot();
@@ -2811,6 +2876,20 @@
     via = { scan: true, filled: [...rd.checks].map((n) => `c${n}`), touched: new Set() };
     if (SHARE) SHARE.markManual();
     solver.st = null;
+    solver.reused = null;
+    solver.reuseReady = false;
+    if (reuse) {
+      // Reject late shares from the previous worker generation. Keep the
+      // completed recommendation, never fabricate Monte Carlo samples.
+      solver.id += 1;
+      solver.st = reuse.st;
+      solver.key = modelKey();
+      solver.result = reuse.result;
+      solver.shares = null;
+      solver.reused = reuse.rec;
+      solver.reuseReady = true;
+      localPlanCache = null;
+    }
     selected = rd.checks.size ? Math.min(...rd.checks) : model.warden;
     // The screenshot stays in view, with what was read drawn on it, to
     // compare with the board.
@@ -3167,13 +3246,13 @@
       useReading: (read) => useScan(read),
       ask: () => ask(true),
       recommendation: () => (fresh() && settled() ? recommendation() : null),
-      warmOCR: () => ocrWorker(),
-      giftState: () => JSON.parse(JSON.stringify(gifts)),
       localAssist: () => {
         const assist=window.TartarusAssist;
         const rec=fresh() && settled() ? recommendation() : null;
         if(!assist || !rec || reading || model.toolsToConfirm || model.treasureWait)return {plan:null,hints:{valid:false}};
-        const plan=null;
+        const key=JSON.stringify([rec.action,rec.label]);
+        if(!localPlanCache || localPlanCache.st!==solver.st || localPlanCache.key!==key) localPlanCache={st:solver.st,key,plan:assist.buildPlan(solver.st,rec,T,S)};
+        const plan=localPlanCache.plan;
         const treasure=reader.treasureScreen;
         if(treasure) {
           if(treasure.id!==reader.id || !treasure.result || model.step!=='choice' || model.choice.kind!=='gift' || gifts.known && gifts.waiting===0)return {plan:null,hints:{valid:false}};
@@ -3181,9 +3260,11 @@
           return {plan,hints:{valid:targets.length>0,frameId:treasure.id,capturedAt:treasure.capturedAt,width:treasure.image.width,height:treasure.image.height,targets}};
         }
         if(reader.completedId!==reader.id || reader.completedImage!==reader.image || reader.loaded!==reader.reading || !reader.image || !reader.result)return {plan:null,hints:{valid:false}};
-        const targets=assist.buildTargets(solver.st,rec,{result:reader.result},plan);
+        const targets=assist.buildTargets(solver.st,plan.headline?Object.assign({},rec,{label:plan.headline}):rec,{result:reader.result,allowChain:flags.size===0 && !reader.loaded.ruleMismatches},plan);
         return {plan,hints:{valid:targets.length>0,frameId:reader.id,capturedAt:reader.capturedAt||0,width:reader.image.width,height:reader.image.height,targets}};
       },
+      warmOCR: () => ocrWorker(),
+      giftState: () => JSON.parse(JSON.stringify(gifts)),
       // What the reader made of the last picture, in full (the desktop app's
       // test record keeps it).
       readingSummary: () => (reader.result && reader.image ? readingSummary(true) : ''),

@@ -166,10 +166,10 @@
     const num = (s) => Number(String(s).replace(/,/g, ''));
     const assist=A && typeof A.localAssist==='function' ? A.localAssist() : {};
     return {
-      plan:null,
+      plan:assist.plan||null,
       hints:assist.hints||{valid:false},
       has: shown(res),
-      move: rec ? rec.label : '',
+      move: rec ? assist.plan && assist.plan.headline || rec.label : '',
       baseMove: rec ? rec.label : '',
       why: rec ? rec.why || '' : '',
       working,

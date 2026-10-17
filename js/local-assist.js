@@ -1,6 +1,136 @@
 /* Conservative display helpers. Never send input or roll an unseen future. */
 (function (root) {
   'use strict';
+  const RANDOM_CONSUME = new Set(['saw', 'whip', 'collar', 'revenge', 'cage']);
+  const pending = (st) => !!(st.pending && st.pending.length);
+  const knownTools = (st, T) => Array.isArray(st.tools) && T && Array.isArray(T.TOOL_IDS) && st.tools.every((id) => T.TOOL_IDS.includes(id));
+  const copy = (st) => JSON.parse(JSON.stringify(st));
+
+  function travelPreview(st, action, T, S) {
+    const stop = (reason) => ({reason});
+    const office=action.cell===T.OFFICE;
+    const destination=st.cells && st.cells[action.cell];
+    if(!office && (!destination || destination.sealed || !destination.inmate || destination.event)) return stop('Read the destination before planning its action.');
+    if (!knownTools(st,T)) return stop('Confirm the instruments before planning the room choice.');
+    if (st.phase !== 'patrol' || !st.destinations || !st.destinations.includes(action.cell) || st.ratway || st.event || st.chaining || st.challenge && st.challenge.window) return stop('Finish the current decision before planning the room choice.');
+    if (st.startEvent && !['none', ...Object.keys(T.START_EVENTS || {})].includes(st.startEvent)) return stop('The starting effect is unknown.');
+    if (office && st.startEvent === 'tyranny') return stop('Tyranny changes the board before the room choice.');
+    if (st.chain) return stop('Chain reaction opens doors on the way.');
+    const steps=T.stepsBetween(st.position,action.cell);
+    if (st.tools.includes('shortchain') && steps<=3 && st.cells.some(c=>c.sealed)) return stop('Short-Chained Shackles may open an unknown door on the way.');
+    const walk=st.objective && st.objective.id==='walk' && !st.milestone;
+    const threshold=T.OBJECTIVES && T.OBJECTIVES.walk && T.OBJECTIVES.walk.need;
+    if (walk && st.params && st.params.rewards && T.TOOL_IDS.some(id=>!st.tools.includes(id)) &&
+        (!Number.isFinite(st.objective.progress) || st.objective.progress+steps>=threshold)) return stop('Prison Walk may require an instrument choice before the room choice.');
+    if (!S || !S.clone || !S.apply || !S.instant) return stop('Read the room before choosing.');
+    const pool=st.tools.includes('shackles') && steps>=4 ? st.cells.filter(c=>!c.sealed && c.inmate && c.inmate.tier<T.RAINBOW) : [];
+    const expected=new Set(['none',...pool.map(c=>String(c.n))]);
+    const seen=new Set();
+    let next=null,arrival=null;
+    // For Long-Chained Shackles the complete outcome space is no proc or
+    // one tier for each eligible inmate. Seeds locate those engine outcomes;
+    // a plan is returned only after every outcome is actually covered.
+    for(let i=0;i<(pool.length?128:1);i++) {
+      const preview=S.clone(copy(st));
+      preview.rng=Math.imul(i+1,0x9e3779b1)>>>0;
+      const result=S.apply(preview,action);
+      if(!result || !result.ok || preview.phase!==(office?'office':'manage')) return stop('Read the room before choosing.');
+      if(pending(preview)) return stop('A reward may require a choice on the way; finish it before choosing in the room.');
+      // A Rainbow can randomly repopulate its vacated door even with rewards
+      // disabled. One promote.cell no longer describes the whole outcome.
+      if((result.events||[]).some(e=>e.type==='rainbow' || e.type==='open')) return stop('The walk can change doors or create a Rainbow; read the resulting board.');
+      const rises=(result.events||[]).filter(e=>e.type==='promote');
+      const outcome=rises.length===0?'none':rises.length===1?String(rises[0].cell):'unknown';
+      if(!expected.has(outcome)) return stop('The walk has another effect; read the resulting board.');
+      if(seen.has(outcome))continue;
+      const pick=S.instant(preview);
+      const valid=pick && pick.action && (office ? pick.action.type==='office' && ['bestow','instigate'].includes(pick.action.choice) : ['swap','devour','end'].includes(pick.action.type));
+      if(!valid) return stop('Read the room before choosing.');
+      const same=S.sameAction || ((a,b)=>JSON.stringify(a)===JSON.stringify(b));
+      if(next && !same(next.action,pick.action)) return stop('Long-Chained Shackles can change which room choice is better.');
+      next=next||pick;arrival=arrival||preview;seen.add(outcome);
+      if(seen.size===expected.size) return {next,arrival,outcomes:seen.size};
+    }
+    return stop('Not all walk outcomes were resolved; read the room before choosing.');
+  }
+
+  function buildPlan(st, rec, T, S) {
+    const plan = { steps: [], note: '' };
+    if (!st || !rec || typeof rec.label !== 'string' || !rec.label.trim()) return plan;
+    plan.steps.push({ label: rec.label, certainty: 'current' });
+    const action = rec.action;
+    if (!action || pending(st)) {
+      plan.note = 'Resolve the current choice, then read the board again.';
+      return plan;
+    }
+    const wait = 'Read the resulting board before choosing the next action.';
+    if (action.type === 'patrol' && T && (action.cell === T.OFFICE || st.cells && st.cells[action.cell] && !st.cells[action.cell].sealed && st.cells[action.cell].inmate)) {
+      const office=action.cell===T.OFFICE;
+      const result=travelPreview(st,action,T,S);
+      if (result.next) {
+        const next=result.next;
+        plan.steps.push({label:next.label,action:next.action,certainty:'planned'});
+        const choice=office ? (next.action.choice==='bestow'?'Bestow':'Instigate') : next.label;
+        plan.headline=`${rec.label.replace(/\s*\(Instigate or Bestow\)\s*$/,'')} → ${choice}`;
+        plan.note=result.outcomes>1
+          ? `The same room choice is planned for all ${result.outcomes} Shackles outcomes. Confirm it against the board on arrival.`
+          : office ? 'Room choice planned from the current board; confirm it on arrival. Stop after this choice: its result is random.' : 'Arrival action planned from the known board; confirm it on arrival.';
+        plan.outcomes=result.outcomes;
+        // A deterministic Cage Fight chain can follow a deterministic walk.
+        // Never apply Replace, End the day, or any random consume here.
+        if(!office && result.outcomes===1 && next.action.type==='devour') {
+          const chain=buildPlan(result.arrival,next,T,S);
+          for(const step of chain.steps.slice(1)) {
+            if(step.certainty!=='confirmed' || plan.steps.length>=6)break;
+            plan.steps.push(Object.assign({},step,{certainty:'planned'}));
+          }
+        }
+      } else {
+        plan.steps.push({label:office?'Choose Bestow or Instigate after the arrival check.':'Check Consume or Replace on arrival.',certainty:'recheck'});
+        plan.note=result.reason;
+      }
+      return plan;
+    }
+    if (action.type === 'devour' || action.type === 'chain') {
+      if (st.startEvent !== 'cagefight' || !knownTools(st,T) || st.tools.some(id=>RANDOM_CONSUME.has(id))) {
+        plan.steps.push({ label: 'If a consume chain opens, check its available meals.', certainty: 'conditional' });
+        plan.note = `Consume outcomes can change the available meals. ${wait}`;
+        return plan;
+      }
+      if (!S || !S.clone || !S.apply || !S.instant) return plan;
+      const firstMeal = st.cells && st.cells[action.to];
+      if (!firstMeal || firstMeal.sealed || !firstMeal.inmate) { plan.note = wait; return plan; }
+      plan.consumeChain = true;
+      const preview = S.clone(copy(st));
+      let nextAction = action;
+      while (plan.steps.length < 6) {
+        const meal = preview.cells && preview.cells[nextAction.to];
+        // A scratched/hidden meal can cause a random reveal: no preview.
+        if (!meal || meal.sealed || !meal.inmate) { plan.note = wait; break; }
+        const applied = S.apply(preview, nextAction);
+        if (!applied || !applied.ok || pending(preview)) { plan.note = wait; break; }
+        if (!preview.chaining) {
+          const final=S.instant(preview);
+          if(final && final.action && final.action.type==='end') plan.steps.push({label:final.label,action:final.action,certainty:'confirmed'});
+          break;
+        }
+        const next = S.instant(preview);
+        if (!next || !next.action || !['chain', 'stopchain'].includes(next.action.type) || typeof next.label !== 'string') break;
+        if (next.action.type === 'chain') {
+          const target = preview.cells && preview.cells[next.action.to];
+          if (!target || target.sealed || !target.inmate) { plan.note = wait; break; }
+        }
+        plan.steps.push({ label: next.label, action:next.action, certainty: 'confirmed' });
+        if (next.action.type === 'stopchain') break;
+        nextAction = next.action;
+      }
+      if (!plan.note) plan.note = 'These steps assume the visible board and instruments are correct; recheck after the sequence.';
+      return plan;
+    }
+    plan.note = wait;
+    return plan;
+  }
+
   function buildTargets(st, rec, reading, plan) {
     const r = reading && reading.result;
     const a = rec && rec.action;
@@ -35,6 +165,28 @@
       const radius = 40 * c.k;
       return Number.isFinite(y) && Number.isFinite(radius) && y >= 0 ? [{ x: c.x, y, radius, label, kind: 'cell' }] : [];
     }
+    function mealRoute(management) {
+      // Use the existing verified plan, never a second prediction. A doubtful
+      // board still gets its normal current-action hint, but no future route.
+      if(!reading.allowChain || !plan || !plan.consumeChain || st.startEvent!=='cagefight' ||
+          !['devour','chain'].includes(a.type) || !Array.isArray(plan.steps))return null;
+      const actions=[{action:a,label:plan.steps[0] && plan.steps[0].label || label}];
+      for(const step of plan.steps.slice(1)) {
+        if(!step || step.certainty!=='confirmed' || !step.action || step.action.type!=='chain')break;
+        actions.push(step);
+        if(actions.length===6)break;
+      }
+      const route=[],seen=new Set();
+      for(const [i,step] of actions.entries()) {
+        const n=step.action.to,c=st.cells && st.cells[n],raw=r.cells && r.cells.find(entry=>entry && entry.n===n);
+        if(seen.has(n) || !c || c.sealed || !c.inmate || !raw || raw.kind!=='inmate' || raw.beast!==c.inmate.beast)break;
+        const geometry=cell(n);
+        if(!geometry.length)break;
+        route.push(Object.assign({},geometry[0],{label:step.label,chainStep:i+1,chainState:!management && i===0?'current':'planned',priority:!management && i===0?'primary':'reference'}));
+        seen.add(n);
+      }
+      return route;
+    }
     function firstMealPreview() {
       // This is the target of the current settled recommendation, not a
       // prediction of a later bite. It remains useful without Cage Fight.
@@ -55,11 +207,12 @@
     // numbered cell route is a preview until the actual target picker opens.
     if (a.type === 'devour' && r.decision && r.decision.consume) {
       const active=button('consume');
-      return active.length ? active.concat(firstMealPreview()) : [];
+      const route=mealRoute(true);
+      return active.length ? active.concat(route===null?firstMealPreview():route) : [];
     }
     if (a.type === 'devour' || a.type === 'chain') {
       const offered = r.chain && r.chain.targets;
-      return Array.isArray(offered) && offered.includes(a.to) ? cell(a.to) : [];
+      return Array.isArray(offered) && offered.includes(a.to) ? mealRoute(false)||cell(a.to) : [];
     }
     if (a.type === 'office' && r.decision && r.decision.office && ['instigate', 'bestow'].includes(a.choice)) return button(a.choice);
     if (a.type === 'swap' && r.decision && r.decision.replace) return button('replace');
@@ -67,7 +220,7 @@
     return [];
   }
 
-  const api = { buildTargets };
+  const api = { buildPlan, buildTargets };
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.TartarusAssist = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
