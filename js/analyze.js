@@ -113,8 +113,10 @@
       treasureWait: false,
       treasureSeen: false,
       // Set when a screenshot's instrument panel disagrees with the run's
-      // instruments: the player is asked to confirm them.
+      // instruments: the player is asked to confirm them. Once confirmed
+      // (toolsLocked), they stay for the run and aren't asked about again.
       toolsToConfirm: '',
+      toolsLocked: false,
       // The game shows no Replace / Consume card now (read from a screenshot):
       // that move isn't advised, and the other one still can be.
       noSwap: false,
@@ -2264,11 +2266,14 @@
     const has = (id) => out.some((t) => t.sim === id);
     const slots = read.length;
     // Once the run's instruments are known, they're locked: icons never
-    // change them. When the panel disagrees (more icons than known, or an
-    // icon that's clearly another instrument), the player is asked to
-    // confirm them (m.toolsToConfirm).
+    // change them. The player is asked to confirm them only when the panel
+    // shows more than the run has, and once confirmed (m.toolsLocked) never
+    // again this run (the user: "if these have already been confirmed once,
+    // they cannot change"). Until then, an icon that's clearly another
+    // instrument asks too; after, two icons looking alike change nothing.
     m.toolsToConfirm = '';
-    if (sameRun && (known.length || offer.length || base.runStart)) {
+    if (!sameRun) m.toolsLocked = false;
+    if (sameRun && (known.length || offer.length || base.runStart || base.toolsLocked)) {
       if (offer.length && slots > known.length && !offer.some(has)) {
         const seen = read.filter((t) => offer.includes(t.sim)).sort((a, b) => b.conf - a.conf)[0];
         // The advice given on that offer: the board before is the offer, so
@@ -2282,7 +2287,9 @@
         } else notes.push(`Your instruments show one more than before, from the offer of ${offer.map((id) => T.toolName(id)).join(', ')}: set which you took under Torture Instrument.`);
       }
       const off = read.filter((t) => t.sim && t.conf >= TOOL_SURE && !has(t.sim));
-      if (slots > out.length) m.toolsToConfirm = `Your panel shows ${T.plural(slots, 'instrument')}, and the analyzer has ${out.length}: ${out.map((t) => t.name).join(', ') || 'none'}. Set the ones you hold, then press These are right.`;
+      if (base.toolsLocked) {
+        if (slots > out.length) notes.push(`Your panel shows ${T.plural(slots, 'instrument')}, and this run has ${out.length}: ${out.map((t) => t.name).join(', ') || 'none'}. If you got another one, add it under Torture Instrument.`);
+      } else if (slots > out.length) m.toolsToConfirm = `Your panel shows ${T.plural(slots, 'instrument')}, and the analyzer has ${out.length}: ${out.map((t) => t.name).join(', ') || 'none'}. Set the ones you hold, then press These are right.`;
       else if (off.length) m.toolsToConfirm = `An icon on your panel looks like ${off.map((t) => T.toolName(t.sim)).join(' and ')}, which isn’t one the analyzer has for this run (${out.map((t) => t.name).join(', ')}). Check your instruments, then press These are right.`;
       return out;
     }
@@ -2770,6 +2777,7 @@
     // and the advice is checked again with them.
     $('az-tools-ok').addEventListener('click', () => {
       model.toolsToConfirm = '';
+      model.toolsLocked = true;
       changed();
       ask();
     });
