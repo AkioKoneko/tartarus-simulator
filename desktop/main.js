@@ -26,6 +26,7 @@ const { app, BrowserWindow, Menu, Tray, desktopCapturer, dialog, globalShortcut,
 const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
+const overlayLayout = require('./lib/overlay-layout');
 
 // ---------- Options ----------
 
@@ -52,7 +53,7 @@ const DEV = flag('dev') || TEST;
 // normal build keeps the last few.
 const BIG_RECORD = flag('dev');
 const STEAM_APP = '1974050'; // Torchlight: Infinite on Steam
-const HOTKEYS = { overlay: 'Control+Alt+O', analyzer: 'Control+Alt+A', capture: 'Control+Alt+P' };
+const HOTKEYS = { overlay: 'Control+Alt+O', expand: 'Control+Alt+Space', analyzer: 'Control+Alt+A', capture: 'Control+Alt+P' };
 const ICON = path.join(__dirname, 'build', 'icon.png');
 
 if (arg('user-data')) app.setPath('userData', path.resolve(arg('user-data')));
@@ -75,11 +76,12 @@ const readJson = (file) => {
 };
 const settings = Object.assign({
   overlayOn: true, // the player can hide it (Ctrl+Alt+O)
-  overlay: null, // { x, y }, where the player dragged it
+  overlay: null, // expanded card position
+  overlayIcon: null, // collapsed icon position, independent of the card
   overlayWidth: 360,
   hideFromCaptures: true, // kept out of screenshots, recordings and the shared window
   hideBehind: false, // hidden while another window is in front of the game
-  collapsed: false, // the overlay folded to a thin bar ("–" on it)
+  collapsed: false, // the overlay folded to an icon
   cpu: 'half', // the analyzer's share of the processor (tray: Processor use)
   gameFirst: true, // the site pages run below normal priority, so the game comes first
   record: true, // keep a record of each board and advice, for testing
@@ -89,6 +91,7 @@ const settings = Object.assign({
   logPath: '', // a log the player chose, when the app didn't find it
   analyzer: null, // the analyzer window's bounds
 }, readJson(SETTINGS_FILE));
+overlayLayout.migrate(settings);
 delete settings.onlyWithGame; // 0.1.1 hid the overlay behind other windows by default
 delete settings.locked; // before 0.2.5 the overlay could be locked (clicks went through)
 // Before 0.1.7 the overlay's "–" hid it for good, and that was kept; now it
@@ -854,6 +857,8 @@ function makeAnalyzer() {
 // ---------- The overlay ----------
 
 let overlayPlaced = false;
+let overlayCardHeight = 150;
+let overlayBooting = true;
 
 const onScreen = (b) => screen.getAllDisplays().some((d) => {
   const a = d.workArea;
@@ -865,26 +870,33 @@ const onScreen = (b) => screen.getAllDisplays().some((d) => {
 function placeOverlay() {
   const win = wins.overlay;
   if (!win) return;
-  const w = settings.overlayWidth;
-  let at = settings.overlay && onScreen(settings.overlay) ? settings.overlay : null;
-  if (at) overlayPlaced = true;
-  else {
-    let area = screen.getPrimaryDisplay().workArea;
-    const r = game.running && win32 ? win32.rect(game.hwnd) : null;
-    if (r && r.width > 200) {
-      area = screen.screenToDipRect(null, r);
-      overlayPlaced = true;
-    }
-    at = { x: Math.round(area.x + area.width - w - 24), y: Math.round(area.y + Math.min(140, area.height / 8)) };
+  let area = screen.getPrimaryDisplay().workArea;
+  const r = game.running && win32 ? win32.rect(game.hwnd) : null;
+  const layoutSettings=overlayBooting ? Object.assign({},settings,{collapsed:false}) : settings;
+  const saved = layoutSettings[overlayLayout.key(layoutSettings.collapsed)];
+  const fits=(b)=>screen.getAllDisplays().some(d=>overlayLayout.visible(b,d.workArea));
+  if (r && r.width > 200) {
+    area = screen.screenToDipRect(null, r);
+    overlayPlaced = true;
   }
-  const b = win.getBounds();
-  win.setBounds({ x: at.x, y: at.y, width: w, height: b.height });
+  if (saved && fits({...saved,width:layoutSettings.collapsed?56:settings.overlayWidth,height:layoutSettings.collapsed?56:overlayCardHeight})) overlayPlaced = true;
+  win.setBounds(overlayLayout.bounds(layoutSettings, area, overlayCardHeight, fits));
+}
+
+function setCollapsed(next) {
+  if (!!next === settings.collapsed) return;
+  if (wins.overlay && !overlayBooting) overlayLayout.remember(settings, wins.overlay.getBounds());
+  settings.collapsed = !!next;
+  overlayPlaced = false;
+  placeOverlay();
+  saveSettings();
 }
 
 function makeOverlay() {
   const win = new BrowserWindow({
+    // Let Chromium initialize a normal content view before the first fold.
     width: settings.overlayWidth,
-    height: 150,
+    height: overlayCardHeight,
     show: false,
     frame: false,
     transparent: true,
@@ -894,7 +906,7 @@ function makeOverlay() {
     fullscreenable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
-    focusable: false, // clicks on it don't take the game out of focus
+    focusable: true, // the text panel accepts normal Windows activation on click
     hasShadow: false,
     title: 'Tartarus Overlay',
     icon: ICON,
@@ -906,15 +918,21 @@ function makeOverlay() {
   win.loadFile(path.join(__dirname, 'lib', 'overlay.html'));
   win.webContents.on('will-navigate', (e) => e.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  win.webContents.on('did-finish-load', () => {
+  win.webContents.on('did-finish-load', async () => {
+    if(overlayBooting) {
+      await win.webContents.executeJavaScript('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))').catch(()=>{});
+      overlayBooting=false;
+      placeOverlay();
+    }
     pushShell();
     pushGame();
     if (lastAdvice) send('overlay', 'advice', lastAdvice);
     if (lastFollow) send('overlay', 'follow', lastFollow);
+    setTimeout(()=>{if(!win.isDestroyed())note('overlay renderer ready:',settings.collapsed?'icon':'card',win.getBounds());},300);
   });
   win.on('moved', () => {
-    const b = win.getBounds();
-    settings.overlay = { x: b.x, y: b.y };
+    if(overlayBooting)return;
+    overlayLayout.remember(settings, win.getBounds());
     saveSettings();
   });
   win.on('close', (e) => {
@@ -928,6 +946,7 @@ function makeOverlay() {
 // tray menu), only while the game itself is in front.
 let overlayShown = false;
 function overlayWanted() {
+  if(overlayBooting)return false;
   if (!settings.overlayOn || !game.running) return false;
   if (!settings.hideBehind || !win32) return true;
   const front = win32.foreground();
@@ -1159,10 +1178,10 @@ ipcMain.on('site:riot', (e, on) => {
   note(riot ? 'Riot: the fight is on' : 'back in the prison');
   recordEvent({ type: riot ? 'riot' : 'riot-over' });
   if (riot && !settings.collapsed) {
-    settings.collapsed = true;
+    setCollapsed(true);
     riotFolded = true;
   } else if (!riot && riotFolded) {
-    settings.collapsed = false;
+    setCollapsed(false);
     riotFolded = false;
   }
   pushShell();
@@ -1282,17 +1301,32 @@ ipcMain.on('record:folder', (e) => {
   if (sender(e, 'review')) shell.openPath(RECORDS);
 });
 
-ipcMain.on('overlay:size', (e, height) => {
+ipcMain.on('overlay:size', (e, value) => {
   if (!sender(e, 'overlay')) return;
   const b = wins.overlay.getBounds();
+  if (value && typeof value === 'object' && typeof value.collapsed === 'boolean' && value.collapsed !== settings.collapsed) return;
+  const height=typeof value==='object' && value ? value.height : value;
   const h = Math.max(36, Math.min(900, Math.ceil(Number(height) || 0)));
-  if (h !== b.height) wins.overlay.setBounds({ x: b.x, y: b.y, width: settings.overlayWidth, height: h });
+  const width=settings.collapsed ? 56 : settings.overlayWidth;
+  if (!settings.collapsed) overlayCardHeight = h;
+  const targetHeight=settings.collapsed ? 56 : h;
+  if (targetHeight !== b.height || width!==b.width) wins.overlay.setBounds({ x:b.x, y:b.y, width, height:targetHeight });
+});
+ipcMain.on('overlay:drag',(e,delta)=>{
+  if(!sender(e,'overlay') || !delta || !Number.isFinite(delta.dx) || !Number.isFinite(delta.dy))return;
+  const b=wins.overlay.getBounds();
+  wins.overlay.setPosition(Math.round(b.x+Math.max(-300,Math.min(300,delta.dx))),Math.round(b.y+Math.max(-300,Math.min(300,delta.dy))));
 });
 
 function command(cmd) {
   note('command:', cmd);
   recordEvent({ type: 'command', cmd: String(cmd) });
   switch (cmd) {
+    case 'expand':
+      riotFolded = false;
+      setOverlayOn(true);
+      setCollapsed(false);
+      return pushShell();
     case 'board': return toggle('analyzer');
     case 'follow': return show('follow');
     case 'capture': return send('follow', 'command', 'capture');
@@ -1319,8 +1353,7 @@ function command(cmd) {
       return undefined;
     case 'collapse':
       riotFolded = false;
-      settings.collapsed = !settings.collapsed;
-      saveSettings();
+      setCollapsed(!settings.collapsed);
       return pushShell();
     case 'review': return showReview();
     case 'pick-log': return pickLog();
@@ -1443,9 +1476,10 @@ function rebuildMenu() {
     { label: logPath ? `Log: ${logPath}` : 'Log: not found', enabled: false },
     { type: 'separator' },
     { label: 'Show the overlay', type: 'checkbox', checked: settings.overlayOn, accelerator: HOTKEYS.overlay, click: (i) => setOverlayOn(i.checked) },
+    { label: 'Expand text advice', accelerator: HOTKEYS.expand, click: () => command('expand') },
     { label: 'Hide it while another window is in front', type: 'checkbox', checked: settings.hideBehind, enabled: !!win32, click: (i) => { settings.hideBehind = i.checked; saveSettings(); updateOverlay(); } },
     { label: 'Hide it from screenshots and streams', type: 'checkbox', checked: settings.hideFromCaptures, click: (i) => { settings.hideFromCaptures = i.checked; saveSettings(); for(const name of ['overlay','hints']) if(wins[name]) wins[name].setContentProtection(i.checked); } },
-    { label: 'Put the overlay back in the corner', click: () => { settings.overlay = null; overlayPlaced = false; saveSettings(); placeOverlay(); } },
+    { label: 'Put this overlay mode back in the corner', click: () => { settings[overlayLayout.key(settings.collapsed)] = null; overlayPlaced = false; placeOverlay(); saveSettings(); } },
     { type: 'separator' },
     { label: 'Board analyzer', accelerator: HOTKEYS.analyzer, click: () => show('analyzer') },
     { label: 'Take a picture now', accelerator: HOTKEYS.capture, click: () => command('capture') },
@@ -1491,6 +1525,7 @@ function registerHotkeys() {
   if (TEST) return;
   const actions = {
     overlay: () => setOverlayOn(!settings.overlayOn),
+    expand: () => command('expand'),
     analyzer: () => toggle('analyzer'),
     capture: () => command('capture'),
   };
@@ -1568,5 +1603,6 @@ if (!app.requestSingleInstanceLock()) {
       tray.displayBalloon({ title: 'Tartarus Overlay is running', content: 'The advice shows over Torchlight: Infinite while you play. The tray icon has the board analyzer and settings.', iconType: 'info' });
     }
     if (TEST) console.log(`[overlay] ready site=${SITE} log=${logPath} win32=${!!win32}`);
+
   });
 }
