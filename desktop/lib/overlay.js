@@ -5,9 +5,11 @@
 (function () {
   'use strict';
 
-  const O = window.Overlay;
+  const O = window.TartarusOverlay || window.Overlay;
   const $ = (id) => document.getElementById(id);
   const state = { shell: {}, game: {}, follow: null, advice: null, menu: false };
+  const REFRESH_WAIT_MS = 20000;
+  let refreshWait = null;
 
   // A small element maker: h('p', { class: 'x' }, 'text', child).
   function h(tag, attrs, ...kids) {
@@ -83,7 +85,9 @@
     const sh = state.shell;
     document.body.classList.toggle('is-collapsed', !!sh.collapsed);
     $('fold').textContent = sh.collapsed ? '+' : '–';
-    $('fold').title = sh.collapsed ? 'Unfold it' : 'Fold it to a thin bar';
+    $('fold').title = 'Collapse to an icon';
+    $('orb').title = `Expand Tartarus advice · ${oneLine()} · drag to move`;
+    $('orb').setAttribute('aria-label', `Expand Tartarus advice: ${oneLine()}`);
     $('day').textContent = sh.collapsed ? oneLine()
       : a && a.riot !== null && a.riot !== undefined ? `${a.riot} ${a.riot === 1 ? 'day' : 'days'} until Riot${a.step ? ` · ${a.step}` : ''}` : sh.local ? 'local site' : '';
 
@@ -102,6 +106,8 @@
     if (a && a.toolsConfirm) out.push(line('warn', a.toolsConfirm, button('These are right', 'tools-ok'), button('Board', 'board')));
     // The Warden's Treasure covers the board: the gift waits for a look at it.
     if (a && a.treasureWait) out.push(line('warn', 'The Warden’s Treasure is open. Press View Prison Status in the game, wait a second on the board, then go back to the Treasure: the gift advice uses that board.', button('Advise anyway', 'treasure-now')));
+    const risk = a && renderRisk(a.risk);
+    if (risk) out.push(risk);
     if (a && a.problems && a.problems.length) {
       out.push(line('warn', `The board needs a fix: ${a.problems[0]}`, button('Fix', 'fix', true)));
     } else if (a && a.has && a.working) {
@@ -110,16 +116,19 @@
     } else if (a && a.has && a.stale) {
       out.push(line('warn', 'The board changed since the last advice.', button('Recheck', 'recheck', true)));
     } else if (a && a.has && a.move) {
-      const advice = h('div', null,
-        h('p', { class: 'eyebrow' }, 'Recommended'),
-        h('p', { class: 'move' }, a.move),
+      const sequence=renderPlan(a.plan,a.baseMove || a.move);
+      const explanation=[
         a.why ? h('p', { class: 'why' }, a.why) : null,
         h('p', { class: 'meta' }, [
-          a.expect.replace(/^Expected: /, '').replace(/ Rainbows in the vault by the end of day (\d+)\.?$/, ' Rainbows expected by day $1').replace(/\.$/, ''),
-          a.status.replace(/^Live check: /, '').replace(/ playouts per option$/, ' playouts each'),
+          (a.expect || '').replace(/^Expected: /, '').replace(/ Rainbows in the vault by the end of day (\d+)\.?$/, ' Rainbows expected by day $1').replace(/\.$/, ''),
+          (a.status || '').replace(/^Live check: /, '').replace(/ playouts per option$/, ' playouts each'),
         ].filter(Boolean).join(' · ')),
         a.chain ? h('p', { class: 'alt' }, a.chain) : null,
-        a.close && a.options[1] ? h('p', { class: 'alt' }, `About as good: ${a.options.find((o) => !o.best) ? a.options.find((o) => !o.best).label : a.options[1].label}`) : null,
+        a.close && a.options && a.options[1] ? h('p', { class: 'alt' }, `About as good: ${a.options.find((o) => !o.best) ? a.options.find((o) => !o.best).label : a.options[1].label}`) : null,
+      ];
+      const advice = h('div', null,
+        sequence || h('div',null,h('p',{class:'eyebrow'},a.risk ? a.risk.selected==='preserve'?'Your choice':'Simulation option':'Recommended'),h('p',{class:'move'},a.move)),
+        sequence ? h('details',{class:'advice-details'},h('summary',null,'Calculation and alternatives'),explanation) : explanation,
       );
       out.push(advice);
       if (a.flagged) out.push(line('warn', `${a.flagged} ${a.flagged === 1 ? 'cell' : 'cells'} to check against your game.`, button('Fix', 'fix'), button('Recheck', 'recheck')));
@@ -132,6 +141,17 @@
     }
 
     $('body').replaceChildren(...out);
+    // Keep diagnostics below the advice and normal controls. A transient gap
+    // between game screens must not immediately offer another capture.
+    const hs=sh.hintsStatus;
+    const eligible=hs && hs.refreshable===true && !(a && (a.reading || a.working));
+    const waitKey=eligible ? JSON.stringify([hs.code,a && a.hints && a.hints.frameId,a && a.hints && a.hints.capturedAt]) : null;
+    if(!eligible)refreshWait=null;
+    else if(!refreshWait || refreshWait.key!==waitKey)refreshWait={key:waitKey,since:Date.now()};
+    const refreshReady=refreshWait && Date.now()-refreshWait.since>=REFRESH_WAIT_MS;
+    $('hints-status-area').replaceChildren(...(hs && typeof hs.text==='string' && hs.text.trim() ? [h('div', { id:'hints-status',class:'hints-status',role:'status','data-state':hs.code==='visible'?'active':'waiting' },
+      h('p',null,h('span',{class:'hints-status-label'},'Target hints: '),hs.text),
+      refreshReady ? h('button',{type:'button',class:'btn',cmd:'capture',id:'hints-refresh'},'Refresh picture') : null)] : []));
     const dot = (el, on, what) => {
       el.className = `dot ${on === true ? 'is-on' : on === false ? 'is-off' : ''}`;
       el.title = what;
@@ -147,6 +167,80 @@
     $('report-reading').hidden = !(a && a.canReportReading);
   }
 
+  function renderRisk(risk) {
+    if (!risk || risk.id !== 'maiden-scapegoat' || typeof risk.title !== 'string' ||
+      typeof risk.message !== 'string' || !['pending', 'simulate', 'preserve'].includes(risk.selected)) return null;
+    const preserve = h('button', { type: 'button', class: `btn${risk.selected === 'preserve' ? ' is-primary' : ''}`,
+      cmd: 'risk-preserve', 'aria-pressed': String(risk.selected === 'preserve'),
+      title: typeof risk.preserveLabel === 'string' ? risk.preserveLabel : null }, 'Keep inmates today');
+    const simulate = h('button', { type: 'button', class: 'btn', cmd: 'risk-simulate',
+      'aria-pressed': String(risk.selected === 'simulate'),
+      title: typeof risk.simulationLabel === 'string' ? risk.simulationLabel : null }, 'Use risky Replace');
+    return h('section', { id: 'advice-risk', class: 'advice-risk', 'aria-labelledby': 'advice-risk-title', 'data-selected': risk.selected },
+      h('p', { id: 'advice-risk-title', class: 'risk-title' }, risk.title),
+      h('p', { class: 'risk-message' }, risk.message),
+      h('div', { class: 'risk-actions', role: 'group', 'aria-label': 'Instrument interaction options' }, preserve, simulate));
+  }
+
+  function renderPlan(plan, currentMove) {
+    if (!plan || !Array.isArray(plan.steps)) return null;
+    const valid=plan.steps.filter(s=>s && typeof s.label==='string' && s.label.trim());
+    const next=valid.filter(s=>s.certainty!=='current' && s.label!==currentMove);
+    if(!next.length)return null;
+    const first=valid.find(s=>s.certainty==='current');
+    const steps=[{label:first?first.label:currentMove,certainty:'current'},...next];
+    const stage={current:'Now',confirmed:'Then',planned:'Next · verify in game',conditional:'If a choice appears',recheck:'After a new reading'};
+    return h('section', { class: 'plan', 'aria-label': 'Action sequence' },
+      h('p', { class: 'eyebrow' }, 'Action sequence'),
+      h('ol', null, steps.map((s,i) => h('li',{'data-state':i===0?'current':'next','aria-current':i===0?'step':null},
+        h('span',{class:'step-number','aria-hidden':'true'},String(i+1).padStart(2,'0')),
+        h('div',{class:'step-copy'},h('span',{class:'step-stage'},stage[s.certainty]||'Then'),h('p',{class:i===0?'move':'step-label'},s.label))))),
+      typeof plan.note === 'string' && plan.note ? h('p', { class: 'plan-note' }, plan.note) : null);
+  }
+
+  // screen coordinates stay stable when main moves this window during a drag.
+  const orb = $('orb');
+  let drag = null;
+  let suppressClickUntil = 0;
+  let idleTimer = 0;
+  function wakeIcon() {
+    clearTimeout(idleTimer);
+    orb.classList.remove('is-idle');
+    if (!state.shell.collapsed) return;
+    idleTimer = setTimeout(() => {
+      if (!drag && !orb.matches(':hover, :focus-visible')) orb.classList.add('is-idle');
+    }, 15000);
+  }
+  for (const event of ['pointerenter', 'pointermove', 'pointerleave', 'focus', 'blur', 'keydown']) orb.addEventListener(event, wakeIcon);
+  orb.addEventListener('pointerdown', (e) => {
+    wakeIcon();
+    if (e.button !== 0 || !e.isPrimary) return;
+    drag = { id: e.pointerId, x: e.screenX, y: e.screenY, startX: e.screenX, startY: e.screenY, moved: false };
+    orb.setPointerCapture(e.pointerId);
+  });
+  orb.addEventListener('pointermove', (e) => {
+    if (!drag || drag.id !== e.pointerId) return;
+    if (!drag.moved && Math.hypot(e.screenX - drag.startX, e.screenY - drag.startY) < 4) return;
+    drag.moved = true;
+    orb.classList.add('is-dragging');
+    const dx = e.screenX - drag.x;
+    const dy = e.screenY - drag.y;
+    drag.x = e.screenX;
+    drag.y = e.screenY;
+    if (typeof O.drag === 'function' && (dx || dy)) O.drag({ dx, dy });
+  });
+  function finishDrag(e) {
+    if (!drag || drag.id !== e.pointerId) return;
+    if (drag.moved) suppressClickUntil = Date.now() + 500;
+    drag = null;
+    orb.classList.remove('is-dragging');
+    if (orb.hasPointerCapture(e.pointerId)) orb.releasePointerCapture(e.pointerId);
+    wakeIcon();
+  }
+  orb.addEventListener('pointerup', finishDrag);
+  orb.addEventListener('pointercancel', finishDrag);
+  orb.addEventListener('lostpointercapture', finishDrag);
+
   document.addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;
@@ -155,8 +249,10 @@
       render();
       return;
     }
-    if (b.id === 'fold') return O.command('collapse');
+    if (b.id === 'orb' && e.detail !== 0 && Date.now() < suppressClickUntil) return;
+    if (b.id === 'fold' || b.id === 'orb') return O.command('collapse');
     if (b.dataset.cmd) {
+      if(b.id==='hints-refresh')refreshWait=null;
       state.menu = false;
       O.command(b.dataset.cmd);
       render();
@@ -164,11 +260,13 @@
   });
 
   // The window takes the card's height.
-  new ResizeObserver(() => O.size($('card').getBoundingClientRect().height)).observe($('card'));
+  new ResizeObserver(() => O.size({ collapsed:!!state.shell.collapsed, width: state.shell.collapsed ? 56 : undefined, height: $('card').getBoundingClientRect().height })).observe($('card'));
 
   O.onShell((s) => {
+    const wasCollapsed = !!state.shell.collapsed;
     state.shell = s || {};
     render();
+    if (wasCollapsed !== !!state.shell.collapsed) wakeIcon();
   });
   O.onGame((g) => {
     state.game = g || {};

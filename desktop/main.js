@@ -26,6 +26,7 @@ const { app, BrowserWindow, Menu, Tray, desktopCapturer, dialog, globalShortcut,
 const fs = require('fs');
 const path = require('path');
 const { execFile } = require('child_process');
+const overlayLayout = require('./lib/overlay-layout');
 
 // ---------- Options ----------
 
@@ -45,6 +46,12 @@ const GAME_TITLE = new RegExp(arg('game-title') || '^Torchlight: Infinite\\s*$')
 // #endregion
 const LOG_OVERRIDE = arg('log');
 const TEST = flag('test');
+const LOCAL = flag('local');
+const GIFT_RECOVERY=path.join(arg('user-data') ? path.resolve(arg('user-data')) : app.getPath('userData'),'gift-recovery.json');
+let giftRecovery=readGiftRecovery();
+function readGiftRecovery(){try{const v=JSON.parse(fs.readFileSync(GIFT_RECOVERY,'utf8'));return Date.now()-v.at<300000?v.state:null;}catch{return null;}}
+let testConsole = TEST;
+if(TEST) for(const stream of [process.stdout,process.stderr]) stream.on('error',()=>{testConsole=false;});
 // Tests that need windows shown put them off every screen.
 const OFFSCREEN = TEST && flag('offscreen');
 const DEV = flag('dev') || TEST;
@@ -52,7 +59,7 @@ const DEV = flag('dev') || TEST;
 // normal build keeps the last few.
 const BIG_RECORD = flag('dev');
 const STEAM_APP = '1974050'; // Torchlight: Infinite on Steam
-const HOTKEYS = { overlay: 'Control+Alt+O', analyzer: 'Control+Alt+A', capture: 'Control+Alt+P' };
+const HOTKEYS = { overlay: 'Control+Alt+O', expand: 'Control+Alt+Space', analyzer: 'Control+Alt+A', capture: 'Control+Alt+P' };
 const ICON = path.join(__dirname, 'build', 'icon.png');
 
 if (arg('user-data')) app.setPath('userData', path.resolve(arg('user-data')));
@@ -75,11 +82,12 @@ const readJson = (file) => {
 };
 const settings = Object.assign({
   overlayOn: true, // the player can hide it (Ctrl+Alt+O)
-  overlay: null, // { x, y }, where the player dragged it
+  overlay: null, // expanded card position
+  overlayIcon: null, // collapsed icon position, independent of the card
   overlayWidth: 360,
   hideFromCaptures: true, // kept out of screenshots, recordings and the shared window
   hideBehind: false, // hidden while another window is in front of the game
-  collapsed: false, // the overlay folded to a thin bar ("–" on it)
+  collapsed: false, // the overlay folded to an icon
   cpu: 'half', // the analyzer's share of the processor (tray: Processor use)
   gameFirst: true, // the site pages run below normal priority, so the game comes first
   record: true, // keep a record of each board and advice, for testing
@@ -89,6 +97,7 @@ const settings = Object.assign({
   logPath: '', // a log the player chose, when the app didn't find it
   analyzer: null, // the analyzer window's bounds
 }, readJson(SETTINGS_FILE));
+overlayLayout.migrate(settings);
 delete settings.onlyWithGame; // 0.1.1 hid the overlay behind other windows by default
 delete settings.locked; // before 0.2.5 the overlay could be locked (clicks went through)
 // Before 0.1.7 the overlay's "–" hid it for good, and that was kept; now it
@@ -119,7 +128,7 @@ function saveSettings() {
 const LOG_FILE = path.join(app.getPath('userData'), 'logs', 'overlay.log');
 function note(...parts) {
   const text = parts.map((p) => (typeof p === 'string' ? p : JSON.stringify(p))).join(' ');
-  if (TEST) console.log(`[overlay] ${text}`);
+  if (testConsole) console.log(`[overlay] ${text}`);
   try {
     fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });
     if (fs.existsSync(LOG_FILE) && fs.statSync(LOG_FILE).size > 2 * 1024 * 1024) fs.renameSync(LOG_FILE, LOG_FILE.replace(/\.log$/, '.old.log'));
@@ -319,6 +328,9 @@ const win32 = (() => {
     const foreground = user32.func('__stdcall', 'GetForegroundWindow', 'intptr', []);
     const rect = user32.func('__stdcall', 'GetWindowRect', 'bool', ['intptr', koffi.out(koffi.pointer(RECT))]);
     const iconic = user32.func('__stdcall', 'IsIconic', 'bool', ['intptr']);
+    const extendedRect = (() => {
+      try { return koffi.load('dwmapi.dll').func('__stdcall', 'DwmGetWindowAttribute', 'long', ['intptr','uint32',koffi.out(koffi.pointer(RECT)),'uint32']); } catch { return null; }
+    })();
     const kernel32 = koffi.load('kernel32.dll');
     const windowPid = user32.func('__stdcall', 'GetWindowThreadProcessId', 'uint32', ['intptr', koffi.out(koffi.pointer('uint32'))]);
     const openProcess = kernel32.func('__stdcall', 'OpenProcess', 'intptr', ['uint32', 'bool', 'uint32']);
@@ -433,6 +445,11 @@ const win32 = (() => {
         return rect(hwnd, r) ? { x: r.left, y: r.top, width: r.right - r.left, height: r.bottom - r.top } : null;
       },
       minimized: (hwnd) => !!iconic(hwnd),
+      captureRect(hwnd) {
+        const r = {};
+        if (extendedRect && extendedRect(hwnd,9,r,koffi.sizeof(RECT)) === 0) return {x:r.left,y:r.top,width:r.right-r.left,height:r.bottom-r.top};
+        return this.rect(hwnd);
+      },
     };
   } catch (e) {
     return null;
@@ -739,7 +756,8 @@ function makeSiteWindow(name, opts) {
     if (pageOf(wc.getURL()) !== PAGES[name]) return;
     const code = fs.readFileSync(path.join(__dirname, 'lib', ADAPTERS[name]), 'utf8');
     note(`${name} page loaded:`, wc.getURL());
-    wc.executeJavaScript(code, true).catch((e) => note(`${name} adapter error:`, String((e && e.message) || e)));
+    const restore=name==='follow' && giftRecovery ? wc.executeJavaScript(`typeof TartarusCapture.restoreGiftState==='function' && TartarusCapture.restoreGiftState(${JSON.stringify(giftRecovery)})`).then(ok=>{if(ok){note('restored active gift counters:',giftRecovery);giftRecovery=null;try{fs.renameSync(GIFT_RECOVERY,GIFT_RECOVERY+'.used');}catch(e){}}}) : Promise.resolve();
+    restore.then(()=>wc.executeJavaScript(code, true)).catch((e) => note(`${name} adapter error:`, String((e && e.message) || e)));
     tunePage(name);
   });
   // The page's own errors (and with --dev, its warnings), for the debug log.
@@ -803,6 +821,7 @@ function show(name) {
   const win = wins[name];
   if (!win || win.isDestroyed()) return;
   if (OFFSCREEN) win.setPosition(Math.min(...screen.getAllDisplays().map((d) => d.bounds.x)) - win.getSize()[0] - 400, 0);
+  if (TEST) return; // background verification never changes the user's focus
   if (win.isMinimized()) win.restore();
   win.show();
   win.focus();
@@ -846,6 +865,8 @@ function makeAnalyzer() {
 // ---------- The overlay ----------
 
 let overlayPlaced = false;
+let overlayCardHeight = 150;
+let overlayBooting = true;
 
 const onScreen = (b) => screen.getAllDisplays().some((d) => {
   const a = d.workArea;
@@ -857,26 +878,33 @@ const onScreen = (b) => screen.getAllDisplays().some((d) => {
 function placeOverlay() {
   const win = wins.overlay;
   if (!win) return;
-  const w = settings.overlayWidth;
-  let at = settings.overlay && onScreen(settings.overlay) ? settings.overlay : null;
-  if (at) overlayPlaced = true;
-  else {
-    let area = screen.getPrimaryDisplay().workArea;
-    const r = game.running && win32 ? win32.rect(game.hwnd) : null;
-    if (r && r.width > 200) {
-      area = screen.screenToDipRect(null, r);
-      overlayPlaced = true;
-    }
-    at = { x: Math.round(area.x + area.width - w - 24), y: Math.round(area.y + Math.min(140, area.height / 8)) };
+  let area = screen.getPrimaryDisplay().workArea;
+  const r = game.running && win32 ? win32.rect(game.hwnd) : null;
+  const layoutSettings=overlayBooting ? Object.assign({},settings,{collapsed:false}) : settings;
+  const saved = layoutSettings[overlayLayout.key(layoutSettings.collapsed)];
+  const fits=(b)=>screen.getAllDisplays().some(d=>overlayLayout.visible(b,d.workArea));
+  if (r && r.width > 200) {
+    area = screen.screenToDipRect(null, r);
+    overlayPlaced = true;
   }
-  const b = win.getBounds();
-  win.setBounds({ x: at.x, y: at.y, width: w, height: b.height });
+  if (saved && fits({...saved,width:layoutSettings.collapsed?56:settings.overlayWidth,height:layoutSettings.collapsed?56:overlayCardHeight})) overlayPlaced = true;
+  win.setBounds(overlayLayout.bounds(layoutSettings, area, overlayCardHeight, fits));
+}
+
+function setCollapsed(next) {
+  if (!!next === settings.collapsed) return;
+  if (wins.overlay && !overlayBooting) overlayLayout.remember(settings, wins.overlay.getBounds());
+  settings.collapsed = !!next;
+  overlayPlaced = false;
+  placeOverlay();
+  saveSettings();
 }
 
 function makeOverlay() {
   const win = new BrowserWindow({
+    // Let Chromium initialize a normal content view before the first fold.
     width: settings.overlayWidth,
-    height: 150,
+    height: overlayCardHeight,
     show: false,
     frame: false,
     transparent: true,
@@ -886,7 +914,7 @@ function makeOverlay() {
     fullscreenable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
-    focusable: false, // clicks on it don't take the game out of focus
+    focusable: true, // the text panel accepts normal Windows activation on click
     hasShadow: false,
     title: 'Tartarus Overlay',
     icon: ICON,
@@ -898,15 +926,21 @@ function makeOverlay() {
   win.loadFile(path.join(__dirname, 'lib', 'overlay.html'));
   win.webContents.on('will-navigate', (e) => e.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  win.webContents.on('did-finish-load', () => {
+  win.webContents.on('did-finish-load', async () => {
+    if(overlayBooting) {
+      await win.webContents.executeJavaScript('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))').catch(()=>{});
+      overlayBooting=false;
+      placeOverlay();
+    }
     pushShell();
     pushGame();
     if (lastAdvice) send('overlay', 'advice', lastAdvice);
     if (lastFollow) send('overlay', 'follow', lastFollow);
+    setTimeout(()=>{if(!win.isDestroyed())note('overlay renderer ready:',settings.collapsed?'icon':'card',win.getBounds());},300);
   });
   win.on('moved', () => {
-    const b = win.getBounds();
-    settings.overlay = { x: b.x, y: b.y };
+    if(overlayBooting)return;
+    overlayLayout.remember(settings, win.getBounds());
     saveSettings();
   });
   win.on('close', (e) => {
@@ -920,6 +954,7 @@ function makeOverlay() {
 // tray menu), only while the game itself is in front.
 let overlayShown = false;
 function overlayWanted() {
+  if(overlayBooting)return false;
   if (!settings.overlayOn || !game.running) return false;
   if (!settings.hideBehind || !win32) return true;
   const front = win32.foreground();
@@ -927,6 +962,7 @@ function overlayWanted() {
   return front === hwndOf(wins.overlay);
 }
 function updateOverlay() {
+  updateHints();
   const win = wins.overlay;
   if (!win || win.isDestroyed()) return;
   const want = overlayWanted();
@@ -977,13 +1013,56 @@ function pushShell(patch) {
     siteUpdate,
     appUpdate,
     hotkeys: HOTKEYS,
-    local: /^(localhost|127\.0\.0\.1)$/.test(SITE_URL.hostname),
+    local: LOCAL || /^(localhost|127\.0\.0\.1)$/.test(SITE_URL.hostname),
     version: app.getVersion(),
   }, shellExtra));
 }
 
 let lastAdvice = null;
+let hintsInvalidAt = 0;
+let hintStatusKey = '';
+let hintRefreshKey = '';
+function reportHintStatus(status) {
+  const publicStatus={code:status.code,text:status.text,refreshable:!!status.refreshable};
+  const key=JSON.stringify(publicStatus);
+  if(key===hintStatusKey)return;
+  hintStatusKey=key;
+  note('targets:',status.code,status.text);
+  pushShell({hintsStatus:publicStatus});
+}
+function invalidateHints() {
+  hintsInvalidAt = Date.now();
+  if (wins.hints && !wins.hints.isDestroyed()) { send('hints','hints',{visible:false,targets:[]}); wins.hints.hide(); }
+}
+function makeHints() {
+  const win = new BrowserWindow({width:100,height:100,show:false,frame:false,transparent:true,resizable:false,alwaysOnTop:true,skipTaskbar:true,focusable:false,hasShadow:false,title:'Tartarus targets',
+    webPreferences:{preload:path.join(__dirname,'lib','hints-preload.js'),contextIsolation:true,sandbox:true,backgroundThrottling:false}});
+  wins.hints=win;
+  win.setIgnoreMouseEvents(true,{forward:true});
+  win.setAlwaysOnTop(true,'screen-saver');
+  win.setContentProtection(!!settings.hideFromCaptures);
+  win.loadFile(path.join(__dirname,'lib','hints.html'));
+  win.webContents.on('will-navigate',e=>e.preventDefault());
+  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
+}
+function updateHints() {
+  const win=wins.hints;
+  if (!win || win.isDestroyed()) return;
+  const a=lastAdvice, p=a && a.hints;
+  const status=require('./lib/hint-policy').evaluate({native:!!win32,game:game.running,on:settings.overlayOn,agreed,riot,runOver,advice:a,invalidAt:hintsInvalidAt,now:Date.now(),foreground:win32 && game.running && win32.foreground()===game.hwnd,minimized:win32 && game.running && win32.minimized(game.hwnd)});
+  if(a && a.treasureWait){status.code='treasure';status.text='View the board behind the Treasure.';status.refresh=false;status.refreshable=false;}
+  if(status.refresh && p){const key=`${p.frameId}:${p.capturedAt}`;if(key!==hintRefreshKey){hintRefreshKey=key;note('targets: requesting one fresh picture for an expired target');send('follow','command','capture');}}
+  if(status.code!=='visible'){reportHintStatus(status);if(win.isVisible())win.hide();return;}
+  const r=require('./lib/hint-geometry').transform(p,win32.captureRect(game.hwnd),b=>screen.screenToDipRect(null,b));
+  if(!r || !r.payload.visible){reportHintStatus({code:'geometry',text:'Game window size differs from the picture; refresh it.',refreshable:true});if(win.isVisible())win.hide();return;}
+  reportHintStatus(status);
+  const old=win.getBounds();
+  if(Object.keys(r.bounds).some(k=>r.bounds[k]!==old[k]))win.setBounds(r.bounds);
+  send('hints','hints',r.payload);
+  if(!win.isVisible()){win.showInactive();note('targets window shown:',{bounds:r.bounds,count:r.payload.targets.length});}
+}
 let lastFollow = null;
+let startupPictureRequested = false;
 const small = (data) => {
   try {
     return JSON.stringify(data).length < 50000;
@@ -1096,6 +1175,10 @@ ipcMain.on('site:follow', (e, data) => {
     pushShell();
   }
   send('overlay', 'follow', data);
+  if(LOCAL && !TEST && !startupPictureRequested && data.agreed && data.window==='on') {
+    startupPictureRequested=true;
+    setTimeout(()=>{if(lastFollow && lastFollow.gifts && lastFollow.gifts.giftOpen){note('startup: retained the active Treasure; waiting for the next game event');return;}note('startup: refreshing the current game picture');send('follow','command','capture');},1200);
+  }
 });
 // The Riot folds the overlay until the fight is over, unless the player
 // had it folded already; it unfolds only what it folded, and a fold or
@@ -1108,10 +1191,10 @@ ipcMain.on('site:riot', (e, on) => {
   note(riot ? 'Riot: the fight is on' : 'back in the prison');
   recordEvent({ type: riot ? 'riot' : 'riot-over' });
   if (riot && !settings.collapsed) {
-    settings.collapsed = true;
+    setCollapsed(true);
     riotFolded = true;
   } else if (!riot && riotFolded) {
-    settings.collapsed = false;
+    setCollapsed(false);
     riotFolded = false;
   }
   pushShell();
@@ -1143,6 +1226,7 @@ ipcMain.on('site:run', (e, what) => {
 // runs, how Auto Screenshot Mode is doing in numbers: for the debug log,
 // to find out why pictures don't come. Never the game log's lines.
 ipcMain.on('site:trigger', (e, kind) => {
+  if (fromPage(e,'follow') && !['speed'].includes(kind)) invalidateHints();
   if (fromPage(e, 'follow')) note('trigger:', String(kind));
 });
 let checked = null; // the counts at the last minute's note
@@ -1213,6 +1297,7 @@ ipcMain.on('site:advice', (e, data) => {
   if (data.toolsConfirm && data.toolsConfirm !== was.toolsConfirm) note('instruments to confirm:', data.toolsConfirm);
   lastAdvice = data;
   send('overlay', 'advice', data);
+  updateHints();
 });
 
 // The overlay's buttons.
@@ -1229,17 +1314,32 @@ ipcMain.on('record:folder', (e) => {
   if (sender(e, 'review')) shell.openPath(RECORDS);
 });
 
-ipcMain.on('overlay:size', (e, height) => {
+ipcMain.on('overlay:size', (e, value) => {
   if (!sender(e, 'overlay')) return;
   const b = wins.overlay.getBounds();
+  if (value && typeof value === 'object' && typeof value.collapsed === 'boolean' && value.collapsed !== settings.collapsed) return;
+  const height=typeof value==='object' && value ? value.height : value;
   const h = Math.max(36, Math.min(900, Math.ceil(Number(height) || 0)));
-  if (h !== b.height) wins.overlay.setBounds({ x: b.x, y: b.y, width: settings.overlayWidth, height: h });
+  const width=settings.collapsed ? 56 : settings.overlayWidth;
+  if (!settings.collapsed) overlayCardHeight = h;
+  const targetHeight=settings.collapsed ? 56 : h;
+  if (targetHeight !== b.height || width!==b.width) wins.overlay.setBounds({ x:b.x, y:b.y, width, height:targetHeight });
+});
+ipcMain.on('overlay:drag',(e,delta)=>{
+  if(!sender(e,'overlay') || !delta || !Number.isFinite(delta.dx) || !Number.isFinite(delta.dy))return;
+  const b=wins.overlay.getBounds();
+  wins.overlay.setPosition(Math.round(b.x+Math.max(-300,Math.min(300,delta.dx))),Math.round(b.y+Math.max(-300,Math.min(300,delta.dy))));
 });
 
 function command(cmd) {
   note('command:', cmd);
   recordEvent({ type: 'command', cmd: String(cmd) });
   switch (cmd) {
+    case 'expand':
+      riotFolded = false;
+      setOverlayOn(true);
+      setCollapsed(false);
+      return pushShell();
     case 'board': return toggle('analyzer');
     case 'follow': return show('follow');
     case 'capture': return send('follow', 'command', 'capture');
@@ -1249,6 +1349,8 @@ function command(cmd) {
     case 'recheck':
     case 'tools-ok':
     case 'treasure-now':
+    case 'risk-preserve':
+    case 'risk-simulate':
       return send('analyzer', 'command', cmd);
     case 'debug-report': return debugReport();
     case 'enable-log':
@@ -1266,8 +1368,7 @@ function command(cmd) {
       return undefined;
     case 'collapse':
       riotFolded = false;
-      settings.collapsed = !settings.collapsed;
-      saveSettings();
+      setCollapsed(!settings.collapsed);
       return pushShell();
     case 'review': return showReview();
     case 'pick-log': return pickLog();
@@ -1320,6 +1421,7 @@ async function pageTag() {
   }
 }
 async function checkSite() {
+  if (LOCAL) return;
   try {
     const res = await net.fetch(SITE + PAGES.analyzer, { cache: 'no-store' });
     const m = /[?&]v=([\w.-]+)/.exec(await res.text());
@@ -1390,9 +1492,10 @@ function rebuildMenu() {
     { label: logPath ? `Log: ${logPath}` : 'Log: not found', enabled: false },
     { type: 'separator' },
     { label: 'Show the overlay', type: 'checkbox', checked: settings.overlayOn, accelerator: HOTKEYS.overlay, click: (i) => setOverlayOn(i.checked) },
+    { label: 'Expand text advice', accelerator: HOTKEYS.expand, click: () => command('expand') },
     { label: 'Hide it while another window is in front', type: 'checkbox', checked: settings.hideBehind, enabled: !!win32, click: (i) => { settings.hideBehind = i.checked; saveSettings(); updateOverlay(); } },
-    { label: 'Hide it from screenshots and streams', type: 'checkbox', checked: settings.hideFromCaptures, click: (i) => { settings.hideFromCaptures = i.checked; saveSettings(); if (wins.overlay) wins.overlay.setContentProtection(i.checked); } },
-    { label: 'Put the overlay back in the corner', click: () => { settings.overlay = null; overlayPlaced = false; saveSettings(); placeOverlay(); } },
+    { label: 'Hide it from screenshots and streams', type: 'checkbox', checked: settings.hideFromCaptures, click: (i) => { settings.hideFromCaptures = i.checked; saveSettings(); for(const name of ['overlay','hints']) if(wins[name]) wins[name].setContentProtection(i.checked); } },
+    { label: 'Put this overlay mode back in the corner', click: () => { settings[overlayLayout.key(settings.collapsed)] = null; overlayPlaced = false; placeOverlay(); saveSettings(); } },
     { type: 'separator' },
     { label: 'Board analyzer', accelerator: HOTKEYS.analyzer, click: () => show('analyzer') },
     { label: 'Take a picture now', accelerator: HOTKEYS.capture, click: () => command('capture') },
@@ -1438,6 +1541,7 @@ function registerHotkeys() {
   if (TEST) return;
   const actions = {
     overlay: () => setOverlayOn(!settings.overlayOn),
+    expand: () => command('expand'),
     analyzer: () => toggle('analyzer'),
     capture: () => command('capture'),
   };
@@ -1496,12 +1600,14 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   app.whenReady().then(async () => {
+    if(LOCAL){require('./lib/local-site').install(session.defaultSession,net,path.join(__dirname,'..'));note('local build: second-run-6; same origin and profile retained');}
     note(`start: version ${app.getVersion()}, site ${SITE}${DEV ? ', debug' : ''}${TEST ? ', test' : ''}, foreground check ${win32 ? 'on' : 'off'}, as administrator: ${yesNo(win32 ? win32.selfElevated() : null)}`);
     allowCapture();
     pruneRecords();
     await refreshLog();
     await adoptLiveAgreement();
     makeOverlay();
+    makeHints();
     makeSiteWindow('follow', { width: 1000, height: 860, title: 'Auto Screenshot Mode · Tartarus Overlay' });
     makeAnalyzer();
     makeTray();
@@ -1514,5 +1620,54 @@ if (!app.requestSingleInstanceLock()) {
       tray.displayBalloon({ title: 'Tartarus Overlay is running', content: 'The advice shows over Torchlight: Infinite while you play. The tray icon has the board analyzer and settings.', iconType: 'info' });
     }
     if (TEST) console.log(`[overlay] ready site=${SITE} log=${logPath} win32=${!!win32}`);
+    // A finite, hidden integration probe uses its own --user-data directory.
+    // It reads only app capability/geometry, never a real profile or game data.
+    if (TEST && flag('qa-probe')) {
+      const report = { local:LOCAL, build:'second-run-6', result:'failed' };
+      try {
+        const deadline=Date.now()+25000;
+        while(Date.now()<deadline) {
+          const ready=await wins.analyzer.webContents.executeJavaScript('!!(window.TartarusAnalyzer && window.TartarusAssist && window.__tartarusDesktop)').catch(()=>false);
+          if(ready && !giftRecovery && !overlayBooting)break;
+          await new Promise(resolve=>setTimeout(resolve,200));
+        }
+        report.analyzer=await wins.analyzer.webContents.executeJavaScript(`(async()=>({url:location.href,api:!!window.TartarusAnalyzer,assist:!!window.TartarusAssist,adapter:!!window.__tartarusDesktop,localHeader:(await fetch('js/local-assist.js')).headers.get('X-Tartarus-Local')}))()`);
+        report.follow=await wins.follow.webContents.executeJavaScript(`({url:location.href,counter:!!window.TartarusFollowState,adapter:!!window.__tartarusDesktop,gifts:typeof TartarusCapture.giftState==='function'?TartarusCapture.giftState():null})`);
+        report.overlay=Object.assign({focusable:wins.overlay.isFocusable()},await wins.overlay.webContents.executeJavaScript(`({orb:!!document.getElementById('orb'),width:innerWidth,height:innerHeight})`));
+        const pause=()=>new Promise(resolve=>setTimeout(resolve,200));
+        const at=(x,y)=>{const b=wins.overlay.getBounds();return b.x===x && b.y===y;};
+        command('expand');await pause();
+        wins.overlay.setPosition(120,160);await pause();
+        await wins.overlay.webContents.executeJavaScript("document.getElementById('fold').click()");await pause();
+        wins.overlay.setPosition(800,90);await pause();
+        await wins.overlay.webContents.executeJavaScript("document.getElementById('orb').click()");await pause();
+        report.overlay.cardPositionRestored=!settings.collapsed && at(120,160) && settings.overlayIcon.x===800 && settings.overlayIcon.y===90;
+        await wins.overlay.webContents.executeJavaScript("document.getElementById('fold').click()");await pause();
+        report.overlay.iconPositionRestored=settings.collapsed && at(800,90) && settings.overlay.x===120 && settings.overlay.y===160;
+        report.overlay.icon=await wins.overlay.webContents.executeJavaScript(`(()=>{const el=document.getElementById('orb'),s=getComputedStyle(el);return {background:s.backgroundColor,border:s.borderTopWidth,shadow:s.boxShadow,opacity:s.opacity,svg:el.querySelector('svg').getBoundingClientRect().width,width:innerWidth,height:innerHeight};})()`);
+        // Transport-only spy: real state/choice behavior is checked by the
+        // recorded-frame integration test. This verifies both native IPC routes.
+        await wins.analyzer.webContents.executeJavaScript("window.__qaRiskChoices=[];const choose=TartarusAnalyzer.chooseReplacementRisk;TartarusAnalyzer.chooseReplacementRisk=mode=>{__qaRiskChoices.push(mode);return choose(mode);};true");
+        report.overlay.riskButtons=[];
+        for(const choice of ['preserve','simulate']) {
+          send('overlay','advice',{risk:{id:'maiden-scapegoat',title:'QA risk',message:'QA transport check',selected:'pending',simulationLabel:'Replace',preserveLabel:'End the day'}});
+          await pause();
+          report.overlay.riskButtons.push(await wins.overlay.webContents.executeJavaScript(`(()=>{const b=document.querySelector('[data-cmd="risk-${choice}"]');if(!b)return false;b.click();return true;})()`));
+          await pause();
+        }
+        report.overlay.riskChoices=await wins.analyzer.webContents.executeJavaScript('window.__qaRiskChoices');
+        report.hints={focusable:wins.hints.isFocusable(),visible:wins.hints.isVisible()};
+        send('hints','hints',{visible:true,width:1280,height:720,targets:[{x:400,y:650,radius:6,width:180,height:12,shape:'underline',priority:'primary',label:'QA target',kind:'button'},...[200,400,650].map((x,i)=>({x,y:250,radius:36,kind:'cell',chainStep:i+1,chainState:i?'planned':'current',priority:i?'reference':'primary'}))]});
+        await new Promise(resolve=>setTimeout(resolve,150));
+        report.hints.ipcTargets=await wins.hints.webContents.executeJavaScript("document.querySelectorAll('.target[data-shape=underline]').length");
+        report.hints.chain=await wins.hints.webContents.executeJavaScript("({nodes:document.querySelectorAll('.target[data-chain-step]').length,arrows:document.querySelectorAll('.chain-arrow').length,clickThrough:[...document.querySelectorAll('.target,.chain-connectors')].every(e=>getComputedStyle(e).pointerEvents==='none')})");
+        report.result=report.analyzer.api && report.analyzer.assist && report.analyzer.adapter && report.analyzer.localHeader==='second-run-6' && report.follow.counter && report.overlay.orb && report.overlay.focusable && report.overlay.cardPositionRestored && report.overlay.iconPositionRestored && report.overlay.icon.background==='rgba(0, 0, 0, 0)' && report.overlay.icon.border==='0px' && report.overlay.icon.shadow==='none' && report.overlay.icon.svg===42 && report.overlay.icon.width===56 && report.overlay.icon.height===56 && report.overlay.riskButtons.every(Boolean) && JSON.stringify(report.overlay.riskChoices)==='["preserve","simulate"]' && !report.hints.focusable && !report.hints.visible && report.hints.ipcTargets===1 && report.hints.chain.nodes===3 && report.hints.chain.arrows===2 && report.hints.chain.clickThrough ? 'passed':'failed';
+      } catch(e) {report.error=String(e && e.stack || e);}
+      fs.mkdirSync(app.getPath('userData'),{recursive:true});
+      fs.writeFileSync(path.join(app.getPath('userData'),'qa-report.json'),JSON.stringify(report,null,2));
+      note('hidden integration probe:',report.result);
+      quitting=true;
+      app.quit();
+    }
   });
 }

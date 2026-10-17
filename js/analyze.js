@@ -509,7 +509,9 @@
 
   // ---------- Analysis ----------
 
-  const solver = { workers: null, failed: false, id: 0, st: null, key: '', instant: null, result: null, shares: null, meta: null, goal: '' };
+  const solver = { workers: null, failed: false, id: 0, st: null, key: '', instant: null, result: null, shares: null, meta: null, goal: '', reused: null, reuseReady: false };
+  let localPlanCache = null; // branch/chain previews run once per settled board and action
+  let riskChoice = null; // Player preference for this exact observed board only.
   // The live check runs on a worker for every core but one, or on fewer when
   // the page is told (setCores: the desktop app's processor setting), each
   // playing its share of the rounds with its own dice. It runs for a few
@@ -560,6 +562,15 @@
     const { st, problems } = buildState(model);
     showProblems(problems);
     if (problems.length) return false;
+    // Loading the first target picker has not taken a bite. Its verified
+    // recommendation belongs to this same board; no new experiment is needed.
+    if (solver.reuseReady && solver.st && solver.key === modelKey() && solver.reused) {
+      solver.reuseReady = false;
+      render();
+      return true;
+    }
+    solver.reused = null;
+    solver.reuseReady = false;
     if (SHARE && (fresh || (model.runStart && model.step === 'choice'))) {
       shareHeld();
       SHARE.reset('manual');
@@ -725,8 +736,9 @@
 
   // The strategy's instant pick, unless the live check finds a clearly better
   // move (by more than its paired margin), so the advice doesn't flicker.
-  function recommendation() {
+  function rawRecommendation() {
     if (!solver.st) return null;
+    if (solver.reused) return solver.reused;
     const pick = solver.instant;
     const r = solver.result;
     const ranked = r ? r.options : [];
@@ -738,6 +750,35 @@
       return Object.assign({ live: true, rounds: r.rounds }, pick, { label: mine.label, why, option: mine });
     }
     return { action: live.action, label: live.label, why: `The playouts found a better move than the strategy’s pick${pick ? ` (${pick.label})` : ''}.`, live: true, rounds: r.rounds, option: live };
+  }
+
+  // Recorded live outcomes contradict the Maiden/Guillotine simulation.
+  // Keep the model's estimate available, but make its destructive trade explicit.
+  function replacementRisk(rec) {
+    if(!fresh() || !settled() || !rec || rec.action.type!=='swap' || model.step!=='manage' ||
+      !model.tools.includes('maiden') || !model.tools.includes('scapegoat'))return null;
+    const others=solver.st.cells.filter(c=>c.n!==solver.st.position && !c.sealed && c.inmate);
+    const preserve=(solver.result && solver.result.options || []).find(o=>o.action.type==='end');
+    if(others.length<2 || !preserve)return null;
+    const selected=riskChoice && riskChoice.key===modelKey()?riskChoice.mode:'pending';
+    const high=others.some(c=>c.inmate.tier>=T.SUPREME);
+    return {id:'maiden-scapegoat',title:'Unverified instrument interaction',
+      message:`This Replace removes 2 random other inmates${high?', possibly including a Supreme':''}. The simulator expects a Maiden bonus that did not occur in recorded live play. Its estimate can overrate Replace. Choose an option to show click targets.`,
+      selected,simulationLabel:rec.label,preserveLabel:preserve.label,preserve};
+  }
+
+  function recommendation() {
+    const rec=rawRecommendation(),risk=replacementRisk(rec);
+    if(!risk)return rec;
+    if(risk.selected!=='preserve')return Object.assign({},rec,{why:`Unverified simulator estimate: ${rec.why || ''}`});
+    return {action:risk.preserve.action,label:risk.preserve.label,
+      why:'Your choice: keep the current inmates and skip this unverified Replace.',
+      live:rec.live,rounds:rec.rounds,option:risk.preserve};
+  }
+
+  function chooseReplacementRisk(mode) {
+    if(!['preserve','simulate'].includes(mode) || !replacementRisk(rawRecommendation()))return false;
+    riskChoice={key:modelKey(),mode};localPlanCache=null;render();return true;
   }
 
   function fmtOption(goal, o, st) {
@@ -801,6 +842,7 @@
     if (undo.length > 30) undo.shift();
     leaveShot();
     model = modelFrom(st, before);
+    model._simulated = true;
     flags = new Set(model.cells.map((c, n) => (cellSig(c) !== cellSig(before.cells[n]) ? n : -1)).filter((n) => n >= 0));
     applied = { label, changed: [...flags], newDay: model.day !== before.day, doors: model.step === 'patrol' ? model.dest.slice() : [], ended: !!model.ended, step: model.step, office: st.phase === 'office', more, toNextDay: !!toNextDay };
     const filled = [...flags].map((n) => `c${n}`);
@@ -1258,6 +1300,7 @@
     const options = working ? c.moves : r ? r.options : [];
     const status = $('az-res-status');
     if (working) status.textContent = `Playing out ${T.plural(c.moves.length, 'move')}, ${c.each.toLocaleString()} games each: ${c.played.toLocaleString()} of ${c.total.toLocaleString()} games played`;
+    else if (solver.reused) status.textContent = 'Reusing the completed check before Consume: no bite has happened yet.';
     else if (!r) status.textContent = 'Live check: starting…';
     else if (options.length <= 1) status.textContent = options.length ? 'Only one move here.' : 'Nothing to decide right now.';
     else status.textContent = r.done ? `Live check: ${r.rounds.toLocaleString()} playouts per option` : `Live check: ${r.rounds.toLocaleString()} playouts per option so far…`;
@@ -1670,6 +1713,7 @@
   // Reads a picture of the game (a pasted screenshot, or a frame from Follow
   // my game). opts.quiet skips the prompts; opts.onRead hears how it went.
   function readBitmap(source, opts) {
+    reader.capturedAt = Date.now();
     // Very large screenshots are scaled down; the reader works at any size.
     const scale = Math.min(1, 2600 / source.width);
     const w = Math.round(source.width * scale);
@@ -1690,12 +1734,19 @@
     reader.folded = !showShots;
     reader.follow = !!o.quiet;
     reader.id += 1;
+    reader.treasureScreen = null;
+    reader.completedId = 0;
     const id = reader.id;
+    const previous=reader.pending;
+    if(previous && previous.id!==id) previous.done(null,'a newer picture came in');
     const t0 = performance.now();
     setReading(true);
+    let completed=false;
     const done = (result, error) => {
-      if (id === reader.id) setReading(false);
-      if (id !== reader.id) {
+      if(completed)return;
+      completed=true;
+      setReading(false);
+      if (id !== reader.id || (o.isCurrent && !o.isCurrent())) {
         if (o.onRead) o.onRead({ ok: false, skipped: true, reason: 'a newer picture came in' });
         return;
       }
@@ -1709,9 +1760,11 @@
         return;
       }
       reader.result = result;
-      reader.reading = result.ok ? scanToModel(result, model) : null;
+      reader.reading = result.ok ? scanToModel(result, model._simulated && reader.liveModel ? reader.liveModel : model) : null;
+      reader.completedId = id;
+      reader.completedImage = reader.image;
       scanStatus(result.ok ? `Read in ${(reader.ms / 1000).toFixed(1)} s.` : `${result.reason} Try a screenshot of the prison screen, with the whole board in view.`, !result.ok);
-      if (o.onRead) o.onRead(result.ok ? { ok: true, day: reader.reading.model.day, unsure: reader.reading.checks.size, ms: reader.ms } : { ok: false, reason: result.reason, ms: reader.ms });
+      if (o.onRead) o.onRead(result.ok ? { ok: true, day: reader.reading.model.day, unsure: reader.reading.checks.size, ms: reader.ms, _readerId:id, _requestId:o.requestId } : { ok: false, reason: result.reason, ms: reader.ms });
       if (o.quiet) {
         renderScan();
         return;
@@ -1757,7 +1810,7 @@
       try {
         reader.worker = new Worker(`js/scan-worker.js${SCRIPT_QUERY}`);
         reader.worker.onmessage = (e) => {
-          if (e.data.kind === 'pick' || e.data.kind === 'objective') {
+          if (e.data.kind === 'pick' || e.data.kind === 'objective' || e.data.kind === 'treasure') {
             const answer = reader.picks.get(e.data.id);
             reader.picks.delete(e.data.id);
             if (answer) answer(e.data.result, e.data.error);
@@ -1805,6 +1858,7 @@
   // whose instrument offer comes next.
   let runObjective = null;
   function readObjective(source) {
+    reader.treasureScreen = null;
     const scale = Math.min(1, 2600 / source.width);
     const w = Math.round(source.width * scale);
     const h = Math.round(source.height * scale);
@@ -1942,7 +1996,7 @@
   // ("Warden's Treasure obtained"), or two or more of the four gifts'
   // names. Follow my game knows this screen from the game's log; this is
   // for pasted pictures and Take a picture now.
-  async function readTreasure(source) {
+  async function readTreasureText(source) {
     const worker = await ocrWorker();
     if (!worker) return { ok: false, treasure: true, reason: 'the text reader couldn’t load' };
     const scale = Math.min(1, 1600 / source.width);
@@ -1966,6 +2020,43 @@
     return { ok: header || gifts.length >= 2, treasure: true, header, gifts };
   }
 
+  // Keep the popup geometry with its own completed frame. The last board
+  // still owns the recommendation; it must never supply popup coordinates.
+  async function readTreasure(source, opts) {
+    const o=opts || {},scale=Math.min(1,2600/source.width);
+    const canvas=document.createElement('canvas');canvas.width=Math.round(source.width*scale);canvas.height=Math.round(source.height*scale);
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(source,0,0,canvas.width,canvas.height);
+    const id=++reader.id;
+    reader.completedId=0;
+    if(reader.pending)reader.pending.done(null,'a newer picture came in');
+    const screen={id,image:canvas,capturedAt:Date.now(),result:null};reader.treasureScreen=screen;
+    const pixels=ctx.getImageData(0,0,canvas.width,canvas.height);
+    const read=await new Promise(resolve=>{
+      setReading(true);
+      let completed=false;
+      const done=(result,error)=>{
+        if(completed)return;completed=true;setReading(false);
+        if(id!==reader.id || o.isCurrent && !o.isCurrent())return resolve({ok:false,skipped:true,treasure:true,reason:'a newer picture came in'});
+        if(!error && result && result.ok) {
+          screen.result=result;
+          return resolve(Object.assign({},result,{treasure:true,gifts:Object.keys(result.targets||{}).filter(g=>T.GIFTS[g])}));
+        }
+        resolve({ok:false,treasure:true,reason:error || 'the Treasure cards could not be located'});
+      };
+      const key=`treasure${++reader.pickId}`;
+      if(readerWorker()) {
+        reader.picks.set(key,done);const buffer=pixels.data.slice().buffer;
+        reader.worker.postMessage({id:key,kind:'treasure',width:canvas.width,height:canvas.height,buffer},[buffer]);
+      } else loadReader(false).then(()=>done(window.TartarusScan.readTreasureCards(pixels))).catch(e=>done(null,e.message));
+    });
+    if(read.ok || read.skipped)return read;
+    // A log cue identifies the popup even during its animation, but never
+    // establishes where an unread card is. Manual screenshots retain OCR fallback.
+    if(o.knownTreasure)return {ok:true,treasure:true,gifts:[],geometry:false};
+    const textRead=await readTreasureText(source);
+    return id!==reader.id || o.isCurrent && !o.isCurrent() ? {ok:false,skipped:true,treasure:true,reason:'a newer picture came in'} : textRead;
+  }
+
   // A pasted picture with no board in it: the instrument pick, or the
   // Warden's Treasure. A pick is a fresh run's when the board before was
   // a run's last day (or there's none); otherwise an objective's reward.
@@ -1986,6 +2077,7 @@
   }
 
   function readPick(source) {
+    reader.treasureScreen = null;
     const scale = Math.min(1, 2600 / source.width);
     const w = Math.round(source.width * scale);
     const h = Math.round(source.height * scale);
@@ -2075,12 +2167,18 @@
   // (js/follow.js); the picks waiting are each new Rainbow's picks less each
   // one confirmed. The first counts this page hears only start the tally.
   const picksPer = () => ((T.START_EVENTS || {})[model.startEvent] || {}).picks || 1;
-  const gifts = { log: null, waiting: 0, board: null };
+  const gifts = { log: null, waiting: 0, board: null, known: false };
   function giftCounts(c) {
     if (!c || !Number.isFinite(c.rainbows) || !Number.isFinite(c.taken)) return null;
     const was = gifts.log;
-    if (was && c.rainbows >= was.rainbows && c.taken >= was.taken) gifts.waiting = Math.max(0, gifts.waiting + (c.rainbows - was.rainbows) * picksPer() - (c.taken - was.taken));
-    gifts.log = { rainbows: c.rainbows, taken: c.taken };
+    const reset = was && c.epoch != null && c.epoch !== was.epoch;
+    if (!was || reset) {
+      gifts.waiting = Math.max(0,c.rainbows*picksPer()-c.taken);
+      gifts.board = null;
+    } else if (c.rainbows >= was.rainbows && c.taken >= was.taken) gifts.waiting = Math.max(0, gifts.waiting + (c.rainbows - was.rainbows) * picksPer() - (c.taken - was.taken));
+    gifts.known = c.epoch != null || c.rainbows===0 || !!was;
+    gifts.log = { rainbows: c.rainbows, taken: c.taken, epoch:c.epoch };
+    if(gifts.known && gifts.waiting===0 && model.treasureWait){model.treasureWait=false;model.treasureSeen=false;solver.st=null;}
     return gifts.waiting;
   }
   // A pick confirmed, or a Rainbow, since the board behind the Treasure was
@@ -2091,7 +2189,7 @@
   function picksNow() {
     // A Treasure the tally missed the Rainbow of (this page opened during
     // it): the card's picks, as a guess for this screen only.
-    if (gifts.log) return gifts.waiting > 0 ? gifts.waiting : picksPer();
+    if (gifts.log) return gifts.known ? gifts.waiting : Math.max(gifts.waiting,picksPer());
     return model.step === 'choice' && model.choice.kind === 'gift' ? model.choice.picks || 1 : picksPer();
   }
 
@@ -2102,6 +2200,7 @@
   // Rainbow, so it's in the vault and its cell locked again; after a
   // consume, today's consume is used.
   function useTreasure(after) {
+    if(gifts.known && gifts.waiting===0) return false;
     const gift = () => {
       const picks = picksNow();
       model.step = 'choice';
@@ -2126,7 +2225,7 @@
     // unless a pick was confirmed since (Opulence's next pick).
     if (model.step === 'choice' && model.choice.kind === 'gift' && model.treasureSeen && !pickedSinceBoard()) {
       const picks = picksNow();
-      if (picks === model.choice.picks) return fresh() && settled() ? true : ask(true);
+      if (picks === model.choice.picks) return fresh() ? true : ask(true);
       // A pick's Rainbow brought more picks: the advice weighs them.
       model.choice = Object.assign({}, model.choice, { picks });
       changed();
@@ -2264,12 +2363,24 @@
   // sims: the instruments the reader can tell on a panel (any other reads
   // as something else).
   function runTools(read, base, m, notes, sims) {
-    const sameRun = !(m.day < base.day);
+    // A correction from a simulated day back to the live day is not a run start.
+    // Explicit objective/opening-offer events already create a blank model.
+    const sameRun = !base.ended;
     const known = sameRun ? (base.tools || []).filter((id) => T.TOOLS[id]) : [];
     const offer = sameRun && base.step === 'choice' && base.choice && base.choice.kind === 'tool' ? base.choice.options.filter((id) => T.TOOLS[id]) : [];
     const out = known.map((id) => ({ id, sim: id, name: T.toolName(id), conf: 1, kept: true }));
     const has = (id) => out.some((t) => t.sim === id);
-    const slots = read.length;
+    const slots = Math.max(read.length,Number(m.observedToolSlots)||0);
+    // An earlier bad panel read could be confirmed with missing instruments.
+    // Recover only a complete, unambiguous panel that preserves every known ID.
+    if(base.toolsLocked && slots>known.length && read.length===slots &&
+      read.every(t=>t.sim && T.TOOLS[t.sim] && t.conf>=0.9) && new Set(read.map(t=>t.sim)).size===slots &&
+      known.every(id=>read.some(t=>t.sim===id))) {
+      out.push(...read.filter(t=>!has(t.sim)).map(t=>Object.assign({},t,{kept:true})));
+      m.toolsToConfirm='';
+      notes.push('Recovered the missing confirmed instruments from a complete high-confidence panel reading.');
+      return out;
+    }
     // Once the run's instruments are known, they're locked: icons never
     // change them. The player is asked to confirm them only when the panel
     // shows more than the run has, and once confirmed (m.toolsLocked) never
@@ -2292,15 +2403,10 @@
             if (a && (!alike || a.score > alike.score)) alike = { sim: a.sim, score: a.score, as: t.sim };
           }
         }
-        // The advice given on that offer: the board before is the offer, so
-        // the analyzer's current recommendation is for it.
-        const rec = base === model && fresh() ? recommendation() : null;
-        const advised = rec && rec.action && rec.action.type === 'choose' && offer.includes(rec.action.id) ? rec.action.id : null;
-        const take = seen ? seen.sim : alike ? alike.sim : advised;
+        const take = seen ? seen.sim : alike ? alike.sim : null;
         if (take) {
           out.push({ id: take, sim: take, name: T.toolName(take), conf: 1, kept: true });
           if (!seen && alike) notes.push(`An icon read as ${alike.as ? T.toolName(alike.as) : 'another instrument'}, which wasn't offered: taken as ${T.toolName(take)}, the closest of the offer. If you took another, change it under Torture Instrument.`);
-          else if (!seen) notes.push(`Took it you chose ${T.toolName(take)}, as advised. If you took another, change it under Torture Instrument.`);
         } else notes.push(`Your instruments show one more than before, from the offer of ${offer.map((id) => T.toolName(id)).join(', ')}: set which you took under Torture Instrument.`);
       }
       // Icons read as another instrument, unless one the run has explains
@@ -2309,7 +2415,7 @@
       let off = read.filter((t) => t.sim && t.conf >= TOOL_SURE && !has(t.sim) && !(t.alts || []).some((a) => a.sim && has(a.sim) && a.score >= 0.7));
       if (sims && slots <= out.length) off = off.slice(out.filter((t) => !sims.includes(t.sim)).length);
       if (base.toolsLocked) {
-        if (slots > out.length) notes.push(`Your panel shows ${T.plural(slots, 'instrument')}, and this run has ${out.length}: ${out.map((t) => t.name).join(', ') || 'none'}. If you got another one, add it under Torture Instrument.`);
+        if (slots > out.length) m.toolsToConfirm = `Visible instruments: ${slots}; identified: ${out.length}. Add the missing instrument, then press These are right.`;
       } else if (slots > out.length) m.toolsToConfirm = `Your panel shows ${T.plural(slots, 'instrument')}, and the analyzer has ${out.length}: ${out.map((t) => t.name).join(', ') || 'none'}. Set the ones you hold, then press These are right.`;
       else if (off.length) m.toolsToConfirm = `An icon on your panel looks like ${off.map((t) => T.toolName(t.sim)).join(' and ')}, which isn’t one the analyzer has for this run (${out.map((t) => t.name).join(', ')}). Check your instruments, then press These are right.`;
       return out;
@@ -2432,6 +2538,7 @@
       m.consumeOffered = !!r.decision.consume;
     }
     const read = r.tools && r.tools.tools ? r.tools.tools : [];
+    m.observedToolSlots = r.tools ? Math.max(read.length,Number(r.tools.slots)||0) : (base.observedToolSlots || 0);
     const unsim = read.filter((t) => !t.sim);
     if (unsim.length) notes.push(`Not in the simulator yet, so left out: ${unsim.map((t) => t.name).join(', ')}.`);
     const tools = runTools(read, base, m, notes, r.tools && r.tools.sims);
@@ -2453,46 +2560,37 @@
       else m.toolsToConfirm = hint;
     }
     if (tools.some((t) => t.conf < TOOL_SURE)) notes.push('Some instruments were hard to tell apart: check them under Torture Instrument.');
-    const chromatic = r.chromatic ? r.chromatic.count : 0;
+    const observedChromatic = r.chromatic ? Math.max(0,Math.min(10,r.chromatic.count)) : 0;
+    const chromatic = m.mode === 'challenge' || base.ended ? observedChromatic : Math.max((base.vault || []).length,observedChromatic);
+    if(chromatic>observedChromatic) notes.push(`Kept ${chromatic} confirmed Chromatic prisoners: this picture read only ${observedChromatic}.`);
     // Their beasts don't show in the slots; they only matter for a bounty.
     m.vault = new Array(chromatic).fill('wolf');
     const highest = Math.max(0, ...m.cells.filter((c) => c.kind === 'inmate').map((c) => c.tier));
     // The start card's badge under the instrument panel (Opulence so far):
     // the run has that card, in case its popup was missed.
-    if (r.badge && r.badge.id && T.START_EVENTS && T.START_EVENTS[r.badge.id] && m.startEvent !== r.badge.id) {
+    // A small badge is a fallback for a missed popup. It cannot replace a
+    // known run card or the player's correction with a lookalike icon.
+    if ((!m.startEvent || m.startEvent === 'none') && r.badge && r.badge.id && T.START_EVENTS && T.START_EVENTS[r.badge.id]) {
       m.startEvent = r.badge.id;
       notes.push(`Start of run: ${T.START_EVENTS[r.badge.id].name}, from its badge under the instruments.`);
     }
     // King of the Caged is met once a Supreme or Chromatic shows. Prison
     // Walk's tiles aren't read, so they keep what was set.
     if (m.objective === 'king') m.milestone = highest >= T.SUPREME || chromatic > 0;
-    // The jaws marker shows on every inmate with something to eat. Cells that
-    // disagree were probably misread. A washed-out portrait takes the beast
-    // that makes the jaws fit.
+    // Target markers are observations, not proof that the simulator's food
+    // rules match the live game. Never change a portrait to fit those rules.
     const hasTarget = (state, n) => !state.cells[n].sealed && state.cells[n].inmate && T.devourOptions(state, n).length > 0;
-    r.cells.forEach((c, n) => {
-      if (!c.ghost || m.cells[n].kind !== 'inmate') return;
-      let best = null;
-      for (const beast of T.BEASTS) {
-        const trial = JSON.parse(JSON.stringify(m));
-        trial.cells[n].beast = beast;
-        const s2 = buildState(Object.assign({}, trial, { step: 'manage' })).st;
-        const fit = r.cells.filter((d, k) => d.kind === 'inmate' && hasTarget(s2, k) === !!d.jaws).length;
-        if (!best || fit > best.fit) best = { beast, fit };
-      }
-      m.cells[n].beast = best.beast;
-    });
     const { st: final } = buildState(Object.assign({}, m, { step: 'manage' }));
     let odd = 0;
     r.cells.forEach((c, n) => {
       if (c.kind !== 'inmate' || m.cells[n].kind !== 'inmate') return;
+      if(c.jawsConfidence!=null && c.jawsConfidence<0.7)return;
       if (hasTarget(final, n) !== !!c.jaws) {
-        checks.add(n);
         odd += 1;
       }
     });
-    if (odd) notes.push(odd === 1 ? '1 inmate’s jaws marker doesn’t fit what was read: check it and the inmates around.' : `${odd} inmates’ jaws markers don’t fit what was read: check them and the inmates around.`);
-    return { model: m, checks, notes, chromatic, tools, unsim };
+    if (odd) notes.push(`${odd} observed target ${odd===1?'marker differs':'markers differ'} from the simulator rules. This alone does not mean the portrait or rarity was misread.`);
+    return { model: m, checks, notes, chromatic, tools, unsim, ruleMismatches:odd };
   }
 
   function renderScan() {
@@ -2669,13 +2767,56 @@
   }
 
   // Loads the reading as the board. The caller then asks what to do.
-  function useScan() {
+  // A chain banner also describes the first target picker, before any bite.
+  // The dark board inherits data, so model equality alone is insufficient:
+  // check the raw occupants, eater and the entire offered target set as well.
+  function firstPickerRecommendation(rd) {
+    const r = reader.result;
+    if (!fresh() || !settled() || solver.reused || reading || reader.completedId !== reader.id || reader.completedImage !== reader.image ||
+        !rd || rd.checks.size || flags.size || model._simulated || model.step !== 'manage' || rd.model.step !== 'manage' ||
+        model.toolsToConfirm || model.treasureWait || pendingForReuse(solver.st) || !r || !r.ok || !r.chain || !r.warden || r.doors || r.decision) return null;
+    const rec = recommendation();
+    if (!rec || !rec.action || rec.action.type !== 'devour' || r.warden.cell !== model.warden) return null;
+    const eater = r.cells[model.warden], old = model.cells[model.warden];
+    if (!eater || eater.kind !== 'inmate' || !old || old.kind !== 'inmate' || eater.beast !== old.beast || eater.tier !== old.tier) return null;
+    const offered = [...new Set(r.chain.targets)].sort((a,b)=>a-b);
+    const expected = T.startOptions(solver.st).map(o=>o.cell).sort((a,b)=>a-b);
+    if (!offered.includes(rec.action.to) || JSON.stringify(offered) !== JSON.stringify(expected)) return null;
+    for (let n=1;n<T.CELL_COUNT;n++) {
+      const raw=r.cells[n], before=model.cells[n];
+      if (!raw || !before) return null;
+      if (before.kind==='inmate') {
+        if (raw.kind!=='inmate' || raw.beast!==before.beast) return null;
+      } else if (before.kind==='empty') {
+        if (raw.kind!=='empty') return null;
+      } else if (raw.kind!=='locked') return null;
+    }
+    // All game fields must match. Only the local simulation marker is not
+    // gameplay state; normalize supplies the same defaults on both sides.
+    const key=m=>{const c=normalize(JSON.parse(JSON.stringify(m)));delete c._simulated;return JSON.stringify(c);};
+    if (key(model)!==key(rd.model)) return null;
+    const built=buildState(rd.model);
+    if (built.problems.length || !T.startOptions(built.st).some(o=>o.cell===rec.action.to)) return null;
+    // Preserve the actual completed statistics together with their pick.
+    // Every result consumer (court, rows, expected value, Do it here) then
+    // observes the same valid solver packet. The semantic board is equal;
+    // these are prior measured samples, not a newly fabricated live check.
+    return { st:built.st, rec:JSON.parse(JSON.stringify(rec)), result:solver.result };
+  }
+  const pendingForReuse = st => !st || !!(st.pending && st.pending.length) || !!st.event || !!st.chaining || !!(st.challenge && st.challenge.window);
+
+  function useScan(read) {
+    if(read && typeof read==='object' && (read.skipped || read.ok===false)) return false;
+    if(read && read._readerId != null && read._readerId!==reader.id) return false;
     const rd = reader.reading;
     if (!rd) return;
+    const reuse = firstPickerRecommendation(rd);
     undo.push({ model: JSON.parse(JSON.stringify(model)), selected, shot });
     if (undo.length > 30) undo.shift();
     leaveShot();
     model = normalize(rd.model);
+    model._simulated=false;
+    reader.liveModel=JSON.parse(JSON.stringify(model));
     reader.undoable = true;
     reader.loaded = rd;
     shot = true;
@@ -2685,6 +2826,20 @@
     via = { scan: true, filled: [...rd.checks].map((n) => `c${n}`), touched: new Set() };
     if (SHARE) SHARE.markManual();
     solver.st = null;
+    solver.reused = null;
+    solver.reuseReady = false;
+    if (reuse) {
+      // Reject late shares from the previous worker generation. Keep the
+      // completed recommendation, never fabricate Monte Carlo samples.
+      solver.id += 1;
+      solver.st = reuse.st;
+      solver.key = modelKey();
+      solver.result = reuse.result;
+      solver.shares = null;
+      solver.reused = reuse.rec;
+      solver.reuseReady = true;
+      localPlanCache = null;
+    }
     selected = rd.checks.size ? Math.min(...rd.checks) : model.warden;
     // The screenshot stays in view, with what was read drawn on it, to
     // compare with the board.
@@ -3021,10 +3176,10 @@
     // Follow my game (js/auto.js, beta): read frames of the game, load
     // them, and ask, without the toasts a pasted screenshot gets.
     window.TartarusAnalyzer = {
-      readFrame: (bitmap) => new Promise((resolve) => readBitmap(bitmap, { quiet: true, folded: true, onRead: resolve })),
+      readFrame: (bitmap, opts) => new Promise((resolve) => readBitmap(bitmap, Object.assign({},opts,{ quiet: true, folded: true, onRead: resolve }))),
       readPick: (bitmap) => readPick(bitmap),
       usePick: (read, fresh) => usePick(read, fresh),
-      readTreasure: (bitmap) => readTreasure(bitmap),
+      readTreasure: (bitmap, opts) => readTreasure(bitmap, opts),
       readObjective: (bitmap) => readObjective(bitmap),
       useObjective: (read) => useObjective(read),
       useTreasure: (after) => useTreasure(after),
@@ -3034,10 +3189,39 @@
       giftCounts: (c) => giftCounts(c),
       giftsDone: () => {
         gifts.waiting = 0;
+        gifts.known = true;
+        model.treasureWait=false;
+        model.treasureSeen=false;
       },
-      useReading: () => useScan(),
+      useReading: (read) => useScan(read),
       ask: () => ask(true),
       recommendation: () => (fresh() && settled() ? recommendation() : null),
+      replacementRisk: () => {
+        const risk=replacementRisk(rawRecommendation());
+        if(!risk)return null;
+        const {preserve,...display}=risk;return display;
+      },
+      chooseReplacementRisk: (mode) => chooseReplacementRisk(mode),
+      localAssist: () => {
+        const assist=window.TartarusAssist;
+        const rec=fresh() && settled() ? recommendation() : null;
+        if(!assist || !rec || reading || model.toolsToConfirm || model.treasureWait)return {plan:null,hints:{valid:false}};
+        const key=JSON.stringify([rec.action,rec.label]);
+        if(!localPlanCache || localPlanCache.st!==solver.st || localPlanCache.key!==key) localPlanCache={st:solver.st,key,plan:assist.buildPlan(solver.st,rec,T,S)};
+        const plan=localPlanCache.plan;
+        const treasure=reader.treasureScreen;
+        if(treasure) {
+          if(treasure.id!==reader.id || !treasure.result || model.step!=='choice' || model.choice.kind!=='gift' || gifts.known && gifts.waiting===0)return {plan:null,hints:{valid:false}};
+          const targets=assist.buildTargets(solver.st,rec,{result:{ok:true,treasure:treasure.result}},plan);
+          return {plan,hints:{valid:targets.length>0,frameId:treasure.id,capturedAt:treasure.capturedAt,width:treasure.image.width,height:treasure.image.height,targets}};
+        }
+        if(reader.completedId!==reader.id || reader.completedImage!==reader.image || reader.loaded!==reader.reading || !reader.image || !reader.result)return {plan:null,hints:{valid:false}};
+        const risk=replacementRisk(rawRecommendation());
+        const targets=risk && risk.selected==='pending'?[]:assist.buildTargets(solver.st,plan.headline?Object.assign({},rec,{label:plan.headline}):rec,{result:reader.result,allowChain:flags.size===0 && !reader.loaded.ruleMismatches},plan);
+        return {plan,hints:{valid:targets.length>0,frameId:reader.id,capturedAt:reader.capturedAt||0,width:reader.image.width,height:reader.image.height,targets}};
+      },
+      warmOCR: () => ocrWorker(),
+      giftState: () => JSON.parse(JSON.stringify(gifts)),
       // What the reader made of the last picture, in full (the desktop app's
       // test record keeps it).
       readingSummary: () => (reader.result && reader.image ? readingSummary(true) : ''),
@@ -3046,6 +3230,7 @@
       setCores: (n) => setCores(n),
       cores: () => ({ cap: coreCap, use: workerCount(), most: MOST_WORKERS, running: solver.workers ? solver.workers.length : 0, onPage: !!solver.failed }),
       day: () => model.day,
+      hasLiveRun: () => !!model.runStart && !model.ended && (model.day>1 || model.tools.length>0),
       toast,
     };
     // In the desktop app, the link to download it has no use.

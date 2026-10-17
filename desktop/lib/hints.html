@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+<title>Tartarus hints</title>
+<style>
+  * { box-sizing: border-box; pointer-events: none !important; }
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; user-select: none; }
+  #hints { position: absolute; inset: 0; overflow: hidden; }
+  .target { position: absolute; border: 2px solid #ead2a0; border-radius: 50%; box-shadow: 0 0 0 1px #161a20, inset 0 0 0 1px #161a20; }
+  .target::after { content: ''; position: absolute; inset: 3px; border: 1px solid #f3f2eb; border-radius: 50%; opacity: .8; }
+  .target[data-shape="underline"] { border: 0; border-radius: 0; box-shadow: none; filter: drop-shadow(0 0 5px #d6a64a99); }
+  .target[data-shape="underline"]::after { inset: 5px 0 auto; height: 3px; border: 0; border-radius: 3px; opacity: 1; background: linear-gradient(90deg, transparent, #b38a42 18%, #fff0c1 50%, #b38a42 82%, transparent); }
+  .target[data-shape="underline"]::before { content: ''; position: absolute; width: 7px; height: 7px; left: calc(50% - 3px); top: -2px; border-top: 1px solid #fff0c1; border-left: 1px solid #fff0c1; transform: rotate(45deg); }
+  .target[data-priority="reference"] { opacity: .55; border-width: 1px; border-style: dashed; box-shadow: none; }
+  .target[data-priority="reference"]::after { display: none; }
+  .callout { position: absolute; display: flex; gap: 5px; align-items: flex-start; max-width: 240px; color: #fff6df; font: 600 13px/1.25 "Segoe UI", sans-serif; text-shadow: -1px -1px 1px #111, 1px 1px 1px #111, 0 2px 3px #000; }
+  .number { flex: none; display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 3px; border: 1px solid #ead2a0; border-radius: 50%; background: #171b21; color: #fff; font-size: 11px; }
+  .label { padding-top: 2px; overflow-wrap: anywhere; }
+  .callout[data-priority="reference"] { color: #d6d2c8; font-size: 11px; font-weight: 500; }
+  .chain-connectors { position: absolute; inset: 0; overflow: hidden; }
+  .chain-arrow { stroke: #e8d3a5; stroke-width: 1.5; stroke-linecap: round; fill: none; opacity: .8; }
+  .chain-arrowhead { stroke: #f4e6c8; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+  .target[data-chain-state="planned"] { opacity: .6; border: 1px dashed #e0c99c; box-shadow: none; }
+  .target[data-chain-state="planned"]::after { display: none; }
+  .target[data-chain-state="planned"][data-chain-step="1"] { opacity: .9; border-width: 2px; }
+  .target[data-chain-state="current"] { opacity: 1; border: 2px solid #fff1cf; box-shadow: 0 0 0 1px #161a20, inset 0 0 0 1px #161a20; }
+  .target[data-chain-state="current"]::after { display: block; border-color: #fff; }
+  .chain-badge { position: absolute; padding: 2px 5px; border: 1px solid #968666; border-radius: 4px; background: #171b21e8; color: #c9c5bb; font: 600 11px/16px "Segoe UI", sans-serif; white-space: nowrap; overflow: hidden; }
+  .chain-badge[data-chain-step="1"] { border-color: #c7b184; color: #fff1d4; }
+  .chain-badge[data-chain-state="current"] { border-color: #f4e6c8; color: #fff; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body><div id="hints" hidden aria-hidden="true"></div><script src="hints.js"></script></body>
+</html>

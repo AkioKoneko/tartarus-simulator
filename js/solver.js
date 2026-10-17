@@ -48,7 +48,7 @@
     maidenSwapTier: 3, // holding the Severed Iron Maiden, swap up to this tier (Legendary measured best)
     execMargin: 0, // accept an Execution worth more than this
     acceptChain: true, // accept Chain reactions
-    toolRank: ['crown', 'trap', 'rope', 'claws', 'maul', 'scapegoat', 'coin', 'maiden', 'shackles', 'blacklist', 'muzzle', 'ravenous', 'revenge', 'skewer', 'hook', 'saw', 'collar', 'stake', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'shortchain', 'fire', 'pestle', 'axe', 'forged', 'ironbox'], // measured: each tool held from day 1
+    toolRank: ['crown', 'trap', 'rope', 'claws', 'maul', 'scapegoat', 'maiden', 'coin', 'shackles', 'muzzle', 'blacklist', 'ravenous', 'revenge', 'skewer', 'stake', 'hook', 'saw', 'collar', 'guillotine', 'whip', 'dogtag', 'keys', 'tongs', 'cage', 'scales', 'shortchain', 'fire', 'axe', 'pestle', 'forged', 'ironbox'], // measured: each tool held from day 1
     toolSets: true, // pick instruments by the measured sets (js/tool-combos.js) when there are any
     office: null, // always 'bestow' or 'instigate' at the office (only to measure the habit)
     giftRank: null, // null scores the gifts on the spot; or a fixed order
@@ -71,8 +71,8 @@
   // tools/results/ (train-report.json: the drill profiles were retrained on
   // 2026-10-15).
   const PROFILES = {
-    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['crown', 'trap', 'rope', 'claws', 'maul', 'scapegoat', 'coin', 'maiden', 'shackles', 'blacklist', 'muzzle', 'ravenous', 'revenge', 'skewer', 'hook', 'saw', 'collar', 'stake', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'shortchain', 'fire', 'pestle', 'axe', 'forged', 'ironbox'] },
-    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['crown', 'trap', 'rope', 'claws', 'maul', 'scapegoat', 'coin', 'maiden', 'shackles', 'blacklist', 'muzzle', 'ravenous', 'revenge', 'skewer', 'hook', 'saw', 'collar', 'stake', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'shortchain', 'fire', 'pestle', 'axe', 'forged', 'ironbox'] },
+    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['crown', 'trap', 'rope', 'claws', 'maul', 'scapegoat', 'maiden', 'coin', 'shackles', 'muzzle', 'blacklist', 'ravenous', 'revenge', 'skewer', 'stake', 'hook', 'saw', 'collar', 'guillotine', 'whip', 'dogtag', 'keys', 'tongs', 'cage', 'scales', 'shortchain', 'fire', 'axe', 'pestle', 'forged', 'ironbox'] },
+    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['crown', 'trap', 'rope', 'claws', 'maul', 'scapegoat', 'maiden', 'coin', 'shackles', 'muzzle', 'blacklist', 'ravenous', 'revenge', 'skewer', 'stake', 'hook', 'saw', 'collar', 'guillotine', 'whip', 'dogtag', 'keys', 'tongs', 'cage', 'scales', 'shortchain', 'fire', 'axe', 'pestle', 'forged', 'ironbox'] },
     // The contract challenge, tuned on passing first and then points.
     challenge: { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'crown', 'maul', 'maiden', 'scapegoat', 'coin', 'shackles', 'ravenous', 'trap', 'skewer', 'claws', 'revenge', 'blacklist', 'collar', 'keys', 'cage', 'ironbox', 'muzzle', 'saw', 'whip', 'stake', 'guillotine', 'hook', 'tongs', 'dogtag', 'fire', 'axe', 'scales', 'pestle', 'shortchain', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
   };
@@ -603,15 +603,20 @@
       count += 1;
     }
     bestow /= Math.max(1, count);
-    const free = st.cells.filter((c) => c.sealed && !c.event && !c.nest).length;
+    // Cells an Instigate can put an event on (T.instigateCells; an engine
+    // cached from before only took locked doors).
+    const free = T.instigateCells ? T.instigateCells(st).length : st.cells.filter((c) => c.sealed && !c.event && !c.nest).length;
     const worth = eventWorth(ctx, comp);
     const pool = st.eventPool || T.EVENT_POOL;
     const each = pool.reduce((sum, id) => sum + worth[id](), 0) / pool.length;
     // Tyranny (a start card): every stop at the office also triggers 3 more
     // Bestows and 3 more Instigates by themselves.
     const extra = st.startEvent === 'tyranny' && T.START_EVENTS.tyranny ? T.START_EVENTS.tyranny.extra : 0;
-    const tyranny = extra ? extra * bestow + Math.min(extra * T.INSTIGATE_EVENTS, free) * each * ctx.P.wInstigate : 0;
-    return { bestow, instigate: Math.min(T.INSTIGATE_EVENTS, free) * each * ctx.P.wInstigate, tyranny };
+    // An Instigate on a board with no event makes 2 (T.instigateCount);
+    // after Tyranny's, the board has some.
+    const first = T.instigateCount ? T.instigateCount(st) : T.INSTIGATE_EVENTS;
+    const tyranny = extra ? extra * bestow + Math.min(first + (extra - 1) * T.INSTIGATE_EVENTS, free) * each * ctx.P.wInstigate : 0;
+    return { bestow, instigate: Math.min(extra ? T.INSTIGATE_EVENTS : first, free) * each * ctx.P.wInstigate, tyranny };
   }
 
   // Scores today's destinations. Returns [{ cell, score, why }], best first.
@@ -671,7 +676,7 @@
       } else if (n === T.OFFICE) {
         const office = officeValues(st, ctx, board.comp);
         score += Math.max(office.bestow, office.instigate) + office.tyranny;
-        why = office.bestow >= office.instigate ? 'the office: Bestow raises 1 random inmate a tier' : `the office: Instigate brings ${T.INSTIGATE_EVENTS} new special events`;
+        why = office.bestow >= office.instigate ? 'the office: Bestow raises 1 random inmate a tier' : `the office: Instigate brings ${(T.instigateCount ? T.instigateCount(st) : T.INSTIGATE_EVENTS) === 1 ? 'a new special event' : `${T.instigateCount ? T.instigateCount(st) : T.INSTIGATE_EVENTS} new special events`}`;
         if (office.tyranny) why += `, and Tyranny adds ${T.START_EVENTS.tyranny.extra} of each`;
       } else if (c.inmate) {
         score += P.wWalk * known(c);
@@ -1303,7 +1308,7 @@
     }
     if (st.phase === 'office') {
       out.push({ action: { type: 'office', choice: 'bestow' }, label: 'Bestow: 1 random inmate rises a tier' });
-      out.push({ action: { type: 'office', choice: 'instigate' }, label: `Instigate: ${T.INSTIGATE_EVENTS} new special events` });
+      out.push({ action: { type: 'office', choice: 'instigate' }, label: `Instigate: ${(T.instigateCount ? T.instigateCount(st) : T.INSTIGATE_EVENTS) === 1 ? 'a new special event' : `${T.instigateCount ? T.instigateCount(st) : T.INSTIGATE_EVENTS} new special events`}` });
       return out;
     }
     if (st.phase === 'event' && st.event) {
@@ -1706,6 +1711,11 @@
       return x ? { type: 'devour', to: x.bites[0].cell } : null;
     }
     if (after.used.swap > before.used.swap) return { type: 'swap' };
+    // The Blood-Stained Trap's Hunt, which logs the marked cell.
+    if (after.used.hunt && !before.used.hunt) {
+      const x = recent(['trap']);
+      return x ? { type: 'hunt', to: x.cell } : null;
+    }
     if (after.day > before.day || after.phase === 'ended' || (ch1 && ch1.window && !(ch0 && ch0.window))) return { type: 'end' };
     return null;
   }

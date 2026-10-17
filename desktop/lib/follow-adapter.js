@@ -173,7 +173,7 @@
   const tell = () => {
     const st = C.state;
     diag.lastNote = lastCaptureNote();
-    D.follow({ agreed: C.agreed(), log: st.log, file: st.file, window: st.window, windowSize: st.windowSize, frames: st.frames, lines: st.lines, hits: st.hits, detail: st.detail || '', error: st.error, note: st.note, lastFrame, logFound: !!game.log, logThere: !!(game.log && game.log.there), running: game.running, diag });
+    D.follow({ agreed: C.agreed(), gifts:typeof C.giftState==='function'?C.giftState():null, log: st.log, file: st.file, window: st.window, windowSize: st.windowSize, frames: st.frames, lines: st.lines, hits: st.hits, detail: st.detail || '', error: st.error, note: st.note, lastFrame, logFound: !!game.log, logThere: !!(game.log && game.log.there), running: game.running, diag });
   };
   C.on('hit', (h) => {
     diag.triggers[h.kind] = (diag.triggers[h.kind] || 0) + 1;

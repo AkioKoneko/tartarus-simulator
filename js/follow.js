@@ -11,7 +11,7 @@
 
   const C = window.TartarusCapture;
   const panel = document.getElementById('follow');
-  if (!C || !panel) return;
+  if (!C || !panel || !window.TartarusFollowState) return;
 
   const KEY = 'tartarus-sim:auto:v1';
   const CHANNEL = 'tartarus-follow';
@@ -296,10 +296,13 @@
   // confirmed. A Rainbow plays its sound and lights a vault cell, a moment
   // apart; either counts it, once. A double-click on Confirm counts once: a
   // pick is its popup opening, then Confirm.
-  const gifts = { rainbows: 0, taken: 0 };
-  let giftOpen = false;
-  const fly = { n: 0, at: 0 }; // Rainbow sounds not yet matched by a vault cell
-  const lit = new Map(); // vault cell -> when it lit
+  const giftState = window.TartarusFollowState.create();
+  const GIFT_KEY='tartarus-sim:gifts:v1';
+  try{const saved=JSON.parse(localStorage.getItem(GIFT_KEY)||'null');if(saved && Date.now()-saved.at<12*3600000)giftState.restore(saved.state);}catch(e){}
+  let gifts = giftState.snapshot();
+  const saveGifts=()=>{try{localStorage.setItem(GIFT_KEY,JSON.stringify({at:Date.now(),state:giftState.checkpoint()}));}catch(e){}};
+  C.giftState=()=>giftState.snapshot();
+  C.restoreGiftState=(state)=>{if(!giftState.restore(state))return false;gifts=giftState.snapshot();lastGift=gifts.lastGift;saveGifts();return true;};
 
   // The Treasure's popup closing with no gift confirmed just before: the
   // player pressed View Prison Status, and the Treasure still waits.
@@ -432,6 +435,7 @@
   // only this site's own pages in this browser. Nothing is uploaded.
   async function onFrame(f) {
     const c = { id: nextId++, time: f.time, kind: f.kind, hits: f.hits || [], frame: !!f.frame, why: f.why || '', thumb: '', full: '', sent: false, read: null, state: '', asked: false, note: '' };
+    c.gifts = giftState.snapshot();
     lastPicture = { at: Date.now(), kind: c.kind, ok: c.frame, why: c.why };
     tell();
     captures.unshift(c);
@@ -445,7 +449,7 @@
       if (c.kind === 'treasure' && prefs.read) {
         const to = target();
         if (to) {
-          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, fresh: false, after: treasureAfter(c.hits), gifts: Object.assign({}, gifts), blob: null });
+          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, fresh: false, after: treasureAfter(c.hits), gifts: c.gifts, blob: null });
           c.sent = true;
         }
       }
@@ -469,7 +473,7 @@
           // treasureView: the board, seen while a Warden's Treasure waits.
           const treasureView = c.kind === 'board' && treasureViewed(c.hits);
           // gifts: the Treasure's counts (Rainbows, picks confirmed).
-          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, fresh, after, treasureView, gifts: Object.assign({}, gifts), pixels: pix, blob });
+          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, fresh, after, treasureView, gifts: c.gifts, pixels: pix, blob });
           c.sent = true;
         }
       }
@@ -512,24 +516,11 @@
   C.on('seen', (s) => {
     if (/Btn_S16Board_ActionCell/.test(s.line)) lastAction = stampMs(s.at);
     if (/Eating_red_screen/.test(s.line)) lastEat = stampMs(s.at);
-    if (/ColoredPop_Confirm/.test(s.line)) {
-      lastGift = stampMs(s.at);
-      if (giftOpen) gifts.taken += 1;
-      giftOpen = false;
-    }
-    if (/S16BoardColoredPop Run\b/.test(s.line)) giftOpen = true;
-    const vault = /Anim_Archive_LightUp, Id = (\S+)/.exec(s.line);
-    const t = vault || /UI_S16_Premium_Quality_Fly/.test(s.line) ? stampMs(s.at) : 0;
-    if (t && t - fly.at > 1000) fly.n = 0;
-    if (vault && !(lit.has(vault[1]) && t - lit.get(vault[1]) < 2000)) {
-      lit.set(vault[1], t);
-      if (fly.n > 0) fly.n -= 1;
-      else gifts.rainbows += 1;
-    } else if (!vault && t) {
-      gifts.rainbows += 1;
-      fly.n += 1;
-      fly.at = t;
-    }
+    const previousEpoch = gifts.epoch;
+    gifts = giftState.accept(s.line, stampMs(s.at));
+    saveGifts();
+    lastGift = gifts.lastGift;
+    if (gifts.epoch !== previousEpoch) lastAction = lastEat = 0;
     seen.unshift(s);
     seen.length = Math.min(seen.length, 200);
     soon(renderSeen);
