@@ -603,7 +603,9 @@
       count += 1;
     }
     bestow /= Math.max(1, count);
-    const free = st.cells.filter((c) => c.sealed && !c.event && !c.nest).length;
+    // Cells an Instigate can put an event on (T.instigateCells; an engine
+    // cached from before only took locked doors).
+    const free = T.instigateCells ? T.instigateCells(st).length : st.cells.filter((c) => c.sealed && !c.event && !c.nest).length;
     const worth = eventWorth(ctx, comp);
     const pool = st.eventPool || T.EVENT_POOL;
     const each = pool.reduce((sum, id) => sum + worth[id](), 0) / pool.length;
@@ -671,7 +673,7 @@
       } else if (n === T.OFFICE) {
         const office = officeValues(st, ctx, board.comp);
         score += Math.max(office.bestow, office.instigate) + office.tyranny;
-        why = office.bestow >= office.instigate ? 'the office: Bestow raises 1 random inmate a tier' : `the office: Instigate brings ${T.INSTIGATE_EVENTS} new special events`;
+        why = office.bestow >= office.instigate ? 'the office: Bestow raises 1 random inmate a tier' : `the office: Instigate brings ${T.INSTIGATE_EVENTS === 1 ? 'a new special event' : `${T.INSTIGATE_EVENTS} new special events`}`;
         if (office.tyranny) why += `, and Tyranny adds ${T.START_EVENTS.tyranny.extra} of each`;
       } else if (c.inmate) {
         score += P.wWalk * known(c);
@@ -1303,7 +1305,7 @@
     }
     if (st.phase === 'office') {
       out.push({ action: { type: 'office', choice: 'bestow' }, label: 'Bestow: 1 random inmate rises a tier' });
-      out.push({ action: { type: 'office', choice: 'instigate' }, label: `Instigate: ${T.INSTIGATE_EVENTS} new special events` });
+      out.push({ action: { type: 'office', choice: 'instigate' }, label: `Instigate: ${T.INSTIGATE_EVENTS === 1 ? 'a new special event' : `${T.INSTIGATE_EVENTS} new special events`}` });
       return out;
     }
     if (st.phase === 'event' && st.event) {

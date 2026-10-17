@@ -271,8 +271,11 @@
   // "Treasure" Hunt shows the rarity behind every locked cell below this
   // tier (Rare).
   const HUNT_BELOW = 2;
-  // The warden's office: Instigate brings this many new special events.
-  const INSTIGATE_EVENTS = 2;
+  // The warden's office: Instigate brings this many new special events, each
+  // on a random cell: a locked door, or an inmate's open cell (the "!" that
+  // a walk in sets off). The user: "instigate doesn't guarantee 2 events";
+  // their records showed 1 every time (10 of 10), 5 on open cells.
+  const INSTIGATE_EVENTS = 1;
   // Ravenous Appetite: tries at +1 tier, and the chance of each.
   const APPETITE_TRIES = 5;
   const APPETITE_ODDS = 0.5;
@@ -1230,16 +1233,18 @@
     return ok(events);
   }
 
-  // Instigate: special events behind up to INSTIGATE_EVENTS free locked doors.
+  // Instigate: INSTIGATE_EVENTS new special events, each on a random free
+  // cell: a locked door with none, or an inmate's open cell with none.
+  const instigateCells = (state) => state.cells.filter((c) => c.n !== OFFICE && !c.event && (c.sealed ? !c.nest : !!c.inmate));
   function instigate(state, events, how) {
-    const doors = shuffle(state, state.cells.filter((c) => c.sealed && !c.event && !c.nest)).slice(0, INSTIGATE_EVENTS);
-    for (const c of doors) {
+    const cells = shuffle(state, instigateCells(state)).slice(0, INSTIGATE_EVENTS);
+    for (const c of cells) {
       c.event = rollEvent(state);
       c.seen = true;
     }
-    log(state, 'event', doors.length
-      ? `${how}: special events now wait behind ${doors.length === 1 ? `cell ${cellLabel(doors[0].n)}` : `cells ${doors.map((c) => cellLabel(c.n)).join(' and ')}`}.`
-      : `${how}: no locked door was free for a new event.`, { type: 'instigate', cells: doors.map((c) => c.n) });
+    log(state, 'event', cells.length
+      ? `${how}: a special event now waits ${cells.map((c) => `${c.sealed ? 'behind' : 'in'} cell ${cellLabel(c.n)}`).join(' and ')}.`
+      : `${how}: no cell was free for a new event.`, { type: 'instigate', cells: cells.map((c) => c.n) });
   }
 
   // Bestow: 1 random inmate on the block rises a tier.
@@ -2251,7 +2256,7 @@
       const raise = pool.reduce((sum, i) => sum + WORTH[Math.min(RAINBOW, i.tier + 1)] - WORTH[i.tier], 0) / Math.max(1, pool.length);
       return [
         { kind: 'office', choice: 'bestow', score: raise, text: 'Bestow: 1 random inmate on the block rises a tier.' },
-        { kind: 'office', choice: 'instigate', score: 12, text: `Instigate: ${INSTIGATE_EVENTS} special events appear behind locked doors.` },
+        { kind: 'office', choice: 'instigate', score: 12, text: `Instigate: ${plural(INSTIGATE_EVENTS, 'special event')} on a random cell, a locked door or an inmate's.` },
       ].sort((a, b) => b.score - a.score);
     }
     if (state.challenge && state.challenge.window) {
@@ -2399,7 +2404,7 @@
 
   const api = {
     VERSION, CELL_COUNT, OFFICE, SUPREME, RAINBOW, VAULT_SLOTS, TIERS, BEASTS, BEAST_INFO, FOOD_CHAIN, SECOND_MEAL, PRESSURE, ESCORTS, TOOLS, TOOL_IDS, GIFTS, GIFT_IDS,
-    EVENTS, EVENT_IDS, EVENT_POOL, USURP, APPETITE_TRIES, APPETITE_ODDS, INSTIGATE_EVENTS, CROW_CELLS, HUNT_BELOW, FREEDOM_CELLS, OBJECTIVES, OBJECTIVE_IDS, START_EVENTS,
+    EVENTS, EVENT_IDS, EVENT_POOL, USURP, APPETITE_TRIES, APPETITE_ODDS, INSTIGATE_EVENTS, instigateCells, CROW_CELLS, HUNT_BELOW, FREEDOM_CELLS, OBJECTIVES, OBJECTIVE_IDS, START_EVENTS,
     LOADOUTS, SCENARIOS, CONTRACT_SLOTS, DEFAULT_PARAMS, PARAM_FIELDS, CHALLENGE_DAYS, START_VOUCHERS,
     newGame, randomSeed, normalizeParams, serialize, deserialize,
     patrol: bounded(patrol),
