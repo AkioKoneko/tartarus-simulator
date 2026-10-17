@@ -312,6 +312,21 @@
   .is-collapsed .card { width: 56px; height: 56px; border: 0; background: transparent; border-radius: 0; }
   .is-collapsed .head, .is-collapsed .body, .is-collapsed .foot { display: none; }
   .is-collapsed .orb { display: grid; place-items: center; }
+  .plan { margin: 0; }
+  .plan ol { margin: 7px 0 0; padding: 0; list-style: none; }
+  .plan li { display:flex; gap:9px; padding:8px 8px 8px 0; border-left:2px solid var(--iron); color:var(--ash); }
+  .plan li + li { border-top:1px solid var(--iron); }
+  .plan li[data-state="current"] { padding-left:8px; border-left-color:var(--teal); background:color-mix(in srgb,var(--teal) 8%,transparent); color:var(--bone); }
+  .step-number { flex:none; width:25px; padding-top:2px; text-align:center; font:600 12px/1.4 var(--font-mono); color:var(--ash); }
+  .plan li[data-state="current"] .step-number, .plan li[data-state="current"] .step-stage { color:var(--teal); }
+  .step-copy { min-width:0; flex:1; }
+  .step-stage { display:block; margin-bottom:3px; color:var(--ash); font-size:10.5px; line-height:1.3; letter-spacing:.04em; }
+  .step-label { margin:0; font-size:13px; line-height:1.4; overflow-wrap:anywhere; }
+  .plan .move { margin:0; font-size:16px; }
+  .advice-details { margin-top:9px; padding-top:7px; border-top:1px solid var(--iron); color:var(--ash); }
+  .advice-details summary { cursor:pointer; font-size:12px; }
+  .advice-details summary:focus-visible { outline:2px solid var(--bone); outline-offset:2px; }
+  .plan-note { margin: 6px 0 0; color: var(--ash); font-size: 12px; }
   @media (prefers-reduced-motion: reduce) { .spin { animation: none; } .orb, .orb svg { transition: none; } }
 </style>
 </head>

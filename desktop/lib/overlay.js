@@ -129,16 +129,19 @@
     } else if (a && a.has && a.stale) {
       out.push(line('warn', 'The board changed since the last advice.', button('Recheck', 'recheck', true)));
     } else if (a && a.has && a.move) {
-      const advice = h('div', null,
-        h('p', { class: 'eyebrow' }, 'Recommended'),
-        h('p', { class: 'move' }, a.move),
+      const sequence=renderPlan(a.plan,a.baseMove || a.move);
+      const explanation=[
         a.why ? h('p', { class: 'why' }, a.why) : null,
         h('p', { class: 'meta' }, [
-          a.expect.replace(/^Expected: /, '').replace(/ Rainbows in the vault by the end of day (\d+)\.?$/, ' Rainbows expected by day $1').replace(/\.$/, ''),
-          a.status.replace(/^Live check: /, '').replace(/ playouts per option$/, ' playouts each'),
+          (a.expect || '').replace(/^Expected: /, '').replace(/ Rainbows in the vault by the end of day (\d+)\.?$/, ' Rainbows expected by day $1').replace(/\.$/, ''),
+          (a.status || '').replace(/^Live check: /, '').replace(/ playouts per option$/, ' playouts each'),
         ].filter(Boolean).join(' · ')),
         a.chain ? h('p', { class: 'alt' }, a.chain) : null,
-        a.close && a.options[1] ? h('p', { class: 'alt' }, `About as good: ${a.options.find((o) => !o.best) ? a.options.find((o) => !o.best).label : a.options[1].label}`) : null,
+        a.close && a.options && a.options[1] ? h('p', { class: 'alt' }, `About as good: ${a.options.find((o) => !o.best) ? a.options.find((o) => !o.best).label : a.options[1].label}`) : null,
+      ];
+      const advice = h('div', null,
+        sequence || h('div',null,h('p',{class:'eyebrow'},'Recommended'),h('p',{class:'move'},a.move)),
+        sequence ? h('details',{class:'advice-details'},h('summary',null,'Calculation and alternatives'),explanation) : explanation,
       );
       out.push(advice);
       if (a.flagged) out.push(line('warn', `${a.flagged} ${a.flagged === 1 ? 'cell' : 'cells'} to check against your game.`, button('Fix', 'fix'), button('Recheck', 'recheck')));
@@ -179,7 +182,21 @@
 
 
 
-
+  function renderPlan(plan, currentMove) {
+    if (!plan || !Array.isArray(plan.steps)) return null;
+    const valid=plan.steps.filter(s=>s && typeof s.label==='string' && s.label.trim());
+    const next=valid.filter(s=>s.certainty!=='current' && s.label!==currentMove);
+    if(!next.length)return null;
+    const first=valid.find(s=>s.certainty==='current');
+    const steps=[{label:first?first.label:currentMove,certainty:'current'},...next];
+    const stage={current:'Now',confirmed:'Then',planned:'Next · verify in game',conditional:'If a choice appears',recheck:'After a new reading'};
+    return h('section', { class: 'plan', 'aria-label': 'Action sequence' },
+      h('p', { class: 'eyebrow' }, 'Action sequence'),
+      h('ol', null, steps.map((s,i) => h('li',{'data-state':i===0?'current':'next','aria-current':i===0?'step':null},
+        h('span',{class:'step-number','aria-hidden':'true'},String(i+1).padStart(2,'0')),
+        h('div',{class:'step-copy'},h('span',{class:'step-stage'},stage[s.certainty]||'Then'),h('p',{class:i===0?'move':'step-label'},s.label))))),
+      typeof plan.note === 'string' && plan.note ? h('p', { class: 'plan-note' }, plan.note) : null);
+  }
 
   // screen coordinates stay stable when main moves this window during a drag.
   const orb = $('orb');
