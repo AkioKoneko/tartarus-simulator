@@ -1529,7 +1529,12 @@
         return action.accept ? `The ${T.describe(exec)} removes ${T.plural(victims, 'inmate')} and rises as many tiers: it gains more than it removes.` : 'It would remove more than it gains.';
       }
       case 'choose': {
-        if (st.pending[0].kind === 'gift') return 'Worth the most on this board right now.';
+        if (st.pending[0].kind === 'gift') {
+          // Opulence: more picks wait at this Treasure, and the advice
+          // weighs them.
+          const picks = st.pending.filter((p) => p.kind === 'gift').length;
+          return picks > 1 ? `Worth the most on this board with the picks to come: ${picks} picks wait at this Treasure, this one included.` : 'Worth the most on this board right now.';
+        }
         const gains = ctx.P.toolSets !== false && toolGains(st, st.pending[0].options);
         if (gains && gains[action.id] !== undefined) {
           const add = gains[action.id];

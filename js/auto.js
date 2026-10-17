@@ -30,6 +30,8 @@
   let pickFresh = false; // whether the offer on screen starts a run
   let lastBoardAt = 0; // when a board's picture was last loaded
   let viewing = 0; // boards seen behind a Warden's Treasure, still being read
+  let giftsAt = 0; // when the Warden's Treasure last showed, or its counts last moved
+  let giftsSeen = '';
   const say = (m) => {
     if (C.agreed()) channel.postMessage(Object.assign({ id: me }, m));
   };
@@ -40,6 +42,20 @@
     const answer = (patch) => channel.postMessage(Object.assign({ type: 'read', to: m.from, id: m.id }, patch));
     const before = lastKind;
     lastKind = m.kind;
+    // The Treasure's picks still waiting (Opulence gives 3 a Treasure),
+    // from the log's counts. A board between two picks is the board behind
+    // the next one, like one seen with View Prison Status (and a board just
+    // after a Rainbow, the one its Treasure's first pick goes on). With no
+    // Treasure and no count moving for a while, a tally still waiting has
+    // gone stale.
+    const counts = m.gifts ? `${m.gifts.rainbows}/${m.gifts.taken}` : '';
+    if (m.kind === 'treasure' || (counts && counts !== giftsSeen)) giftsAt = Date.now();
+    if (counts) giftsSeen = counts;
+    const waiting = m.gifts && A.giftCounts ? A.giftCounts(m.gifts) : null;
+    if (m.kind === 'board' && waiting > 0 && !m.treasureView) {
+      if (Date.now() - giftsAt < 30000) m.treasureView = true;
+      else if (A.giftsDone) A.giftsDone();
+    }
     if (m.kind === 'treasure') {
       // The Warden's Treasure: every gift is on offer, so nothing is read
       // (it may come with no picture at all); the advice is on the board as

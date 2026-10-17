@@ -120,8 +120,10 @@
       noSwap: false,
       noDevour: false,
       eventKind: 'chain',
-      // rerolls: a pet's re-rolls left on an instrument offer.
-      choice: { kind: 'tool', options: [], rerolls: 0 },
+      // rerolls: a pet's re-rolls left on an instrument offer. picks: the
+      // Warden's Treasure picks waiting, this one included (3 a Treasure
+      // with Opulence).
+      choice: { kind: 'tool', options: [], rerolls: 0, picks: 1 },
       windowKind: 'due',
       chainArmed: false,
       // Until the player sets it, no objective's tool is assumed.
@@ -145,6 +147,7 @@
     out.ch = Object.assign(blankModel().ch, m.ch || {});
     out.choice = Object.assign(blankModel().choice, m.choice || {});
     out.choice.rerolls = clamp(toInt(out.choice.rerolls, 0), 0, 9);
+    out.choice.picks = clamp(toInt(out.choice.picks, 1), 1, 30);
     out.cells = m.cells.map((c, n) => (n === T.OFFICE ? officeCell() : Object.assign(sealedCell(), c)));
     out.dest = Array.isArray(m.dest) ? m.dest.filter((n) => Number.isInteger(n) && n >= 0 && n < T.CELL_COUNT) : [];
     if (!STEPS.includes(out.step)) out.step = 'patrol';
@@ -325,6 +328,8 @@
         if (!options.length) problems.push('Pick the tools on offer.');
         if (kind === 'refit' && !challenge) problems.push('Refits only follow contract deliveries. Pick the contract challenge, or another kind of offer.');
         st.pending = [{ kind, options, slot: challenge ? Math.max(0, st.challenge.deliveries.length - 1) : 0, refreshed: false, rerolls: kind === 'tool' ? m.choice.rerolls || 0 : 0 }];
+        // The Treasure's picks still waiting after this one (Opulence).
+        if (kind === 'gift') for (let k = 1; k < clamp(toInt(m.choice.picks, 1), 1, 30); k++) st.pending.push({ kind, options: options.slice(), slot: 0, refreshed: false, rerolls: 0 });
         break;
       }
       case 'window': {
@@ -407,7 +412,7 @@
     const ch = st.challenge;
     if (st.pending.length) {
       m.step = 'choice';
-      m.choice = { kind: st.pending[0].kind, options: st.pending[0].options.slice(), rerolls: st.pending[0].rerolls || 0 };
+      m.choice = { kind: st.pending[0].kind, options: st.pending[0].options.slice(), rerolls: st.pending[0].rerolls || 0, picks: st.pending[0].kind === 'gift' ? st.pending.filter((p) => p.kind === 'gift').length : 1 };
     } else if (ch && ch.window) {
       m.step = 'window';
       m.windowKind = ch.window.early ? 'early' : 'due';
@@ -1141,7 +1146,9 @@
   function renderOffer() {
     const kind = model.choice.kind;
     if (kind === 'gift') {
-      $('az-offer').innerHTML = `<p class="field-note">The Warden's Treasure always offers all four gifts: ${T.GIFT_IDS.map((id) => esc(T.toolName(id))).join(', ')}.</p>`;
+      $('az-offer').innerHTML = `<p class="field-note">The Warden's Treasure always offers all four gifts: ${T.GIFT_IDS.map((id) => esc(T.toolName(id))).join(', ')}.</p>` +
+        // Opulence gives 3 picks a Treasure: the advice weighs them all.
+        `<label class="field"><span class="field-label">Picks left, this one included</span><input type="number" id="az-gift-picks" min="1" max="30" step="1" value="${model.choice.picks || 1}"></label>`;
       return;
     }
     const free = T.TOOL_IDS.filter((id) => !model.tools.includes(id));
@@ -2041,6 +2048,7 @@
       via = null;
       selected = model.warden;
     }
+    if (start) gifts.waiting = 0;
     model.step = 'choice';
     model.choice = { kind: 'tool', options: read.cards.map((c) => c.sim), rerolls: read.reroll ? 1 : 0 };
     applied = null;
@@ -2056,6 +2064,32 @@
     return asked;
   }
 
+  // The Warden's Treasure's picks: one a Treasure, or 3 with Opulence ("2
+  // additional choices"). Auto Screenshot Mode counts, from the game log,
+  // each Rainbow (each opens a Treasure) and each pick confirmed
+  // (js/follow.js); the picks waiting are each new Rainbow's picks less each
+  // one confirmed. The first counts this page hears only start the tally.
+  const picksPer = () => ((T.START_EVENTS || {})[model.startEvent] || {}).picks || 1;
+  const gifts = { log: null, waiting: 0, board: null };
+  function giftCounts(c) {
+    if (!c || !Number.isFinite(c.rainbows) || !Number.isFinite(c.taken)) return null;
+    const was = gifts.log;
+    if (was && c.rainbows >= was.rainbows && c.taken >= was.taken) gifts.waiting = Math.max(0, gifts.waiting + (c.rainbows - was.rainbows) * picksPer() - (c.taken - was.taken));
+    gifts.log = { rainbows: c.rainbows, taken: c.taken };
+    return gifts.waiting;
+  }
+  // A pick confirmed, or a Rainbow, since the board behind the Treasure was
+  // last seen: the board changed, so it's seen again before the next advice.
+  const pickedSinceBoard = () => !!gifts.log && (!gifts.board || gifts.log.taken > gifts.board.taken || gifts.log.rainbows > gifts.board.rainbows);
+  // The picks waiting now, this one included: the log's tally, or for
+  // screenshots, what was set (a new Treasure starts at the card's picks).
+  function picksNow() {
+    // A Treasure the tally missed the Rainbow of (this page opened during
+    // it): the card's picks, as a guess for this screen only.
+    if (gifts.log) return gifts.waiting > 0 ? gifts.waiting : picksPer();
+    return model.step === 'choice' && model.choice.kind === 'gift' ? model.choice.picks || 1 : picksPer();
+  }
+
   // The Warden's Treasure, opened by a Chromatic prisoner (Follow my game
   // knows it from the log): the gift to take, on the last board known.
   // Nothing is read from the picture: every gift is on offer. after is
@@ -2064,8 +2098,9 @@
   // consume, today's consume is used.
   function useTreasure(after) {
     const gift = () => {
+      const picks = picksNow();
       model.step = 'choice';
-      model.choice = { kind: 'gift', options: [], rerolls: 0 };
+      model.choice = { kind: 'gift', options: [], rerolls: 0, picks };
       applied = null;
       solver.st = null;
     };
@@ -2075,14 +2110,23 @@
       gift();
       model.treasureWait = false;
       model.treasureSeen = true;
+      gifts.board = gifts.log ? Object.assign({}, gifts.log) : null;
       changed();
       renderScan();
       const asked = ask(true);
       toast(`Board seen behind the Warden’s Treasure. ${asked ? 'Which gift to take is below.' : 'The board needs fixing before the advice.'}`, asked ? 'ok' : 'bad');
       return asked;
     }
-    // Back at the Treasure after viewing the board: nothing more to wait for.
-    if (model.step === 'choice' && model.choice.kind === 'gift' && model.treasureSeen) return fresh() && settled() ? true : ask(true);
+    // Back at the Treasure after viewing the board: nothing more to wait for,
+    // unless a pick was confirmed since (Opulence's next pick).
+    if (model.step === 'choice' && model.choice.kind === 'gift' && model.treasureSeen && !pickedSinceBoard()) {
+      const picks = picksNow();
+      if (picks === model.choice.picks) return fresh() && settled() ? true : ask(true);
+      // A pick's Rainbow brought more picks: the advice weighs them.
+      model.choice = Object.assign({}, model.choice, { picks });
+      changed();
+      return ask(true);
+    }
     undo.push({ model: JSON.parse(JSON.stringify(model)), selected, shot });
     if (undo.length > 30) undo.shift();
     reader.undoable = true;
@@ -2686,6 +2730,12 @@
       changed();
     });
     $('az-offer').addEventListener('change', (e) => {
+      if (e.target.id === 'az-gift-picks') {
+        model.choice = Object.assign({}, model.choice, { picks: clamp(toInt(e.target.value, 1), 1, 30) });
+        touch('choice');
+        changed();
+        return;
+      }
       if (e.target.id === 'az-rerolls') {
         model.choice = Object.assign({}, model.choice, { rerolls: clamp(toInt(e.target.value, 0), 0, 9) });
         touch('choice');
@@ -2919,6 +2969,13 @@
       readObjective: (bitmap) => readObjective(bitmap),
       useObjective: (read) => useObjective(read),
       useTreasure: (after) => useTreasure(after),
+      // Auto Screenshot Mode's Treasure counts ({ rainbows, taken }): the
+      // picks waiting, or null without counts. giftsDone ends a tally that
+      // went stale (no Treasure for a while).
+      giftCounts: (c) => giftCounts(c),
+      giftsDone: () => {
+        gifts.waiting = 0;
+      },
       useReading: () => useScan(),
       ask: () => ask(true),
       recommendation: () => (fresh() && settled() ? recommendation() : null),
@@ -2956,6 +3013,7 @@
       // Advise the gift on the board as the analyzer has it.
       model.treasureWait = false;
       model.treasureSeen = true;
+      gifts.board = gifts.log ? Object.assign({}, gifts.log) : null;
       changed();
       ask();
     });

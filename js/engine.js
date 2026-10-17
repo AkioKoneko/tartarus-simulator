@@ -305,6 +305,11 @@
     // screenshot, 2026-10-16): read as 3 more of each, on top of the
     // visit's own choice.
     tyranny: { name: 'Tyranny', text: 'Each stop at the Interrogation Room also triggers Instigate and Bestow 3 more times each, on top of your choice there', extra: 3 },
+    // "Opulence. You can make 2 additional choices when obtaining Warden's
+    // Treasure" (the user's screenshot, 2026-10-17): 3 picks in a row, and a
+    // Rainbow a pick makes opens another Treasure (the user's log: 7
+    // Rainbows, 21 picks).
+    opulence: { name: 'Opulence', text: 'Each Warden’s Treasure gives 3 picks in a row (2 extra choices), and a Rainbow made by a pick brings 3 more', picks: 3 },
   };
 
   const GIFTS = {
@@ -637,7 +642,9 @@
     state.cache += 1;
     log(state, 'rainbow', `Rainbow ${beastName(inmate.beast)}! It left cell ${cellLabel(cell.n)} for the vault. Warden's Treasure claims: ${state.cache}.`, { type: 'rainbow', cell: cell.n, who: snap(inmate) });
     events.push({ type: 'rainbow', cell: cell.n });
-    if (state.params.rewards) state.pending.push({ kind: 'gift', options: GIFT_IDS.slice() });
+    // Each Treasure is one pick, or more with a start card (Opulence: 3).
+    const picks = (START_EVENTS[state.startEvent] && START_EVENTS[state.startEvent].picks) || 1;
+    if (state.params.rewards) for (let k = 0; k < picks; k++) state.pending.push({ kind: 'gift', options: GIFT_IDS.slice() });
   }
 
   function reroll(state, inmate) {
