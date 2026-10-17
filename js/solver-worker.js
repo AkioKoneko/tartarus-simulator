@@ -13,6 +13,11 @@ importScripts(`engine.js${self.location.search}`, `tool-combos.js${self.location
 let current = 0;
 
 self.onmessage = (e) => {
+  // The page has its answer: the check in progress stops.
+  if (e.data.stop) {
+    current = 0;
+    return;
+  }
   const { id, state, rollouts, params, extra, stream, raw } = e.data;
   current = id;
   const job = self.TartarusSolver.solve(state, { rollouts, params, extra, stream: stream || 0, seed: (id * 7919 + 1) >>> 0 });

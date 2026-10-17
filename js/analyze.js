@@ -46,6 +46,12 @@
   const SAVE_KEY = 'tartarus-sim:save:v2';
   const PLAYOUT_BUDGET = 9600; // playouts per check, shared across the options
   const LIVE_MIN = 150; // playouts per option before the live check can lead
+  // The check ends early once the leader is ahead of every other move by
+  // CLEAR_SE of its paired margins (after LIVE_MIN playouts each), and in any
+  // case after CHECK_MS, with what it has then. The user: a decision within a
+  // second of the picture, "faster is way better".
+  const CLEAR_SE = 3;
+  const CHECK_MS = 700;
   const STEPS = ['patrol', 'manage', 'office', 'chain', 'event', 'ratway', 'choice', 'window'];
   const STEP_NAMES = { patrol: 'Which door to patrol', manage: 'After the patrol', office: 'Instigate or Bestow', chain: 'A meal to pick, or Cancel', event: 'A special event', ratway: 'Sewer Ratway: any cell', choice: 'A tool or gift', window: 'A delivery' };
   const BEAST_KEYS = { m: 'mammoth', l: 'lion', w: 'wolf', r: 'rat' };
@@ -117,6 +123,10 @@
       // (toolsLocked), they stay for the run and aren't asked about again.
       toolsToConfirm: '',
       toolsLocked: false,
+      // The panel's count at the last confirmation (toolsSeen) and in the
+      // last picture (toolsPanel): only a panel showing more asks again.
+      toolsSeen: 0,
+      toolsPanel: 0,
       // Days of this run whose morning offered a door short (see scanToModel).
       shortDays: [],
       // The game shows no Replace / Consume card now (read from a screenshot):
@@ -177,6 +187,19 @@
     }
     return contract;
   }
+
+  // What the inmate in cell n could eat only as a second meal (a Mammoth
+  // eating a Wolf, a Lion a Rat) at its own rarity, which the simulator has
+  // from Legendary up (doubleEatTier). Players' games have offered such
+  // meals lower (reports 206 and 208), so a board with nothing else to eat
+  // says so instead of calling itself misread.
+  function secondMealCells(st, n) {
+    const eater = st.cells[n] && st.cells[n].inmate;
+    if (!eater) return [];
+    const loose = Object.assign({}, st, { params: Object.assign({}, st.params, { doubleEatTier: 0 }) });
+    return st.cells.filter((c) => c.n !== n && !c.sealed && c.inmate && !T.canEat(st, eater, c.inmate) && T.canEat(loose, eater, c.inmate)).map((c) => c.n);
+  }
+  const mealList = (st, cells) => cells.map((n) => `the ${T.describe(st.cells[n].inmate)} in ${L(n)}`).join(', ');
 
   // The engine state for a model, and anything that stops it from being
   // analyzed. Events the player can't name get a kind the solver re-rolls.
@@ -361,7 +384,12 @@
           break;
         }
         st.chaining = { eater: here.inmate.id, at: 0, bites: [] };
-        if (!T.chainOptions(st).length) problems.push("Your game asks for a meal only when the chaining inmate has one to eat. Check the board: it can't find a meal for it.");
+        if (!T.chainOptions(st).length) {
+          const second = secondMealCells(st, st.position);
+          problems.push(second.length
+            ? `Your game asks for a meal only when the chaining inmate has one to eat. On this board the ${T.describe(here.inmate)} has only second meals (${mealList(st, second)}), which the simulator allows only from Legendary up, or in a run with Cage Fight: if this run has Cage Fight, set it under Start of run.`
+            : "Your game asks for a meal only when the chaining inmate has one to eat. Check the board: it can't find a meal for it.");
+        }
         break;
       }
       case 'office': {
@@ -600,6 +628,7 @@
     const options = S.candidates(st).length;
     const rollouts = clamp(Math.round(PLAYOUT_BUDGET / Math.max(1, options)), 400, 1600);
     solver.target = rollouts;
+    solver.startedAt = Date.now();
     startCheck(solver.id, st, rollouts);
     render();
     if (quiet !== true) $('az-results').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -654,7 +683,8 @@
   // merged result is redrawn at most every 100 ms, and once all are done.
   let mergeTimer = 0;
   function onShare(k, m) {
-    if (m.id !== solver.id || !solver.shares) return;
+    // A check that settled early keeps its answer: late rounds are dropped.
+    if (m.id !== solver.id || !solver.shares || (solver.result && solver.result.early)) return;
     const share = solver.shares[k];
     if (m.meta && !solver.meta) solver.meta = m.meta;
     if (!share.rows) share.rows = m.rows.map(() => ({ vals: [], pass: 0, points: 0, best: 0 }));
@@ -694,6 +724,14 @@
     });
     const rounds = solver.shares.reduce((sum, s) => sum + s.rounds, 0);
     solver.result = Object.assign(S.summarize(rows, rounds, solver.target, solver.goal), { done: solver.shares.every((s) => s.done) });
+    // Settled early: the workers stop, and their share of the processor with them.
+    if (!solver.result.done && settled() && solver.workers) {
+      for (const w of solver.workers) w.postMessage({ stop: true });
+      for (const share of solver.shares) share.done = true;
+      solver.result.done = true;
+      solver.result.early = true;
+      idleLater();
+    }
     renderResults();
     renderBoard();
     renderCourt();
@@ -703,7 +741,16 @@
   // Whether the advice is final: the live check has finished, or there's
   // nothing to compare. Until then no move is advised, so the advice never
   // changes its mind a moment after it's shown.
-  const settled = () => !!solver.result && (solver.result.done || solver.result.options.length <= 1);
+  function settled() {
+    const r = solver.result;
+    if (!r) return false;
+    if (r.done || r.options.length <= 1) return true;
+    const [top, ...rest] = r.options;
+    if (r.rounds >= LIVE_MIN && rest.every((o) => o.gapSe > 0 && top.mean - o.mean > CLEAR_SE * o.gapSe)) return true;
+    // Out of time: the advice is the check's leader once it has LIVE_MIN
+    // playouts each, else the strategy's own pick (recommendation()).
+    return Date.now() - solver.startedAt >= CHECK_MS;
+  }
   // A picture being read (the reader shows it on the board's card).
   let reading = 0;
   function setReading(on) {
@@ -1933,8 +1980,9 @@
   }
 
   // The three cards' names, left to right, from the band under each card's
-  // art (a raised card's title sits a little higher, inside the band).
-  async function readCardNames(canvas) {
+  // art (a raised card's title sits a little higher, inside the band). ui:
+  // the cards' size the reader found (see scanPick).
+  async function readCardNames(canvas, ui) {
     const worker = await ocrWorker();
     if (!worker) {
       // No names read: why, for the reading.
@@ -1942,14 +1990,18 @@
       none.failed = ocrError || 'it didn’t load';
       return none;
     }
-    const s = canvas.height / 1080;
+    const s = ui || canvas.height / 1080;
+    const top = canvas.height / 2 - 540 * s;
     const out = [];
     for (let k = -1; k <= 1; k++) {
       const c = canvas.width / 2 + k * 480 * s;
+      // Small cards' names enlarged to their size on a 1080-pixel-high
+      // screen: the text reader misses the small ones.
+      const z = Math.max(1, 1 / s);
       const crop = document.createElement('canvas');
-      crop.width = Math.round(430 * s);
-      crop.height = Math.round(130 * s);
-      crop.getContext('2d').drawImage(canvas, Math.round(c - 215 * s), Math.round(420 * s), crop.width, crop.height, 0, 0, crop.width, crop.height);
+      crop.width = Math.round(430 * s * z);
+      crop.height = Math.round(130 * s * z);
+      crop.getContext('2d').drawImage(canvas, Math.round(c - 215 * s), Math.round(top + 420 * s), Math.round(430 * s), Math.round(130 * s), 0, 0, crop.width, crop.height);
       try {
         const { data } = await worker.recognize(crop);
         out.push(nameFromText(data.text || ''));
@@ -2027,7 +2079,7 @@
         if (!result.ok) return resolve({ ok: false, pick: true, reason: result.reason, ms });
         const cards = result.cards.map((c) => ({ sim: c.sim, name: T.toolName(c.sim), conf: c.conf, alts: c.alts, by: 'art' }));
         // Each card's printed name, read where it can be, outranks its art.
-        readCardNames(canvas).then((names) => {
+        readCardNames(canvas, result.ui).then((names) => {
           names.forEach((n, i) => {
             if (n && cards[i]) Object.assign(cards[i], { sim: n.id, name: T.toolName(n.id), conf: 1, by: 'name' });
           });
@@ -2299,14 +2351,20 @@
     const out = known.map((id) => ({ id, sim: id, name: T.toolName(id), conf: 1, kept: true }));
     const has = (id) => out.some((t) => t.sim === id);
     const slots = read.length;
-    // Once the run's instruments are known, they're locked: icons never
-    // change them. The player is asked to confirm them only when the panel
-    // shows more than the run has, and once confirmed (m.toolsLocked) never
-    // again this run (the user: "if these have already been confirmed once,
-    // they cannot change"). Until then, an icon that's clearly another
-    // instrument asks too; after, two icons looking alike change nothing.
+    // A set run: once the run's instruments are known (the offers the
+    // analyzer saw and advised, or the player's confirmation), they're
+    // presumed and locked (m.toolsLocked), and icons never change them. The
+    // user: "once the instruments have been recommended and selected, it
+    // should presume those are the instruments and not say anything unless
+    // it sees more total instruments than it already had". So the only
+    // question is a panel showing more than the run has and than the count
+    // last confirmed (m.toolsSeen).
     m.toolsToConfirm = '';
-    if (!sameRun) m.toolsLocked = false;
+    m.toolsPanel = slots;
+    if (!sameRun) {
+      m.toolsLocked = false;
+      m.toolsSeen = 0;
+    }
     if (sameRun && (known.length || offer.length || base.runStart || base.toolsLocked)) {
       if (offer.length && slots > known.length && !offer.some(has)) {
         const seen = read.filter((t) => offer.includes(t.sim)).sort((a, b) => b.conf - a.conf)[0];
@@ -2332,15 +2390,8 @@
           else if (!seen) notes.push(`Took it you chose ${T.toolName(take)}, as advised. If you took another, change it under Torture Instrument.`);
         } else notes.push(`Your instruments show one more than before, from the offer of ${offer.map((id) => T.toolName(id)).join(', ')}: set which you took under Torture Instrument.`);
       }
-      // Icons read as another instrument, unless one the run has explains
-      // them: a runner-up match, or one the reader can't tell on a panel
-      // (it reads as something else; as many odd icons as those are theirs).
-      let off = read.filter((t) => t.sim && t.conf >= TOOL_SURE && !has(t.sim) && !(t.alts || []).some((a) => a.sim && has(a.sim) && a.score >= 0.7));
-      if (sims && slots <= out.length) off = off.slice(out.filter((t) => !sims.includes(t.sim)).length);
-      if (base.toolsLocked) {
-        if (slots > out.length) notes.push(`Your panel shows ${T.plural(slots, 'instrument')}, and this run has ${out.length}: ${out.map((t) => t.name).join(', ') || 'none'}. If you got another one, add it under Torture Instrument.`);
-      } else if (slots > out.length) m.toolsToConfirm = `Your panel shows ${T.plural(slots, 'instrument')}, and the analyzer has ${out.length}: ${out.map((t) => t.name).join(', ') || 'none'}. Set the ones you hold, then press These are right.`;
-      else if (off.length) m.toolsToConfirm = `An icon on your panel looks like ${off.map((t) => T.toolName(t.sim)).join(' and ')}, which isn’t one the analyzer has for this run (${out.map((t) => t.name).join(', ')}). Check your instruments, then press These are right.`;
+      if (out.length) m.toolsLocked = true;
+      if (slots > Math.max(out.length, base.toolsSeen || 0)) m.toolsToConfirm = `Your panel shows ${T.plural(slots, 'instrument')}, and the analyzer has ${out.length}: ${out.map((t) => t.name).join(', ') || 'none'}. Set the ones you hold, then press These are right.`;
       return out;
     }
     // Nothing known of the run yet: only icons the reader is sure of, and
@@ -2398,6 +2449,11 @@
         checks.add(n);
       }
     });
+    // Most cells read as open and empty, which a board rarely is: it was
+    // likely placed wrong (a screen shape the reader handled badly, report
+    // 144), so the reading is checked before it's trusted.
+    const emptyRead = r.cells.filter((c) => c.n !== T.OFFICE && c.kind !== 'locked' && c.kind !== 'inmate').length;
+    if (emptyRead >= 8) notes.push(`${emptyRead} cells read as open and empty, which is unusual: the board may be misread. Check it against your game.`);
     if (r.warden) {
       m.warden = r.warden.cell;
       if (r.warden.conf < 0.6) checks.add(r.warden.cell);
@@ -2506,20 +2562,35 @@
         const trial = JSON.parse(JSON.stringify(m));
         trial.cells[n].beast = beast;
         const s2 = buildState(Object.assign({}, trial, { step: 'manage' })).st;
-        const fit = r.cells.filter((d, k) => d.kind === 'inmate' && hasTarget(s2, k) === !!d.jaws).length;
+        const fit = r.cells.filter((d, k) => d.kind === 'inmate' && d.jaws !== null && hasTarget(s2, k) === !!d.jaws).length;
         if (!best || fit > best.fit) best = { beast, fit };
       }
       m.cells[n].beast = best.beast;
     });
     const { st: final } = buildState(Object.assign({}, m, { step: 'manage' }));
-    let odd = 0;
+    const oddCells = [];
     r.cells.forEach((c, n) => {
       if (c.kind !== 'inmate' || m.cells[n].kind !== 'inmate') return;
-      if (hasTarget(final, n) !== !!c.jaws) {
+      // Jaws over a Supreme's red glow aren't known (null): no check.
+      if (c.jaws !== null && hasTarget(final, n) !== !!c.jaws) {
         checks.add(n);
-        odd += 1;
+        oddCells.push(n);
       }
     });
+    // The game shows Consume only when the warden's inmate has a meal. With
+    // none on the board as read, the advice can't weigh Consume (report
+    // 208): say why, and where to look. A second meal below Legendary is
+    // the likely one (the game offered one in report 206).
+    const w = m.warden;
+    const noMeal = !!(r.decision && r.decision.consume) && w != null && m.cells[w] && m.cells[w].kind === 'inmate' && !hasTarget(final, w);
+    if (noMeal) {
+      checks.add(w);
+      const second = secondMealCells(final, w);
+      notes.push(second.length
+        ? `Your game offers Consume, but the ${T.describe(m.cells[w])} in ${L(w)} has only second meals here (${mealList(final, second)}), which the simulator allows only from Legendary up, or in a run with Cage Fight, so the advice can’t weigh Consume. If this run has Cage Fight, set it under Start of run.`
+        : `Your game offers Consume, but the board as read has no meal for the ${T.describe(m.cells[w])} in ${L(w)}, so the advice can’t weigh Consume: check it and the inmates it could eat.`);
+    }
+    const odd = oddCells.filter((n) => !(noMeal && n === w)).length;
     if (odd) notes.push(odd === 1 ? '1 inmate’s jaws marker doesn’t fit what was read: check it and the inmates around.' : `${odd} inmates’ jaws markers don’t fit what was read: check them and the inmates around.`);
     return { model: m, checks, notes, chromatic, tools, unsim };
   }
@@ -2858,6 +2929,8 @@
     $('az-tools-ok').addEventListener('click', () => {
       model.toolsToConfirm = '';
       model.toolsLocked = true;
+      // The panel's count now: only more than this asks again.
+      model.toolsSeen = Math.max(model.tools.length, model.toolsPanel || 0);
       changed();
       ask();
     });
