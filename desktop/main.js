@@ -297,7 +297,7 @@ async function lookForGame() {
     // Whether the game runs as administrator (see adminText): Windows cuts
     // off at once a window share from an app that doesn't.
     if (game.running) game.admin = win32 && game.hwnd ? win32.elevatedOf(game.hwnd) : null;
-    note(game.running ? `game running: "${game.title}"; ${adminText(game.admin)}` : 'game closed');
+    note(game.running ? `game running: "${game.title}" (window ${win32 && game.hwnd ? win32.stateOf(game.hwnd) : 'state unknown'}); ${adminText(game.admin)}` : 'game closed');
     recordEvent({ type: game.running ? 'game' : 'game-closed' });
     if (game.running) await refreshLog();
     if (game.running && !overlayPlaced) placeOverlay();
@@ -327,6 +327,14 @@ const win32 = (() => {
     const nextWindow = user32.func('__stdcall', 'FindWindowExW', 'intptr', ['intptr', 'intptr', 'void *', 'void *']);
     const windowText = user32.func('__stdcall', 'GetWindowTextW', 'int', ['intptr', 'void *', 'int']);
     const visible = user32.func('__stdcall', 'IsWindowVisible', 'bool', ['intptr']);
+    const hung = user32.func('__stdcall', 'IsHungAppWindow', 'bool', ['intptr']);
+    const longPtr = user32.func('__stdcall', 'GetWindowLongPtrW', 'intptr', ['intptr', 'int']);
+    let dwmAttr = null;
+    try {
+      dwmAttr = koffi.load('dwmapi.dll').func('__stdcall', 'DwmGetWindowAttribute', 'int32', ['intptr', 'uint32', 'void *', 'uint32']);
+    } catch (e) {
+      // Without DWM, nothing is cloaked.
+    }
     const advapi32 = koffi.load('advapi32.dll');
     const openToken = advapi32.func('__stdcall', 'OpenProcessToken', 'bool', ['intptr', 'uint32', koffi.out(koffi.pointer('intptr'))]);
     const tokenInfo = advapi32.func('__stdcall', 'GetTokenInformation', 'bool', ['intptr', 'int', 'void *', 'uint32', koffi.out(koffi.pointer('uint32'))]);
@@ -387,6 +395,20 @@ const win32 = (() => {
       },
       // This app itself (GetCurrentProcess's handle is -1).
       selfElevated: () => elevated(-1),
+      // What a window is like, for the debug log: the capture's list leaves
+      // out windows that are cloaked (another desktop, say), not responding
+      // or tool windows.
+      stateOf(hwnd) {
+        const flags = [];
+        if (dwmAttr) {
+          const cloaked = Buffer.alloc(4);
+          if (dwmAttr(hwnd, 14, cloaked, 4) === 0 && cloaked.readUInt32LE(0)) flags.push('cloaked'); // DWMWA_CLOAKED
+        }
+        if (hung(hwnd)) flags.push('not responding');
+        if (iconic(hwnd)) flags.push('minimized');
+        if (Number(longPtr(hwnd, -20)) & 0x80) flags.push('tool window'); // WS_EX_TOOLWINDOW
+        return flags.join(', ') || 'shown normally';
+      },
       // The shown top-level window whose title matches, not one of this
       // app's: { title, hwnd }, or null. The one found last time is looked
       // at first. Titles only, nothing else of any window.
@@ -1086,6 +1108,8 @@ ipcMain.on('site:follow', (e, data) => {
   if (!fromPage(e, 'follow') || !data || !small(data)) return;
   const was = lastFollow || {};
   lastFollow = data;
+  const shareError = data.diag && data.diag.shareError;
+  if (shareError && shareError !== (was.diag && was.diag.shareError)) note('window share failed on the page:', shareError);
   if (data.log !== was.log || data.window !== was.window || data.agreed !== was.agreed) note(`follow: agreed=${data.agreed} log=${data.log}${data.error ? ` (${data.error})` : ''} window=${data.window}`);
   const f = data.lastFrame;
   if (f && (!was.lastFrame || f.at !== was.lastFrame.at)) note(`picture: ${f.kind}${f.ok ? '' : ` (none taken: ${f.why})`}`);
@@ -1175,6 +1199,7 @@ function debugReportText(cores) {
     `Game: ${game.running ? `running (${game.title}); ${adminText(game.admin)}` : 'not running'}; log file (${logFoundBy}): ${clean(logPath) || 'not found'}`,
     `Agreed: ${agreed}; log: ${f.log}${f.error ? ` (${clean(f.error)})` : ''}; window: ${f.window}${f.windowSize ? ` ${f.windowSize}` : ''}; game log detail (Enable Log): ${f.detail || 'not known yet'}`,
     `Log file: ${d.logSize || '?'} bytes, last grew ${ago(d.growingAt)}. Since connecting: ${f.lines || 0} lines read, ${f.hits || 0} triggers ${JSON.stringify(d.triggers || {})}, ${f.frames || 0} pictures, ${d.failed || 0} failed.`,
+    `Last window share error: ${d.shareError ? `${clean(d.shareError)} (${ago(d.shareErrorAt)})` : 'none'}`,
     `Last trigger: ${d.lastTriggerKind || 'none'} ${ago(d.lastTriggerAt)}. Last picture: ${f.lastFrame ? `${f.lastFrame.kind} ${ago(f.lastFrame.at)}${f.lastFrame.ok ? '' : ` (none taken: ${f.lastFrame.why})`}` : 'none'}; on the page: ${d.lastNote || '-'}`,
     `Analyzer: ${a.lastRead ? `last read ${ago(a.lastRead.at)}, ${a.lastRead.ok ? 'ok' : `failed: ${a.lastRead.reason}`}` : 'nothing read'}; advice: ${a.move || (a.working ? 'working' : 'none')}`,
     `Processor use: ${cpuUse().label}, ${cpuUse().workers} of ${CORES}; game first: ${settings.gameFirst ? 'on' : 'off'}. Use: ${usageText(usage('report'), cores)}`,
@@ -1280,6 +1305,7 @@ function command(cmd) {
 // #region share-game
 // Only follow.html may share a window, and the only window it gets is the
 // game's, found by its title. A whole screen or another window never is.
+let testUnlisted = false; // --test: as if the capture's list left the game out
 function allowCapture() {
   session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
     const wc = wins.follow && !wins.follow.isDestroyed() ? wins.follow.webContents : null;
@@ -1291,8 +1317,14 @@ function allowCapture() {
     }
     desktopCapturer.getSources({ types: ['window'], thumbnailSize: { width: 0, height: 0 }, fetchWindowIcons: false })
       .then((sources) => {
-        const s = sources.find((x) => GAME_TITLE.test(x.name));
-        note(s ? `window share: "${s.name.trim()}"` : 'window share refused: no game window');
+        let s = testUnlisted ? null : sources.find((x) => GAME_TITLE.test(x.name));
+        if (s) note(`window share: "${s.name.trim()}"`);
+        else if (game.running && game.hwnd) {
+          // Windows has the game's window, but the capture's list left it out
+          // (reports 175 and 180): it's asked for by its handle.
+          s = { id: `window:${game.hwnd}:0`, name: game.title };
+          note(`window share: "${game.title}" by its handle, not in the capture's list of ${sources.length} windows (window ${win32 ? win32.stateOf(game.hwnd) : 'state unknown'})`);
+        } else note('window share refused: no game window');
         callback(s ? { video: s } : {});
       })
       .catch((e) => {
@@ -1489,6 +1521,8 @@ if (!app.requestSingleInstanceLock()) {
       }
       const hide = /hide (\w+)/.exec(text);
       if (hide && wins[hide[1]] && !wins[hide[1]].isDestroyed()) wins[hide[1]].hide();
+      // "unlisted": the capture's list leaves the game window out.
+      if (/unlisted/.test(text)) testUnlisted = true;
       // "cpu one": as the tray's Processor use does.
       const cpu = /cpu (\w+)/.exec(text);
       if (cpu) setCpu(cpu[1]);

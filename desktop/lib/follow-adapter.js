@@ -105,7 +105,10 @@
       try {
         await C.connectWindow();
       } catch (e) {
-        // The game window closed as it was being shared: the next look retries.
+        // The game window closed as it was being shared, say: a later try
+        // retries. Why, for the debug log and report (report 175 had none).
+        diag.shareError = String((e && e.message) || e).slice(0, 200);
+        diag.shareErrorAt = Date.now();
       }
       sharing = false;
     }
