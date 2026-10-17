@@ -1870,7 +1870,13 @@
   // pinned version from jsDelivr, cached by the browser). It runs in this
   // browser; the picture isn't sent anywhere. Without it, the cards are
   // read by their art alone.
+  // A load that fails is tried again with the next picture (a network
+  // hiccup mustn't turn the names off until the page reloads); one that
+  // hangs gives up after 20 s for this picture, so the art reading goes
+  // ahead, and keeps loading for the next. ocrError: why the last try
+  // didn't give a reader, for the reading (report 111).
   let ocr = null;
+  let ocrError = '';
   function ocrWorker() {
     if (!ocr) {
       ocr = new Promise((resolve, reject) => {
@@ -1878,13 +1884,24 @@
         const sc = document.createElement('script');
         sc.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
         sc.onload = resolve;
-        sc.onerror = reject;
+        sc.onerror = () => reject(new Error('its script didn’t download'));
         document.head.appendChild(sc);
       })
         .then(() => window.Tesseract.createWorker('eng'))
-        .catch(() => null);
+        .then((w) => {
+          ocrError = '';
+          return w;
+        }, (e) => {
+          ocrError = String((e && e.message) || e || 'it didn’t load');
+          ocr = null;
+          return null;
+        });
     }
-    return ocr;
+    const limit = new Promise((resolve) => setTimeout(() => {
+      if (!ocrError) ocrError = 'it took over 20 s to load';
+      resolve(null);
+    }, 20000));
+    return Promise.race([ocr, limit]);
   }
 
   function editDistance(a, b) {
@@ -1919,7 +1936,12 @@
   // art (a raised card's title sits a little higher, inside the band).
   async function readCardNames(canvas) {
     const worker = await ocrWorker();
-    if (!worker) return [null, null, null];
+    if (!worker) {
+      // No names read: why, for the reading.
+      const none = [null, null, null];
+      none.failed = ocrError || 'it didn’t load';
+      return none;
+    }
     const s = canvas.height / 1080;
     const out = [];
     for (let k = -1; k <= 1; k++) {
@@ -1944,7 +1966,7 @@
   // for pasted pictures and Take a picture now.
   async function readTreasure(source) {
     const worker = await ocrWorker();
-    if (!worker) return { ok: false, treasure: true, reason: 'the text reader couldn’t load' };
+    if (!worker) return { ok: false, treasure: true, reason: `the text reader couldn’t load (${ocrError || 'it didn’t load'})` };
     const scale = Math.min(1, 1600 / source.width);
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(source.width * scale);
@@ -2009,7 +2031,7 @@
           names.forEach((n, i) => {
             if (n && cards[i]) Object.assign(cards[i], { sim: n.id, name: T.toolName(n.id), conf: 1, by: 'name' });
           });
-          resolve({ ok: true, pick: true, cards, names: cards.map((c) => c.name), unsure: cards.filter((c) => c.conf < 0.5).length, reroll: !!result.reroll, byName: cards.filter((c) => c.by === 'name').length, ms: Math.round(performance.now() - t0) });
+          resolve({ ok: true, pick: true, cards, names: cards.map((c) => c.name), unsure: cards.filter((c) => c.conf < 0.5).length, reroll: !!result.reroll, byName: cards.filter((c) => c.by === 'name').length, ocrFailed: names.failed || '', ms: Math.round(performance.now() - t0) });
         });
       };
       reader.pickId += 1;
@@ -2064,6 +2086,13 @@
     changed();
     const unsure = read.cards.filter((c) => c.conf < 0.5);
     const check = unsure.length ? ` Check ${unsure.map((c) => `the ${['left', 'middle', 'right'][read.cards.indexOf(c)]} one (read as ${c.name})`).join(' and ')}: if it's wrong, change it under “A tool or gift” and press Recheck.` : '';
+    // No card's name could be read (the text reader didn't load): the art
+    // alone can name an instrument that wasn't offered (report 111 advised
+    // taking Kin's Coin), so the offer is checked before any advice.
+    if (read.ocrFailed && !read.byName) {
+      toast(`The instrument offer read as ${read.names.join(', ')} from the cards' pictures alone: their names couldn't be read (the text reader: ${read.ocrFailed}). Check the three under “A tool or gift”, then press Recheck for the advice.`, 'bad');
+      return false;
+    }
     const asked = ask(true, start);
     toast(`${start ? 'A fresh run: the instrument offer is' : 'An instrument offer:'} ${read.names.join(', ')}${read.reroll ? ', with a re-roll left' : ''}. ${asked ? 'Which to take is below.' : 'It needs fixing before the advice.'}${check}`, unsure.length ? 'bad' : 'ok');
     return asked;
