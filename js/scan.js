@@ -275,10 +275,18 @@
       const varx = sxx - (sx * sx) / cn;
       return varx > 1e-6 ? sxt / Math.sqrt(varx) : -1;
     };
+    // The board spans at least 30% of the width, or 35% of the height: on
+    // a 32:9 screen (5120x1440) only about 27% of the width (report 144).
+    // The scales from 30% of the width up stay as they were (a step moved
+    // turns a reading near a threshold), the rest go on below them.
     const sMin = Math.max(0.12, (0.3 * W) / bw);
+    const sLow = Math.max(0.12, Math.min(sMin, (0.35 * H) / bh));
     const sMax = Math.min(8, (1.1 * Math.max(W / bw, H / bh)));
+    const scales = [];
+    for (let s = sMin; s <= sMax; s *= 1.05) scales.push(s);
+    for (let s = sMin / 1.05; s >= sLow; s /= 1.05) scales.push(s);
     const top = [];
-    for (let s = sMin; s <= sMax; s *= 1.05) {
+    for (const s of scales) {
       // The coarsest level that still shows the frame's detail.
       let L = 0;
       while (L + 1 < levels.length && s / levels[L + 1].f >= 0.2) L += 1;
@@ -476,12 +484,12 @@
     cell.frame = frame;
     // The red jaws sit over the top of the portrait (0.24-0.32 of this box
     // in every labeled screenshot, 0 without them). A Supreme inmate's red
-    // glow fills the box too (0.30-0.56, and as much beside it), so over a
-    // glow the jaws must stand out: 0.61-0.81, and 0.4 more than beside it
-    // (the user's run, 2026-10-17: a Supreme Wolf read as having jaws).
+    // glow fills the box too, and a Mammoth's reads as red as a Lion's jaws
+    // over it (0.55-0.62 against 0.61-0.81, the user's runs): over a glow
+    // the jaws aren't known (null), and the analyzer doesn't check them.
     const jawsRed = colorShare(img, x - 12 * k, y - 70 * k, x + 12 * k, y - 50 * k, isJaws);
     const glowRed = (colorShare(img, x - 30 * k, y - 70 * k, x - 18 * k, y - 50 * k, isJaws) + colorShare(img, x + 18 * k, y - 70 * k, x + 30 * k, y - 50 * k, isJaws)) / 2;
-    cell.jaws = glowRed < 0.1 ? jawsRed > 0.14 : jawsRed > 0.58 && jawsRed - glowRed > 0.3;
+    cell.jaws = glowRed < 0.1 ? jawsRed > 0.14 : null;
     // A washed-out, very bright portrait (an inmate shown through a door?).
     cell.ghost = face.brightness > 175 && face.score < 0.55;
     if (face.score > 0.42 || cell.ghost || frame.colored > 0.12) {

@@ -2398,6 +2398,11 @@
         checks.add(n);
       }
     });
+    // Most cells read as open and empty, which a board rarely is: it was
+    // likely placed wrong (a screen shape the reader handled badly, report
+    // 144), so the reading is checked before it's trusted.
+    const emptyRead = r.cells.filter((c) => c.n !== T.OFFICE && c.kind !== 'locked' && c.kind !== 'inmate').length;
+    if (emptyRead >= 8) notes.push(`${emptyRead} cells read as open and empty, which is unusual: the board may be misread. Check it against your game.`);
     if (r.warden) {
       m.warden = r.warden.cell;
       if (r.warden.conf < 0.6) checks.add(r.warden.cell);
@@ -2506,7 +2511,7 @@
         const trial = JSON.parse(JSON.stringify(m));
         trial.cells[n].beast = beast;
         const s2 = buildState(Object.assign({}, trial, { step: 'manage' })).st;
-        const fit = r.cells.filter((d, k) => d.kind === 'inmate' && hasTarget(s2, k) === !!d.jaws).length;
+        const fit = r.cells.filter((d, k) => d.kind === 'inmate' && d.jaws !== null && hasTarget(s2, k) === !!d.jaws).length;
         if (!best || fit > best.fit) best = { beast, fit };
       }
       m.cells[n].beast = best.beast;
@@ -2515,7 +2520,8 @@
     let odd = 0;
     r.cells.forEach((c, n) => {
       if (c.kind !== 'inmate' || m.cells[n].kind !== 'inmate') return;
-      if (hasTarget(final, n) !== !!c.jaws) {
+      // Jaws over a Supreme's red glow aren't known (null): no check.
+      if (c.jaws !== null && hasTarget(final, n) !== !!c.jaws) {
         checks.add(n);
         odd += 1;
       }
