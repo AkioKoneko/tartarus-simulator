@@ -709,9 +709,20 @@
   // How far the live check has got, 0 to 1.
   const progress = () => (solver.result && solver.target ? Math.min(1, solver.result.rounds / solver.target) : 0);
 
+  // On a meal pick ("Select an Inmate to Consume") the choices are a meal or
+  // Cancel. When the best move there is not to consume, the advice says
+  // Cancel, which ends a chain or leaves the day's first consume (report
+  // 323: "recommended to End day instead of cancel consume").
+  function recommendation() {
+    const rec = bestMove();
+    const rd = reader.reading;
+    if (!rec || !rec.action || rec.action.type !== 'end' || !rd || !rd.chain || model.step !== 'manage') return rec;
+    return Object.assign({}, rec, { label: 'Cancel the consume, then end the day', why: `Your game shows a meal pick, where a meal or Cancel are the choices. ${rec.why || ''}`.trim() });
+  }
+
   // The strategy's instant pick, unless the live check finds a clearly better
   // move (by more than its paired margin), so the advice doesn't flicker.
-  function recommendation() {
+  function bestMove() {
     if (!solver.st) return null;
     const pick = solver.instant;
     const r = solver.result;
@@ -2408,7 +2419,14 @@
     const unchanged = walked || (was && was.kind === 'inmate' && eater && eater.kind === 'inmate' && was.beast === eater.beast && was.tier === eater.tier);
     m.step = eaten === 0 && unchanged ? 'manage' : 'chain';
     m.devourUsed = m.step === 'chain';
-    if (m.step === 'manage') m.swapUsed = false;
+    // The meal pick shows the meals and Cancel, never Replace. A chain taken
+    // for the day's first consume (report 323: the board before didn't hold
+    // the meal already eaten) has no Replace after Cancel either, so the
+    // advice weighs the meals against not consuming.
+    if (m.step === 'manage') {
+      m.swapUsed = false;
+      m.noSwap = true;
+    }
     m.dest = [];
     m.chainArmed = false;
     const tools = (m.tools || []).map((id) => ({ id, sim: id, name: T.toolName(id), conf: 1 }));
