@@ -293,8 +293,8 @@
   let lastGift = 0; // a Warden's Treasure gift confirmed
   // Warden's Treasure picks, for the analyzer to count what's waiting (3 a
   // Treasure with Opulence): each Rainbow reaching the vault, and each gift
-  // confirmed. A Rainbow plays its sound and lights a vault cell, a moment
-  // apart; either counts it, once. A double-click on Confirm counts once: a
+  // confirmed. A Rainbow logs two sounds and lights one vault cell; the
+  // checkpointed burst counts that as one. A double-click on Confirm counts once: a
   // pick is its popup opening, then Confirm.
   const giftState = window.TartarusFollowState.create();
   const GIFT_KEY='tartarus-sim:gifts:v1';
@@ -320,7 +320,7 @@
   function tell() {
     if (!channel) return;
     const st = C.state;
-    channel.postMessage({ type: 'status', from: me, log: st.log, file: st.file, window: st.window, last: lastPicture, triggers: triggerCount, detail: st.detail, hits: st.hits });
+    channel.postMessage({ type: 'status', from: me, log: st.log, file: st.file, window: st.window, last: lastPicture, triggers: triggerCount, detail: st.detail, hits: st.hits, lang: st.lang });
   }
   const NO_EVENTS = 'No game events in the log yet. In the game, press Esc and click Enable Log (under Account Related), then log out and back in.';
   const seen = []; // newest first: { at, line, kind }

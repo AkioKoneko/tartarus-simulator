@@ -1,9 +1,9 @@
-/* Pure log state. Every sound and vault cue can match exactly one opposite cue. */
+/* Pure log state. A Rainbow burst contains two sounds per lit vault slot. */
 (function (root) {
   'use strict';
   function create() {
     let state;
-    const reset = () => { state = { rainbows: 0, taken: 0, giftOpen: false, lastGift: 0, epoch: (state ? state.epoch : 0) + 1, day: null, sounds: [], slots: [], lit: new Map(), seen: new Set(), sequence: 0 }; };
+    const reset = () => { state = { rainbows: 0, taken: 0, giftOpen: false, lastGift: 0, epoch: (state ? state.epoch : 0) + 1, day: null, burst: null, lit: new Map(), seen: new Set(), sequence: 0 }; };
     reset();
     function snapshot() {
       return { rainbows: state.rainbows, taken: state.taken, epoch: state.epoch, sequence: state.sequence, giftOpen: state.giftOpen, lastGift: state.lastGift, day:state.day };
@@ -13,11 +13,13 @@
       state.rainbows=v.rainbows;state.taken=v.taken;state.epoch=v.epoch;
       state.sequence=Number.isInteger(v.sequence)?v.sequence:0;state.giftOpen=!!v.giftOpen;
       state.lastGift=Number.isFinite(v.lastGift)?v.lastGift:0;state.day=Number.isInteger(v.day)?v.day:null;
-      state.sounds=(v.sounds||[]).filter(Number.isFinite).slice(-16);state.slots=(v.slots||[]).filter(Number.isFinite).slice(-16);
+      const b=v.burst;
+      state.burst=b && Number.isFinite(b.last) && Number.isInteger(b.base) && b.base>=0 && b.base<=v.rainbows && Number.isInteger(b.sounds) && b.sounds>=0 && Array.isArray(b.cells)
+        ? {last:b.last,base:b.base,sounds:b.sounds,cells:new Set(b.cells.filter(x=>typeof x==='string').slice(-32))}:null;
       state.lit=new Map((v.lit||[]).filter(x=>Array.isArray(x)&&typeof x[0]==='string'&&Number.isFinite(x[1])).slice(-32));
       state.seen=new Set();return true;
     }
-    const checkpoint=()=>Object.assign(snapshot(),{sounds:state.sounds.slice(),slots:state.slots.slice(),lit:[...state.lit]});
+    const checkpoint=()=>Object.assign(snapshot(),{burst:state.burst?{last:state.burst.last,base:state.burst.base,sounds:state.burst.sounds,cells:[...state.burst.cells]}:null,lit:[...state.lit]});
     function accept(line, at) {
       const day = /\[S16LastDay\] check cur=(\d+) max=([1-9]\d*)/.exec(line);
       if (day) {
@@ -40,16 +42,12 @@
       const vault = /Anim_Archive_LightUp, Id = (\S+)/.exec(line);
       const sound = /UI_S16_Premium_Quality_Fly/.test(line);
       if ((vault || sound) && Number.isFinite(at)) {
-        state.sounds = state.sounds.filter((t) => Math.abs(at - t) <= 1500);
-        state.slots = state.slots.filter((t) => Math.abs(at - t) <= 1500);
         if (vault && state.lit.has(vault[1]) && Math.abs(at - state.lit.get(vault[1])) < 2000) return snapshot();
         if (vault) state.lit.set(vault[1], at);
-        const opposite = vault ? state.sounds : state.slots;
-        if (opposite.length) opposite.shift();
-        else {
-          state.rainbows += 1;
-          (vault ? state.slots : state.sounds).push(at);
-        }
+        if(!state.burst || Math.abs(at-state.burst.last)>3000)state.burst={last:at,base:state.rainbows,sounds:0,cells:new Set()};
+        const b=state.burst;b.last=at;
+        if(vault)b.cells.add(vault[1]);else b.sounds+=1;
+        state.rainbows=b.base+Math.max(b.cells.size,Math.ceil(b.sounds/2));
       }
       return snapshot();
     }

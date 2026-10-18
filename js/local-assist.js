@@ -5,6 +5,23 @@
   const pending = (st) => !!(st.pending && st.pending.length);
   const knownTools = (st, T) => Array.isArray(st.tools) && T && Array.isArray(T.TOOL_IDS) && st.tools.every((id) => T.TOOL_IDS.includes(id));
   const copy = (st) => JSON.parse(JSON.stringify(st));
+  // Missing/unknown odds are not evidence of determinism. The current engine
+  // can add a visible event after any walk, without an instrument proc.
+  const randomEvent = (st, key) => !st.params || !Number.isFinite(st.params[key]) || st.params[key] !== 0;
+  function noWalkEventSlot(st, T, steps) {
+    // Only the pre-walk shortcut may use current occupancy. After a bite the
+    // consumed cell seals, and a sampled spawn may already occupy that slot.
+    if (!Array.isArray(st.cells) || st.cells.length !== T.CELL_COUNT) return false;
+    for (let n=0;n<T.CELL_COUNT;n++) {
+      const c=st.cells[n];
+      if (!c || c.n!==n || typeof c.sealed!=='boolean') return false;
+      if (n!==T.OFFICE && c.sealed && !c.event && !c.nest) return false;
+    }
+    // A walk promotion can vault an inmate and create a newly sealed slot
+    // before spawnEvent. Keep that branch behind the conservative gate.
+    if (st.tools.includes('shackles') && steps>=4 && st.cells.some(c=>!c.sealed && c.inmate)) return false;
+    return true;
+  }
 
   function travelPreview(st, action, T, S) {
     const stop = (reason) => ({reason});
@@ -17,9 +34,11 @@
     if (office && st.startEvent === 'tyranny') return stop('Tyranny changes the board before the room choice.');
     if (st.chain) return stop('Chain reaction opens doors on the way.');
     const steps=T.stepsBetween(st.position,action.cell);
+    if (randomEvent(st,'eventWalkChance') && !noWalkEventSlot(st,T,steps)) return stop('A random Prison Incident may appear after the walk. Read the arrival board before choosing.');
     if (st.tools.includes('shortchain') && steps<=3 && st.cells.some(c=>c.sealed)) return stop('Short-Chained Shackles may open an unknown door on the way.');
     const walk=st.objective && st.objective.id==='walk' && !st.milestone;
     const threshold=T.OBJECTIVES && T.OBJECTIVES.walk && T.OBJECTIVES.walk.need;
+    if (walk && !Number.isFinite(threshold)) return stop('The walking objective is unknown; read the arrival board.');
     if (walk && st.params && st.params.rewards && T.TOOL_IDS.some(id=>!st.tools.includes(id)) &&
         (!Number.isFinite(st.objective.progress) || st.objective.progress+steps>=threshold)) return stop('Prison Walk may require an instrument choice before the room choice.');
     if (!S || !S.clone || !S.apply || !S.instant) return stop('Read the room before choosing.');
@@ -36,8 +55,7 @@
       const result=S.apply(preview,action);
       if(!result || !result.ok || preview.phase!==(office?'office':'manage')) return stop('Read the room before choosing.');
       if(pending(preview)) return stop('A reward may require a choice on the way; finish it before choosing in the room.');
-      // A Rainbow can randomly repopulate its vacated door even with rewards
-      // disabled. One promote.cell no longer describes the whole outcome.
+      // Rewards or changed occupancy are not described by a promote.cell key.
       if((result.events||[]).some(e=>e.type==='rainbow' || e.type==='open')) return stop('The walk can change doors or create a Rainbow; read the resulting board.');
       const rises=(result.events||[]).filter(e=>e.type==='promote');
       const outcome=rises.length===0?'none':rises.length===1?String(rises[0].cell):'unknown';
@@ -59,6 +77,10 @@
     if (!st || !rec || typeof rec.label !== 'string' || !rec.label.trim()) return plan;
     plan.steps.push({ label: rec.label, certainty: 'current' });
     const action = rec.action;
+    if (st.mode && st.mode !== 'drill') {
+      plan.note = 'This run mode is not supported by the current engine. Read the board before planning another action.';
+      return plan;
+    }
     if (!action || pending(st)) {
       plan.note = 'Resolve the current choice, then read the board again.';
       return plan;
@@ -110,12 +132,25 @@
         const applied = S.apply(preview, nextAction);
         if (!applied || !applied.ok || pending(preview)) { plan.note = wait; break; }
         if (!preview.chaining) {
+          if (randomEvent(preview,'eventActionChance')) {
+            // acted() only spawns after the chain finishes; no event is
+            // inserted between its bites. The spawned event is on a locked
+            // door, so an otherwise sole legal End remains the same action.
+            // Do not use one sampled event board to select any other action.
+            const options=typeof S.candidates==='function' ? S.candidates(preview) : [];
+            if(options.length===1 && options[0].action && options[0].action.type==='end') {
+              plan.steps.push({label:options[0].label,action:options[0].action,certainty:'confirmed'});
+            }
+            plan.note='A random Prison Incident may appear when the consume chain ends. Recheck before any other action; End the day does not predict the next morning.';
+            break;
+          }
           const final=S.instant(preview);
           if(final && final.action && final.action.type==='end') plan.steps.push({label:final.label,action:final.action,certainty:'confirmed'});
           break;
         }
         const next = S.instant(preview);
         if (!next || !next.action || !['chain', 'stopchain'].includes(next.action.type) || typeof next.label !== 'string') break;
+        if (next.action.type === 'stopchain' && randomEvent(preview,'eventActionChance')) plan.note='Cancel can finish the chain and spawn a random Prison Incident. Read the board before choosing another action.';
         if (next.action.type === 'chain') {
           const target = preview.cells && preview.cells[next.action.to];
           if (!target || target.sealed || !target.inmate) { plan.note = wait; break; }

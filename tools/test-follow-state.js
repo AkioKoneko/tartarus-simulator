@@ -27,12 +27,26 @@ for (const events of [
 }
 const duplicate = create(); duplicate.accept(sound, 0); duplicate.accept(sound, 0);
 assert.equal(duplicate.snapshot().rainbows, 1);
-duplicate.accept(slot('later'), 3000);
+duplicate.accept(slot('later'), 4001);
 assert.equal(duplicate.snapshot().rainbows, 2, 'Old cues cannot pair outside the window');
+for(const events of [
+  [[sound,1000],[sound,1100],[slot('one'),1200]],
+  [[slot('one'),1000],[sound,1100],[sound,1200]],
+  [[sound,1000],[slot('one'),1100],[sound,1200]],
+]) {
+  const burst=create();for(const [line,at]of events)burst.accept(line,at);
+  assert.equal(burst.snapshot().rainbows,1,'Two sounds and one vault cue are one Rainbow, in either order');
+  burst.accept(sound,1300);burst.accept(sound,1400);burst.accept(slot('two'),1500);
+  assert.equal(burst.snapshot().rainbows,2,'Four sounds and two different vault slots are two Rainbows');
+}
+const audioOnly=create();for(const at of [1000,1100,1200,1300])audioOnly.accept(sound,at);
+assert.equal(audioOnly.snapshot().rainbows,2,'Missing vault events use half the sound count');
 const original = create(); original.accept(sound, 5000);
 const resumed = create(); assert.equal(resumed.restore(original.checkpoint()), true);
 resumed.accept(slot('resumed'), 5100);
 assert.equal(resumed.snapshot().rainbows, 1);
+resumed.accept(sound,5200);
+assert.equal(resumed.snapshot().rainbows,1,'Restore keeps the burst so its second sound cannot create another Rainbow');
 const saved = create();
 assert.equal(saved.restore({ rainbows: 3, taken: 6, epoch: 2, day: 14, giftOpen: true, lastGift: 1000 }), true);
 saved.accept(confirm, 2000); saved.accept(confirm, 2001);
