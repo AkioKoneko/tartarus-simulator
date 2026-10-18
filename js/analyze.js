@@ -2382,11 +2382,15 @@
       notes.push('The eater in the warden’s cell wasn’t read: set it as it is now.');
     }
     const tier = m.cells[warden].kind === 'inmate' ? m.cells[warden].tier : 0;
-    // Cells the chain has eaten show a padlock again.
+    // Cells the chain has eaten show a padlock again. The meal pick darkens
+    // padlocks enough to read as an empty cell (reports 314 and 322), which
+    // the live board never has, so a cell that held an inmate and now reads
+    // empty was eaten too. Missing it took the chain for the day's first
+    // consume, and the advice said Replace.
     let eaten = 0;
     if (after || walked) {
       r.cells.forEach((c, n) => {
-        if (n === T.OFFICE || n === warden || c.kind !== 'locked' || m.cells[n].kind !== 'inmate') return;
+        if (n === T.OFFICE || n === warden || (c.kind !== 'locked' && c.kind !== 'empty') || m.cells[n].kind !== 'inmate') return;
         m.cells[n] = { kind: 'sealed', event: null };
         eaten += 1;
       });
