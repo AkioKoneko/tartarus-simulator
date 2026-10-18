@@ -33,18 +33,20 @@
     rat: { name: 'Rat' },
   };
 
-  // Who eats whom: each beast has one meal, in a loop. From Legendary up
-  // (params.doubleEatTier), Mammoths also eat Wolves and Lions also eat
-  // Rats, the Chinese sim's second meals: seen live three times on
-  // 2026-10-16, each with a Legendary eater offered both kinds, while lower
-  // eaters have shown only the one meal. Without a tier (executions), the
-  // one meal.
+  // Who eats whom: each beast has one meal, in a loop, and Mammoths also eat
+  // Wolves and Lions also eat Rats, at the eater's rarity. These second
+  // meals were first seen live on Legendary eaters (2026-10-16), and kept
+  // to Legendary and up; players' games then offered them at every rarity,
+  // as first meals and mid-chain (reports 206, 208, 306, 322, 323, and the
+  // jaws markers on 120 of 123 such boards), so since 2026-10-17 they're
+  // at every rarity (the user: "fix it"). params.doubleEatTier still sets
+  // where they start, for the Lab. Without a tier (executions), the one
+  // meal.
   const FOOD_CHAIN = { mammoth: ['lion'], lion: ['wolf'], wolf: ['rat'], rat: ['mammoth'] };
   const SECOND_MEAL = { mammoth: ['wolf'], lion: ['rat'] };
-  // Cage Fight, the run's objective: an inmate can consume the beasts it
-  // counters (both meals, at any rarity: the user saw a Rare Mammoth eat
-  // Wolves) at its own rarity or lower, and consuming never re-rolls its
-  // beast.
+  // Cage Fight, a start-of-run card: an inmate can consume the beasts it
+  // counters (both meals) at its own rarity or lower, and consuming never
+  // re-rolls its beast.
   const cageFight = (state) => !!state && state.startEvent === 'cagefight';
   const eatsOf = (state, beast, tier) => {
     const first = FOOD_CHAIN[beast] || [];
@@ -75,7 +77,9 @@
     tierWeights: [40, 38, 12, 8, 2],
     swapWeights: [52, 32, 9, 6, 1.5],
     beastWeights: [25, 25, 25, 25],
-    doubleEatTier: 3,
+    // Second meals (Mammoths eat Wolves, Lions eat Rats) from this rarity
+    // up: every rarity, as players' games show (it was 3, Legendary).
+    doubleEatTier: 0,
     // Special events turn up on random locked doors, seen at once (players'
     // boards, 2026-10-17): one at the start of 72% of runs, then a chance
     // each morning, after the patrol's walk and after each other move.

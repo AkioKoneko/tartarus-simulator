@@ -154,14 +154,15 @@
     // The Elephant-Foot Maul: a Mammoth eats what it counters at a higher
     // rarity too, and rises to 2 tiers above its meal.
     const maul = has(st, 'maul');
-    // From Legendary up (params.doubleEatTier), Mammoths and Lions also eat
-    // their second meal (an engine cached from before has none).
+    // From params.doubleEatTier up (every rarity since 2026-10-17), Mammoths
+    // and Lions also eat their second meal (an engine cached from before has
+    // none).
     const second = T.SECOND_MEAL || {};
     const withSecond = (diet) => diet.map((list, b) => [...new Set(list.concat((second[BEASTS[b]] || []).map(beastIndex)))]);
     const eatsHigh = withSecond(eats);
     const countersHigh = withSecond(counters);
     // Under Cage Fight, both meals at every rarity.
-    const doubleFrom = T.cageFight && T.cageFight(st) ? 0 : Number.isFinite(st.params.doubleEatTier) ? st.params.doubleEatTier : T.SECOND_MEAL ? 3 : RAINBOW;
+    const doubleFrom = T.cageFight && T.cageFight(st) ? 0 : Number.isFinite(st.params.doubleEatTier) ? st.params.doubleEatTier : T.SECOND_MEAL ? T.DEFAULT_PARAMS.doubleEatTier : RAINBOW;
     const v = [0, 1, 2, 3, 4, 5].map((t) => P.tierBase ** t);
     // The rarity odds behind a door: the Sorting Hook keeps out Normals.
     const doorWeights = st.params.tierWeights.slice();

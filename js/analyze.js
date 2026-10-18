@@ -179,19 +179,6 @@
     return out;
   }
 
-  // What the inmate in cell n could eat only as a second meal (a Mammoth
-  // eating a Wolf, a Lion a Rat) at its own rarity, which the simulator has
-  // from Legendary up (doubleEatTier). Players' games have offered such
-  // meals lower (reports 206 and 208), so a board with nothing else to eat
-  // says so instead of calling itself misread.
-  function secondMealCells(st, n) {
-    const eater = st.cells[n] && st.cells[n].inmate;
-    if (!eater) return [];
-    const loose = Object.assign({}, st, { params: Object.assign({}, st.params, { doubleEatTier: 0 }) });
-    return st.cells.filter((c) => c.n !== n && !c.sealed && c.inmate && !T.canEat(st, eater, c.inmate) && T.canEat(loose, eater, c.inmate)).map((c) => c.n);
-  }
-  const mealList = (st, cells) => cells.map((n) => `the ${T.describe(st.cells[n].inmate)} in ${L(n)}`).join(', ');
-
   // The engine state for a model, and anything that stops it from being
   // analyzed. Events the player can't name get a kind the solver re-rolls.
   function buildState(m) {
@@ -341,10 +328,7 @@
         }
         st.chaining = { eater: here.inmate.id, at: 0, bites: [] };
         if (!T.chainOptions(st).length) {
-          const second = secondMealCells(st, st.position);
-          problems.push(second.length
-            ? `Your game asks for a meal only when the chaining inmate has one to eat. On this board the ${T.describe(here.inmate)} has only second meals (${mealList(st, second)}), which the simulator allows only from Legendary up, or in a run with Cage Fight: if this run has Cage Fight, set it under Start of run.`
-            : "Your game asks for a meal only when the chaining inmate has one to eat. Check the board: it can't find a meal for it.");
+          problems.push("Your game asks for a meal only when the chaining inmate has one to eat. Check the board: it can't find a meal for it.");
         }
         break;
       }
@@ -2674,35 +2658,23 @@
       m.cells[n].beast = best.beast;
     });
     const { st: final } = buildState(Object.assign({}, m, { step: 'manage' }));
-    // Jaws that only a second meal explains (a Mammoth over a Wolf, a Lion
-    // over a Rat, below Legendary) show what the game allows and the
-    // simulator doesn't (reports 206 and 208), not a misreading. On a cell
-    // read with confidence they aren't flagged: report 306 found every such
-    // Mammoth marked Check, as if the reader were unsure of it.
-    const sure = (n) => r.cells[n].conf >= 0.6 && !r.cells[n].ghost;
-    const secondMealJaws = (n) => sure(n) && secondMealCells(final, n).length > 0;
     const oddCells = [];
     r.cells.forEach((c, n) => {
       if (c.kind !== 'inmate' || m.cells[n].kind !== 'inmate') return;
       // Jaws over a Supreme's red glow aren't known (null): no check.
       if (c.jaws !== null && hasTarget(final, n) !== !!c.jaws) {
-        if (c.jaws && secondMealJaws(n)) return;
         checks.add(n);
         oddCells.push(n);
       }
     });
     // The game shows Consume only when the warden's inmate has a meal. With
-    // none on the board as read, the advice can't weigh Consume (report
-    // 208): say why, and where to look. A second meal below Legendary is
-    // the likely one (the game offered one in report 206).
+    // none on the board as read, the advice can't weigh Consume: say why,
+    // and where to look.
     const w = m.warden;
     const noMeal = !!(r.decision && r.decision.consume) && w != null && m.cells[w] && m.cells[w].kind === 'inmate' && !hasTarget(final, w);
     if (noMeal) {
-      const second = secondMealCells(final, w);
-      if (!second.length || !sure(w)) checks.add(w);
-      notes.push(second.length
-        ? `Your game offers Consume, but the ${T.describe(m.cells[w])} in ${L(w)} has only second meals here (${mealList(final, second)}), which the simulator allows only from Legendary up, or in a run with Cage Fight, so the advice can’t weigh Consume. If this run has Cage Fight, set it under Start of run.`
-        : `Your game offers Consume, but the board as read has no meal for the ${T.describe(m.cells[w])} in ${L(w)}, so the advice can’t weigh Consume: check it and the inmates it could eat.`);
+      checks.add(w);
+      notes.push(`Your game offers Consume, but the board as read has no meal for the ${T.describe(m.cells[w])} in ${L(w)}, so the advice can’t weigh Consume: check it and the inmates it could eat.`);
     }
     const odd = oddCells.filter((n) => !(noMeal && n === w)).length;
     if (odd) notes.push(odd === 1 ? '1 inmate’s jaws marker doesn’t fit what was read: check it and the inmates around.' : `${odd} inmates’ jaws markers don’t fit what was read: check them and the inmates around.`);
@@ -2712,10 +2684,8 @@
     // that Rat). No reader sets the card, so it was likely set by hand.
     if (m.startEvent === 'cagefight' && oddCells.length) {
       const plain = buildState(Object.assign({}, m, { step: 'manage', startEvent: 'none' })).st;
-      // Jaws a second meal explains fit either way: the game allows those.
       const known = r.cells.map((c, n) => n).filter((n) => r.cells[n].kind === 'inmate' && m.cells[n].kind === 'inmate' && r.cells[n].jaws !== null);
-      const fitsIn = (state, n) => (r.cells[n].jaws ? hasTarget(state, n) || secondMealCells(state, n).length > 0 : !hasTarget(state, n));
-      const fits = (state) => known.filter((n) => fitsIn(state, n)).length;
+      const fits = (state) => known.filter((n) => hasTarget(state, n) === !!r.cells[n].jaws).length;
       const against = known.filter((n) => !r.cells[n].jaws && hasTarget(final, n) && !hasTarget(plain, n));
       if (against.length && fits(plain) > fits(final)) {
         const n = against[0];

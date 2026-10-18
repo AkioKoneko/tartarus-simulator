@@ -15,7 +15,7 @@
   // The published single-file build sets this; its viewer cannot download files.
   const EMBEDDED = !!window.TARTARUS_EMBEDDED;
 
-  const KEYS = { save: 'tartarus-sim:save:v2', prefs: 'tartarus-sim:prefs:v1', params: 'tartarus-sim:params:v6' };
+  const KEYS = { save: 'tartarus-sim:save:v2', prefs: 'tartarus-sim:prefs:v1', params: 'tartarus-sim:params:v7' };
   const HISTORY_LIMIT = 40;
   const DEFAULT_PREFS = { advisor: false, quick: false, motion: true, sound: true, volume: 60, immersive: false };
 
@@ -73,15 +73,23 @@
   function loadLabParams() {
     const saved = store.get(KEYS.params);
     if (saved) return T.normalizeParams(saved);
+    // Second meals at every rarity, as players' games show (2026-10-17):
+    // the saved Legendary-and-up gives way; the rest carries over.
+    const v6 = store.get('tartarus-sim:params:v6');
+    if (v6 && typeof v6 === 'object') {
+      delete v6.doubleEatTier;
+      return T.normalizeParams(v6);
+    }
     // The live door odds replace the old defaults (2026-10-16); the rest of
     // the Lab's settings carry over.
     const v5 = store.get('tartarus-sim:params:v5');
     if (v5 && typeof v5 === 'object') {
       delete v5.tierWeights;
+      delete v5.doubleEatTier;
       return T.normalizeParams(v5);
     }
     let old = store.get('tartarus-sim:params:v4') || store.get('tartarus-sim:params:v3');
-    const drop = ['destinations', 'fewerDoorsChance', 'eventTwoDoors', 'patrolRange', 'startTools', 'tierWeights'];
+    const drop = ['destinations', 'fewerDoorsChance', 'eventTwoDoors', 'patrolRange', 'startTools', 'tierWeights', 'doubleEatTier'];
     if (!old) old = store.get('tartarus-sim:params:v2');
     if (old && typeof old === 'object') for (const key of drop) delete old[key];
     return T.normalizeParams(old);
@@ -804,7 +812,7 @@
       return;
     }
     const inmate = cell.inmate;
-    // From Legendary up, Mammoths and Lions also eat their second meal.
+    // Mammoths and Lions also eat their second meal (from the Lab's rarity up).
     const eats = T.eatsOf(st, inmate.beast, inmate.tier).map(T.beastName);
     if (inmate.beast === 'rat' && st.tools.includes('skewer')) eats.push('Rat');
     const parts = [`Eats ${eats.join(' and ')} of the same rarity.`];

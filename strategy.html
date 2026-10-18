@@ -445,7 +445,7 @@
       <li><strong>Accept the events that only give.</strong><span>Behind Closed Doors makes the inmate behind the door a Supreme of the scarcest beast on the block, one step from Rainbow; skip it only when that inmate already is a Supreme. Ravenous Appetite, High-Risk Convict, Crow Whispers and the "Treasure" Hunt never cost anything.</span></li>
       <li><strong>Stop at the office when it pays.</strong><span>The warden's office can be a destination. Bestow raises 1 random inmate a tier; Instigate puts a special event on a random cell, behind a locked door or beside an inmate (2 when the board has none). Pick by what the block needs, as the Trainer does: <span data-g="full"></span> per run, against <span data-g="alwaysBestow"></span> always taking Bestow and <span data-g="alwaysInstigate"></span> always taking Instigate.</span></li>
       <li><strong>Keep opening doors, and walk far.</strong><span>New inmates are the raw material for every chain, and a locked door usually beats walking to an inmate with nothing to eat. Walking farther pays: <span data-g="full"></span> per run against <span data-g="shortWalks"></span> for short walks, with six cells in reach, Prison Walk counting tiles and the office on the way around.</span></li>
-      <li><strong>Know what keeps a chain going.</strong><span>Below Legendary each beast has one meal, so each beast waiting at the next tier covers one of the four beasts the eater can re-roll into. A tier holding a Mammoth, a Lion, a Wolf and a Rat guarantees the next bite. From Legendary up, Mammoths also eat Wolves and Lions also eat Rats, which keeps those chains going more often. The Trainer's chain odds do this math for you when you pick the first meal.</span></li>
+      <li><strong>Know what keeps a chain going.</strong><span>Mammoths and Lions eat two kinds, Wolves and Rats one, so a Wolf or a Rat waiting at the next tier feeds two of the four beasts the eater can re-roll into, and a Lion or a Mammoth one. A tier holding a Mammoth, a Rat and a Lion or a Wolf guarantees the next bite. The Trainer's chain odds do this math for you when you pick the first meal.</span></li>
       <li><strong>Take <span data-g="tool1"></span> or <span data-g="tool2"></span> when offered.</strong><span><span data-g="toolNote"></span></span></li>
       <li><strong>At the Warden's Treasure, take what fits the board.</strong><span><span data-g="giftNote"></span></span></li>
     </ol>
@@ -465,7 +465,7 @@
 
   <section class="guide-section">
     <h2>Chains: how many beasts you need</h2>
-    <p>After every bite the eater rises a tier and re-rolls into a random beast. The chain continues if that new beast has something to eat at its new tier. Each beast eats exactly one other: a Mammoth needs a Lion, a Lion needs a Wolf, a Wolf needs a Rat, and a Rat needs a Mammoth. So each beast waiting at a tier covers one of the four possible re-rolls.</p>
+    <p>After every bite the eater rises a tier and re-rolls into a random beast. The chain continues if that new beast has something to eat at its new tier. A Mammoth eats Lions and Wolves, a Lion Wolves and Rats, a Wolf Rats, and a Rat Mammoths. So a Wolf or a Rat waiting at a tier feeds two of the four possible re-rolls, a Lion or a Mammoth one, and a Mammoth, a Rat and a Lion or a Wolf together feed all four.</p>
     <h3>Chance the chain finds its next meal at a tier</h3>
     <div class="sets" id="sets"></div>
 
@@ -675,12 +675,22 @@
     };
     for (const el of document.querySelectorAll('[data-g]')) el.textContent = V[el.dataset.g] !== undefined ? V[el.dataset.g] : '?';
 
-    // Beast sets and the share of re-rolls that find food. Each beast has one
-    // meal, so only the number of different beasts matters: one card per count.
+    // Beast sets and the share of re-rolls that find food: the eater
+    // re-rolls into one of the four beasts, each with its meals.
     const names = { Mammoth: 'mammoth', Lion: 'lion', Wolf: 'wolf', Rat: 'rat' };
-    const card = (beasts, odds, label) => `<div class="set${odds === 1 ? ' is-full' : ''}"><div class="set-icons">${beasts.map((b) => `<span class="tok t2" title="${b}">${PORTRAITS[names[b]]}</span>`).join('')}</div><div class="set-odds">${Math.round(100 * odds)}%</div><div class="set-name">${esc(label)}</div></div>`;
-    const counted = ['All four beasts', 'Any three beasts', 'Any two beasts', 'Any one beast'];
-    document.getElementById('sets').innerHTML = [4, 3, 2, 1].map((k, i) => card(['Mammoth', 'Lion', 'Wolf', 'Rat'].slice(0, k), k / 4, counted[i])).join('');
+    const MEALS = { Mammoth: ['Lion', 'Wolf'], Lion: ['Wolf', 'Rat'], Wolf: ['Rat'], Rat: ['Mammoth'] };
+    const fed = (set) => Object.keys(MEALS).filter((b) => MEALS[b].some((m) => set.includes(m))).length / 4;
+    const card = (beasts, label) => {
+      const odds = fed(beasts);
+      return `<div class="set${odds === 1 ? ' is-full' : ''}"><div class="set-icons">${beasts.map((b) => `<span class="tok t2" title="${b}">${PORTRAITS[names[b]]}</span>`).join('')}</div><div class="set-odds">${Math.round(100 * odds)}%</div><div class="set-name">${esc(label)}</div></div>`;
+    };
+    const sets = [
+      [['Mammoth', 'Wolf', 'Rat'], 'A Mammoth, a Rat and a Wolf (or a Lion)'],
+      [['Wolf', 'Rat'], 'A Wolf and a Rat'],
+      [['Wolf'], 'A Wolf or a Rat alone'],
+      [['Lion'], 'A Lion or a Mammoth alone'],
+    ];
+    document.getElementById('sets').innerHTML = sets.map(([beasts, label]) => card(beasts, label)).join('');
 
     // Chain to Rainbow odds by eater tier, from the runs' devours.
     const stairRows = [];
