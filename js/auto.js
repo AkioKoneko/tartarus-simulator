@@ -192,7 +192,7 @@
     if (before) {
       bar.className = 'az-follow is-warn';
       bar.title = '';
-      barText.innerHTML = `Auto Screenshot Mode was updated, and it’s off until you agree again. Open ${link}, read what changed and agree, then share the game window again. Until then, no pictures come here and Take a picture now is off.`;
+      barText.innerHTML = `Auto Screenshot Mode was updated, and it’s off until you agree again. Open <a href="follow.html#agree" target="tartarus-follow">the Auto Screenshot Mode page</a>, read what changed and agree, then share the game window again. Until then, no pictures come here and Take a picture now is off.`;
       now.disabled = true;
       now.title = 'Agree again on the Auto Screenshot Mode page first.';
       return;
