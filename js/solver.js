@@ -885,6 +885,37 @@
     return best ? best.id : options[0];
   }
 
+  // What a Warden's Treasure gift does on this board, in a sentence, so the
+  // advice says why (report 321: the Horn was advised, and the player saw
+  // "nothing consumable", missing the one Lion with a meal).
+  function giftEffect(st, id) {
+    const board = st.cells.filter((c) => !c.sealed && c.inmate);
+    const who = (c) => `the ${T.describe(c.inmate)} in ${T.cellLabel(c.n)}`;
+    const list = (cs) => (cs.length > 1 ? `${cs.slice(0, -1).map(who).join(', ')} and ${who(cs[cs.length - 1])}` : who(cs[0]));
+    if (id === 'horn') {
+      const eaters = board.filter((c) => T.devourOptions(st, c.n).length);
+      if (!eaters.length) return 'No inmate has a meal now, so the Horn would do nothing.';
+      if (eaters.length === 1) {
+        const meals = T.devourOptions(st, eaters[0].n).map((o) => st.cells[o.cell]).filter((c) => c.inmate);
+        return `Every inmate with a meal consumes one: here ${who(eaters[0])}${meals.length ? `, whose meal${meals.length > 1 ? 's are' : ' is'} ${list(meals)}` : ''}.`;
+      }
+      return `Every inmate with a meal consumes one: here ${eaters.length > 3 ? `${eaters.length} inmates` : list(eaters)}.`;
+    }
+    if (id === 'wine') {
+      const low = board.filter((c) => c.inmate.tier < T.SUPREME - 1);
+      return low.length ? `Every inmate below Legendary rises a tier: here ${low.length > 3 ? `${low.length} inmates` : list(low)}.` : 'No inmate is below Legendary, so nobody would rise.';
+    }
+    if (id === 'ring') {
+      const locked = st.cells.filter((c) => c.sealed && c.n !== T.OFFICE).length;
+      return locked ? `Up to 3 random locked cells open (${locked} are locked).` : 'No cell is locked, so nothing would open.';
+    }
+    if (id === 'brand') {
+      const hungry = board.filter((c) => !T.devourOptions(st, c.n).length).length;
+      return hungry ? `Up to 4 inmates with no meal change beast to have one (${hungry} have none now).` : 'Every inmate has a meal already, so nobody would change.';
+    }
+    return '';
+  }
+
   // ---------- Instruments ----------
 
   // What each offered instrument adds to the ones already held, in Rainbows
@@ -1331,7 +1362,9 @@
           // Opulence: more picks wait at this Treasure, and the advice
           // weighs them.
           const picks = st.pending.filter((p) => p.kind === 'gift').length;
-          return picks > 1 ? `Worth the most on this board with the picks to come: ${picks} picks wait at this Treasure, this one included.` : 'Worth the most on this board right now.';
+          const worth = picks > 1 ? `Worth the most on this board with the picks to come: ${picks} picks wait at this Treasure, this one included.` : 'Worth the most on this board right now.';
+          const what = giftEffect(st, action.id);
+          return what ? `${what} ${worth}` : worth;
         }
         const gains = ctx.P.toolSets !== false && toolGains(st, st.pending[0].options);
         if (gains && gains[action.id] !== undefined) {
