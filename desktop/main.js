@@ -61,6 +61,9 @@ if (arg('user-data')) app.setPath('userData', path.resolve(arg('user-data')));
 // an old, narrow picture of its page: every window draws as if in front.
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+// The app never plays sound: no page it loads, now or after a site change,
+// can make any (the user heard sounds in the background while gaming).
+app.commandLine.appendSwitch('mute-audio');
 app.setAppUserModelId('io.github.blahdot3h.tartarus-overlay');
 
 // ---------- Settings ----------
