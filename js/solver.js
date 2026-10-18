@@ -214,6 +214,7 @@
       lift2: board.length ? allLift2 / board.length : 0,
       allLift2,
       shacklesLift: has(st, 'shackles') && board.length ? lift : 0,
+      boardCount: board.length,
       goalLeft: goal,
       incidentsLeft: incidents,
       consumesLeft: consumes,
@@ -548,6 +549,7 @@
     usurp2: 'Usurpation II waits there: 2 random inmates rise a tier',
     usurp3: 'Usurpation III waits there: 2 random inmates rise 2 tiers',
     usurp4: 'Usurpation IV waits there: every inmate rises 2 tiers',
+    portion: 'Extra Portion waits there: up to 3 random inmates rise a tier',
     ratway: 'the Sewer Ratway waits there: a free move to any cell but the office',
     hunt: '"Treasure" Hunt waits there: every locked door holding a Normal or Magic shows its rarity, so the rest hold Rare or better',
   };
@@ -583,6 +585,8 @@
       usurp2: () => 2 * ctx.lift + 2 * ctx.lift2 * P.wInstigate,
       usurp3: () => 2 * ctx.lift2 + ctx.allLift2 * P.wInstigate,
       usurp4: () => ctx.allLift2,
+      // Up to 3 random inmates rise a tier.
+      portion: () => Math.min(T.PORTION_INMATES || 3, ctx.boardCount) * ctx.lift,
       // A second move: to the best door anywhere, worth a fresh door at least.
       ratway: () => P.wOpen * ctx.openValue,
       // Like Crow Whispers, but it tells every locked door apart: the low
@@ -967,7 +971,7 @@
       // Freedom only add.
       // The Sewer Ratway's move can stay put, so it only adds too, and the
       // "Treasure" Hunt's card has only Confirm.
-      if (['appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'usurp3', 'usurp4', 'ratway', 'hunt'].includes(st.event.kind)) return { type: 'event', accept: true };
+      if (['appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'usurp3', 'usurp4', 'ratway', 'hunt', 'portion'].includes(st.event.kind)) return { type: 'event', accept: true };
       const exec = st.cells[st.event.cell].inmate;
       if (!exec) return { type: 'event', accept: false };
       // Behind Closed Doors: a free Supreme, unless it already is one.
@@ -1289,6 +1293,7 @@
         if (st.event.kind === 'appetite') return `The lowest-rarity inmate gets ${T.APPETITE_TRIES} tries at +1 tier, for ${(T.APPETITE_TRIES * T.APPETITE_ODDS).toFixed(1)} tiers on average.`;
         if (st.event.kind === 'convict') return 'Another cell opens on a Legendary inmate, with no patrol needed.';
         if (st.event.kind === 'crow') return `Free information: the rarity behind the next ${T.CROW_CELLS} locked doors.`;
+        if (st.event.kind === 'portion') return `Free tiers: up to ${T.PORTION_INMATES} random inmates rise a tier.`;
         if (st.event.kind === 'freedom') return `Free inmates: ${T.FREEDOM_CELLS} more locked cells open.`;
         if (st.event.kind === 'usurp1') return 'A random inmate rises a tier, and Usurpation II joins the events.';
         if (st.event.kind === 'usurp2') return 'Two random inmates rise a tier, and Usurpation III joins the events.';
@@ -1360,7 +1365,7 @@
     }
     if (before.phase === 'event') {
       if (after.phase === 'event') return null;
-      const x = recent(['skipped', 'armed', 'execution', 'trickster', 'appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'usurp3', 'usurp4', 'ratway', 'hunt']);
+      const x = recent(['skipped', 'armed', 'execution', 'trickster', 'appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'usurp3', 'usurp4', 'ratway', 'hunt', 'portion']);
       return x ? { type: 'event', accept: x.type !== 'skipped' } : null;
     }
     if (before.phase === 'office') {

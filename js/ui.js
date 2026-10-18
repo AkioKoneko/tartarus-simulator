@@ -622,7 +622,7 @@
       ], true);
       return;
     }
-    if (['appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'usurp3', 'usurp4', 'ratway'].includes(kind)) {
+    if (['appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'usurp3', 'usurp4', 'ratway', 'portion'].includes(kind)) {
       let detail;
       if (kind === 'appetite') {
         const low = T.lowestInmates(st);
@@ -630,6 +630,7 @@
         detail = `Accept to give ${who} ${T.APPETITE_TRIES} tries at +1 tier, each with a ${Math.round(100 * T.APPETITE_ODDS)}% chance.`;
       } else if (kind === 'crow') detail = `Accept to see the rarity behind the next ${T.CROW_CELLS} locked cells clockwise from the warden. Their beasts stay hidden.`;
       else if (kind === 'freedom') detail = `Accept to open ${T.FREEDOM_CELLS} random locked cells. They trigger no other effects.`;
+      else if (kind === 'portion') detail = `Accept to raise up to ${T.PORTION_INMATES} random inmates a tier each.`;
       else if (kind === 'usurp1') detail = 'Accept to raise 1 random inmate a tier. Usurpation I then leaves the special events, Usurpation II joins them, and one appears behind a random locked door.';
       else if (kind === 'usurp2') detail = 'Accept to raise 2 random inmates a tier each. Usurpation II then leaves the special events, and Usurpation III joins them.';
       else if (kind === 'usurp3') detail = 'Accept to raise 2 random inmates 2 tiers each. Usurpation III then leaves the special events, and Usurpation IV joins them.';
@@ -949,7 +950,7 @@
       else if (x.type === 'convict') out.push(item('High-Risk Convict', x.cell === null ? '<span class="recap-note">no cell left</span>' : `<span class="recap-note">cell ${L(x.cell)}</span>`));
       else if (x.type === 'crow') out.push(item('Crow Whispers', `<span class="recap-note">${x.cells.length ? `rarity shown at ${x.cells.map(L).join(', ')}` : 'nothing left to show'}</span>`));
       else if (x.type === 'hunt') out.push(item(T.eventName('hunt'), `<span class="recap-note">${[x.cells.length ? `low rarity shown at ${x.cells.map(L).join(', ')}` : '', x.high.length ? `Rare or better at ${x.high.map(L).join(', ')}` : ''].filter(Boolean).join('; ') || 'no locked cell left'}</span>`));
-      else if (x.type === 'usurp1' || x.type === 'usurp2') out.push(item(T.eventName(x.type), x.raised.length ? x.raised.map((r) => tok(r.who, { cell: r.cell })).join('') : '<span class="recap-note">no one</span>'));
+      else if (x.type === 'usurp1' || x.type === 'usurp2' || x.type === 'portion') out.push(item(T.eventName(x.type), x.raised.length ? x.raised.map((r) => tok(r.who, { cell: r.cell })).join('') : '<span class="recap-note">no one</span>'));
       else if (x.type === 'freedom') out.push(item('Taste of Freedom', `<span class="recap-note">${x.cells.length ? `opened ${x.cells.map(L).join(', ')}` : 'no locked cell left'}</span>`));
       else if (x.type === 'instigate') out.push(item('Instigate', `<span class="recap-note">${x.cells.length ? `events at ${x.cells.map(L).join(', ')}` : 'no free door'}</span>`));
       else if (x.type === 'bestow') out.push(item('Bestow +1', x.who ? tok(x.who, { cell: x.cell }) : '<span class="recap-note">no one</span>'));
@@ -1093,6 +1094,7 @@
     convict: 'High-Risk Convict opens a cell on a Legendary for free: accept it.',
     crow: 'Crow Whispers costs nothing: accept it, then aim your patrols at the higher rarities it shows.',
     freedom: 'Taste of Freedom opens 3 doors for free: accept it.',
+    portion: 'Extra Portion raises up to 3 inmates for free: accept it.',
     usurp1: 'Usurpation I raises an inmate for free, and brings Usurpation II: accept it.',
     usurp2: 'Usurpation II raises two inmates for free, and brings Usurpation III: accept it.',
     usurp3: 'Usurpation III raises two inmates 2 tiers each, and brings Usurpation IV: accept it.',

@@ -246,10 +246,13 @@
     // shows its rarity (a "?" portrait), as with Crow Whispers, so the
     // locked doors left dark hold Rare or better.
     hunt: { name: '"Treasure" Hunt' },
+    // A player's report (#313, 2026-10-17): "randomly select up to 3 inmates
+    // and increase their rarity by 1 tier".
+    portion: { name: 'Extra Portion' },
   };
   // The pool new events are drawn from (the game's "Prison Incidents"). It
   // changes during a run: Usurpation I trades itself for Usurpation II.
-  const EVENT_POOL = ['chain', 'execution', 'trickster', 'appetite', 'convict', 'crow', 'freedom', 'usurp1', 'ratway', 'hunt'];
+  const EVENT_POOL = ['chain', 'execution', 'trickster', 'appetite', 'convict', 'crow', 'freedom', 'usurp1', 'ratway', 'hunt', 'portion'];
   // The Usurpation chain (the user's cards, 2026-10-16): how many inmates
   // rise and by how much, and which Usurpation then takes its place in the
   // Prison Incidents ("Add [Usurpation IV] to Prison Incidents and remove
@@ -263,6 +266,8 @@
   };
   // Taste of Freedom opens this many random locked cells.
   const FREEDOM_CELLS = 3;
+  // Extra Portion raises up to this many random inmates a tier.
+  const PORTION_INMATES = 3;
   // Crow Whispers shows the rarity behind this many locked cells.
   const CROW_CELLS = 4;
   // "Treasure" Hunt shows the rarity behind every locked cell below this
@@ -1315,6 +1320,21 @@
       const dark = high.length === 1 ? `cell ${cellLabel(high[0].n)} holds Rare or better` : `${low.length ? 'the other' : 'all'} ${high.length} locked cells hold Rare or better`;
       const text = low.length && high.length ? `${shown}; ${dark}` : low.length ? shown : high.length ? dark : 'no locked cell was left to reveal';
       log(state, 'event', `${eventName(kind)}: ${text}.`, { type: 'hunt', cells: low.map((c) => c.n), high: high.map((c) => c.n) });
+    } else if (kind === 'portion') {
+      // Up to 3 random inmates rise a tier; with fewer on the block, all of
+      // them. It stays among the Prison Incidents.
+      const pool = boardInmates(state).filter((i) => i.tier < RAINBOW);
+      const picks = shuffle(state, pool).slice(0, PORTION_INMATES);
+      const at = state.log.length;
+      const raised = picks.map((who) => ({ who: snap(who), cell: cellOf(state, who.id).n }));
+      for (const who of picks) if (boardCellOf(state, who.id)) promote(state, who, 1, false, events);
+      if (raised.length) {
+        const names = raised.map((r) => `the ${describe(r.who)} in cell ${cellLabel(r.cell)}`);
+        const who = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
+        logAt(state, at, 'event', `${eventName(kind)}: ${who} ${raised.length === 1 ? 'rises' : 'rise'} a tier.`, { type: kind, raised });
+      } else {
+        log(state, 'event', `${eventName(kind)}: nobody was on the block to rise.`, { type: kind, raised: [] });
+      }
     } else if (USURP[kind]) {
       // Random inmates rise (all of them for Usurpation IV), then this
       // Usurpation leaves the Prison Incidents and the next joins them.
@@ -2003,6 +2023,7 @@
       if (state.event.kind === 'convict') return [{ kind: 'event', accept: true, text: 'Accept: a locked cell opens on a Legendary or better inmate.' }];
       if (state.event.kind === 'crow') return [{ kind: 'event', accept: true, text: `Accept: the rarity behind the next ${CROW_CELLS} locked cells is shown.` }];
       if (state.event.kind === 'freedom') return [{ kind: 'event', accept: true, text: `Accept: ${FREEDOM_CELLS} random locked cells open.` }];
+      if (state.event.kind === 'portion') return [{ kind: 'event', accept: true, text: `Accept: up to ${PORTION_INMATES} random inmates rise a tier.` }];
       if (USURP[state.event.kind]) {
         const u = USURP[state.event.kind];
         return [{ kind: 'event', accept: true, text: `Accept: ${u.count === 'all' ? 'every inmate rises' : u.count === 1 ? 'a random inmate rises' : `${u.count} random inmates rise`} ${u.by === 1 ? 'a tier' : `${u.by} tiers`}.` }];
@@ -2139,7 +2160,7 @@
 
   const api = {
     VERSION, CELL_COUNT, OFFICE, SUPREME, RAINBOW, VAULT_SLOTS, TIERS, BEASTS, BEAST_INFO, FOOD_CHAIN, SECOND_MEAL, TOOLS, TOOL_IDS, GIFTS, GIFT_IDS,
-    EVENTS, EVENT_IDS, EVENT_POOL, USURP, APPETITE_TRIES, APPETITE_ODDS, INSTIGATE_EVENTS, INSTIGATE_EVENTS_EMPTY, instigateCells, instigateCount, CROW_CELLS, HUNT_BELOW, FREEDOM_CELLS, OBJECTIVES, OBJECTIVE_IDS, START_EVENTS,
+    EVENTS, EVENT_IDS, EVENT_POOL, USURP, PORTION_INMATES, APPETITE_TRIES, APPETITE_ODDS, INSTIGATE_EVENTS, INSTIGATE_EVENTS_EMPTY, instigateCells, instigateCount, CROW_CELLS, HUNT_BELOW, FREEDOM_CELLS, OBJECTIVES, OBJECTIVE_IDS, START_EVENTS,
     SCENARIOS, DEFAULT_PARAMS, PARAM_FIELDS,
     newGame, randomSeed, normalizeParams, serialize, deserialize,
     patrol: bounded(patrol),

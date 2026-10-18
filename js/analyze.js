@@ -882,6 +882,7 @@
         btn('sealed:convict', 'Locked door with High-Risk Convict', B.MARKS.convict),
         btn('sealed:crow', 'Locked door with Crow Whispers', B.MARKS.crow),
         btn('sealed:freedom', 'Locked door with Taste of Freedom', B.MARKS.freedom),
+        btn('sealed:portion', 'Locked door with Extra Portion', B.MARKS.portion),
         btn('sealed:usurp1', 'Locked door with Usurpation I', B.MARKS.usurp1),
         btn('sealed:usurp2', 'Locked door with Usurpation II', B.MARKS.usurp2),
         btn('sealed:usurp3', 'Locked door with Usurpation III', B.MARKS.usurp3),
@@ -939,6 +940,7 @@
       else if (mc.event === 'crow') badges = badges.replace('>Event<', '>Crow<');
       else if (mc.event === 'freedom') badges = badges.replace('>Event<', '>Freedom<');
       else if (mc.event === 'usurp1') badges = badges.replace('>Event<', '>Usurp. I<');
+      else if (mc.event === 'portion') badges = badges.replace('>Event<', '>Portion<');
       else if (mc.event === 'usurp2') badges = badges.replace('>Event<', '>Usurp. II<');
       else if (mc.event === 'hunt') badges = badges.replace('>Event<', '>Hunt<');
       if (cell.n === selected) p.cls.push('is-selected');
