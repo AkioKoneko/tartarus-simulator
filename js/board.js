@@ -433,6 +433,10 @@
         const where = other ? L(other.n) : '--';
         badges.push(`<span class="badge badge-prey">${hunter ? 'Hunt' : 'Prey'} ${where}·${link.rounds}</span>`);
         label += hunter ? `, hunting cell ${where}` : `, prey of cell ${where}`;
+      } else if (inmate.marked) {
+        // A Prey mark read from a picture, its Lion not known.
+        badges.push('<span class="badge badge-prey">Prey</span>');
+        label += ', wears a Prey mark';
       }
     } else {
       body = '<span class="floor">Empty</span>';
