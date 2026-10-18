@@ -542,7 +542,7 @@
   // day.
   // used.noDevour / used.noSwap: the game shows no Consume / Replace card
   // today (the analyzer reads them), so that one isn't on offer, while the
-  // other still is.
+  // other still is. used.noHunt: no Hunt card either.
   // A Hunt (the Blood-Stained Trap) uses the day's action too.
   const canDevourNow = (state) => state.used.devour < 1 && !state.used.hunt && !state.used.noDevour && (state.used.swap < 1 || !!state.used.devourAfterSwap);
   const canSwapNow = (state) => state.used.devour < 1 && !state.used.hunt && !state.used.noSwap && state.used.swap < state.params.swapsPerDay;
@@ -554,7 +554,7 @@
     if (!has(state, 'trap') || !here || here.sealed || !here.inmate || here.inmate.beast !== 'lion' || linkOf(state, here.inmate.id)) return [];
     return boardCells(state).filter((c) => c.n !== here.n && canEat(state, here.inmate, c.inmate) && !linkOf(state, c.inmate.id)).map((c) => c.n);
   }
-  const canHuntNow = (state) => state.phase === 'manage' && !state.chaining && state.used.devour < 1 && state.used.swap < 1 && !state.used.hunt && huntTargets(state).length > 0;
+  const canHuntNow = (state) => state.phase === 'manage' && !state.chaining && state.used.devour < 1 && state.used.swap < 1 && !state.used.hunt && !state.used.noHunt && huntTargets(state).length > 0;
 
   function startOptions(state) {
     const cell = state.cells[state.position];
@@ -1858,6 +1858,7 @@
     if (blocked) return blocked;
     if (!has(state, 'trap')) return fail('Only the Blood-Stained Trap offers a Hunt.');
     if (state.used.devour > 0 || state.used.swap > 0 || state.used.hunt) return fail('A day has a Consume, a Replace or a Hunt. End the day.');
+    if (state.used.noHunt) return fail('Your game offers no Hunt today.');
     if (!huntTargets(state).includes(to)) return fail("A Hunt marks an inmate the Lion in the warden's cell can consume, when neither has a prey mark.");
     const lion = state.cells[state.position].inmate;
     const prey = state.cells[to].inmate;

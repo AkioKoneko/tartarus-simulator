@@ -49,7 +49,7 @@ The strategy has two tuned profiles, chosen by the run's settings: drills with r
 node tools/strategy-sim.js guide --no-tune --games 2000 --side 2000 --habit-games 2000 --compare 100000
 ```
 
-For ±0.01, use 100,000 runs a measurement (`--games 100000 --side 100000 --habit-games 100000 --compare 100000`). The latest run (2026-10-17, night, with second meals at every rarity) took 602,000 runs in 5.1 minutes on 1 thread, most of them the strategy comparison's 100,000 runs a player. Its full numbers are in `results/guide-data.json`.
+For ±0.01, use 100,000 runs a measurement (`--games 100000 --side 100000 --habit-games 100000 --compare 100000`). The latest run (2026-10-18, with every Usurpation placing the next and the Muzzle counting the block before its consume) took 602,000 runs in 4.8 minutes on 1 thread, most of them the strategy comparison's 100,000 runs a player. Its full numbers are in `results/guide-data.json`.
 
 ## The contract challenge (removed)
 
@@ -58,6 +58,20 @@ The Chinese sim's 12-day contract challenge (contracts, vouchers, escorts and co
 ## Results
 
 The Chinese sim's two-meal food chain (Mammoth also eats Wolf, Lion also eats Rat) was confirmed not to be in the live game on 2026-10-15, so it was removed from the simulator and the lab. The older sections below still show the two-meal numbers measured at the time; their files are in the git history.
+
+### Usurpations in a row, and the Muzzle before its consume (2026-10-18)
+
+Two rules from the user, in the engine since 20261017z:
+- **Usurpation:** each Usurpation card now puts the next one behind a random free locked door, seen at once (before, only Usurpation I's did). The chain now nearly always completes. The strategy weighs the Usurpation doors with their own weight, `wUsurp` (0.5).
+- **Agonizing Muzzle:** its 2 extra tiers need 4 or fewer inmates on the block before the consume, its meal included (before: after it).
+
+The guide was measured again, with the same settings (602,000 runs in 4.8 minutes on 1 thread):
+- **Headline:** **4.76** Rainbows a run with rewards on (±0.10, was 4.41), and 1.94 with no instruments (±0.01 on 100,000 runs, was 1.39). The gain is the strategy's: it goes for the seen Usurpation doors. Played simply, no instruments gives 0.89 (was 0.83), and random play is unchanged (0.06).
+- **Instruments:** every one gained between 0.08 and 0.68, but the Muzzle lost 0.21 (2.51, was 2.72), so the new rule costs it more than the Usurpations add. The Trap (3.74), the Maul (3.69) and the Crown (3.56) still lead, then the Noose (3.43), the Claws (3.17) and Kin's Coin (2.92). The Muzzle falls from 5th to 13th, and the drill ranking follows. Below no instrument (1.98 in this table): the Iron Box (0.93), the Forged Key (1.39), the Execution Axe (1.59), the Short-Chained Shackles (1.85) and the Searing Branding Iron (1.89), with the Iron Pestle, the Barbed Whip and the Lost Ring of Keys (1.95 to 1.97) level with it inside the margin.
+- **Warden's Treasure:** Crimson Vintage 4.54, Thumb Ring 4.14, Horn 4.07 and Brand 3.98, against 4.76 judged on the spot.
+- **Habits:** always taking Bestow (1.74), always accepting Executions (1.77), preferring short walks (1.79) and never replacing (1.81) cost the most, against the strategy's 1.98.
+
+The strategy's other weights weren't tuned again.
 
 ### Second meals at every rarity (2026-10-17, night)
 
