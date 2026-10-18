@@ -365,7 +365,9 @@
     const test = (px, py) => {
       const [r, g, b] = rgbAt(img, px, py);
       const l = (r + g + b) / 3;
-      return l > minL && r >= g && g >= b - 4 && r - b >= 6 && r - b <= 64;
+      // Warmer pictures (a stream's capture, report 344) make it more orange:
+      // red over blue by 67-71 there, 35 on most boards.
+      return l > minL && r >= g && g >= b - 4 && r - b >= 6 && r - b <= 80;
     };
     const found = blobs(img, x - 13 * k, y - 11 * k, x + 13 * k, y + 11 * k, test);
     let best = null;
@@ -374,7 +376,9 @@
       const w = b.w / k;
       const h = b.h / k;
       const off = Math.hypot(b.cx - x, b.cy - y) / k;
-      if (area < 35 || area > 150 || w < 7 || w > 18 || h < 5 || h > 15 || off > 7) continue;
+      // Area down to 22: in a warm picture only its brightest part passes
+      // (26-30 on report 344, against about 78 on most boards).
+      if (area < 22 || area > 150 || w < 7 || w > 18 || h < 5 || h > 15 || off > 7) continue;
       const fit = 1 - Math.abs(area - 78) / 78 - off / 14;
       if (!best || fit > best.fit) best = { fit, area, off };
     }
@@ -436,10 +440,15 @@
     const bins = [0, 0, 0, 0, 0];
     let samples = 0;
     let bright = 0;
+    const faint = [0, 0, 0]; // blue and purple, washed out
     const visit = (px, py) => {
       const [hh, ss, vv] = hsvAt(img, px, py);
       samples += 1;
       if (vv > 0.62 && ss < 0.25) bright += 1;
+      if (vv >= 0.3 && ss >= 0.15) {
+        if (hh >= 175 && hh < 242) faint[1] += 1;
+        else if (hh >= 242 && hh < 305) faint[2] += 1;
+      }
       if (vv < 0.45 || ss < 0.32) return;
       for (const [lo, hi, t] of TIER_BY_HUE) if (hh >= lo && hh < hi) bins[t] += 1;
     };
@@ -450,6 +459,15 @@
     }
     for (let py = y - 14 * k; py <= y - 4 * k; py += stepPx) for (let px = x - 9 * k; px <= x + 9 * k; px += stepPx) visit(px, py);
     const colored = bins.reduce((a, b) => a + b, 0);
+    // A warm picture (a stream's capture, report 344) washes a Magic
+    // frame's blue out: 2% of the frame passed as colored, against 12%
+    // faintly blue. A Normal's frame can be bluish metal in a cool picture
+    // (7-9%), but its glow over the portrait is white (0.07-0.19 of the box
+    // above it), where a washed-out color's has none (records of 2026-10-17).
+    const white = () => colorShare(img, x - 24 * k, y - 88 * k, x + 24 * k, y - 66 * k, (h, s, v) => v >= 0.35 && s < 0.15);
+    if (colored < 0.025 * samples && faint[1] + faint[2] > 0.06 * samples && white() < 0.03) {
+      return { tier: faint[2] > faint[1] ? 2 : 1, conf: 0.6, colored: colored / samples, bins, samples, faint: (faint[1] + faint[2]) / samples };
+    }
     // A Normal's frame has no colored pixels at all, at every scale tested;
     // the dimmest colored frame had 3%. A few stray ones leave it in doubt.
     if (colored < 0.025 * samples) return { tier: 0, conf: colored < 0.008 * samples ? 0.85 : bright > 0.04 * samples ? 0.8 : 0.55, colored: colored / samples };
@@ -1205,7 +1223,27 @@
       const box = [Math.min(...g.map((q) => q.x0)) - c.h, Math.min(...g.map((q) => q.y0)) - c.h, Math.max(...g.map((q) => q.x1)) + 1.5 * c.h, Math.max(...g.map((q) => q.y1)) + c.h];
       if (colorShare(img, ...box, isGold) > 0.03 && read[i]) hidden.push(read[i].value - 1);
     });
-    return { cells, conf: Math.max(0.1, Math.min(1, (score - 0.3) * 1.6)) * (cells.length === read.length + (cards.office ? 1 : 0) ? 1 : 0.4) * (moved ? 0.55 : 1) * (hidden.length ? 0.4 : 1), boxes, hidden };
+    // The day's doors are lit (see above): with one number hidden, the one
+    // lit plain locked cell that no other card names is that card's (report
+    // 360: "Go to Cell 7" under the pointer read as 4, with 3, 5 and 7 lit).
+    // Only plain locked cells compare: a portrait lights its room anyway.
+    let lit = false;
+    const guess = hidden.length === 1 ? hidden[0] : -1;
+    if (guess >= 0 && cellReads) {
+      const named = new Set(cells.filter((n) => n !== hidden[0]));
+      const found = [];
+      cellReads.forEach((c, n) => {
+        if (n > 0 && !named.has(n) && c && c.kind === 'locked' && !c.shown && !c.nest && cellLight(img, c) >= 40) found.push(n);
+      });
+      if (found.length === 1) {
+        cells[cells.indexOf(hidden[0])] = found[0];
+        hidden[0] = found[0];
+        lit = true;
+      }
+    }
+    // Settled by the lit cells, the hidden card's own reading doesn't count.
+    const shaky = lit ? read.some((r, i) => r.value - 1 !== guess && r.value !== options[i][0].value) : moved;
+    return { cells, conf: Math.max(0.1, Math.min(1, (score - 0.3) * 1.6)) * (cells.length === read.length + (cards.office ? 1 : 0) ? 1 : 0.4) * (shaky ? 0.55 : 1) * (hidden.length && !lit ? 0.4 : 1), boxes, hidden, lit };
   }
 
   // Doors lead to different cells, so two cards can't read the same number
@@ -1281,7 +1319,7 @@
   // Finds a label in a box by its letter count and its shape (width over
   // letter height): word breaks in this font are uneven, and colored labels
   // can come apart into extra pieces.
-  function findLabel(img, box, letters, shape) {
+  function findLabel(img, box, letters, shape, slack = 2.5) {
     const lines = [];
     for (const r of textRadii(img)) lines.push(...textLines(img, box[0], box[1], box[2], box[3], { minH: 6, maxH: Math.max(40, img.height * 0.06), r, s: 0.5 }));
     let best = null;
@@ -1289,7 +1327,7 @@
       for (const p of line.pieces) {
         const n = p.words.reduce((a, w) => a + w.glyphs.length, 0);
         const ratio = (p.x1 - p.x0) / Math.max(1, line.h);
-        if (Math.abs(n - letters) > 6 || Math.abs(ratio - shape) > 2.5) continue;
+        if (Math.abs(n - letters) > 6 || Math.abs(ratio - shape) > slack) continue;
         const off = Math.abs(n - letters) / 3 + Math.abs(ratio - shape);
         if (!best || off < best.off) best = { off, x0: p.x0, x1: p.x1, y0: p.y0, y1: p.y1, h: line.h, words: p.words.map((w) => w.glyphs.length) };
       }
@@ -1512,7 +1550,9 @@
     const right = Math.max(at(loc, 5, 0)[0], at(loc, 5, 3)[0]) + 60 * loc.s;
     if (right > img.width - 30) return null;
     // In the top half: lower down, other text can pass for it (report 178).
-    const label = findLabel(img, [right, 0, img.width - 1, Math.round(img.height / 2)], 17, 14.4);
+    // Its shape loosely: with "Ch" missed it is 11.6 lines long (report
+    // 352); its width in the board's scale is checked below.
+    const label = findLabel(img, [right, 0, img.width - 1, Math.round(img.height / 2)], 17, 14.4, 3.5);
     if (!label) return null;
     // Sizes in the board's scale (the label is 144 px wide at 1x). The
     // label's own width misleads: its first letter missed, or the "?"
@@ -1800,6 +1840,7 @@
     // before its title shows (report 60).
     const ends = [];
     const lefts = [];
+    const bits = []; // short pieces of one contrast window, for split labels
     // The row's title, by its words' letter counts: "Make Your Decision"
     // [4, 4, 8], or the Sewer Ratway's "Select an Objective" [6, 2, 9]
     // (a stray mark can lead).
@@ -1828,8 +1869,35 @@
           }
           // Another card's label, for a row seen without its title.
           if (n >= 6 && n <= 13 && span > 3 && span < 8) lefts.push({ x1: p.x1, mid: line.mid });
+          if (n <= 5) bits.push({ n, x0: p.x0, x1: p.x1, mid: line.mid, h: line.h });
         }
       }
+      // A label can come apart over two lines, its tall letters on one and
+      // the short ones a little lower (report 349: "Replace" as R, l and
+      // ep, ace): two pieces one over the other make one word.
+      for (let i = 0; i < bits.length; i++) {
+        for (let j = i + 1; j < bits.length; j++) {
+          // The tall letters' line over the short ones': taller, a little
+          // higher, over the same stretch.
+          const [up, low] = bits[i].mid < bits[j].mid ? [bits[i], bits[j]] : [bits[j], bits[i]];
+          const h = up.h;
+          const below = low.mid - up.mid;
+          const overlap = Math.min(up.x1, low.x1) - Math.max(up.x0, low.x0);
+          // Letters, not the cards' studs (4-5 px pieces along their edges):
+          // a label's tall letters are about 13 board units high.
+          if (up.h < 10 * loc.s || up.h < 1.15 * low.h || below < 0.3 * h || below > h || overlap < 0.5 * Math.min(up.x1 - up.x0, low.x1 - low.x0)) continue;
+          // "Replace" starts tall (R) and ends short (ace): the short letters'
+          // piece starts after the tall one's and runs on past its end. Card
+          // names and icons over the row came apart other ways (310, 332).
+          if (low.x0 < up.x0 || low.x1 < up.x1 + h) continue;
+          const n = up.n + low.n;
+          const x0 = Math.min(up.x0, low.x0);
+          const x1 = Math.max(up.x1, low.x1);
+          const span = (x1 - x0) / h;
+          if (n >= 6 && n <= 8 && span > 3 && span < 6.5) labels.push({ x0, x1, mid: up.mid, h });
+        }
+      }
+      bits.length = 0;
     }
     // The Consume card: a red block, not the torches' orange. Read in
     // strips about a third of a card wide: the Consume card's best strip is

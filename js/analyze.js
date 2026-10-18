@@ -2581,8 +2581,14 @@
     if (r.doors && r.doors.cells.length) {
       m.step = 'patrol';
       m.dest = r.doors.cells.filter((n) => n !== m.warden);
-      // The mouse pointer over a card's number hides its digit (report 318).
-      if (r.doors.hidden && r.doors.hidden.length) notes.push(`The mouse pointer covers the number on the card read as ${r.doors.hidden.map((n) => `cell ${L(n)}`).join(' and ')}: check that door.`);
+      // The mouse pointer over a card's number hides its digit (report 318),
+      // unless the lit cells settled it (report 360). Unsettled, that door is
+      // marked Check: a guess, not a reading.
+      if (r.doors.hidden && r.doors.hidden.length && r.doors.lit) notes.push(`The mouse pointer covers the number on one card: the lit cells show it is cell ${L(r.doors.hidden[0])}.`);
+      else if (r.doors.hidden && r.doors.hidden.length) {
+        notes.push(`The mouse pointer covers the number on the card read as ${r.doors.hidden.map((n) => `cell ${L(n)}`).join(' and ')}: check that door.`);
+        r.doors.hidden.forEach((n) => checks.add(n));
+      }
       else if (r.doors.conf < 0.6) notes.push('Today’s doors were hard to read: check them.');
     } else if (!r.decision && !r.statusView && base.step === 'patrol' && (base.dest || []).length && m.day === base.day && m.warden === base.warden) {
       // No door cards and no buttons, on the same day with the warden where
@@ -2694,9 +2700,11 @@
     // Their beasts don't show in the slots, and nothing depends on them.
     m.vault = new Array(chromatic).fill('wolf');
     const highest = Math.max(0, ...m.cells.filter((c) => c.kind === 'inmate').map((c) => c.tier));
-    // The start card's badge under the instrument panel (Opulence so far):
-    // the run has that card, in case its popup was missed.
-    if (r.badge && r.badge.id && T.START_EVENTS && T.START_EVENTS[r.badge.id] && m.startEvent !== r.badge.id) {
+    // The start card's badge under the instrument panel: the run has that
+    // card, in case its popup was missed. Only while no card is set: one the
+    // player or a popup set stands (report 358: a Cage Fight badge read as
+    // Tyranny undid the player's choice on every picture).
+    if (r.badge && r.badge.id && T.START_EVENTS && T.START_EVENTS[r.badge.id] && (!m.startEvent || m.startEvent === 'none')) {
       m.startEvent = r.badge.id;
       notes.push(`Start of run: ${T.START_EVENTS[r.badge.id].name}, from its badge under the instruments.`);
     }
@@ -2826,6 +2834,10 @@
     const r = reader.result;
     const rd = reader.reading;
     const lines = [`Reader ${SCRIPT_QUERY.replace(/^\?v=/, '') || 'local'}, ${reader.follow ? 'an Auto Screenshot Mode picture' : 'a screenshot'} of ${reader.image.width}×${reader.image.height}, read in ${(reader.ms / 1000).toFixed(1)} s.`];
+    // The Warden's Treasure isn't read from a picture: during it, the picture
+    // is a board, from before it or seen behind it (reports 349, 363: taken
+    // for a board read wrong).
+    if (model.step === 'choice' && model.choice.kind === 'gift') lines.push(`The Warden’s Treasure is open (from the game’s log); this picture is ${model.treasureSeen ? 'the board seen behind it' : 'the last board before it'}. Its gifts aren’t read from a picture.`);
     if (!r.ok || !rd) {
       lines.push(`Not read: ${r.reason || 'no result'}`);
       return lines.join('\n');
