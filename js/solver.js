@@ -915,30 +915,61 @@
   // "nothing consumable", missing the one Lion with a meal).
   function giftEffect(st, id) {
     const board = st.cells.filter((c) => !c.sealed && c.inmate);
+    const unchanged = (why) => `${why} This uses one Treasure pick without changing the board. Keeping the current board can be intentional.`;
     const who = (c) => `the ${T.describe(c.inmate)} in ${T.cellLabel(c.n)}`;
     const list = (cs) => (cs.length > 1 ? `${cs.slice(0, -1).map(who).join(', ')} and ${who(cs[cs.length - 1])}` : who(cs[0]));
     if (id === 'horn') {
-      const eaters = board.filter((c) => T.devourOptions(st, c.n).length);
-      if (!eaters.length) return 'No inmate has a meal now, so the Horn would do nothing.';
+      const eaters = board.filter((c) => T.devourOptions(st, c.n).some((o) => !o.scratch));
+      if (!eaters.length) return unchanged('No inmate has a meal now, so the Horn would do nothing.');
       if (eaters.length === 1) {
-        const meals = T.devourOptions(st, eaters[0].n).map((o) => st.cells[o.cell]).filter((c) => c.inmate);
+        const meals = T.devourOptions(st, eaters[0].n).filter((o) => !o.scratch).map((o) => st.cells[o.cell]).filter((c) => c.inmate);
         return `Every inmate with a meal consumes one: here ${who(eaters[0])}${meals.length ? `, whose meal${meals.length > 1 ? 's are' : ' is'} ${list(meals)}` : ''}.`;
       }
       return `Every inmate with a meal consumes one: here ${eaters.length > 3 ? `${eaters.length} inmates` : list(eaters)}.`;
     }
     if (id === 'wine') {
       const low = board.filter((c) => c.inmate.tier < T.SUPREME - 1);
-      return low.length ? `Every inmate below Legendary rises a tier: here ${low.length > 3 ? `${low.length} inmates` : list(low)}.` : 'No inmate is below Legendary, so nobody would rise.';
+      return low.length ? `Every inmate below Legendary rises a tier: here ${low.length > 3 ? `${low.length} inmates` : list(low)}.` : unchanged('No inmate is below Legendary, so nobody would rise.');
     }
     if (id === 'ring') {
       const locked = st.cells.filter((c) => c.sealed && c.n !== T.OFFICE).length;
-      return locked ? `Up to 3 random locked cells open (${locked} are locked).` : 'No cell is locked, so nothing would open.';
+      return locked ? `Up to 3 random locked cells open (${locked} are locked).` : unchanged('No cell is locked, so nothing would open.');
     }
     if (id === 'brand') {
       const hungry = board.filter((c) => !T.devourOptions(st, c.n).length).length;
-      return hungry ? `Up to 4 inmates with no meal change beast to have one (${hungry} have none now).` : 'Every inmate has a meal already, so nobody would change.';
+      const canChange = board.some((c) => !T.devourOptions(st, c.n).length && T.BEASTS.some((beast) => board.some((meal) => T.canEat(st, Object.assign({}, c.inmate, { beast }), meal.inmate))));
+      return hungry && canChange ? `Up to 4 inmates with no meal change beast to have one (${hungry} have none now).` : unchanged(hungry ? 'No hungry inmate has a compatible meal after changing beast, so the Brand would do nothing.' : 'Every inmate has a meal already, so nobody would change.');
     }
     return '';
+  }
+
+  // Immediate, observable effects belong beside both strategy and rollout
+  // recommendations. They are separate from the estimated final vault value.
+  function actionEffect(st, action) {
+    if (!action) return '';
+    if (action.type === 'choose' && st.pending[0] && st.pending[0].kind === 'gift') return giftEffect(st, action.id);
+    if (action.type === 'patrol' && st.tools.includes('shortchain')) {
+      const steps = T.stepsBetween(st.position, action.cell);
+      const short = steps >= 1 && steps <= 3;
+      return `Short-Chained Shackles is equipped. This ${steps}-cell walk ${short ? 'has a 50% chance to open another locked cell, if one remains' : 'cannot trigger it; only walks of 1–3 cells qualify'}.`;
+    }
+    return '';
+  }
+
+  // Within the analyzer's existing uncertainty margin, prefer an available
+  // Short-Chained Shackles proc to the long-walk policy. Never choose a
+  // lower-estimated short walk or replace a clearly better long walk.
+  function preferShortWalk(st, ranked, current, minGain) {
+    if (!current || !ranked.length || st.phase !== 'patrol' || !st.tools.includes('shortchain') || current.action.type !== 'patrol' || T.stepsBetween(st.position, current.action.cell) <= 3) return null;
+    const top = ranked[0];
+    const margin = (row) => Math.max(1.96 * row.gapSe, minGain || 0);
+    if (top.mean - current.mean > margin(current)) return null;
+    return ranked.find((row) => {
+      if (row.action.type !== 'patrol' || !st.destinations.includes(row.action.cell) || row.mean < current.mean || top.mean - row.mean > margin(row)) return false;
+      const steps = T.stepsBetween(st.position, row.action.cell);
+      const opened = st.chain ? T.clockwisePath(st, row.action.cell) : [row.action.cell];
+      return steps >= 1 && steps <= 3 && st.cells.some(c => c.sealed && !opened.includes(c.n));
+    }) || null;
   }
 
   // ---------- Instruments ----------
@@ -1481,7 +1512,7 @@
     return null;
   }
 
-  const api = { DEFAULTS, PROFILES, paramsFor, instant, moveBetween, sameAction, decide, apply, playout, candidates, solve, summarize, chainOdds, patrolScores, devourScores, context, composition, clone, hideFuture, rng32, executionValue };
+  const api = { DEFAULTS, PROFILES, paramsFor, instant, actionEffect, preferShortWalk, moveBetween, sameAction, decide, apply, playout, candidates, solve, summarize, chainOdds, patrolScores, devourScores, context, composition, clone, hideFuture, rng32, executionValue };
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.TartarusSolver = api;
 })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);

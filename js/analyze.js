@@ -737,6 +737,16 @@
   // The strategy's instant pick, unless the live check finds a clearly better
   // move (by more than its paired margin), so the advice doesn't flicker.
   function bestMove() {
+    const rec = bestCalculatedMove();
+    if (!rec || !solver.st) return rec;
+    // A rollout can replace the strategy's pick. Its immediate effect must
+    // still be visible, especially when resolving a gift preserves the board.
+    const effect = S.actionEffect(solver.st, rec.action);
+    if (!effect || (rec.why || '').includes(effect)) return rec;
+    return Object.assign({}, rec, { why: `${effect} ${rec.why || ''}`.trim() });
+  }
+
+  function bestCalculatedMove() {
     if (!solver.st) return null;
     if (solver.reused) return solver.reused;
     const pick = solver.instant;
@@ -747,6 +757,8 @@
     const live = r && ranked.length > 1 && ((r.done && !r.early) || r.rounds >= LIVE_MIN) ? ranked[0] : null;
     const mine = pick && ranked.find((o) => S.sameAction(o.action, pick.action));
     if (!live) return pick ? Object.assign({ live: false }, pick, { option: mine || null }) : ranked.length === 1 ? { action: ranked[0].action, label: ranked[0].label, why: 'It’s the only move here.', live: true, option: ranked[0] } : null;
+    const short = S.preferShortWalk(solver.st, ranked, mine, SWITCH_MIN);
+    if (short) return { action: short.action, label: short.label, why: 'The live check rates these walks about equal. Prefer the short walk for a chance to trigger Short-Chained Shackles.', live: true, rounds: r.rounds, option: short };
     // A better move must also win by a margin worth playing for: shared dice
     // make the paired margin narrow, and a near tie flipped the advice from
     // one screen to the next (report 337: End 2.85 against the strategy's
