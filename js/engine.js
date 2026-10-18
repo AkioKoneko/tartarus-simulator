@@ -563,10 +563,15 @@
   }
   const canHuntNow = (state) => state.phase === 'manage' && !state.chaining && state.used.devour < 1 && state.used.swap < 1 && !state.used.hunt && !state.used.noHunt && huntTargets(state).length > 0;
 
+  // used.mealOnly: the meals the game framed on the meal pick now open
+  // (the analyzer reads them, report 385). A bite clears it: the next pick
+  // frames its own.
+  const framedMeals = (state, options) => (state.used && Array.isArray(state.used.mealOnly) ? options.filter((o) => state.used.mealOnly.includes(o.cell)) : options);
+
   function startOptions(state) {
     const cell = state.cells[state.position];
     if (!canDevourNow(state) || state.phase !== 'manage' || !cell || cell.sealed || !cell.inmate) return [];
-    return devourOptions(state, cell.n);
+    return framedMeals(state, devourOptions(state, cell.n));
   }
 
   function limits(state) {
@@ -1539,10 +1544,11 @@
     if (state.used.swap > 0 && !state.used.devourAfterSwap) return fail('You replaced an inmate today, and a day has a Replace or a consume, not both. End the day.');
     if (!canDevourNow(state)) return fail('Today’s consume is used. End the day for another.');
     if (from !== state.position) return fail(`Only the inmate in the warden's cell (${cellLabel(state.position)}) can start a consume.`);
-    const option = devourOptions(state, from).find((o) => o.cell === to);
+    const option = framedMeals(state, devourOptions(state, from)).find((o) => o.cell === to);
     if (!option) return fail('That inmate cannot consume that target.');
     const events = [];
     state.used.devour += 1;
+    state.used.mealOnly = null;
     state.chaining = { eater: state.cells[from].inmate.id, at: state.log.length, bites: [] };
     state.chaining.bites.push(doDevour(state, from, option, events));
     goOnChain(state, events);
@@ -1552,7 +1558,7 @@
   // The eater's meals while its chain waits for a pick.
   function chainOptions(state) {
     const cell = state.chaining ? boardCellOf(state, state.chaining.eater) : null;
-    return cell ? devourOptions(state, cell.n) : [];
+    return cell ? framedMeals(state, devourOptions(state, cell.n)) : [];
   }
 
   // After each bite the chain goes on while the eater has a meal. Each bite
@@ -1581,9 +1587,10 @@
     if (!state.chaining) return fail('No consume chain is waiting for a meal.');
     if (state.pending.length) return fail('Make your pending choice first.');
     const cell = boardCellOf(state, state.chaining.eater);
-    const option = cell ? devourOptions(state, cell.n).find((o) => o.cell === to) : null;
+    const option = cell ? framedMeals(state, devourOptions(state, cell.n)).find((o) => o.cell === to) : null;
     if (!option) return fail('The chain can’t take that meal.');
     const events = [];
+    state.used.mealOnly = null;
     state.chaining.bites.push(doDevour(state, cell.n, option, events, true));
     state.stats.chains += 1;
     goOnChain(state, events);
