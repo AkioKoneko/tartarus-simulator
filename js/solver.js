@@ -43,6 +43,9 @@
     wInstigate: 0.5, // office: an event Instigate brings, as a share of an event door's worth
     wCrow: 2, // patrol: a door hiding Crow Whispers (it only shows rarities)
     wShort: 0.1, // Short-Chained Shackles: a short walk's chance of an extra door, as a share of its worth (0.1 measured best: 0.749 against 0.683 at 1)
+    wKeys: 0, // Lost Ring of Keys: each locked cell beside a door the patrol opens (80% to open too), as a share of a new inmate's worth
+    wForged: 0, // Forged Key: a door the patrol opens may open 1 more random locked cell (50%), as a share of its worth
+    wFire: 0, // Searing Branding Iron: a door the patrol opens may copy its inmate into a locked cell (35%), as a share of its worth
     wCage: 1, // Crowded Beastcage: a devour's chance of reopening the meal's cell, as a share of its worth
     rerollMargin: 0.02, // a pet's re-roll: only when a new offer's best averages this much more (Rainbows per run)
     wStair: 0, // keeping a spread of beasts at each tier, so chains can go on
@@ -68,8 +71,11 @@
   // 10,000 a setting and checked on fresh seeds: Undercurrents +0.18 Rainbows
   // a run (met 99% of runs, by day 7.9 not 9.5), Survival of the Fittest
   // +0.04. Runs with other objectives play out exactly as before.
+  // wKeys (Lost Ring of Keys) was tuned the same way with the Keys held from
+  // day 1: +0.066 ±0.031 Rainbows a run on fresh seeds. wForged and wFire
+  // measured no gain and stay 0.
   const PROFILES = {
-    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, wIncident: 40, wPass: 40, wOfficeIncident: 60, wConsume: 20, toolRank: ['crown', 'rope', 'trap', 'claws', 'maul', 'scapegoat', 'coin', 'maiden', 'shackles', 'muzzle', 'ravenous', 'blacklist', 'revenge', 'skewer', 'hook', 'stake', 'collar', 'saw', 'guillotine', 'dogtag', 'tongs', 'whip', 'keys', 'cage', 'scales', 'pestle', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
+    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, wIncident: 40, wPass: 40, wOfficeIncident: 60, wConsume: 20, wKeys: 1, toolRank: ['crown', 'rope', 'trap', 'claws', 'maul', 'scapegoat', 'coin', 'maiden', 'shackles', 'muzzle', 'ravenous', 'blacklist', 'revenge', 'skewer', 'hook', 'stake', 'collar', 'saw', 'guillotine', 'dogtag', 'tongs', 'whip', 'keys', 'cage', 'scales', 'pestle', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
     notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['crown', 'rope', 'trap', 'claws', 'maul', 'scapegoat', 'coin', 'maiden', 'shackles', 'muzzle', 'ravenous', 'blacklist', 'revenge', 'skewer', 'hook', 'stake', 'collar', 'saw', 'guillotine', 'dogtag', 'tongs', 'whip', 'keys', 'cage', 'scales', 'pestle', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
   };
   const paramsFor = (st) => PROFILES[st.params.rewards ? 'rewards' : 'notools'];
@@ -157,7 +163,10 @@
     // Under Cage Fight, both meals at every rarity.
     const doubleFrom = T.cageFight && T.cageFight(st) ? 0 : Number.isFinite(st.params.doubleEatTier) ? st.params.doubleEatTier : T.SECOND_MEAL ? 3 : RAINBOW;
     const v = [0, 1, 2, 3, 4, 5].map((t) => P.tierBase ** t);
-    const openDist = normalize(st.params.tierWeights);
+    // The rarity odds behind a door: the Sorting Hook keeps out Normals.
+    const doorWeights = st.params.tierWeights.slice();
+    if (has(st, 'hook') && doorWeights.slice(1).some((x) => x > 0)) doorWeights[0] = 0;
+    const openDist = normalize(doorWeights);
     // With the vault full (T.VAULT_SLOTS), a would-be Rainbow stays Supreme.
     const vaultFull = !!T.VAULT_SLOTS && st.vault.length >= T.VAULT_SLOTS;
     const R = vaultFull ? v[T.SUPREME] : v[RAINBOW] * P.rainbowMult;
@@ -196,6 +205,9 @@
       cage: has(st, 'cage'),
       blacklist: has(st, 'blacklist'),
       shortchain: has(st, 'shortchain'),
+      keys: has(st, 'keys'),
+      forged: has(st, 'forged'),
+      fire: has(st, 'fire'),
       // Severed Iron Maiden: how many inmates of each tier are on the block.
       maiden: has(st, 'maiden') ? [0, 1, 2, 3, 4].map((t) => board.filter((c) => c.inmate.tier === t).length) : null,
       // Scapegoat's Guillotine, with 2 or more others beside the warden's
@@ -663,6 +675,15 @@
         // Executioner's Blacklist: opening this door leaves 5 or fewer locked,
         // so 2 random inmates rise a tier.
         if (ctx.blacklist && ctx.sealed - 1 <= 5) score += 2 * ctx.lift;
+        // Lost Ring of Keys: the locked cells on both sides may open too.
+        if (ctx.keys && P.wKeys) {
+          const beside = [n + T.CELL_COUNT - 1, n + 1].map((k) => k % T.CELL_COUNT).filter((k) => st.cells[k].sealed).length;
+          score += P.wKeys * 0.8 * beside * P.wOpen * ctx.openValue;
+        }
+        // Forged Key: 1 more random locked cell may open.
+        if (ctx.forged && P.wForged && ctx.sealed > 1) score += P.wForged * 0.5 * P.wOpen * ctx.openValue;
+        // Searing Branding Iron: a copy of whoever comes out may fill a locked cell.
+        if (ctx.fire && P.wFire && ctx.sealed > 1) score += P.wFire * 0.35 * P.wOpen * ctx.openValue;
         const who = !shown && c.atLeast ? `a ${T.tierName(c.atLeast)} or better inmate (the "Treasure" Hunt left this door dark)` : 'a new inmate';
         why = `${who}, who may consume today`;
         const worth = eventWorth(ctx, board.comp);
