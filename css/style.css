@@ -3205,11 +3205,6 @@ textarea {
   background: var(--slab);
 }
 
-.az-results.is-stale .az-res-move,
-.az-results.is-stale .solver-list {
-  opacity: 0.5;
-}
-
 .az-res-move {
   margin: 2px 0 10px;
   font: 800 24px/1.12 var(--font-display);
