@@ -2673,6 +2673,23 @@
     }
     const odd = oddCells.filter((n) => !(noMeal && n === w)).length;
     if (odd) notes.push(odd === 1 ? '1 inmate’s jaws marker doesn’t fit what was read: check it and the inmates around.' : `${odd} inmates’ jaws markers don’t fit what was read: check them and the inmates around.`);
+    // Cage Fight set for this run while the game's jaws fit better without
+    // it (report 311: a Legendary Wolf showed no jaws over a Rare Rat that
+    // Cage Fight would let it eat, and the advice had a Legendary Lion eat
+    // that Rat). No reader sets the card, so it was likely set by hand.
+    if (m.startEvent === 'cagefight' && oddCells.length) {
+      const plain = buildState(Object.assign({}, m, { step: 'manage', startEvent: 'none' })).st;
+      // Jaws a second meal explains fit either way: the game allows those.
+      const known = r.cells.map((c, n) => n).filter((n) => r.cells[n].kind === 'inmate' && m.cells[n].kind === 'inmate' && r.cells[n].jaws !== null);
+      const fitsIn = (state, n) => (r.cells[n].jaws ? hasTarget(state, n) || secondMealCells(state, n).length > 0 : !hasTarget(state, n));
+      const fits = (state) => known.filter((n) => fitsIn(state, n)).length;
+      const against = known.filter((n) => !r.cells[n].jaws && hasTarget(final, n) && !hasTarget(plain, n));
+      if (against.length && fits(plain) > fits(final)) {
+        const n = against[0];
+        const meal = T.devourOptions(final, n)[0].cell;
+        notes.push(`Cage Fight is set for this run, but your game shows no jaws on the ${T.describe(m.cells[n])} in ${L(n)}, which Cage Fight would let eat the ${T.describe(m.cells[meal])} in ${L(meal)}. If this run doesn’t have Cage Fight, set Start of run to No card.`);
+      }
+    }
     return { model: m, checks, notes, chromatic, tools, unsim };
   }
 
