@@ -49,7 +49,7 @@ The strategy has two tuned profiles, chosen by the run's settings: drills with r
 node tools/strategy-sim.js guide --no-tune --games 2000 --side 2000 --habit-games 2000 --compare 100000
 ```
 
-For ±0.01, use 100,000 runs a measurement (`--games 100000 --side 100000 --habit-games 100000 --compare 100000`). The latest run (2026-10-17, night, with Extra Portion) took 602,000 runs in 4.9 minutes on 1 thread, most of them the strategy comparison's 100,000 runs a player. Its full numbers are in `results/guide-data.json`.
+For ±0.01, use 100,000 runs a measurement (`--games 100000 --side 100000 --habit-games 100000 --compare 100000`). The latest run (2026-10-17, night, with second meals at every rarity) took 602,000 runs in 5.1 minutes on 1 thread, most of them the strategy comparison's 100,000 runs a player. Its full numbers are in `results/guide-data.json`.
 
 ## The contract challenge (removed)
 
@@ -58,6 +58,26 @@ The Chinese sim's 12-day contract challenge (contracts, vouchers, escorts and co
 ## Results
 
 The Chinese sim's two-meal food chain (Mammoth also eats Wolf, Lion also eats Rat) was confirmed not to be in the live game on 2026-10-15, so it was removed from the simulator and the lab. The older sections below still show the two-meal numbers measured at the time; their files are in the git history.
+
+### Second meals at every rarity (2026-10-17, night)
+
+The user, as players' games kept offering them: "fix it then and adjust the sim data accordingly". Mammoths now eat Wolves and Lions eat Rats at every rarity, still at the eater's rarity (`doubleEatTier` 0, was 3, Legendary). The evidence:
+- **First meals:** a Rare Lion's meal pick offered two Rare Rats (report 206). Consume was offered to a Normal Mammoth over a Normal Wolf (208), and to a Rare Mammoth over Rare Wolves (306).
+- **Mid-chain:** "Chain Consume" picks offered a Magic Lion a Magic Rat (322), and a Rare Lion a Rare Rat (323).
+- **Jaws markers:** on players' boards, 120 of 123 inmates below Legendary whose only food was such a meal showed jaws.
+
+The guide was measured again with it, with the same settings (602,000 runs in 5.1 minutes on 1 thread):
+- **Headline:** **4.41** Rainbows a run with rewards on (±0.09, was 4.08), and 1.39 with no instruments (±0.005, was 1.26).
+- **Instruments:** chains go on more often, so the instruments built on consumes gain the most.
+  - The Elephant-Foot Maul reaches 3.21 (was 2.46): a Mammoth's Maul now reaches higher-rarity Wolves.
+  - The Blood-Stained Trap reaches 3.21 (was 2.64): its Lion can mark Rats too.
+  - The Agonizing Muzzle reaches 2.72 (was 2.06), and the Barbed Collar and the Rusty Saw gain too.
+  - The Executioner's Blacklist dipped (1.82, was 1.93), inside the margin.
+- **Order:** the Maul, the Trap, the Crown (3.17), the Noose (2.75), the Muzzle (2.72) and the Claws (2.69); the drill ranking follows. Below no instrument (1.39): the Iron Box (0.85), the Forged Key (1.20) and the Execution Axe (1.26).
+- **Warden's Treasure:** Crimson Vintage 4.13, Thumb Ring 3.97, Horn 3.71 and Brand 3.63, against 4.41 judged on the spot.
+- **Habits:** never replacing (1.26), always accepting Executions (1.22), always taking Instigate (1.28), preferring short walks (1.29) and always taking Bestow (1.30) cost the most. Replacing Normals only measured 1.40, level with the strategy's 1.39 inside the margin.
+
+The strategy's weights were tuned under the old rule and weren't tuned again. The instrument pairs are being measured again.
 
 ### Extra Portion (2026-10-17, night)
 
