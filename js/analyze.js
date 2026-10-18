@@ -131,9 +131,11 @@
       // Days of this run whose morning offered a door short (see scanToModel).
       shortDays: [],
       // The game shows no Replace / Consume card now (read from a screenshot):
-      // that move isn't advised, and the other one still can be.
+      // that move isn't advised, and the other one still can be. noHunt: no
+      // Hunt (the Blood-Stained Trap) on offer either.
       noSwap: false,
       noDevour: false,
+      noHunt: false,
       eventKind: 'chain',
       // rerolls: a pet's re-rolls left on an instrument offer. picks: the
       // Warden's Treasure picks waiting, this one included (3 a Treasure
@@ -264,7 +266,7 @@
     st.phase = 'manage';
 
     const usedToday = () => {
-      st.used = { swap: m.swapUsed ? 1 : 0, devour: m.devourUsed ? 1 : 0, devourAfterSwap: !!m.consumeOffered, noSwap: !!m.noSwap, noDevour: !!m.noDevour };
+      st.used = { swap: m.swapUsed ? 1 : 0, devour: m.devourUsed ? 1 : 0, devourAfterSwap: !!m.consumeOffered, noSwap: !!m.noSwap, noDevour: !!m.noDevour, noHunt: !!m.noHunt };
     };
     switch (m.step) {
       case 'patrol': {
@@ -398,6 +400,7 @@
     m.consumeOffered = !!st.used.devourAfterSwap;
     m.noSwap = !!st.used.noSwap;
     m.noDevour = !!st.used.noDevour;
+    m.noHunt = !!st.used.noHunt;
     m.ended = st.phase === 'ended';
     return m;
   }
@@ -2427,10 +2430,12 @@
     // The meal pick shows the meals and Cancel, never Replace. A chain taken
     // for the day's first consume (report 323: the board before didn't hold
     // the meal already eaten) has no Replace after Cancel either, so the
-    // advice weighs the meals against not consuming.
+    // advice weighs the meals against not consuming. No Hunt either (report
+    // 128: after a Cancel, the Prey mark advised couldn't be made).
     if (m.step === 'manage') {
       m.swapUsed = false;
       m.noSwap = true;
+      m.noHunt = true;
     }
     m.dest = [];
     m.chainArmed = false;
@@ -2595,6 +2600,7 @@
     m.treasureSeen = false;
     m.noSwap = false;
     m.noDevour = false;
+    m.noHunt = false;
     // Without the cards (a picture taken as they come up), a board of the
     // same day with the warden in the same cell keeps what the board
     // before knew. And if the warden's inmate has changed since, today's
@@ -2605,6 +2611,7 @@
       m.devourUsed = !!base.devourUsed;
       m.noSwap = !!base.noSwap;
       m.noDevour = !!base.noDevour;
+      m.noHunt = !!base.noHunt;
       m.consumeOffered = !!base.consumeOffered;
       const was = base.cells[m.warden];
       const now = m.cells[m.warden];
@@ -2615,10 +2622,25 @@
         m.cells[m.warden].ivory = false; // a Tusk mark is used by the Replace
       }
     }
+    // “Select an Objective” right after this visit's cards, with the warden
+    // on a Lion and the Blood-Stained Trap held: the Hunt's pick of its prey
+    // (report 352: only the Lion's meals framed), not the Sewer Ratway's,
+    // which follows its event card and frames every cell.
+    const here = m.cells[m.warden];
+    const trap = (m.tools || []).includes('trap') || ((r.tools && r.tools.tools) || []).some((t) => t.sim === 'trap');
+    const huntPick = !!(r.decision && r.decision.ratway) && trap && base.step === 'manage' && m.day === base.day && m.warden === base.warden && !!here && here.kind === 'inmate' && here.beast === 'lion';
     if (r.decision && r.decision.office) {
       // The office's Instigate and Bestow cards.
       m.step = 'office';
       m.dest = [];
+    } else if (huntPick) {
+      // Only the Hunt is open now.
+      m.step = 'manage';
+      m.dest = [];
+      m.swapUsed = false;
+      m.devourUsed = false;
+      m.noSwap = true;
+      m.noDevour = true;
     } else if (r.decision && r.decision.ratway) {
       // The Sewer Ratway's cell pick: a move to any cell but the office.
       m.step = 'ratway';
@@ -2630,6 +2652,12 @@
       m.devourUsed = false;
       m.noSwap = !r.decision.replace;
       m.noDevour = !r.decision.consume;
+      // A Hunt marks an inmate the Lion could consume, so it's offered only
+      // beside a Consume card (reports 353-355: a Hunt advised with only End
+      // showing). A reader that tells the Hunt card says so itself. And one
+      // gone stays gone for the visit (report 128: none after a meal pick's
+      // Cancel).
+      m.noHunt = ('hunt' in r.decision ? !r.decision.hunt : !r.decision.consume) || (sameVisit && !!base.noHunt);
       // A Consume card after today's swap is a consume on offer.
       m.consumeOffered = !!r.decision.consume;
     }
@@ -2720,7 +2748,7 @@
         notes.push(`Cage Fight is set for this run, but your game shows no jaws on the ${T.describe(m.cells[n])} in ${L(n)}, which Cage Fight would let eat the ${T.describe(m.cells[meal])} in ${L(meal)}. If this run doesn’t have Cage Fight, set Start of run to No card.`);
       }
     }
-    return { model: m, checks, notes, chromatic, tools, unsim };
+    return { model: m, checks, notes, chromatic, tools, unsim, huntPick };
   }
 
   function renderScan() {
@@ -2743,7 +2771,7 @@
       const nests = m.cells.filter((c) => c.kind === 'nest').length;
       list.push(`<li><b>Board</b> ${T.plural(inmates, 'inmate')}, ${T.plural(locked, 'locked cell')}${events ? `, ${T.plural(events, 'event')}` : ''}${nests ? `, ${T.plural(nests, 'rat nest')}` : ''}</li>`);
       list.push(`<li><b>Warden</b> ${r.warden ? (r.warden.cell === T.OFFICE ? 'in the office' : `cell ${L(r.warden.cell)}`) : 'not found'}</li>`);
-      list.push(`<li><b>Today</b> ${rd.chain ? `${m.step === 'chain' ? 'a consume chain picks its next meal, or Cancel stops it' : 'the day’s consume picks its meal'}: cell ${rd.chain.map(L).join(' or ')}` : m.step === 'patrol' ? `choose a door: ${m.dest.map(L).join(', ')}` : r.decision && r.decision.ratway ? 'the Sewer Ratway: pick any cell but the office' : r.decision && r.decision.office ? 'the office: Instigate or Bestow' : r.decision ? `your decision: ${[r.decision.replace && 'Replace', r.decision.consume && 'Consume', 'End'].filter(Boolean).join(', ')}` : 'no door cards, so after the patrol'}</li>`);
+      list.push(`<li><b>Today</b> ${rd.chain ? `${m.step === 'chain' ? 'a consume chain picks its next meal, or Cancel stops it' : 'the day’s consume picks its meal'}: cell ${rd.chain.map(L).join(' or ')}` : m.step === 'patrol' ? `choose a door: ${m.dest.map(L).join(', ')}` : r.decision && r.decision.ratway ? (rd.huntPick ? 'the Hunt: pick the Lion’s prey' : 'the Sewer Ratway: pick any cell but the office') : r.decision && r.decision.office ? 'the office: Instigate or Bestow' : r.decision ? `your decision: ${[r.decision.replace && 'Replace', r.decision.consume && 'Consume', 'End'].filter(Boolean).join(', ')}` : 'no door cards, so after the patrol'}</li>`);
       list.push(`<li><b>Riot</b> ${r.days ? `${T.plural(r.days.days, 'day')} away, so day ${m.day} of ${m.maxDays}` : 'not read'}</li>`);
       list.push(`<li><b>Instruments</b> ${rd.tools.length ? rd.tools.map((t) => esc(t.name || t.id) + (t.sim ? '' : ' (not simulated)')).join(', ') : 'none'}</li>`);
       list.push(`<li><b>Chromatic</b> ${T.plural(rd.chromatic, 'prisoner')}${r.chromatic ? '' : ' (panel not found)'}</li>`);
@@ -2802,7 +2830,9 @@
       : r.doors && r.doors.cells.length
         ? `doors ${r.doors.cells.map(L).join(', ')}${sure(r.doors)}`
         : r.decision
-          ? `buttons: ${r.decision.office ? 'Instigate, Bestow' : [r.decision.replace && 'Replace', r.decision.consume && 'Consume', 'End'].filter(Boolean).join(', ')}`
+          ? r.decision.ratway
+            ? (rd.huntPick ? 'the Hunt’s pick of its prey' : 'the Sewer Ratway’s pick of a cell')
+            : `buttons: ${r.decision.office ? 'Instigate, Bestow' : [r.decision.replace && 'Replace', r.decision.consume && 'Consume', 'End'].filter(Boolean).join(', ')}`
           : 'no doors or buttons';
     lines.push(`Day ${m.day} of ${m.maxDays}${r.days ? `, ${r.days.days} days to the riot${sure(r.days)}` : ', riot not read'}; warden ${r.warden ? L(r.warden.cell) + sure(r.warden) : 'not found'}; ${today}.`);
     lines.push(`Cells (tiers 0 Normal to 4 Supreme, ? unsure): ${r.cells.filter((c) => c.n !== T.OFFICE).map((c) => `${L(c.n)} ${cellText(c)}${c.jaws ? ' jaws' : ''}${c.ghost ? ' faded' : ''}${sure(c)}`).join(', ')}.`);
