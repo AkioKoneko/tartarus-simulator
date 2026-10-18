@@ -651,7 +651,7 @@
     const frame = await grab();
     if (frame) setState({ frames: state.frames + 1 });
     const retryAttempt = opts && Number.isInteger(opts.retryAttempt) && opts.retryAttempt >= 1 && opts.retryAttempt <= 4 ? opts.retryAttempt : 0;
-    emit('frame', { kind: kind || 'manual', retryAttempt, hits: [], frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date() });
+    emit('frame', { kind: kind || 'manual', retryAttempt, fresh: !!(opts && opts.fresh), hits: [], frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date() });
     return !!frame;
   }
 

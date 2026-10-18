@@ -2251,8 +2251,12 @@
     return false;
   }
 
-  function readPick(source) {
+  function readPick(source, opts) {
+    const o = opts || {};
     reader.treasureScreen = null;
+    const frameId = ++reader.id;
+    reader.completedId = 0;
+    if (reader.pending) reader.pending.done(null, 'a newer picture came in');
     const scale = Math.min(1, 2600 / source.width);
     const w = Math.round(source.width * scale);
     const h = Math.round(source.height * scale);
@@ -2262,22 +2266,35 @@
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(source, 0, 0, w, h);
     const imageData = ctx.getImageData(0, 0, w, h);
+    const screen = {id:frameId,image:canvas,capturedAt:Date.now(),result:null};
+    reader.pickScreen = screen;
+    const current = () => frameId === reader.id && (!o.isCurrent || o.isCurrent());
     const t0 = performance.now();
     setReading(true);
     return new Promise((resolve) => {
-      const done = (result, error) => {
+      let completed = false;
+      const finish = (value) => {
+        if (completed) return;
+        completed = true;
         setReading(false);
+        resolve(current() ? value : {ok:false,pick:true,skipped:true,reason:'a newer picture came in'});
+      };
+      const done = (result, error) => {
+        if (!current()) return finish(null);
         const ms = Math.round(performance.now() - t0);
-        if (error || !result) return resolve({ ok: false, pick: true, reason: error || 'no result', ms });
-        if (!result.ok) return resolve({ ok: false, pick: true, reason: result.reason, ms });
-        const cards = result.cards.map((c) => ({ sim: c.sim, name: T.toolName(c.sim), conf: c.conf, alts: c.alts, by: 'art' }));
+        if (error || !result) return finish({ ok: false, pick: true, reason: error || 'no result', ms });
+        if (!result.ok) return finish({ ok: false, pick: true, reason: result.reason, ms });
+        const cards = result.cards.map((c) => ({ sim: c.sim, name: T.toolName(c.sim), conf: c.conf, alts: c.alts, box:c.box, by: 'art' }));
         // Each card's printed name, read where it can be, outranks its art.
         readCardNames(canvas, result.ui).then((names) => {
+          if (!current()) return finish(null);
           names.forEach((n, i) => {
             if (n && cards[i]) Object.assign(cards[i], { sim: n.id, name: T.toolName(n.id), conf: 1, by: 'name' });
           });
-          resolve({ ok: true, pick: true, cards, names: cards.map((c) => c.name), unsure: cards.filter((c) => c.conf < 0.5).length, reroll: !!result.reroll, byName: cards.filter((c) => c.by === 'name').length, ocrFailed: names.failed || '', ms: Math.round(performance.now() - t0) });
-        });
+          const value = { ok: true, pick: true, cards, names: cards.map((c) => c.name), unsure: cards.filter((c) => c.conf < 0.5).length, reroll: !!result.reroll, rerollTarget:result.rerollTarget, byName: cards.filter((c) => c.by === 'name').length, ocrFailed: names.failed || '', ms: Math.round(performance.now() - t0), _pickId:frameId };
+          screen.result = value;
+          finish(value);
+        }).catch(e=>finish({ok:false,pick:true,reason:e.message || 'the instrument names could not be read',ms:Math.round(performance.now()-t0)}));
       };
       reader.pickId += 1;
       const id = `pick${reader.pickId}`;
@@ -2301,6 +2318,7 @@
   // named for checking.
   function usePick(read, fresh) {
     if (!read || !read.ok) return false;
+    if (read._pickId != null && (read._pickId !== reader.id || !reader.pickScreen || reader.pickScreen.result !== read)) return false;
     const start = fresh !== false;
     reader.undoable = true;
     undo.push({ model: JSON.parse(JSON.stringify(model)), selected, shot });
@@ -3449,7 +3467,7 @@
     // them, and ask, without the toasts a pasted screenshot gets.
     window.TartarusAnalyzer = {
       readFrame: (bitmap, opts) => new Promise((resolve) => readBitmap(bitmap, Object.assign({},opts,{ quiet: true, folded: true, onRead: resolve }))),
-      readPick: (bitmap) => readPick(bitmap),
+      readPick: (bitmap, opts) => readPick(bitmap, opts),
       usePick: (read, fresh) => usePick(read, fresh),
       readTreasure: (bitmap, opts) => readTreasure(bitmap, opts),
       readObjective: (bitmap) => readObjective(bitmap),
@@ -3488,6 +3506,13 @@
         const key=JSON.stringify([rec.action,rec.label]);
         if(!localPlanCache || localPlanCache.st!==solver.st || localPlanCache.key!==key) localPlanCache={st:solver.st,key,plan:assist.buildPlan(solver.st,rec,T,S)};
         const plan=localPlanCache.plan;
+        const pick=reader.pickScreen;
+        if (pick && pick.id===reader.id && model.step==='choice' && model.choice.kind==='tool') {
+          if (!pick.result || pick.result.unsure || pick.result.ocrFailed && !pick.result.byName ||
+              JSON.stringify(model.choice.options)!==JSON.stringify(pick.result.cards.map(c=>c.sim))) return {plan:null,hints:{valid:false}};
+          const targets=assist.buildTargets(solver.st,rec,{result:{ok:true,pick:pick.result}},plan);
+          return {plan,hints:{valid:targets.length>0,frameId:pick.id,capturedAt:pick.capturedAt,width:pick.image.width,height:pick.image.height,targets}};
+        }
         const treasure=reader.treasureScreen;
         if(treasure) {
           if(treasure.id!==reader.id || !treasure.result || model.step!=='choice' || model.choice.kind!=='gift' || gifts.known && gifts.waiting===0)return {plan:null,hints:{valid:false}};

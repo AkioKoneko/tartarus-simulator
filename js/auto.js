@@ -29,7 +29,7 @@
   let lastKind = ''; // the kind of the picture before this one
   let pickFresh = false; // whether the offer on screen starts a run
   let lastBoardAt = 0; // when a board's picture was last loaded
-  let treasureRetryTimer = 0;
+  let popupRetryTimer = 0;
   const say = (m) => {
     if (C.agreed()) channel.postMessage(Object.assign({ id: me }, m));
   };
@@ -37,8 +37,8 @@
   const announce = () => say({ type: 'here', focusedAt, pixels: true });
 
   async function onPicture(m) {
-    if (treasureRetryTimer) clearTimeout(treasureRetryTimer);
-    treasureRetryTimer = 0;
+    if (popupRetryTimer) clearTimeout(popupRetryTimer);
+    popupRetryTimer = 0;
     const answer = (patch) => channel.postMessage(Object.assign({ type: 'read', to: m.from, id: m.id }, patch));
     const before = lastKind;
     lastKind = m.kind;
@@ -55,10 +55,20 @@
     if (!read.ok || read.geometry !== false || m.giftWaiting === 0 || attempt > 4) return;
     // A fast first picture may catch the opening animation. Recheck only
     // that popup, without blocking the already available gift advice.
-    treasureRetryTimer = setTimeout(() => {
-      treasureRetryTimer = 0;
+    popupRetryTimer = setTimeout(() => {
+      popupRetryTimer = 0;
       if (mine === newest) say({ type: 'capture', kind: 'treasure', forFrame: m.id, retryAttempt: attempt });
     }, 250);
+  }
+
+  function retryInstruments(m, mine, read) {
+    const attempt = (m.retryAttempt || 0) + 1;
+    if (mine !== newest || attempt > 4 || read.skipped) return false;
+    popupRetryTimer = setTimeout(() => {
+      popupRetryTimer = 0;
+      if (mine === newest) say({type:'capture',kind:'instruments',forFrame:m.id,retryAttempt:attempt});
+    }, 400);
+    return true;
   }
 
   // A picture to read: a board, the instrument pick, the objective, or a
@@ -98,13 +108,19 @@
       return;
     }
     let offerMissed = '';
+    let instrumentRead = null;
     if (m.kind === 'instruments') {
       // The offer that starts a run comes with the day-0 line (m.fresh); an
       // objective's reward offers one mid-run, on the board as it is. A
       // re-roll is the same offer again.
       pickFresh = !!m.fresh || (before === 'instruments' && pickFresh);
       const fresh = pickFresh;
-      const read = await A.readPick(bitmap);
+      const read = instrumentRead = await A.readPick(bitmap, {requestId:mine,isCurrent:()=>mine===newest});
+      if (read.skipped || mine !== newest) { bitmap.close(); return; }
+      if ((!read.ok || read.unsure || read.ocrFailed && !read.byName) && retryInstruments(m,mine,read)) {
+        answer({read:{ok:false,pick:true,retrying:true,reason:`Reading the instrument cards again automatically${read.reason ? ': '+read.reason : '.'}`,ms:read.ms}});
+        bitmap.close();return;
+      }
       if (read.ok) {
         answer({ read });
         if (read.unsure && A.langMissed) A.langMissed('instrument offer', bitmap, `${read.unsure} of the cards not read`);
@@ -123,7 +139,8 @@
     // board does. It starts a run unless a board came in the last few
     // minutes (an objective's reward comes mid-run).
     if (m.kind !== 'board') {
-      const pick = await A.readPick(bitmap);
+      const pick = instrumentRead || await A.readPick(bitmap, {requestId:mine,isCurrent:()=>mine===newest});
+      if (pick.skipped || mine !== newest) { bitmap.close(); return; }
       const sure = pick.ok ? pick.cards.map((c) => c.conf).sort((a, b) => b - a)[1] : 0;
       if (sure >= 0.5) {
         answer({ read: pick });

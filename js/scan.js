@@ -1826,7 +1826,7 @@
   // offer a re-roll (the user, 2026-10-18), so light pixels there alone
   // (the pointer, a glint) aren't one (report 338). The buttons keep to the
   // screen's bottom whatever the cards' size u.
-  function pickRerollShown(img, u = img.height / 1080) {
+  function pickRerollTarget(img, u = img.height / 1080) {
     const s = u;
     const bottom = img.height - 1080 * s;
     for (const r of textRadii(img)) {
@@ -1834,12 +1834,14 @@
         for (const p of line.pieces) {
           const n = p.glyphs.length;
           const span = (p.x1 - p.x0) / line.h;
-          if (n >= 5 && n <= 8 && span > 2.6 && span < 4.6) return true;
+          if (n >= 5 && n <= 8 && span > 2.6 && span < 4.6) return {x:p.x0,y:p.y0,width:p.x1-p.x0,height:p.y1-p.y0};
         }
       }
     }
-    return false;
+    return null;
   }
+
+  const pickRerollShown = (img, u) => !!pickRerollTarget(img, u);
 
   // The three cards on offer, left to right, each matched by its art to the
   // instruments the reader knows: art from this page itself (pick.tools,
@@ -1907,7 +1909,8 @@
     const ms = Date.now() - t0;
     if (cards.some((c) => !c)) return { ok: false, reason: 'The three instrument cards weren’t found in this picture.', cards, ms };
     if (cards.every((c) => c.conf < 0.2)) return { ok: false, reason: 'This doesn’t look like the instrument pick.', cards, ms };
-    return { ok: true, cards, ui: u, reroll: pickRerollShown(img, u), ms };
+    const rerollTarget = pickRerollTarget(img, u);
+    return { ok: true, cards, ui: u, reroll: !!rerollTarget, rerollTarget, ms };
   }
 
   // The reader's references with the panel icons from js/pick-data.js added:

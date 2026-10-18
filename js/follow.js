@@ -434,7 +434,7 @@
   // js/auto.js). It goes by the browser's BroadcastChannel, which reaches
   // only this site's own pages in this browser. Nothing is uploaded.
   async function onFrame(f) {
-    const c = { id: nextId++, time: f.time, kind: f.kind, retryAttempt: f.retryAttempt || 0, hits: f.hits || [], frame: !!f.frame, why: f.why || '', thumb: '', full: '', sent: false, read: null, state: '', asked: false, note: '' };
+    const c = { id: nextId++, time: f.time, kind: f.kind, fresh: !!f.fresh || (f.hits || []).some(h=>/check cur=0\b/.test(h.text || '')), retryAttempt: f.retryAttempt || 0, hits: f.hits || [], frame: !!f.frame, why: f.why || '', thumb: '', full: '', sent: false, read: null, state: '', asked: false, note: '' };
     c.gifts = giftState.snapshot();
     lastPicture = { at: Date.now(), kind: c.kind, ok: c.frame, why: c.why };
     tell();
@@ -467,7 +467,7 @@
         else {
           // fresh: the offer that starts a run comes with the day-0 line;
           // one that comes later (an objective's reward) doesn't.
-          const fresh = c.hits.some((h) => /check cur=0\b/.test(h.text || ''));
+          const fresh = c.fresh;
           // after: for the Warden's Treasure, the action that led to it.
           const after = c.kind === 'treasure' ? treasureAfter(c.hits) : '';
           // treasureView: the board, seen while a Warden's Treasure waits.
@@ -539,14 +539,14 @@
         renderAnalyzer();
       } else if (m.type === 'read' && m.to === me) onAnswer(m);
       else if (m.type === 'capture' && m.id) {
-        if (m.kind === 'treasure') {
+        if (m.kind === 'treasure' || m.kind === 'instruments') {
           // Retry only the popup this analyzer just read, never a newer
           // board or a different gift. Animation retries do not click.
           const current = captures[0];
-          if (!current || current.kind !== 'treasure' || current.id !== m.forFrame ||
+          if (!current || current.kind !== m.kind || current.id !== m.forFrame ||
               !Number.isInteger(m.retryAttempt) || m.retryAttempt !== current.retryAttempt + 1 ||
               m.retryAttempt > 4 || C.state.window !== 'on') return;
-          C.captureNow('treasure', { retryAttempt: m.retryAttempt });
+          C.captureNow(m.kind, { retryAttempt: m.retryAttempt, fresh: current.fresh });
           return;
         }
         // The analyzer's Take a picture now: the same as the button here,

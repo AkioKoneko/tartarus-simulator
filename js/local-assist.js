@@ -184,6 +184,15 @@
     function button(key) {
       return lowerButton(r.decision && r.decision.targets && r.decision.targets[key]);
     }
+    if (r.pick && r.pick.ok && st.pending && st.pending[0] && st.pending[0].kind==='tool') {
+      if (a.type==='reroll') return r.pick.reroll ? lowerButton(r.pick.rerollTarget) : [];
+      if (a.type!=='choose' || !st.pending[0].options.includes(a.id)) return [];
+      const cards=r.pick.cards.filter(c=>c.sim===a.id);
+      if (cards.length!==1 || cards[0].conf<0.5) return [];
+      const b=cards[0].box;
+      if (!Array.isArray(b) || b.length!==4 || !b.every(Number.isFinite) || b[0]<0 || b[1]<0 || b[2]<=b[0] || b[3]<=b[1]) return [];
+      return [{x:(b[0]+b[2])/2,y:b[3]+20,width:Math.min(400,b[2]-b[0]+40),height:12,radius:6,label,kind:'button',shape:'underline',priority:'primary'}];
+    }
     if(a.type==='choose' && st.pending && st.pending[0] && st.pending[0].kind==='gift' && st.pending[0].options.includes(a.id)) {
       const b=r.treasure && r.treasure.ok && r.treasure.targets && r.treasure.targets[a.id];
       if(!b || ![b.x,b.y,b.width,b.height].every(Number.isFinite) || b.x<0 || b.y<0 || b.width<=0 || b.height<=0)return [];
