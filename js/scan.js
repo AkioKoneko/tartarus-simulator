@@ -1106,12 +1106,17 @@
     const bottom = Math.max(at(loc, 0, 3)[1], at(loc, 5, 3)[1]) + 30 * loc.s;
     const allowed = [];
     for (let c = 2; c <= 16; c++) allowed.push(c);
-    let best = [];
+    const groups = [];
     for (const r of textRadii(img)) {
       const cards = [];
       for (const line of textLines(img, 0, bottom, img.width - 1, Math.min(img.height - 1, bottom + 260 * loc.s), { minH: 6, maxH: Math.max(48, img.height * 0.07), r })) {
         for (const p of line.pieces) {
           if (p.glyphs.length < 2 || p.glyphs.length > 12) continue;
+          // A card's text has words around its number ("去3号" is three line
+          // heights long), where marks in the cards' art are short (report
+          // 368: three of them under "Пойти в №3" and "№6" outnumbered the
+          // two cards).
+          if (p.x1 - p.x0 < 2.5 * line.h) continue;
           // Which word each glyph is in: a number stands as its own word
           // ("камеру 13"), or between wide glyphs ("去13号", "2호로"), never
           // inside a word of narrow letters (report 328: a Cyrillic "З" in
@@ -1141,15 +1146,31 @@
       }
       for (const c of cards) {
         const group = cards.filter((d) => Math.abs(d.mid - c.mid) < 2.5 * c.h && Math.abs(d.h - c.h) < 0.3 * c.h);
-        if (group.length > 3) continue;
-        const fit = group.reduce((a, d) => a + d.fit, 0);
-        if (group.length > best.length || (group.length === best.length && fit < best.fit)) {
-          best = group;
-          best.fit = fit;
-        }
+        if (group.length < 2 || group.length > 3) continue;
+        // The cards say the same words around their numbers, so their texts
+        // are about as long ("去3号" and "去13号": a third longer at most);
+        // marks in the cards' art aren't (report 368: 32 to 68 px).
+        const widths = group.map((d) => d.p.x1 - d.p.x0);
+        if (Math.max(...widths) > 1.5 * Math.min(...widths)) continue;
+        group.fit = group.reduce((a, d) => a + d.fit, 0);
+        groups.push(group);
       }
     }
-    return best.length >= 2 ? best.sort((a, b) => a.p.x0 - b.p.x0) : [];
+    // The biggest, best-read row first. The others go along: marks in the
+    // cards' art can make a bigger row (report 368), which the board's lit
+    // cells then rule out (readDoors).
+    groups.sort((a, b) => b.length - a.length || a.fit - b.fit);
+    const seen = new Set();
+    const rows = groups.map((g) => g.slice().sort((a, b) => a.p.x0 - b.p.x0)).filter((g) => {
+      const key = g.map((c) => `${Math.round(c.p.x0 / 4)},${Math.round(c.mid / 4)}`).join(' ');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (!rows.length) return [];
+    const best = rows[0];
+    best.others = rows.slice(1, 40);
+    return best;
   }
 
   // How light a cell's room is: a destination of the day is lit.
@@ -1235,31 +1256,46 @@
     // Doors are prison cells, 02-16.
     const allowed = [];
     for (let c = 2; c <= 16; c++) allowed.push(c);
-    const options = cards.map((c) => {
-      const glyphs = c.word.glyphs;
-      const whole = readNumber(gray, img.width, img.height, c.word, c.h, ref.digits, allowed, true);
-      // A blob wider than most single digits (about 0.65 of the letter
-      // height) may be two that touch, like "11" in small text, or one wide
-      // digit, like a "4" (report 59): read both ways, the better first.
-      if (glyphs.length === 1 && glyphs[0].w > 0.72 * c.h) {
-        const parts = splitGlyph(gray, img.width, glyphs[0]);
-        if (parts) return whole.concat(readNumber(gray, img.width, img.height, { glyphs: parts }, c.h, ref.digits, allowed, true)).sort((a, b) => b.score - a.score);
-      }
-      return whole;
-    });
-    if (options.some((o) => !o.length)) return null;
-    const read = distinctNumbers(options);
-    const score = read.reduce((a, r) => a + r.score, 0) / read.length;
-    const cells = [...new Set(read.map((r) => r.value - 1))];
+    const readRow = (row) => {
+      const options = row.map((c) => {
+        const glyphs = c.word.glyphs;
+        const whole = readNumber(gray, img.width, img.height, c.word, c.h, ref.digits, allowed, true);
+        // A blob wider than most single digits (about 0.65 of the letter
+        // height) may be two that touch, like "11" in small text, or one wide
+        // digit, like a "4" (report 59): read both ways, the better first.
+        if (glyphs.length === 1 && glyphs[0].w > 0.72 * c.h) {
+          const parts = splitGlyph(gray, img.width, glyphs[0]);
+          if (parts) return whole.concat(readNumber(gray, img.width, img.height, { glyphs: parts }, c.h, ref.digits, allowed, true)).sort((a, b) => b.score - a.score);
+        }
+        return whole;
+      });
+      if (options.some((o) => !o.length)) return null;
+      const read = distinctNumbers(options);
+      return { row, options, read, cells: [...new Set(read.map((r) => r.value - 1))] };
+    };
     // Cards read by their numbers alone are checked against the board: the
     // game lights the locked cells you can go to (54-62 against 17-28 for
     // the rest, on three boards), and a decision row's words read as
     // numbers name unlit ones (reports 328, 329, 333). At least one door is
-    // a plain locked cell, and every such door is lit.
+    // a plain locked cell, and every such door is lit. The first row of
+    // cards that passes is the doors (report 368: marks in the cards' art
+    // named unlit cells, above the cards' own numbers).
+    let got = null;
     if (any && cellReads) {
-      const plain = cells.filter((n) => cellReads[n] && cellReads[n].kind === 'locked' && !cellReads[n].shown);
-      if (!plain.length || plain.some((n) => cellLight(img, cellReads[n]) < 40)) return null;
-    }
+      for (const row of [cards, ...(cards.others || [])]) {
+        const g = readRow(row);
+        if (!g) continue;
+        const plain = g.cells.filter((n) => cellReads[n] && cellReads[n].kind === 'locked' && !cellReads[n].shown);
+        if (plain.length && plain.every((n) => cellLight(img, cellReads[n]) >= 40)) {
+          got = g;
+          break;
+        }
+      }
+    } else got = readRow(cards);
+    if (!got) return null;
+    if (got.row !== cards) cards = got.row;
+    const { options, read, cells } = got;
+    const score = read.reduce((a, r) => a + r.score, 0) / read.length;
     const boxes = cards.map((c) => [c.p.x0, c.p.y0, c.p.x1, c.p.y1]);
     // The office (cell 01) as a destination.
     if (cards.office) {
