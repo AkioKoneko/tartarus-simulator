@@ -46,6 +46,7 @@
   const SAVE_KEY = 'tartarus-sim:save:v2';
   const PLAYOUT_BUDGET = 9600; // playouts per check, shared across the options
   const LIVE_MIN = 150; // playouts per option before the live check can lead
+  const SWITCH_MIN = 0.05; // Rainbows a live pick must gain over the strategy's to replace it
   // The check ends early once the leader is ahead of every other move by
   // CLEAR_SE of its paired margins (after LIVE_MIN playouts each), and in any
   // case after CHECK_MS, with what it has then. The user: a decision within a
@@ -716,7 +717,11 @@
     const live = r && ranked.length > 1 && ((r.done && !r.early) || r.rounds >= LIVE_MIN) ? ranked[0] : null;
     const mine = pick && ranked.find((o) => S.sameAction(o.action, pick.action));
     if (!live) return pick ? Object.assign({ live: false }, pick, { option: mine || null }) : ranked.length === 1 ? { action: ranked[0].action, label: ranked[0].label, why: 'It’s the only move here.', live: true, option: ranked[0] } : null;
-    if (mine && (mine === live || live.mean - mine.mean <= 1.96 * mine.gapSe)) {
+    // A better move must also win by a margin worth playing for: shared dice
+    // make the paired margin narrow, and a near tie flipped the advice from
+    // one screen to the next (report 337: End 2.85 against the strategy's
+    // consume at 2.82).
+    if (mine && (mine === live || live.mean - mine.mean <= Math.max(1.96 * mine.gapSe, SWITCH_MIN))) {
       const why = mine === live ? pick.why : `${pick.why} The live check rates it about equal to the best.`;
       return Object.assign({ live: true, rounds: r.rounds }, pick, { label: mine.label, why, option: mine });
     }
@@ -1268,7 +1273,7 @@
     );
     const top = options[0];
     const second = options[1];
-    const close = top && second && top.mean - second.mean < 1.96 * second.gapSe;
+    const close = top && second && top.mean - second.mean < Math.max(1.96 * second.gapSe, SWITCH_MIN);
     $('az-res-note').textContent = working || shown.length < 2
       ? ''
       : close
@@ -2374,12 +2379,6 @@
     m.warden = warden;
     const was = base.cells[warden];
     const eater = r.cells[warden];
-    if (eater && eater.kind === 'inmate') m.cells[warden] = { kind: 'inmate', beast: eater.beast, tier: clamp(eater.tier, 0, TOP_TIER), ivory: !!(was && was.ivory), prey: was && was.kind === 'inmate' ? was.prey : null };
-    else {
-      checks.add(warden);
-      notes.push('The eater in the warden’s cell wasn’t read: set it as it is now.');
-    }
-    const tier = m.cells[warden].kind === 'inmate' ? m.cells[warden].tier : 0;
     // Cells the chain has eaten show a padlock again. The meal pick darkens
     // padlocks enough to read as an empty cell (reports 314 and 322), which
     // the live board never has, so a cell that held an inmate and now reads
@@ -2393,6 +2392,21 @@
         eaten += 1;
       });
     }
+    // Nothing eaten yet and the same beast in the warden's cell: the day's
+    // first meal pick, where the eater can't have changed. The meal screen's
+    // red light makes the reader's rarities unreliable there (report 337: an
+    // eater read as Supreme, and the advice turned from its consume to End),
+    // so the board before's eater and meals stand. A chain's eater rose and
+    // re-rolled its beast, so there the reading stands.
+    const sameBeast = !!was && was.kind === 'inmate' && !!eater && eater.kind === 'inmate' && was.beast === eater.beast;
+    const first = eaten === 0 && (walked || sameBeast);
+    if (first && was && was.kind === 'inmate') m.cells[warden] = JSON.parse(JSON.stringify(was));
+    else if (eater && eater.kind === 'inmate') m.cells[warden] = { kind: 'inmate', beast: eater.beast, tier: clamp(eater.tier, 0, TOP_TIER), ivory: !!(was && was.ivory), prey: was && was.kind === 'inmate' ? was.prey : null };
+    else {
+      checks.add(warden);
+      notes.push('The eater in the warden’s cell wasn’t read: set it as it is now.');
+    }
+    const tier = m.cells[warden].kind === 'inmate' ? m.cells[warden].tier : 0;
     // The meals on offer: the board before keeps its inmate when it fits;
     // otherwise the beast read here, at the eater's rarity. A scratched door
     // stays a door.
@@ -2403,8 +2417,7 @@
       m.cells[n] = { kind: 'inmate', beast: r.cells[n].beast || (c.kind === 'inmate' ? c.beast : 'mammoth'), tier, ivory: c.kind === 'inmate' ? !!c.ivory : false, prey: null };
       checks.add(n);
     }
-    const unchanged = walked || (was && was.kind === 'inmate' && eater && eater.kind === 'inmate' && was.beast === eater.beast && was.tier === eater.tier);
-    m.step = eaten === 0 && unchanged ? 'manage' : 'chain';
+    m.step = first ? 'manage' : 'chain';
     m.devourUsed = m.step === 'chain';
     // The meal pick shows the meals and Cancel, never Replace. A chain taken
     // for the day's first consume (report 323: the board before didn't hold

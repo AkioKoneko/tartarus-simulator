@@ -1075,6 +1075,7 @@
   const SOLVER_ROLLOUTS = 800;
   const SOLVER_ROLLOUTS_HERE = 300;
   const LIVE_MIN = 150; // playouts per option before the live check leads
+  const SWITCH_MIN = 0.05; // Rainbows a live pick must gain over the strategy's to replace it
   const solver = { worker: null, failed: false, id: 0, key: '', stateKey: '', result: null, instantKey: '', instant: null };
 
   const solverKey = (st) => {
@@ -1230,7 +1231,9 @@
     const live = r && ranked.length > 1 && (r.done || r.rounds >= LIVE_MIN) ? ranked[0] : null;
     if (!live) return pick ? Object.assign({ live: false }, pick) : null;
     const mine = pick && ranked.find((o) => S.sameAction(o.action, pick.action));
-    if (mine && (mine === live || live.mean - mine.mean <= 1.96 * mine.gapSe)) {
+    // A better move must also win by a margin worth playing for: shared dice
+    // make the paired margin narrow, and a near tie flips the advice.
+    if (mine && (mine === live || live.mean - mine.mean <= Math.max(1.96 * mine.gapSe, SWITCH_MIN))) {
       const why = mine === live ? pick.why : `${pick.why} The live check rates it about equal to the best.`;
       return Object.assign({ live: true, rounds: r.rounds }, pick, { label: mine.label, why, option: mine });
     }
@@ -1274,7 +1277,7 @@
       return;
     }
     const loss = Math.max(0, best.mean - chosen.mean);
-    const verdict = window.TartarusSolver.sameAction(chosen.action, best.action) ? 'best' : loss <= 1.96 * chosen.gapSe ? 'close' : 'costly';
+    const verdict = window.TartarusSolver.sameAction(chosen.action, best.action) ? 'best' : loss <= Math.max(1.96 * chosen.gapSe, SWITCH_MIN) ? 'close' : 'costly';
     t.moves += 1;
     if (verdict === 'costly') t.lost += loss;
     else t.good += 1;
@@ -1360,7 +1363,7 @@
     const top = options[0];
     const second = options[1];
     const max = Math.max(0.01, ...options.map((o) => o.mean));
-    const close = top && second && top.mean - second.mean < 1.96 * second.gapSe;
+    const close = top && second && top.mean - second.mean < Math.max(1.96 * second.gapSe, SWITCH_MIN);
     const shown = options.length > 1 ? options : [];
     syncRows(
       $('solver-list'),
