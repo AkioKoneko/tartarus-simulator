@@ -1193,6 +1193,10 @@
   function officeAct(state, choice) {
     if (state.phase !== 'office') return fail("Instigate and Bestow come with a visit to the warden's office.");
     if (state.pending.length) return fail('Make your pending choice first.');
+    // used.officeOnly: the game shows only that card (the analyzer reads
+    // them; report 383 had Bestow alone).
+    const only = state.used && state.used.officeOnly;
+    if (only && choice !== only) return fail(`Your game offers only ${only === 'bestow' ? 'Bestow' : 'Instigate'} today.`);
     const events = [];
     if (choice === 'instigate') instigate(state, events, 'Instigate');
     else if (choice === 'bestow') bestow(state, events, 'Bestow');

@@ -1038,6 +1038,8 @@
       return options.length ? { type: 'chain', to: options[0].cell } : { type: 'end' };
     }
     if (st.phase === 'office') {
+      // Only one card on offer (the analyzer read the game's office cards).
+      if (st.used && st.used.officeOnly) return { type: 'office', choice: st.used.officeOnly };
       if (P.office) return { type: 'office', choice: P.office };
       const office = officeValues(st, ctx, composition(st, -1).comp);
       return { type: 'office', choice: office.bestow >= office.instigate ? 'bestow' : 'instigate' };
@@ -1160,8 +1162,9 @@
       return out;
     }
     if (st.phase === 'office') {
-      out.push({ action: { type: 'office', choice: 'bestow' }, label: 'Bestow: 1 random inmate rises a tier' });
-      out.push({ action: { type: 'office', choice: 'instigate' }, label: `Instigate: ${(T.instigateCount ? T.instigateCount(st) : T.INSTIGATE_EVENTS) === 1 ? 'a new special event' : `${T.instigateCount ? T.instigateCount(st) : T.INSTIGATE_EVENTS} new special events`}` });
+      const only = st.used && st.used.officeOnly;
+      if (!only || only === 'bestow') out.push({ action: { type: 'office', choice: 'bestow' }, label: 'Bestow: 1 random inmate rises a tier' });
+      if (!only || only === 'instigate') out.push({ action: { type: 'office', choice: 'instigate' }, label: `Instigate: ${(T.instigateCount ? T.instigateCount(st) : T.INSTIGATE_EVENTS) === 1 ? 'a new special event' : `${T.instigateCount ? T.instigateCount(st) : T.INSTIGATE_EVENTS} new special events`}` });
       return out;
     }
     if (st.phase === 'event' && st.event) {

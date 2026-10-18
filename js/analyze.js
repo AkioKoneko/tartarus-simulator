@@ -139,6 +139,9 @@
       // The cells the game framed on the Hunt's pick (only those can be
       // marked), while it's open.
       huntOnly: null,
+      // The office shows one card only (read from a screenshot): 'bestow' or
+      // 'instigate'.
+      officeOnly: null,
       eventKind: 'chain',
       // rerolls: a pet's re-rolls left on an instrument offer. picks: the
       // Warden's Treasure picks waiting, this one included (3 a Treasure
@@ -270,7 +273,7 @@
     st.phase = 'manage';
 
     const usedToday = () => {
-      st.used = { swap: m.swapUsed ? 1 : 0, devour: m.devourUsed ? 1 : 0, devourAfterSwap: !!m.consumeOffered, noSwap: !!m.noSwap, noDevour: !!m.noDevour, noHunt: !!m.noHunt, huntOnly: Array.isArray(m.huntOnly) ? m.huntOnly.slice() : null };
+      st.used = { swap: m.swapUsed ? 1 : 0, devour: m.devourUsed ? 1 : 0, devourAfterSwap: !!m.consumeOffered, noSwap: !!m.noSwap, noDevour: !!m.noDevour, noHunt: !!m.noHunt, huntOnly: Array.isArray(m.huntOnly) ? m.huntOnly.slice() : null, officeOnly: m.officeOnly || null };
     };
     switch (m.step) {
       case 'patrol': {
@@ -406,6 +409,7 @@
     m.noDevour = !!st.used.noDevour;
     m.noHunt = !!st.used.noHunt;
     m.huntOnly = Array.isArray(st.used.huntOnly) ? st.used.huntOnly.slice() : null;
+    m.officeOnly = st.phase === 'office' && st.used.officeOnly ? st.used.officeOnly : null;
     m.ended = st.phase === 'ended';
     return m;
   }
@@ -2621,6 +2625,7 @@
     m.noDevour = false;
     m.noHunt = false;
     m.huntOnly = null;
+    m.officeOnly = null;
     // Without the cards (a picture taken as they come up), a board of the
     // same day with the warden in the same cell keeps what the board
     // before knew. And if the warden's inmate has changed since, today's
@@ -2653,9 +2658,14 @@
     const lionHere = !!here && here.kind === 'inmate' && here.beast === 'lion';
     const huntPick = !!(r.decision && r.decision.ratway) && trap && lionHere && (framed ? framed.length < 14 : base.step === 'manage' && m.day === base.day && m.warden === base.warden);
     if (r.decision && r.decision.office) {
-      // The office's Instigate and Bestow cards.
+      // The office's Instigate and Bestow cards. The game can show just one
+      // (report 383: Bestow alone), when the reader tells them apart.
       m.step = 'office';
       m.dest = [];
+      const ins = r.decision.instigate;
+      const bes = r.decision.bestow;
+      if (ins === false && bes) m.officeOnly = 'bestow';
+      else if (bes === false && ins) m.officeOnly = 'instigate';
     } else if (huntPick) {
       // Only the Hunt is open now, on the framed cells.
       m.step = 'manage';
@@ -2702,7 +2712,11 @@
     const doorsDue = T.DEFAULT_PARAMS.destinations - m.tools.filter((id) => takers.includes(id)).length;
     if (m.step === 'patrol' && !officeNear && m.dest.length && m.dest.length < doorsDue) m.shortDays = [...new Set([...(m.shortDays || []), m.day])];
     if ((m.shortDays || []).length >= 2 && !m.tools.some((id) => takers.includes(id))) {
-      const hint = `${T.plural(m.shortDays.length, 'morning')} of this run offered a door short, as the Forged Key, Barbed Whip or Burning Stake do. If you hold one, set it under Torture Instrument${m.toolsLocked ? '' : ', then press These are right'}.`;
+      // Held as the Lost Ring of Keys, which takes no door: the Forged Key's
+      // icon, two keys on a ring (report 378), passes for it on the panel.
+      const hint = m.tools.includes('keys')
+        ? `${T.plural(m.shortDays.length, 'morning')} of this run offered a door short, which the Lost Ring of Keys doesn't do. The Forged Key does, and its icon looks like the Ring's: if you hold the Forged Key, set it under Torture Instrument in place of the Lost Ring of Keys${m.toolsLocked ? '' : ', then press These are right'}.`
+        : `${T.plural(m.shortDays.length, 'morning')} of this run offered a door short, as the Forged Key, Barbed Whip or Burning Stake do. If you hold one, set it under Torture Instrument${m.toolsLocked ? '' : ', then press These are right'}.`;
       if (m.toolsLocked || m.toolsToConfirm) notes.push(hint);
       else m.toolsToConfirm = hint;
     }
@@ -2797,7 +2811,7 @@
       const nests = m.cells.filter((c) => c.kind === 'nest').length;
       list.push(`<li><b>Board</b> ${T.plural(inmates, 'inmate')}, ${T.plural(locked, 'locked cell')}${events ? `, ${T.plural(events, 'event')}` : ''}${nests ? `, ${T.plural(nests, 'rat nest')}` : ''}</li>`);
       list.push(`<li><b>Warden</b> ${r.warden ? (r.warden.cell === T.OFFICE ? 'in the office' : `cell ${L(r.warden.cell)}`) : 'not found'}</li>`);
-      list.push(`<li><b>Today</b> ${rd.chain ? `${m.step === 'chain' ? 'a consume chain picks its next meal, or Cancel stops it' : 'the day’s consume picks its meal'}: cell ${rd.chain.map(L).join(' or ')}` : m.step === 'patrol' ? `choose a door: ${m.dest.map(L).join(', ')}` : r.decision && r.decision.ratway ? (rd.huntPick ? `the Hunt: pick the Lion’s prey${(r.decision.framed || []).length ? `, cell ${r.decision.framed.map(L).join(', ')}` : ''}` : 'the Sewer Ratway: pick any cell but the office') : r.decision && r.decision.office ? 'the office: Instigate or Bestow' : r.decision ? `your decision: ${[r.decision.replace && 'Replace', r.decision.consume && 'Consume', 'End'].filter(Boolean).join(', ')}` : 'no door cards, so after the patrol'}</li>`);
+      list.push(`<li><b>Today</b> ${rd.chain ? `${m.step === 'chain' ? 'a consume chain picks its next meal, or Cancel stops it' : 'the day’s consume picks its meal'}: cell ${rd.chain.map(L).join(' or ')}` : m.step === 'patrol' ? `choose a door: ${m.dest.map(L).join(', ')}` : r.decision && r.decision.ratway ? (rd.huntPick ? `the Hunt: pick the Lion’s prey${(r.decision.framed || []).length ? `, cell ${r.decision.framed.map(L).join(', ')}` : ''}` : 'the Sewer Ratway: pick any cell but the office') : r.decision && r.decision.office ? (rd.model.officeOnly ? `the office: ${rd.model.officeOnly === 'bestow' ? 'Bestow' : 'Instigate'} only` : 'the office: Instigate or Bestow') : r.decision ? `your decision: ${[r.decision.replace && 'Replace', r.decision.consume && 'Consume', 'End'].filter(Boolean).join(', ')}` : 'no door cards, so after the patrol'}</li>`);
       list.push(`<li><b>Riot</b> ${r.days ? `${T.plural(r.days.days, 'day')} away, so day ${m.day} of ${m.maxDays}` : 'not read'}</li>`);
       list.push(`<li><b>Instruments</b> ${rd.tools.length ? rd.tools.map((t) => esc(t.name || t.id) + (t.sim ? '' : ' (not simulated)')).join(', ') : 'none'}</li>`);
       list.push(`<li><b>Chromatic</b> ${T.plural(rd.chromatic, 'prisoner')}${r.chromatic ? '' : ' (panel not found)'}</li>`);
@@ -2862,7 +2876,7 @@
         : r.decision
           ? r.decision.ratway
             ? (rd.huntPick ? `the Hunt’s pick of its prey${(r.decision.framed || []).length ? `: ${r.decision.framed.map(L).join(', ')}` : ''}` : 'the Sewer Ratway’s pick of a cell')
-            : `buttons: ${r.decision.office ? 'Instigate, Bestow' : [r.decision.replace && 'Replace', r.decision.consume && 'Consume', 'End'].filter(Boolean).join(', ')}`
+            : `buttons: ${r.decision.office ? [r.decision.instigate !== false && 'Instigate', r.decision.bestow !== false && 'Bestow'].filter(Boolean).join(', ') : [r.decision.replace && 'Replace', r.decision.consume && 'Consume', 'End'].filter(Boolean).join(', ')}`
           : 'no doors or buttons';
     lines.push(`Day ${m.day} of ${m.maxDays}${r.days ? `, ${r.days.days} days to the riot${sure(r.days)}` : ', riot not read'}; warden ${r.warden ? L(r.warden.cell) + sure(r.warden) : 'not found'}; ${today}.`);
     lines.push(`Cells (tiers 0 Normal to 4 Supreme, ? unsure): ${r.cells.filter((c) => c.n !== T.OFFICE).map((c) => `${L(c.n)} ${cellText(c)}${c.jaws ? ' jaws' : ''}${c.prey ? ' prey' : ''}${c.ghost ? ' faded' : ''}${sure(c)}`).join(', ')}.`);
