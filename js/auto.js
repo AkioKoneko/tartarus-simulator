@@ -183,9 +183,20 @@
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   function renderFollow() {
     if (!bar) return;
-    bar.hidden = !C.agreed();
+    // Agreed to the page before it was updated: the bar stays, to say why
+    // nothing comes (report 315: Take a picture now was gone, unexplained).
+    const before = !C.agreed() && !!C.agreedBefore && C.agreedBefore();
+    bar.hidden = !C.agreed() && !before;
     if (bar.hidden) return;
     const link = '<a href="follow.html#follow" target="tartarus-follow">the Auto Screenshot Mode page</a>';
+    if (before) {
+      bar.className = 'az-follow is-warn';
+      bar.title = '';
+      barText.innerHTML = `Auto Screenshot Mode was updated, and it’s off until you agree again. Open <a href="follow.html#agree" target="tartarus-follow">the Auto Screenshot Mode page</a>, read what changed and agree, then share the game window again. Until then, no pictures come here and Take a picture now is off.`;
+      now.disabled = true;
+      now.title = 'Agree again on the Auto Screenshot Mode page first.';
+      return;
+    }
     let ok = false;
     let warn = false;
     let quiet = false;
