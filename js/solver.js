@@ -849,9 +849,31 @@
     return value;
   }
 
+  // The run's last move is made: the last day, with today's consume,
+  // Replace and Hunt out of reach and no chain going, so nothing a gift sets
+  // up can add a Rainbow before the run ends (report 330).
+  const lastMoveMade = (st) => st.day >= st.maxDays && !st.chaining && !T.canDevourNow(st) && !canSwapNow(st) && !(T.canHuntNow && T.canHuntNow(st));
+
   function pickGift(st, ctx, options, random) {
     const P = ctx.P;
     if (P.giftRank) return P.giftRank.find((id) => options.includes(id)) || options[0];
+    // After the last move, a gift that makes a Rainbow now still comes
+    // first; otherwise the Thumb Ring (the user, 2026-10-17: "thumb ring is
+    // more overall chests at the end").
+    if (lastMoveMade(st)) {
+      let best = null;
+      for (const id of options) {
+        let gain = 0;
+        for (let i = 0; i < 3; i++) {
+          const trial = clone(st);
+          trial.rng = (random() * 4294967296) >>> 0;
+          if (T.choose(trial, id).ok) gain += trial.vault.length - st.vault.length;
+        }
+        if (gain > 0 && (!best || gain > best.gain)) best = { id, gain };
+      }
+      if (best) return best.id;
+      if (options.includes('ring')) return 'ring';
+    }
     // Opulence's chain (the user's find): the Brass Horn when it makes a
     // Rainbow now, as each brings 3 more picks; else the Thumb Ring while 3
     // or more picks wait (more inmates); else Crimson Vintage while 2 or more
@@ -1363,6 +1385,7 @@
           // Opulence: more picks wait at this Treasure, and the advice
           // weighs them.
           const picks = st.pending.filter((p) => p.kind === 'gift').length;
+          if (lastMoveMade(st) && action.id === 'ring') return 'Today’s move is made, so no gift adds a Rainbow before the run ends. The Thumb Ring opens up to 3 more cells, for more chests at the end.';
           const worth = picks > 1 ? `Worth the most on this board with the picks to come: ${picks} picks wait at this Treasure, this one included.` : 'Worth the most on this board right now.';
           const what = giftEffect(st, action.id);
           return what ? `${what} ${worth}` : worth;
