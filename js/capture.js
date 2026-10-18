@@ -363,6 +363,18 @@
     }
   }
 
+  // Agreed to an earlier version of follow.html, and not turned off: Auto
+  // Screenshot Mode waits until the player reads what changed and agrees
+  // again (the analyzer says so, rather than going quiet).
+  function agreedBefore() {
+    try {
+      const s = JSON.parse(localStorage.getItem(SETTINGS) || 'null');
+      return !!s && s.enabled === true && Number(s.consent) > 0 && s.consent < CONSENT_VERSION;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function mustAgree() {
     if (!agreed()) throw new Error('Read and agree on the Auto Screenshot Mode page first.');
   }
@@ -601,6 +613,7 @@
     // up, and players are asked to read and agree again.
     CONSENT_VERSION,
     agreed,
+    agreedBefore,
     supported: {
       log: typeof window.showOpenFilePicker === 'function',
       drop: typeof DataTransferItem === 'function' && typeof DataTransferItem.prototype.getAsFileSystemHandle === 'function',
