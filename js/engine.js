@@ -133,7 +133,7 @@
   // pick by its printed name.
   const TOOLS = {
     revenge: { name: "Avenger's Casket", text: 'After a consume, 30% chance to open a sealed cell holding a meal for the eater at its new rarity. That door triggers nothing else.' },
-    muzzle: { name: "Raging Beast's Agonizing Muzzle", text: 'When 4 or fewer inmates are on the block after the meal, a consume gains +2 extra tiers.' },
+    muzzle: { name: "Raging Beast's Agonizing Muzzle", text: 'When 4 or fewer inmates are on the block before a consume (its meal included), the consume gains +2 extra tiers.' },
     saw: { name: 'Rusty Saw', text: 'After a consume, 25% chance of +1 extra tier.' },
     keys: { name: 'Lost Ring of Keys', text: 'When a patrol opens a door, 80% chance to also open the cells on both sides. Those doors trigger nothing else.' },
     rope: { name: "Hangman's Noose", text: 'Replacement inmates are never Normal or Magic.' },
@@ -1070,8 +1070,8 @@
       gain = Math.max(1, meal.tier + 2 - eater.tier);
       notes.push(`Elephant-Foot Maul to ${tierName(Math.min(RAINBOW, meal.tier + 2))}`);
     }
-    // The Muzzle counts the block after the meal is gone.
-    if (has(state, 'muzzle') && boardCells(state).length - (option.scratch ? 0 : 1) <= 4) {
+    // The Muzzle counts the block before the meal goes, the meal included.
+    if (has(state, 'muzzle') && boardCells(state).length <= 4) {
       gain += 2;
       notes.push('Agonizing Muzzle +2');
     }
@@ -1438,9 +1438,10 @@
     countObjective(state, 'consume', 'consumes');
     const wasRat = eater.beast === 'rat';
     const wasLion = eater.beast === 'lion';
-    emptyCell(state, mealCell);
-    // The Muzzle counts the block after the meal is gone.
+    // The Muzzle counts the block before the meal goes, the meal included
+    // (the user, 2026-10-18).
     const crowd = boardCells(state).length;
+    emptyCell(state, mealCell);
     let gain = option.scratch ? 2 + (state.params.scratchStacksBase ? 1 : 0) : 1;
     const notes = [];
     if (option.scratch) notes.push(`scratch +${gain - 1}`);
@@ -1913,7 +1914,7 @@
 
   function choiceScore(state, id) {
     const board = boardInmates(state);
-    const small = board.length <= 5;
+    const small = board.length <= 4;
     switch (id) {
       case 'muzzle': return small ? 30 : 8;
       case 'skewer': return board.filter((i) => i.beast === 'rat').length * 8;
@@ -2033,7 +2034,7 @@
         return [{ kind: 'event', accept: true, text: `Accept: ${u.count === 'all' ? 'every inmate rises' : u.count === 1 ? 'a random inmate rises' : `${u.count} random inmates rise`} ${u.by === 1 ? 'a tier' : `${u.by} tiers`}.` }];
       }
       if (state.event.kind === 'ratway') return [{ kind: 'event', accept: true, text: 'Accept: move to any cell but the office, and open it if it is locked.' }];
-      const keepSmall = has(state, 'muzzle') && board.length <= 5;
+      const keepSmall = has(state, 'muzzle') && board.length <= 4;
       return [{ kind: 'event', accept: !keepSmall, text: keepSmall ? 'Skip: a chain would flood the block and switch off the Agonizing Muzzle.' : 'Accept: your next patrol opens every sealed cell on the way to its destination.' }];
     }
     if (state.phase === 'patrol') {
@@ -2044,7 +2045,7 @@
         if (!c.sealed && c.inmate) {
           // Walking to a known inmate makes it the one that devours today.
           const best = devourOptions(state, n).map((o) => devourTip(state, n, o, 'devour')).sort((a, b) => b.score - a.score)[0];
-          score = best ? 10 + best.score : has(state, 'muzzle') && board.length <= 5 ? 8 : 2;
+          score = best ? 10 + best.score : has(state, 'muzzle') && board.length <= 4 ? 8 : 2;
           why = best ? `its ${describe(c.inmate)} can then consume (${best.short})` : `its ${describe(c.inmate)} has no target from there`;
         } else if (!c.sealed) {
           score = 1;

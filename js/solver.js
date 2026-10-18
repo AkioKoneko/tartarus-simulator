@@ -310,11 +310,11 @@
 
   // One bite at tier t: the meal is gone and the eater rises. A chained bite
   // (after the first) can get the Barbed Collar's +1.
-  // `crowd` counts the block before the bite, meal included; the Muzzle
-  // counts it after.
+  // `crowd` counts the block before the bite, meal included, as the Muzzle
+  // does.
   function bite(ctx, t, b, comp, crowd, extra, chained, mealTier = t) {
     let gain = (ctx.maul && b === MAMMOTH ? Math.max(1, mealTier + 2 - t) : 1) + extra;
-    if (ctx.muzzle && crowd - 1 <= 4) gain += 2;
+    if (ctx.muzzle && crowd <= 4) gain += 2;
     if (ctx.skewer && b === RAT) gain += 1;
     if (ctx.crown && b === LION) gain += 2;
     const after = (g) => rise(ctx, Math.min(RAINBOW, t + g), comp, crowd - 1, ctx.fight ? b : -1);
