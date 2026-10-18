@@ -35,6 +35,11 @@
     wNest: -6, // patrol: opening a rat nest before it hatches
     wChain: 4, // patrol: a door that hides a Chain reaction
     wGoal: 1, // patrol: per tile walked toward Prison Walk, while it pays a tool
+    wIncident: 0, // patrol: an event set off toward Undercurrents, divided by the incidents still needed
+    wPass: 0, // patrol: an event walked past while Undercurrents needs one (it waits a lap), divided the same way
+    wOfficeIncident: 0, // office: each event an Instigate brings while Undercurrents needs it, divided the same way
+    wConsume: 0, // manage: a consume while Survival of the Fittest needs one, divided by the consumes still needed
+    wConsumeWalk: 0, // patrol: walking to an inmate that can consume today, while it needs one, divided the same way
     wInstigate: 0.5, // office: an event Instigate brings, as a share of an event door's worth
     wCrow: 2, // patrol: a door hiding Crow Whispers (it only shows rarities)
     wShort: 0.1, // Short-Chained Shackles: a short walk's chance of an extra door, as a share of its worth (0.1 measured best: 0.749 against 0.683 at 1)
@@ -58,9 +63,13 @@
   // Tuned weights for each kind of run: drills with tool rewards on or off.
   // The solver picks by the run's settings. From
   // tools/results/ (train-report.json: the drill profiles were retrained on
-  // 2026-10-15).
+  // 2026-10-15). The objective weights (wIncident, wPass, wOfficeIncident,
+  // wConsume) were tuned on 2026-10-17 by whole runs with that objective set,
+  // 10,000 a setting and checked on fresh seeds: Undercurrents +0.18 Rainbows
+  // a run (met 99% of runs, by day 7.9 not 9.5), Survival of the Fittest
+  // +0.04. Runs with other objectives play out exactly as before.
   const PROFILES = {
-    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['crown', 'trap', 'rope', 'maul', 'claws', 'scapegoat', 'coin', 'maiden', 'shackles', 'muzzle', 'blacklist', 'revenge', 'ravenous', 'skewer', 'hook', 'stake', 'saw', 'collar', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'pestle', 'fire', 'shortchain', 'axe', 'forged', 'ironbox'] },
+    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, wIncident: 40, wPass: 40, wOfficeIncident: 60, wConsume: 20, toolRank: ['crown', 'trap', 'rope', 'maul', 'claws', 'scapegoat', 'coin', 'maiden', 'shackles', 'muzzle', 'blacklist', 'revenge', 'ravenous', 'skewer', 'hook', 'stake', 'saw', 'collar', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'pestle', 'fire', 'shortchain', 'axe', 'forged', 'ironbox'] },
     notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['crown', 'trap', 'rope', 'maul', 'claws', 'scapegoat', 'coin', 'maiden', 'shackles', 'muzzle', 'blacklist', 'revenge', 'ravenous', 'skewer', 'hook', 'stake', 'saw', 'collar', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'pestle', 'fire', 'shortchain', 'axe', 'forged', 'ironbox'] },
   };
   const paramsFor = (st) => PROFILES[st.params.rewards ? 'rewards' : 'notools'];
@@ -159,6 +168,10 @@
     // Two tiers for every inmate on the block (Usurpation IV), and for a random one.
     const allLift2 = board.reduce((sum, c) => sum + (c.inmate.tier + 2 >= RAINBOW ? R : v[c.inmate.tier + 2]) - v[c.inmate.tier], 0);
     const goal = st.objective && st.objective.id === 'walk' && !st.milestone && st.params.rewards ? T.OBJECTIVES.walk.need - st.objective.progress : 0;
+    // Undercurrents: the Prison Incidents it still needs, while it pays a tool.
+    const incidents = st.objective && st.objective.id === 'incident' && !st.milestone && st.params.rewards && T.OBJECTIVES.incident ? T.OBJECTIVES.incident.need - st.objective.progress : 0;
+    // Survival of the Fittest: the consumes (each bite) it still needs.
+    const consumes = st.objective && st.objective.id === 'consume' && !st.milestone && st.params.rewards && T.OBJECTIVES.consume ? T.OBJECTIVES.consume.need - st.objective.progress : 0;
     return {
       st,
       P,
@@ -202,6 +215,8 @@
       allLift2,
       shacklesLift: has(st, 'shackles') && board.length ? lift : 0,
       goalLeft: goal,
+      incidentsLeft: incidents,
+      consumesLeft: consumes,
       scratchExtra: 1 + (st.params.scratchStacksBase ? 1 : 0),
       openDist,
       openValue: openDist.reduce((sum, p, t) => sum + p * v[t], 0),
@@ -602,7 +617,10 @@
     // after Tyranny's, the board has some.
     const first = T.instigateCount ? T.instigateCount(st) : T.INSTIGATE_EVENTS;
     const tyranny = extra ? extra * bestow + Math.min(first + (extra - 1) * T.INSTIGATE_EVENTS, free) * each * ctx.P.wInstigate : 0;
-    return { bestow, instigate: Math.min(extra ? T.INSTIGATE_EVENTS : first, free) * each * ctx.P.wInstigate, tyranny };
+    const made = Math.min(extra ? T.INSTIGATE_EVENTS : first, free);
+    // Undercurrents: each new event is an incident to walk to.
+    const goal = ctx.incidentsLeft ? (ctx.P.wOfficeIncident * Math.min(made, ctx.incidentsLeft)) / ctx.incidentsLeft : 0;
+    return { bestow, instigate: made * each * ctx.P.wInstigate + goal, tyranny };
   }
 
   // Scores today's destinations. Returns [{ cell, score, why }], best first.
@@ -663,6 +681,11 @@
       } else if (c.inmate) {
         score += P.wWalk * known(c);
         why = `its ${T.describe(c.inmate)} can act today`;
+        // Survival of the Fittest: a consume today counts toward its tool.
+        if (ctx.consumesLeft && P.wConsumeWalk && T.devourOptions(st, n).length) {
+          score += P.wConsumeWalk / ctx.consumesLeft;
+          why += ', and its consume counts for Survival of the Fittest';
+        }
         // An event waiting in an open cell goes off when the warden walks in.
         if (c.event) {
           const worth = eventWorth(ctx, board.comp);
@@ -684,9 +707,27 @@
       if (ctx.shortchain && steps >= 1 && steps <= 3 && ctx.sealed > (c.sealed ? 1 : 0)) score += P.wShort * 0.5 * P.wOpen * ctx.openValue;
       // Prison Walk: each tile walked brings its tool closer.
       if (ctx.goalLeft) score += P.wGoal * Math.min(steps, ctx.goalLeft);
+      // Undercurrents: an event set off here counts toward its tool (all the
+      // way, with one to go), and one walked past waits a lap.
+      if (ctx.incidentsLeft) {
+        if (incidentAt(c)) {
+          score += P.wIncident / ctx.incidentsLeft;
+          if (P.wIncident) why = `${why}, and it counts for Undercurrents`;
+        }
+        if (steps > 1 && P.wPass) score -= (P.wPass * T.clockwisePath(st, n).filter((k) => k !== n && incidentAt(st.cells[k])).length) / ctx.incidentsLeft;
+        // An event further ahead, within tomorrow's reach, stays ahead.
+        const next = P.wPass ? [...Array(range).keys()].map((i) => (n + 1 + i) % T.CELL_COUNT).find((k) => k !== st.position && T.stepsBetween(st.position, k) > steps && incidentAt(st.cells[k])) : undefined;
+        if (next !== undefined) why = `${why}, and it stops short of the event in cell ${T.cellLabel(next)}, for Undercurrents`;
+      }
       out.push({ cell: n, score, why });
     }
     return out.sort((a, b) => b.score - a.score);
+
+    // A Prison Incident: an event behind a door, or in an open cell with
+    // an inmate (walking in sets it off).
+    function incidentAt(cell) {
+      return !!cell.event && (cell.sealed || !!cell.inmate);
+    }
 
     function known(cell) {
       const { comp, crowd } = composition(st, cell.n);
@@ -945,6 +986,8 @@
     const hunt = bestHunt(st, ctx);
     if (T.canDevourNow(st)) {
       const devours = devourScores(st, ctx);
+      // Survival of the Fittest: a consume counts toward its tool.
+      if (devours.length && ctx.consumesLeft && P.wConsume) devours[0] = Object.assign({}, devours[0], { score: devours[0].score + P.wConsume / ctx.consumesLeft });
       if (devours.length && devours[0].score >= P.minDevour) {
         if (hunt && hunt.value > devours[0].score && hunt.value > swapGain) return { type: 'hunt', to: hunt.cell };
         // The swap instead, when it's worth more than the best devour.
