@@ -1,6 +1,6 @@
 /* Tartarus Simulator: board analyzer.
  * The player sets up their board by hand: every cell, the warden, today's
- * doors, tools, vault and contracts. The page turns that into an engine state
+ * doors, tools and vault. The page turns that into an engine state
  * and asks js/solver.js for the best move: the trained strategy's pick right
  * away, then a live check that plays every option out many times. "Do it here"
  * plays the move with the simulator's dice, so the player only has to fix what
@@ -15,9 +15,9 @@
   const SHARE = window.TartarusLive || null;
   // The event kinds and steps the live collector (worker/) accepts.
   const COLLECTOR_EVENTS = ['unknown', 'chain', 'execution'];
-  const COLLECTOR_STEPS = ['patrol', 'manage', 'event', 'choice', 'window'];
+  const COLLECTOR_STEPS = ['patrol', 'manage', 'event', 'choice'];
   // The moves "Do it here" can record that the deployed collector knows.
-  const COLLECTOR_ACTIONS = ['patrol', 'devour', 'swap', 'end', 'event', 'choose', 'deliver', 'skip', 'close', 'early'];
+  const COLLECTOR_ACTIONS = ['patrol', 'devour', 'swap', 'end', 'event', 'choose'];
   const $ = (id) => document.getElementById(id);
   const L = (n) => T.cellLabel(n);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -52,8 +52,8 @@
   // second of the picture, "faster is way better".
   const CLEAR_SE = 3;
   const CHECK_MS = 700;
-  const STEPS = ['patrol', 'manage', 'office', 'chain', 'event', 'ratway', 'choice', 'window'];
-  const STEP_NAMES = { patrol: 'Which door to patrol', manage: 'After the patrol', office: 'Instigate or Bestow', chain: 'A meal to pick, or Cancel', event: 'A special event', ratway: 'Sewer Ratway: any cell', choice: 'A tool or gift', window: 'A delivery' };
+  const STEPS = ['patrol', 'manage', 'office', 'chain', 'event', 'ratway', 'choice'];
+  const STEP_NAMES = { patrol: 'Which door to patrol', manage: 'After the patrol', office: 'Instigate or Bestow', chain: 'A meal to pick, or Cancel', event: 'A special event', ratway: 'Sewer Ratway: any cell', choice: 'A tool or gift' };
   const BEAST_KEYS = { m: 'mammoth', l: 'lion', w: 'wolf', r: 'rat' };
   const TOP_TIER = T.SUPREME; // Rainbows leave for the vault, so cells hold Normal to Supreme
 
@@ -138,7 +138,6 @@
       // Warden's Treasure picks waiting, this one included (3 a Treasure
       // with Opulence).
       choice: { kind: 'tool', options: [], rerolls: 0, picks: 1 },
-      windowKind: 'due',
       chainArmed: false,
       // Until the player sets it, no objective's tool is assumed.
       objective: 'other',
@@ -149,7 +148,6 @@
       tools: [],
       vault: [],
       cells: Array.from({ length: T.CELL_COUNT }, (_, n) => (n === T.OFFICE ? officeCell() : sealedCell())),
-      ch: { vouchers: T.START_VOUCHERS, contracts: ['mixed', 'elite', 'heavy'], bounty: 'wolf', status: ['pending', 'pending'], points: [0, 0] },
     };
   }
 
@@ -158,7 +156,11 @@
     const base = blankModel();
     if (!m || typeof m !== 'object' || !Array.isArray(m.cells) || m.cells.length !== T.CELL_COUNT) return base;
     const out = Object.assign(base, m);
-    out.ch = Object.assign(blankModel().ch, m.ch || {});
+    // Every board is a drill: the contract challenge is gone (it isn't in
+    // the live game), and a board saved in it goes on as a drill.
+    out.mode = 'drill';
+    delete out.ch;
+    delete out.windowKind;
     out.choice = Object.assign(blankModel().choice, m.choice || {});
     out.choice.rerolls = clamp(toInt(out.choice.rerolls, 0), 0, 9);
     out.choice.picks = clamp(toInt(out.choice.picks, 1), 1, 30);
@@ -175,17 +177,6 @@
     out.walkTiles = clamp(toInt(out.walkTiles, 0), 0, T.OBJECTIVES[out.objective].need || 0);
     out.chain = 'single';
     return out;
-  }
-
-  function makeContract(slot, id, bounty) {
-    const def = T.CONTRACT_SLOTS[slot];
-    const v = def.variants.find((x) => x.id === id) || def.variants[0];
-    const contract = { slot, id: v.id, name: v.name, needs: v.needs.slice(), deadline: def.deadline, heavy: !!def.heavy };
-    if (v.id === 'bounty') {
-      contract.bounty = T.BEASTS.includes(bounty) ? bounty : 'wolf';
-      contract.needs = ['At least 1 Supreme or Rainbow', `+8 points per Supreme or Rainbow ${T.beastName(contract.bounty)}`];
-    }
-    return contract;
   }
 
   // What the inmate in cell n could eat only as a second meal (a Mammoth
@@ -205,9 +196,8 @@
   // analyzed. Events the player can't name get a kind the solver re-rolls.
   function buildState(m) {
     const problems = [];
-    const challenge = m.mode === 'challenge';
-    const params = challenge ? {} : { rewards: !!m.rewards, drillDays: clamp(toInt(m.maxDays, 20), 5, 60) };
-    const st = T.newGame({ mode: challenge ? 'challenge' : 'drill', params, seed: 'ANALYZER', loadout: 'supply' });
+    const params = { rewards: !!m.rewards, drillDays: clamp(toInt(m.maxDays, 20), 5, 60) };
+    const st = T.newGame({ params, seed: 'ANALYZER' });
     st.rng = (Math.random() * 4294967296) >>> 0;
     st.log = [];
     st.day = clamp(toInt(m.day, 1), 1, st.maxDays);
@@ -285,25 +275,6 @@
     st.pending = [];
     st.phase = 'manage';
 
-    if (challenge) {
-      const ch = st.challenge;
-      ch.vouchers = clamp(toInt(m.ch.vouchers, T.START_VOUCHERS), 0, T.START_VOUCHERS);
-      ch.contracts = [0, 1, 2].map((slot) => makeContract(slot, m.ch.contracts[slot], m.ch.bounty));
-      ch.deliveries = [];
-      ch.score = 0;
-      for (let slot = 0; slot < 2; slot++) {
-        const status = m.ch.status[slot];
-        if (status !== 'delivered' && status !== 'skipped') break;
-        const points = status === 'delivered' ? clamp(toInt(m.ch.points[slot], 0), 0, 999) : 0;
-        ch.deliveries.push({ slot, day: ch.contracts[slot].deadline, success: status === 'delivered', points, cost: 0, pressure: 0, escort: status === 'delivered' ? 'light' : null, names: [], early: false });
-        ch.score += points;
-      }
-      if (m.ch.status[0] === 'pending' && m.ch.status[1] !== 'pending') problems.push('Contract 2 can only be settled after contract 1.');
-      const next = ch.contracts[ch.deliveries.length];
-      if (next && !next.heavy && st.day > next.deadline) problems.push(`"${next.name}" was due at the end of day ${next.deadline}. Mark it delivered or skipped.`);
-      ch.window = null;
-    }
-
     const usedToday = () => {
       st.used = { swap: m.swapUsed ? 1 : 0, devour: m.devourUsed ? 1 : 0, devourAfterSwap: !!m.consumeOffered, noSwap: !!m.noSwap, noDevour: !!m.noDevour };
     };
@@ -350,27 +321,12 @@
       }
       case 'choice': {
         usedToday();
-        const kind = ['tool', 'refit', 'gift'].includes(m.choice.kind) ? m.choice.kind : 'tool';
+        const kind = m.choice.kind === 'gift' ? 'gift' : 'tool';
         const options = kind === 'gift' ? T.GIFT_IDS.slice() : [...new Set(m.choice.options)].filter((id) => T.TOOLS[id] && !st.tools.includes(id));
         if (!options.length) problems.push('Pick the tools on offer.');
-        if (kind === 'refit' && !challenge) problems.push('Refits only follow contract deliveries. Pick the contract challenge, or another kind of offer.');
-        st.pending = [{ kind, options, slot: challenge ? Math.max(0, st.challenge.deliveries.length - 1) : 0, refreshed: false, rerolls: kind === 'tool' ? m.choice.rerolls || 0 : 0 }];
+        st.pending = [{ kind, options, rerolls: kind === 'tool' ? m.choice.rerolls || 0 : 0 }];
         // The Treasure's picks still waiting after this one (Opulence).
-        if (kind === 'gift') for (let k = 1; k < clamp(toInt(m.choice.picks, 1), 1, 30); k++) st.pending.push({ kind, options: options.slice(), slot: 0, refreshed: false, rerolls: 0 });
-        break;
-      }
-      case 'window': {
-        if (!challenge) {
-          problems.push('Deliveries are part of the contract challenge. Switch the goal to Contract challenge.');
-          break;
-        }
-        const ch = st.challenge;
-        const early = m.windowKind === 'early';
-        const next = ch.contracts[ch.deliveries.length];
-        if (!next) problems.push('Every contract is already settled.');
-        else if (early && !next.heavy) problems.push('The early window is only for the heavy contract, once the first two are settled.');
-        else if (early && st.day < 9) problems.push('The heavy contract can be delivered early from day 9.');
-        ch.window = { early };
+        if (kind === 'gift') for (let k = 1; k < clamp(toInt(m.choice.picks, 1), 1, 30); k++) st.pending.push({ kind, options: options.slice(), rerolls: 0 });
         break;
       }
       case 'chain': {
@@ -411,10 +367,9 @@
   // "Do it here". `prev` keeps what the player knew about event kinds.
   function modelFrom(st, prev) {
     const m = blankModel();
-    m.mode = st.mode === 'challenge' ? 'challenge' : 'drill';
     m.rewards = !!st.params.rewards;
     m.day = st.day;
-    m.maxDays = st.mode === 'challenge' ? (prev ? prev.maxDays : T.DEFAULT_PARAMS.drillDays) : st.maxDays;
+    m.maxDays = st.maxDays;
     m.warden = st.position;
     m.chainArmed = !!st.chain;
     m.objective = st.objective ? st.objective.id : 'other';
@@ -441,13 +396,9 @@
       const preyCell = link && link.lion === c.inmate.id ? T.cellOf(st, link.prey) : null;
       return { kind: 'inmate', beast: c.inmate.beast, tier: Math.min(TOP_TIER, c.inmate.tier), ivory: !!c.ivory, prey: preyCell ? { cell: preyCell.n, rounds: link.rounds } : null, event };
     });
-    const ch = st.challenge;
     if (st.pending.length) {
       m.step = 'choice';
       m.choice = { kind: st.pending[0].kind, options: st.pending[0].options.slice(), rerolls: st.pending[0].rerolls || 0, picks: st.pending[0].kind === 'gift' ? st.pending.filter((p) => p.kind === 'gift').length : 1 };
-    } else if (ch && ch.window) {
-      m.step = 'window';
-      m.windowKind = ch.window.early ? 'early' : 'due';
     } else if (st.phase === 'event' && st.event) {
       m.step = 'event';
       m.eventKind = st.event.kind;
@@ -462,14 +413,6 @@
     m.consumeOffered = !!st.used.devourAfterSwap;
     m.noSwap = !!st.used.noSwap;
     m.noDevour = !!st.used.noDevour;
-    if (ch) {
-      m.ch.vouchers = ch.vouchers;
-      m.ch.contracts = ch.contracts.map((c) => c.id);
-      const bounty = ch.contracts.find((c) => c.bounty);
-      if (bounty) m.ch.bounty = bounty.bounty;
-      m.ch.status = [0, 1].map((slot) => (!ch.deliveries[slot] ? 'pending' : ch.deliveries[slot].success ? 'delivered' : 'skipped'));
-      m.ch.points = [0, 1].map((slot) => (ch.deliveries[slot] && ch.deliveries[slot].success ? ch.deliveries[slot].points : 0));
-    }
     m.ended = st.phase === 'ended';
     return m;
   }
@@ -687,12 +630,10 @@
     if (m.id !== solver.id || !solver.shares || (solver.result && solver.result.early)) return;
     const share = solver.shares[k];
     if (m.meta && !solver.meta) solver.meta = m.meta;
-    if (!share.rows) share.rows = m.rows.map(() => ({ vals: [], pass: 0, points: 0, best: 0 }));
+    if (!share.rows) share.rows = m.rows.map(() => ({ vals: [], best: 0 }));
     m.rows.forEach((r, i) => {
       const row = share.rows[i];
       for (const v of r.vals) row.vals.push(v);
-      row.pass = r.pass;
-      row.points = r.points;
       row.best = r.best;
     });
     share.rounds = m.rounds;
@@ -711,13 +652,11 @@
     mergeTimer = 0;
     if (!solver.shares || !solver.meta) return;
     const rows = solver.meta.map((meta, i) => {
-      const row = Object.assign({ vals: [], pass: 0, points: 0, best: 0 }, meta);
+      const row = Object.assign({ vals: [], best: 0 }, meta);
       for (const s of solver.shares) {
         const r = s.rows && s.rows[i];
         if (!r) continue;
         for (const v of r.vals) row.vals.push(v);
-        row.pass += r.pass;
-        row.points += r.points;
         row.best += r.best;
       }
       return row;
@@ -790,13 +729,11 @@
   }
 
   function fmtOption(goal, o, st) {
-    if (goal === 'contract') return `${Math.round(100 * o.pass)}% pass · ${o.points.toFixed(0)} pts`;
     return `${o.mean.toFixed(2)}${o.n > 1 ? ` ±${(1.96 * o.se).toFixed(2)}` : ''}`;
   }
 
   function expectText(goal, o, st) {
     if (!o) return '';
-    if (goal === 'contract') return `Expected: ${Math.round(100 * o.pass)}% chance to pass, ${o.points.toFixed(0)} contract points.`;
     return `Expected: ${o.mean.toFixed(2)} Rainbows in the vault by the end of day ${st.maxDays}.`;
   }
 
@@ -833,7 +770,7 @@
     let more = 0;
     const startDay = st.day;
     if (toNextDay) {
-      const nextPatrol = () => st.day > startDay && st.phase === 'patrol' && !st.pending.length && !(st.challenge && st.challenge.window);
+      const nextPatrol = () => st.day > startDay && st.phase === 'patrol' && !st.pending.length;
       for (let i = 0; i < 80 && st.phase !== 'ended' && !nextPatrol(); i++) {
         let next = null;
         try {
@@ -986,7 +923,6 @@
     if (a && a.type === 'patrol') best.add(a.cell);
     if (a && a.type === 'devour') best.add(a.to);
     if (a && a.type === 'swap') best.add(st.position);
-    if (a && a.type === 'deliver') a.cells.forEach((n) => best.add(n));
     const doors = model.step === 'patrol' ? new Set(model.dest) : new Set();
     $('az-board').classList.toggle('is-patrolling', doors.size > 0);
     for (const cell of st.cells) {
@@ -1014,7 +950,7 @@
       setHTML(el.hint, p.hint);
       setHTML(el.badges, badges);
       setHTML(el.warden, p.warden ? B.LANTERN : '');
-      const tag = best.has(cell.n) ? (a.type === 'deliver' ? 'Send' : a.type === 'swap' ? 'Replace' : a.type === 'devour' ? 'Eat' : 'Go') : flags.has(cell.n) ? 'Check' : doors.has(cell.n) ? 'Door' : '';
+      const tag = best.has(cell.n) ? (a.type === 'swap' ? 'Replace' : a.type === 'devour' ? 'Eat' : 'Go') : flags.has(cell.n) ? 'Check' : doors.has(cell.n) ? 'Door' : '';
       el.tag.textContent = tag;
       el.btn.setAttribute('aria-label', `${p.label}${doors.has(cell.n) ? ". One of today's doors" : ''}${tag === 'Check' ? '. Changed by the simulator: check it against your game' : ''}`);
       el.btn.setAttribute('aria-pressed', String(cell.n === selected));
@@ -1040,7 +976,7 @@
       title = rec.label;
       detail = rec.option ? expectText(solver.result.goal, rec.option, solver.st) : 'Checking with playouts…';
     } else {
-      const day = model.mode === 'challenge' ? `Day ${model.day} of ${T.CHALLENGE_DAYS}` : `Day ${model.day} of ${model.maxDays}`;
+      const day = `Day ${model.day} of ${model.maxDays}`;
       title = 'Your board';
       detail = `${day} · ${STEP_NAMES[model.step]} · warden ${model.warden === T.OFFICE ? 'in the office' : `at cell ${L(model.warden)}`}`;
     }
@@ -1102,18 +1038,13 @@
   }
 
   function renderSettings() {
-    const challenge = model.mode === 'challenge';
-    pressGroup('az-mode', model.mode);
-    const maxDays = challenge ? T.CHALLENGE_DAYS : clamp(toInt(model.maxDays, 20), 5, 60);
+    const maxDays = clamp(toInt(model.maxDays, 20), 5, 60);
     // The game counts down: "N day(s) until Riot" on day maxDays - N.
     const riot = $('az-riot');
     riot.max = String(maxDays - 1);
     if (document.activeElement !== riot) riot.value = String(maxDays - clamp(toInt(model.day, 1), 1, maxDays));
     $('az-dayof').textContent = `Day ${model.day} of ${maxDays}`;
     $('az-days').value = String(maxDays);
-    $('az-days-wrap').hidden = challenge;
-    $('az-days-fixed').hidden = !challenge;
-    $('az-step-window').hidden = !challenge;
     pressGroup('az-step', model.step);
     for (const box of document.querySelectorAll('.az-stepbox')) {
       const steps = box.dataset.step.split(' ');
@@ -1135,9 +1066,6 @@
     pressGroup('az-event-kind', model.eventKind);
     pressGroup('az-choice-kind', model.choice.kind);
     renderOffer();
-    pressGroup('az-window-kind', model.windowKind);
-    const next = challenge ? nextContract() : null;
-    $('az-window-note').textContent = !next ? '' : model.windowKind === 'early' ? 'From day 9, once the first two contracts are settled. Delivering it ends the run.' : `"${next.name}": ${next.needs.join(', ').toLowerCase()}.`;
     $('az-armed').checked = !!model.chainArmed;
     for (const b of $('az-tools').querySelectorAll('[data-tool]')) b.setAttribute('aria-pressed', String(model.tools.includes(b.dataset.tool)));
     $('az-tools-confirm').hidden = !model.toolsToConfirm;
@@ -1157,8 +1085,7 @@
       toolBox.dataset.order = order.join(',');
       toolBox.scrollTop = 0;
     }
-    $('az-rewards-wrap').hidden = challenge;
-    $('az-rewards').checked = challenge || !!model.rewards;
+    $('az-rewards').checked = !!model.rewards;
     const goal = model.objective;
     $('az-objective').value = goal;
     $('az-objective-text').textContent = T.OBJECTIVES[goal].text;
@@ -1181,8 +1108,6 @@
         ? `<button type="button" class="az-hex is-filled t5" data-unvault="${i}" title="Chromatic ${esc(T.beastName(beast))}: click to remove">${B.PORTRAITS[beast]}</button>`
         : '<span class="az-hex" aria-hidden="true"></span>';
     }).join(''));
-    $('az-challenge').hidden = !challenge;
-    if (challenge) renderContracts();
   }
 
   function cellShort(c) {
@@ -1214,34 +1139,6 @@
       (kind === 'tool' ? `<label class="field"><span class="field-label">Re-rolls left</span><input type="number" id="az-rerolls" min="0" max="9" step="1" value="${model.choice.rerolls || 0}"></label>` : '');
   }
 
-  function nextContract() {
-    const slot = model.ch.status[0] === 'pending' ? 0 : model.ch.status[1] === 'pending' ? 1 : 2;
-    return makeContract(slot, model.ch.contracts[slot], model.ch.bounty);
-  }
-
-  function renderContracts() {
-    $('az-vouchers').value = String(model.ch.vouchers);
-    $('az-contracts').innerHTML = [0, 1, 2]
-      .map((slot) => {
-        const def = T.CONTRACT_SLOTS[slot];
-        const id = model.ch.contracts[slot];
-        const variants = def.variants.map((v) => `<option value="${v.id}"${v.id === id ? ' selected' : ''}>${esc(v.name)}</option>`).join('');
-        const contract = makeContract(slot, id, model.ch.bounty);
-        let extra = '';
-        if (slot < 2) {
-          const status = model.ch.status[slot];
-          const locked = slot === 1 && model.ch.status[0] === 'pending';
-          extra = `<div class="az-seg az-status" data-status="${slot}">${['pending', 'delivered', 'skipped']
-            .map((s) => `<button type="button" data-v="${s}" aria-pressed="${status === s}"${locked && s !== 'pending' ? ' disabled' : ''}>${s === 'pending' ? 'Still to come' : s === 'delivered' ? 'Delivered' : 'Skipped'}</button>`)
-            .join('')}</div>${status === 'delivered' ? `<label class="field az-points"><span class="field-label">Points it scored</span><input type="number" min="0" max="999" step="1" data-points="${slot}" value="${toInt(model.ch.points[slot], 0)}"></label>` : ''}`;
-        } else if (id === 'bounty') {
-          extra = `<label class="field"><span class="field-label">Bounty beast</span><select id="az-bounty">${T.BEASTS.map((b) => `<option value="${b}"${b === model.ch.bounty ? ' selected' : ''}>${esc(T.beastName(b))}</option>`).join('')}</select></label>`;
-        }
-        return `<div class="az-contract"><label class="field"><span class="field-label">Due day ${def.deadline}${def.heavy ? ' · heavy' : ''}</span><select data-contract="${slot}">${variants}</select></label><p class="az-needs">${esc(contract.needs.join(' · '))}</p>${extra}</div>`;
-      })
-      .join('');
-  }
-
   // Updates a list in place, keeping rows by key, so a button under the
   // pointer survives the refreshes of a live check.
   function syncRows(list, items, keyOf, make, fill) {
@@ -1262,7 +1159,7 @@
     for (const [key, li] of old) if (!keep.has(key)) li.remove();
   }
 
-  const actionKey = (a) => [a.type, a.cell, a.to, a.id, a.accept, a.choice, (a.cells || []).slice().sort((x, y) => x - y).join('.'), (a.vaultIds || []).slice().sort((x, y) => x - y).join('.'), a.escort].join('|');
+  const actionKey = (a) => [a.type, a.cell, a.to, a.id, a.accept, a.choice].join('|');
 
   function renderResults() {
     $('az-treasure-wait').hidden = !model.treasureWait;
@@ -1275,7 +1172,7 @@
     const working = !settled();
     const rec = working ? null : recommendation();
     const r = solver.result;
-    const goal = r ? r.goal : st.mode === 'challenge' ? 'contract' : 'rainbows';
+    const goal = 'rainbows';
     if (working) setHTML($('az-res-move'), `${SPIN}Working it out…`);
     else $('az-res-move').textContent = rec ? rec.label : 'Nothing to decide here.';
     $('az-do').hidden = !rec || stale;
@@ -1350,8 +1247,8 @@
         li.querySelector('.solver-tag').hidden = !o.policy;
         const value = li.querySelector('.solver-value');
         value.textContent = fmtOption(goal, o, st);
-        value.title = goal === 'contract' ? 'Chance to pass the challenge, and contract points on average' : 'Expected Rainbows in the vault by the end of the run, with a 95% margin';
-        const width = goal === 'contract' ? 100 * o.pass : (100 * o.mean) / max;
+        value.title = 'Expected Rainbows in the vault by the end of the run, with a 95% margin';
+        const width = (100 * o.mean) / max;
         li.querySelector('.solver-meter span').style.width = `${Math.max(2, width).toFixed(1)}%`;
         const sub = li.querySelector('.solver-sub');
         let subText = '';
@@ -1371,9 +1268,7 @@
       ? ''
       : close
         ? 'The top moves are within the margin of error: either is fine.'
-        : goal === 'contract'
-          ? 'Each option is played out from your board with everything you can’t see re-rolled, and the trained strategy making every later choice. Ranked by the chance to pass the challenge, then by contract points.'
-          : 'Each option is played out from your board with everything you can’t see re-rolled, and the trained strategy making every later choice. Scores are Rainbows in the vault by the end of the run.';
+        : 'Each option is played out from your board with everything you can’t see re-rolled, and the trained strategy making every later choice. Scores are Rainbows in the vault by the end of the run.';
   }
 
   // What the player does after following the advice in their game.
@@ -1390,7 +1285,6 @@
         : 'Then update what changed, and ask again.';
       case 'office': return 'In your game, press it. Then paste a screenshot of what changed (or set it here under Make Your Decision), and ask again.';
       case 'choose': return 'Take it in your game, then ask again.';
-      case 'deliver': return 'Load exactly these inmates in your game’s delivery window, with that escort.';
       default: return 'Then update the board, and ask again.';
     }
   }
@@ -1405,7 +1299,6 @@
     else {
       if (applied.changed.length) html += `<p class="trainer-why">${applied.changed.length === 1 ? 'Cell' : 'Cells'} ${applied.changed.map(L).join(', ')} changed, marked Check. Set ${applied.changed.length === 1 ? 'it' : 'them'} to what your game shows.</p>`;
       if (applied.newDay && applied.step === 'patrol') html += `<p class="trainer-why">It's now day ${model.day}. The simulator rolled today's doors (${applied.doors.map(L).join(', ') || 'none'}); tick the ones your game offers.</p>`;
-      if (applied.step === 'window') html += '<p class="trainer-why">A delivery window opened: the contract is due.</p>';
       if (applied.step === 'choice') html += '<p class="trainer-why">A tool or gift is on offer: set the options your game shows.</p>';
       if (applied.step === 'event') html += "<p class=\"trainer-why\">The door held a special event: check its kind in your game.</p>";
       if (applied.office) html += '<p class="trainer-why">The warden is in the office. If your game shows the Instigate and Bestow buttons, pick “Instigate or Bestow” above, or paste a screenshot of them. Otherwise carry on with “Make Your Decision”.</p>';
@@ -1962,12 +1855,10 @@
   function setStartEvent(id) {
     const card = T.START_EVENTS && T.START_EVENTS[id] ? T.START_EVENTS[id] : null;
     model.startEvent = card ? id : 'none';
-    if (model.mode !== 'challenge') {
-      const left = model.maxDays - model.day;
-      const days = card && card.days ? card.days : model.maxDays === 30 && id === 'none' ? T.DEFAULT_PARAMS.drillDays : model.maxDays;
-      model.maxDays = days;
-      model.day = clamp(days - left, 1, days);
-    }
+    const left = model.maxDays - model.day;
+    const days = card && card.days ? card.days : model.maxDays === 30 && id === 'none' ? T.DEFAULT_PARAMS.drillDays : model.maxDays;
+    model.maxDays = days;
+    model.day = clamp(days - left, 1, days);
     changed();
   }
 
@@ -2344,7 +2235,7 @@
   }
 
   // The board the reading describes, built on the current settings (goal,
-  // food chain, run length, contracts), plus the cells to check.
+  // food chain, run length), plus the cells to check.
   // A devour's meal pick ("Select an Inmate to Consume"). The game darkens
   // all but the eater and its meals there, so rarities can't be read: the
   // board is the turn before (the one loaded here), with what this picture
@@ -2485,8 +2376,7 @@
     // Days until the riot set how much of the run is left.
     if (r.days) {
       const left = r.days.days;
-      if (m.mode === 'challenge') m.day = clamp(T.CHALLENGE_DAYS - left, 1, T.CHALLENGE_DAYS);
-      else if (left < m.maxDays) m.day = Math.max(1, m.maxDays - left);
+      if (left < m.maxDays) m.day = Math.max(1, m.maxDays - left);
       else if (left < 30) {
         // More days left than the run has: only Iron Law's 30-day run has
         // that many.
@@ -2615,7 +2505,7 @@
     }
     if (tools.some((t) => t.conf < TOOL_SURE)) notes.push('Some instruments were hard to tell apart: check them under Torture Instrument.');
     const chromatic = r.chromatic ? r.chromatic.count : 0;
-    // Their beasts don't show in the slots; they only matter for a bounty.
+    // Their beasts don't show in the slots, and nothing depends on them.
     m.vault = new Array(chromatic).fill('wolf');
     const highest = Math.max(0, ...m.cells.filter((c) => c.kind === 'inmate').map((c) => c.tier));
     // The start card's badge under the instrument panel (Opulence so far):
@@ -2692,7 +2582,7 @@
       list.push(`<li><b>Board</b> ${T.plural(inmates, 'inmate')}, ${T.plural(locked, 'locked cell')}${events ? `, ${T.plural(events, 'event')}` : ''}${nests ? `, ${T.plural(nests, 'rat nest')}` : ''}</li>`);
       list.push(`<li><b>Warden</b> ${r.warden ? (r.warden.cell === T.OFFICE ? 'in the office' : `cell ${L(r.warden.cell)}`) : 'not found'}</li>`);
       list.push(`<li><b>Today</b> ${rd.chain ? `${m.step === 'chain' ? 'a consume chain picks its next meal, or Cancel stops it' : 'the day’s consume picks its meal'}: cell ${rd.chain.map(L).join(' or ')}` : m.step === 'patrol' ? `choose a door: ${m.dest.map(L).join(', ')}` : r.decision && r.decision.ratway ? 'the Sewer Ratway: pick any cell but the office' : r.decision && r.decision.office ? 'the office: Instigate or Bestow' : r.decision ? `your decision: ${[r.decision.replace && 'Replace', r.decision.consume && 'Consume', 'End'].filter(Boolean).join(', ')}` : 'no door cards, so after the patrol'}</li>`);
-      list.push(`<li><b>Riot</b> ${r.days ? `${T.plural(r.days.days, 'day')} away, so day ${m.day} of ${m.mode === 'challenge' ? T.CHALLENGE_DAYS : m.maxDays}` : 'not read'}</li>`);
+      list.push(`<li><b>Riot</b> ${r.days ? `${T.plural(r.days.days, 'day')} away, so day ${m.day} of ${m.maxDays}` : 'not read'}</li>`);
       list.push(`<li><b>Instruments</b> ${rd.tools.length ? rd.tools.map((t) => esc(t.name || t.id) + (t.sim ? '' : ' (not simulated)')).join(', ') : 'none'}</li>`);
       list.push(`<li><b>Chromatic</b> ${T.plural(rd.chromatic, 'prisoner')}${r.chromatic ? '' : ' (panel not found)'}</li>`);
       if (rd.checks.size) list.push(`<li class="is-check"><b>Check</b> ${[...rd.checks].sort((a, b) => a - b).map(L).join(', ')}: unsure, marked Check on the board</li>`);
@@ -2752,7 +2642,7 @@
         : r.decision
           ? `buttons: ${r.decision.office ? 'Instigate, Bestow' : [r.decision.replace && 'Replace', r.decision.consume && 'Consume', 'End'].filter(Boolean).join(', ')}`
           : 'no doors or buttons';
-    lines.push(`Day ${m.day} of ${m.mode === 'challenge' ? T.CHALLENGE_DAYS : m.maxDays}${r.days ? `, ${r.days.days} days to the riot${sure(r.days)}` : ', riot not read'}; warden ${r.warden ? L(r.warden.cell) + sure(r.warden) : 'not found'}; ${today}.`);
+    lines.push(`Day ${m.day} of ${m.maxDays}${r.days ? `, ${r.days.days} days to the riot${sure(r.days)}` : ', riot not read'}; warden ${r.warden ? L(r.warden.cell) + sure(r.warden) : 'not found'}; ${today}.`);
     lines.push(`Cells (tiers 0 Normal to 4 Supreme, ? unsure): ${r.cells.filter((c) => c.n !== T.OFFICE).map((c) => `${L(c.n)} ${cellText(c)}${c.jaws ? ' jaws' : ''}${c.ghost ? ' faded' : ''}${sure(c)}`).join(', ')}.`);
     const icons = r.tools && r.tools.tools ? r.tools.tools : [];
     lines.push(`Instruments read: ${icons.length ? icons.map((t) => `${t.name || t.id} ${Math.round(100 * t.conf)}%`).join(', ') : 'none'}; used: ${rd.tools.length ? rd.tools.map((t) => `${t.name || t.id}${t.kept ? ' (kept)' : ''}`).join(', ') : 'none'}.`);
@@ -2917,14 +2807,8 @@
     $('az-warden').addEventListener('click', () => setWarden(selected));
     $('az-door').addEventListener('click', () => toggleDoor(selected));
 
-    segment('az-mode', (v) => {
-      model.mode = v;
-      if (v === 'challenge') model.day = Math.min(model.day, T.CHALLENGE_DAYS);
-      if (v !== 'challenge' && model.step === 'window') model.step = 'manage';
-      changed();
-    });
     $('az-riot').addEventListener('change', (e) => {
-      const max = model.mode === 'challenge' ? T.CHALLENGE_DAYS : clamp(toInt(model.maxDays, 20), 5, 60);
+      const max = clamp(toInt(model.maxDays, 20), 5, 60);
       model.day = clamp(max - toInt(e.target.value, max - model.day), 1, max);
       changed();
     });
@@ -2986,10 +2870,6 @@
       model.choice = Object.assign({}, model.choice, { options: options.filter(Boolean) });
       changed();
     });
-    segment('az-window-kind', (v) => {
-      model.windowKind = v;
-      changed();
-    });
     $('az-armed').addEventListener('change', (e) => {
       model.chainArmed = e.target.checked;
       changed();
@@ -3046,28 +2926,6 @@
       model.vault = model.vault.filter((_, i) => i !== Number(b.dataset.unvault));
       changed();
     });
-    $('az-vouchers').addEventListener('change', (e) => {
-      model.ch.vouchers = clamp(toInt(e.target.value, T.START_VOUCHERS), 0, T.START_VOUCHERS);
-      changed();
-    });
-    $('az-contracts').addEventListener('change', (e) => {
-      const c = e.target.closest('[data-contract]');
-      if (c) model.ch.contracts[Number(c.dataset.contract)] = c.value;
-      const p = e.target.closest('[data-points]');
-      if (p) model.ch.points[Number(p.dataset.points)] = clamp(toInt(p.value, 0), 0, 999);
-      if (e.target.id === 'az-bounty') model.ch.bounty = e.target.value;
-      changed();
-    });
-    $('az-contracts').addEventListener('click', (e) => {
-      const b = e.target.closest('[data-status] button[data-v]');
-      if (!b || b.disabled) return;
-      const slot = Number(b.closest('[data-status]').dataset.status);
-      model.ch.status[slot] = b.dataset.v;
-      // Contracts settle in order.
-      if (slot === 0 && b.dataset.v === 'pending') model.ch.status[1] = 'pending';
-      changed();
-    });
-
     $('az-go').addEventListener('click', () => ask());
     $('az-do').addEventListener('click', () => {
       const rec = fresh() ? recommendation() : null;

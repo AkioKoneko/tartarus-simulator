@@ -48,35 +48,22 @@
     maidenSwapTier: 3, // holding the Severed Iron Maiden, swap up to this tier (Legendary measured best)
     execMargin: 0, // accept an Execution worth more than this
     acceptChain: true, // accept Chain reactions
-    toolRank: ['crown', 'trap', 'rope', 'claws', 'maul', 'scapegoat', 'maiden', 'coin', 'shackles', 'muzzle', 'blacklist', 'ravenous', 'revenge', 'skewer', 'stake', 'hook', 'saw', 'collar', 'guillotine', 'whip', 'dogtag', 'keys', 'tongs', 'cage', 'scales', 'shortchain', 'fire', 'axe', 'pestle', 'forged', 'ironbox'], // measured: each tool held from day 1
+    toolRank: ['crown', 'trap', 'rope', 'maul', 'claws', 'scapegoat', 'coin', 'maiden', 'shackles', 'muzzle', 'blacklist', 'revenge', 'ravenous', 'skewer', 'hook', 'stake', 'saw', 'collar', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'pestle', 'fire', 'shortchain', 'axe', 'forged', 'ironbox'], // measured: each tool held from day 1
     toolSets: true, // pick instruments by the measured sets (js/tool-combos.js) when there are any
     office: null, // always 'bestow' or 'instigate' at the office (only to measure the habit)
     giftRank: null, // null scores the gifts on the spot; or a fixed order
     giftChain: true, // Opulence's chain first: Horn for a Rainbow, then Thumb Ring, then Vintage (pickGift)
-    // Contract challenge: convoys for the first two contracts weigh their
-    // points against what the inmates sent would be worth kept on the block.
-    keep1: 0, // contract 1: an inmate kept is worth this share of its tier value, in points (0: send the most points)
-    keep2: 0, // contract 2: the same
-    reserve: 1, // vouchers to hold back for the heavy contract while delivering the first two
-    earlyPoints: 1e9, // from day 9, ship the heavy contract early once it scores this many points (-1: once the escort is full)
-    stuckRainbow: 1, // a Rainbow the heavy contract can't afford to ship, as a share of its usual worth
-    minLeft: 1, // vouchers the first two contracts always leave for the heavy one (0 only to measure the old habit)
-    wNeed: 0, // moves that bring the block closer to meeting the next contract, per inmate short
-    needDays: 3, // ...counted only in the last few days before its deadline
-    needCrit: 2, // ...and weighted this much more when the contract is a must (the other early one was missed)
   };
 
-  // Tuned weights for each kind of run: drills with tool rewards on or off,
-  // and the contract challenge. The solver picks by the run's settings. From
+  // Tuned weights for each kind of run: drills with tool rewards on or off.
+  // The solver picks by the run's settings. From
   // tools/results/ (train-report.json: the drill profiles were retrained on
   // 2026-10-15).
   const PROFILES = {
-    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['crown', 'trap', 'rope', 'claws', 'maul', 'scapegoat', 'maiden', 'coin', 'shackles', 'muzzle', 'blacklist', 'ravenous', 'revenge', 'skewer', 'stake', 'hook', 'saw', 'collar', 'guillotine', 'whip', 'dogtag', 'keys', 'tongs', 'cage', 'scales', 'shortchain', 'fire', 'axe', 'pestle', 'forged', 'ironbox'] },
-    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['crown', 'trap', 'rope', 'claws', 'maul', 'scapegoat', 'maiden', 'coin', 'shackles', 'muzzle', 'blacklist', 'ravenous', 'revenge', 'skewer', 'stake', 'hook', 'saw', 'collar', 'guillotine', 'whip', 'dogtag', 'keys', 'tongs', 'cage', 'scales', 'shortchain', 'fire', 'axe', 'pestle', 'forged', 'ironbox'] },
-    // The contract challenge, tuned on passing first and then points.
-    challenge: { tierBase: 2.25, rainbowMult: 1, wOpen: 2, wNow: 0.75, wWalk: 1, wStep: 0.5, wChain: 8, wStair: 0.5, swapMaxTier: 3, minDevour: -2, execMargin: 5, acceptChain: true, toolRank: ['rope', 'crown', 'maul', 'maiden', 'scapegoat', 'coin', 'shackles', 'ravenous', 'trap', 'skewer', 'claws', 'revenge', 'blacklist', 'collar', 'keys', 'cage', 'ironbox', 'muzzle', 'saw', 'whip', 'stake', 'guillotine', 'hook', 'tongs', 'dogtag', 'fire', 'axe', 'scales', 'pestle', 'shortchain', 'forged'], keep1: 1, keep2: 1, reserve: 3, earlyPoints: 1e9, wNeed: 40, needDays: 2, needCrit: 4 },
+    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, toolRank: ['crown', 'trap', 'rope', 'maul', 'claws', 'scapegoat', 'coin', 'maiden', 'shackles', 'muzzle', 'blacklist', 'revenge', 'ravenous', 'skewer', 'hook', 'stake', 'saw', 'collar', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'pestle', 'fire', 'shortchain', 'axe', 'forged', 'ironbox'] },
+    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['crown', 'trap', 'rope', 'maul', 'claws', 'scapegoat', 'coin', 'maiden', 'shackles', 'muzzle', 'blacklist', 'revenge', 'ravenous', 'skewer', 'hook', 'stake', 'saw', 'collar', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'pestle', 'fire', 'shortchain', 'axe', 'forged', 'ironbox'] },
   };
-  const paramsFor = (st) => PROFILES[st.mode === 'challenge' ? 'challenge' : st.params.rewards ? 'rewards' : 'notools'];
+  const paramsFor = (st) => PROFILES[st.params.rewards ? 'rewards' : 'notools'];
 
   const withDefaults = (p) => Object.assign({}, DEFAULTS, p || {});
 
@@ -164,7 +151,7 @@
     const openDist = normalize(st.params.tierWeights);
     // With the vault full (T.VAULT_SLOTS), a would-be Rainbow stays Supreme.
     const vaultFull = !!T.VAULT_SLOTS && st.vault.length >= T.VAULT_SLOTS;
-    const R = vaultFull ? v[T.SUPREME] : v[RAINBOW] * P.rainbowMult * (rainbowStuck(st) ? P.stuckRainbow : 1);
+    const R = vaultFull ? v[T.SUPREME] : v[RAINBOW] * P.rainbowMult;
     const sealed = st.cells.filter((c) => c.sealed).length;
     // Long-Chained Shackles: what +1 tier on a random inmate is worth.
     const board = st.cells.filter((c) => !c.sealed && c.inmate && c.inmate.tier < RAINBOW);
@@ -218,7 +205,6 @@
       scratchExtra: 1 + (st.params.scratchStacksBase ? 1 : 0),
       openDist,
       openValue: openDist.reduce((sum, p, t) => sum + p * v[t], 0),
-      need: contractNeed(st, P),
       // The game's Cancel: a chain can stop after any bite.
       chainStop: T.canStopChain ? T.canStopChain(st) : false,
       memo: new Map(),
@@ -651,13 +637,12 @@
         // the door odds from Rare up.
         const shown = c.known && c.hidden ? [0, 1, 2, 3, 4].map((t) => (t === Math.min(4, c.hidden.tier) ? 1 : 0)) : null;
         const dist = shown || (c.atLeast ? floorDist(ctx.openDist, c.atLeast) : null);
-        const need = needValue(ctx, board.comp, [], dist || ctx.openDist);
-        score += (dist ? freshValue(ctx, tagged(ctx, dist), board.comp, board.crowd + 1, swapLeft) : freshNow()) + need;
+        score += dist ? freshValue(ctx, tagged(ctx, dist), board.comp, board.crowd + 1, swapLeft) : freshNow();
         // Executioner's Blacklist: opening this door leaves 5 or fewer locked,
         // so 2 random inmates rise a tier.
         if (ctx.blacklist && ctx.sealed - 1 <= 5) score += 2 * ctx.lift;
         const who = !shown && c.atLeast ? `a ${T.tierName(c.atLeast)} or better inmate (the "Treasure" Hunt left this door dark)` : 'a new inmate';
-        why = need > 0 ? `${who}, who may help meet "${ctx.need.contract.name}"` : `${who}, who may consume today`;
+        why = `${who}, who may consume today`;
         const worth = eventWorth(ctx, board.comp);
         const pool = st.eventPool || T.EVENT_POOL;
         const anyEvent = () => pool.reduce((sum, id) => sum + worth[id](), 0) / pool.length;
@@ -753,7 +738,6 @@
     const tier = here.inmate.tier;
     const beast = beastIndex(here.inmate.beast);
     const own = linkLoss(st, ctx, here.inmate, false);
-    const whole = ctx.need ? composition(st, -1).comp : null;
     const chained = !!st.chaining;
     return (chained ? T.chainOptions(st) : T.startOptions(st))
       .map((o) => {
@@ -763,19 +747,10 @@
         const sameLink = own && mealLink && T.linkOf(st, here.inmate.id) === T.linkOf(st, meal.id);
         const loss = sameLink ? Math.max(own, mealLink) : own + mealLink;
         const stairLoss = o.scratch ? 0 : stairDelta(ctx, comp, meal.tier, beastIndex(meal.beast), -1);
-        // The next contract: the meal leaves the block, and the eater rises
-        // as a random beast (the chain after the first bite isn't counted).
-        let need = 0;
-        if (whole) {
-          const removes = [[tier, beast]];
-          if (!o.scratch) removes.push([meal.tier, beastIndex(meal.beast)]);
-          const to = Math.min(RAINBOW, tier + T.gainFor(st, st.position, o).gain);
-          need = needValue(ctx, whole, removes, [0, 1, 2, 3, 4, 5].map((t) => (t === to ? 1 : 0)));
-        }
         // Crowded Beastcage: 40% of the time the meal's cell opens again with
         // someone new (the chain after the first bite isn't counted).
         const cage = ctx.cage ? ctx.P.wCage * 0.4 * ctx.P.wOpen * ctx.openValue : 0;
-        return { cell: o.cell, score: devourDelta(ctx, tier, beast, beastIndex(meal.beast), !!o.scratch, comp, crowd, chained, o.scratch ? tier : meal.tier) - loss + stairLoss + need + cage };
+        return { cell: o.cell, score: devourDelta(ctx, tier, beast, beastIndex(meal.beast), !!o.scratch, comp, crowd, chained, o.scratch ? tier : meal.tier) - loss + stairLoss + cage };
       })
       .sort((a, b) => b.score - a.score);
   }
@@ -787,7 +762,6 @@
     const here = st.cells[st.position];
     if (!here || here.sealed || !here.inmate || !canSwapNow(st) || ctx.swapCap < 0) return -Infinity;
     let gain = swapValue(ctx, here.inmate.tier) - linkLoss(st, ctx, here.inmate, true);
-    if (ctx.need) gain += needValue(ctx, composition(st, -1).comp, [[here.inmate.tier, beastIndex(here.inmate.beast)]], swapDist(ctx, here.inmate.tier));
     if (here.ivory) {
       const board = st.cells.filter((c) => !c.sealed && c.inmate && c.inmate.tier < RAINBOW);
       const lift = board.reduce((sum, c) => sum + ctx.v[c.inmate.tier + 1] - ctx.v[c.inmate.tier], 0) / Math.max(1, board.length);
@@ -845,239 +819,14 @@
     return best ? best.id : options[0];
   }
 
-  // ---------- Contract challenge ----------
-
-  // True while a new Rainbow couldn't ship: the heavy contract is still to
-  // come and too few vouchers are left for the heavy escort a Rainbow needs.
-  function rainbowStuck(st) {
-    const ch = st.challenge;
-    return !!ch && !ch.result && ch.deliveries.length < 3 && ch.vouchers < T.ESCORTS.heavy.cost;
-  }
-
-  // The contract the block should get ready for: the next of the first two,
-  // in its last `needDays` days. Null otherwise; the heavy contract only
-  // needs a high tier, which the rest of the strategy already values.
-  function contractNeed(st, P) {
-    const ch = st.challenge;
-    if (!ch || ch.window || !P.wNeed) return null;
-    const slot = ch.deliveries.length;
-    if (slot >= 2) return null;
-    const contract = ch.contracts[slot];
-    if (contract.deadline - st.day >= P.needDays) return null;
-    const must = slot === 1 && !ch.deliveries[0].success;
-    return { contract, weight: P.wNeed * (must ? P.needCrit : 1) };
-  }
-
-  // How many inmates the block is short of meeting a contract, from its
-  // composition (tier * 4 + beast counts).
-  function contractGap(contract, comp) {
-    let size = 0;
-    let elite = 0;
-    let low = 0;
-    let beasts = 0;
-    let kin = 2;
-    for (let b = 0; b < 4; b++) {
-      let any = 0;
-      let below = 0;
-      for (let t = 0; t < RAINBOW; t++) {
-        const k = comp[t * 4 + b];
-        if (!k) continue;
-        any += k;
-        if (t === 2 || t === 3) elite += k;
-        if (t <= 1) low += k;
-        if (t < 3) below += k;
-      }
-      size += any;
-      if (any) beasts += 1;
-      // Kin escort: a Legendary and a lower inmate of its beast.
-      const leg = comp[12 + b];
-      if (leg && below) kin = 0;
-      else if (leg && kin) kin = 1;
-    }
-    switch (contract.id) {
-      case 'mixed': return Math.max(0, 3 - size) + Math.max(0, 2 - beasts);
-      case 'cohort': return Math.max(0, 4 - size);
-      case 'veteran': return Math.max(0, 1 - elite) + Math.max(0, 2 - low);
-      case 'elite': return Math.max(0, 2 - elite) + Math.max(0, 2 - beasts);
-      case 'kin': return kin;
-      case 'muster': return Math.max(0, 3 - elite);
-      default: return 0;
-    }
-  }
-
-  // The value of a move for the next contract: how much closer it brings the
-  // block, on average. `removes` lists [tier, beast] pairs leaving the block;
-  // `addDist` gives tier odds for one inmate joining it, of a random beast.
-  function needValue(ctx, comp, removes, addDist) {
-    const need = ctx.need;
-    if (!need) return 0;
-    const before = contractGap(need.contract, comp);
-    for (const [t, b] of removes) comp[t * 4 + b] -= 1;
-    let after = 0;
-    if (addDist) {
-      for (let t = 0; t < addDist.length; t++) {
-        if (!addDist[t] || t >= RAINBOW) continue;
-        for (let b = 0; b < 4; b++) {
-          comp[t * 4 + b] += 1;
-          after += (addDist[t] / 4) * contractGap(need.contract, comp);
-          comp[t * 4 + b] -= 1;
-        }
-      }
-      // A Rainbow leaves for the vault, so it adds nobody to the block.
-      if (addDist[RAINBOW]) after += addDist[RAINBOW] * contractGap(need.contract, comp);
-    } else after = contractGap(need.contract, comp);
-    for (const [t, b] of removes) comp[t * 4 + b] += 1;
-    return need.weight * (before - after);
-  }
-
-  // The inmates that could ship, grouped by tier and beast: inmates in a group
-  // are interchangeable for every contract. Within a group, cells with a prey
-  // mark or Tusk go last, since they're worth more on the block.
-  function cargoGroups(st) {
-    const byKey = new Map();
-    const add = (tier, beast, ref, last) => {
-      const key = tier * 4 + beastIndex(beast);
-      let g = byKey.get(key);
-      if (!g) byKey.set(key, (g = { tier, beast: beastIndex(beast), refs: [] }));
-      g.refs.push({ ref, last });
-    };
-    for (const c of st.cells) {
-      if (c.sealed || !c.inmate) continue;
-      add(c.inmate.tier, c.inmate.beast, { cell: c.n }, c.ivory || T.linkOf(st, c.inmate.id) ? 1 : 0);
-    }
-    for (const v of st.vault) add(RAINBOW, v.beast, { vault: v.id }, 0);
-    const groups = [...byKey.values()];
-    for (const g of groups) g.refs.sort((a, b) => a.last - b.last);
-    return groups;
-  }
-
-  // The same tests as the engine's contract check, on counts.
-  function fitsContract(contract, a) {
-    let beasts = 0;
-    for (let b = 0; b < 4; b++) if (a.mask & (1 << b)) beasts += 1;
-    switch (contract.id) {
-      case 'mixed': return a.size >= 3 && beasts >= 2;
-      case 'cohort': return a.size >= 4;
-      case 'veteran': return a.elite >= 1 && a.low >= 2;
-      case 'elite': return a.elite >= 2 && beasts >= 2;
-      case 'kin': return a.leg.some((n, b) => n >= 1 && a.below[b] >= 1);
-      case 'muster': return a.elite >= 3;
-      default: return a.top >= 1;
-    }
-  }
-
-  // The best convoy for the open contract by `rate(plan)`, searching how many
-  // of each group to send. A plan has the escort, its cost, points, pressure
-  // and `kept`: what the inmates sent are worth on the block in tier values.
-  // `rate` returns -Infinity to rule a plan out. Returns the best plan with
-  // its cells and vault Rainbows, or null when nothing qualifies.
-  function planCargo(st, ctx, rate) {
-    const ch = st.challenge;
-    const contract = T.currentContract(st);
-    if (!ch || !contract || ch.vouchers < T.ESCORTS.light.cost) return null;
-    const groups = cargoGroups(st);
-    const counts = new Array(groups.length).fill(0);
-    const escorts = Object.entries(T.ESCORTS).filter(([, e]) => ch.vouchers >= e.cost);
-    const cap = Math.max(...escorts.map(([, e]) => e.cap));
-    const bounty = contract.bounty ? beastIndex(contract.bounty) : -1;
-    let best = null;
-    const leaf = () => {
-      const a = { size: 0, mask: 0, elite: 0, low: 0, top: 0, leg: [0, 0, 0, 0], below: [0, 0, 0, 0] };
-      let points = 0;
-      let pressure = 0;
-      let kept = 0;
-      for (let i = 0; i < groups.length; i++) {
-        const k = counts[i];
-        if (!k) continue;
-        const g = groups[i];
-        a.size += k;
-        a.mask |= 1 << g.beast;
-        if (g.tier === 2 || g.tier === 3) a.elite += k;
-        if (g.tier <= 1) a.low += k;
-        if (g.tier >= T.SUPREME) a.top += k;
-        if (g.tier === 3) a.leg[g.beast] += k;
-        else if (g.tier < 3) a.below[g.beast] += k;
-        points += k * (2 ** g.tier + (g.tier >= T.SUPREME && g.beast === bounty ? 8 : 0));
-        pressure += k * T.PRESSURE[g.tier];
-        kept += k * (g.tier >= RAINBOW ? ctx.R : ctx.v[g.tier]);
-      }
-      if (!a.size || !fitsContract(contract, a)) return;
-      for (const [escort, e] of escorts) {
-        if (pressure > e.cap) continue;
-        const plan = { escort, cost: e.cost, points, pressure, kept, size: a.size };
-        const score = rate(plan);
-        if (score > -Infinity && (!best || score > best.score)) best = Object.assign(plan, { score, counts: counts.slice() });
-      }
-    };
-    const walk = (i, pressure) => {
-      if (i === groups.length) return leaf();
-      const g = groups[i];
-      for (let k = 0; k <= g.refs.length && pressure + k * T.PRESSURE[g.tier] <= cap; k++) {
-        counts[i] = k;
-        walk(i + 1, pressure + k * T.PRESSURE[g.tier]);
-      }
-      counts[i] = 0;
-    };
-    walk(0, 0);
-    if (!best) return null;
-    best.cells = [];
-    best.vaultIds = [];
-    groups.forEach((g, i) => {
-      for (const { ref } of g.refs.slice(0, best.counts[i])) {
-        if (ref.vault !== undefined) best.vaultIds.push(ref.vault);
-        else best.cells.push(ref.cell);
-      }
-    });
-    return best;
-  }
-
-  // Ranks plans for the heavy contract, which ends the run: the most points,
-  // then the cheaper escort.
-  const mostPoints = (plan) => plan.points - 0.01 * plan.cost;
-
-  // The strategy's convoy for the open window. The heavy contract takes the
-  // most points. The first two weigh points against what the inmates sent
-  // would be worth kept, and hold vouchers back for the heavy contract.
-  function convoyPlan(st, ctx) {
-    const ch = st.challenge;
-    const slot = ch.deliveries.length;
-    if (slot >= 2) return planCargo(st, ctx, mostPoints);
-    const P = ctx.P;
-    const keep = slot === 0 ? P.keep1 : P.keep2;
-    // Vouchers to keep after this delivery: the reserve, plus one for
-    // contract 2 when this is contract 1. Never fewer than one, or the
-    // heavy contract can't ship at all. Contract 2 is a must when contract 1
-    // was missed, so then any escort that leaves one voucher will do.
-    const must = slot === 1 && !ch.deliveries[0].success;
-    const need = must ? P.minLeft : Math.max(P.minLeft, P.reserve + (slot === 0 ? 1 : 0));
-    return planCargo(st, ctx, (plan) => {
-      const left = ch.vouchers - plan.cost;
-      if (left < P.minLeft || (plan.escort !== 'light' && left < need)) return -Infinity;
-      return plan.points - keep * plan.kept + 0.001 * plan.points - 0.01 * plan.cost;
-    });
-  }
-
-  // From day 9, once the first two contracts are settled: ship the heavy
-  // contract at the end of the day when its convoy is good enough.
-  function wantsEarly(st, ctx) {
-    if (!T.canOpenEarly(st) || st.day >= T.CHALLENGE_DAYS || ctx.P.earlyPoints >= 1e9) return false;
-    const plan = planCargo(st, ctx, mostPoints);
-    if (!plan) return false;
-    if (ctx.P.earlyPoints >= 0) return plan.points >= ctx.P.earlyPoints;
-    // -1: once nothing more fits in the best escort you can afford.
-    const cap = st.challenge.vouchers >= T.ESCORTS.heavy.cost ? T.ESCORTS.heavy.cap : T.ESCORTS.light.cap;
-    return cap - plan.pressure < T.PRESSURE[0];
-  }
-
   // ---------- Instruments ----------
 
   // What each offered instrument adds to the ones already held, in Rainbows
   // per run: the measured set with it against the same set without it. With
   // more held than the data covers, the average over the held instruments'
-  // measured subsets. Null when there's no data for these instruments, and
-  // in the contract challenge, which plays for points with its own ranking.
+  // measured subsets. Null when there's no data for these instruments.
   function toolGains(st, options) {
-    const data = st.mode !== 'challenge' && COMBOS && COMBOS.single;
+    const data = COMBOS && COMBOS.single;
     if (!data || !options.every((id) => data.ids.includes(id))) return null;
     if (!data.largest) data.largest = Math.max(...Object.keys(data.v).map((k) => k.length));
     const key = (ids) => ids.map((id) => String.fromCharCode(97 + data.ids.indexOf(id))).sort().join('');
@@ -1159,11 +908,6 @@
       if (choice.kind === 'tool' && wantsReroll(st, P, choice.options)) return { type: 'reroll' };
       return { type: 'choose', id: pickTool(st, P, choice.options) };
     }
-    if (st.challenge && st.challenge.window) {
-      const plan = convoyPlan(st, ctx);
-      if (plan) return { type: 'deliver', cells: plan.cells, vaultIds: plan.vaultIds, escort: plan.escort };
-      return st.challenge.window.early ? { type: 'close' } : { type: 'skip' };
-    }
     // A chain waiting for a pick takes the meal worth the most, or stops
     // (the game's Cancel) when none is worth eating.
     if (st.chaining) {
@@ -1210,7 +954,6 @@
     }
     if (hunt && hunt.value > 0 && hunt.value > swapGain) return { type: 'hunt', to: hunt.cell };
     if (swapGain > 0) return { type: 'swap' };
-    if (st.challenge && wantsEarly(st, ctx)) return { type: 'early' };
     return { type: 'end' };
   }
 
@@ -1227,10 +970,6 @@
       case 'swap': return T.swap(st, st.position);
       case 'hunt': return T.hunt(st, action.to);
       case 'end': return T.endDay(st);
-      case 'deliver': return T.deliver(st, action.cells, action.vaultIds, action.escort);
-      case 'skip': return T.skipDelivery(st);
-      case 'close': return T.cancelEarlyDelivery(st);
-      case 'early': return T.openEarlyDelivery(st);
       default: return { ok: false, reason: 'Unknown move.' };
     }
   }
@@ -1238,8 +977,8 @@
   // Plays a run to the end with the strategy. `onMove` sees each move.
   function playout(st, params, random, onMove) {
     const roll = random || Math.random;
-    // A drill's Rainbows can't grow past a full vault: the playout is done.
-    const full = () => st.mode !== 'challenge' && T.VAULT_SLOTS && st.vault.length >= T.VAULT_SLOTS;
+    // Rainbows can't grow past a full vault: the playout is done.
+    const full = () => T.VAULT_SLOTS && st.vault.length >= T.VAULT_SLOTS;
     for (let guard = 0; st.phase !== 'ended' && guard < 2000 && !full(); guard++) {
       const action = decide(st, params, roll);
       if (!action) break;
@@ -1287,12 +1026,6 @@
       if (T.canReroll && T.canReroll(st)) out.push({ action: { type: 'reroll' }, label: 'Re-roll the offer' });
       return out;
     }
-    if (st.challenge && st.challenge.window) {
-      out.push(...convoyOptions(st));
-      if (st.challenge.window.early) out.push({ action: { type: 'close' }, label: 'Close the early window' });
-      else out.push({ action: { type: 'skip' }, label: 'Skip this contract' });
-      return out;
-    }
     if (st.chaining) {
       for (const o of T.chainOptions(st)) {
         const target = st.cells[o.cell];
@@ -1320,7 +1053,6 @@
       return out;
     }
     if (st.phase === 'patrol') {
-      if (T.canOpenEarly(st)) out.push({ action: { type: 'early' }, label: 'Deliver the heavy contract early' });
       for (const n of T.patrolOptions(st)) {
         const c = st.cells[n];
         const opens = st.chain ? T.clockwisePath(st, n).filter((k) => st.cells[k].sealed).length : 0;
@@ -1344,53 +1076,11 @@
     if (T.canHuntNow && T.canHuntNow(st)) {
       for (const n of T.huntTargets(st)) out.push({ action: { type: 'hunt', to: n }, label: `Hunt: a Prey mark on the ${T.describe(st.cells[n].inmate)} in ${T.cellLabel(n)}` });
     }
-    if (T.canOpenEarly(st)) out.push({ action: { type: 'early' }, label: 'Deliver the heavy contract early' });
-    out.push({ action: { type: 'end' }, label: st.mode === 'drill' && st.day >= st.maxDays ? 'Finish the run' : 'End the day' });
+    out.push({ action: { type: 'end' }, label: st.day >= st.maxDays ? 'Finish the run' : 'End the day' });
     return out;
   }
 
-  const sameSet = (a, b) => (a || []).length === (b || []).length && (a || []).every((x) => (b || []).includes(x));
-  const sameAction = (a, b) => !!a && !!b && a.type === b.type && a.cell === b.cell && a.to === b.to && a.id === b.id && a.accept === b.accept && a.choice === b.choice
-    && (a.type !== 'deliver' || (a.escort === b.escort && sameSet(a.cells, b.cells) && sameSet(a.vaultIds, b.vaultIds)));
-
-  // Names a convoy: its inmates with their cells, the escort and the points.
-  function cargoLabel(st, action, points) {
-    const names = [...action.cells.map((n) => `${T.describe(st.cells[n].inmate)} ${T.cellLabel(n)}`), ...action.vaultIds.map(() => 'a vault Rainbow')];
-    return `Send ${names.join(', ')} by ${action.escort} escort (${T.plural(points, 'point')})`;
-  }
-
-  // Convoys worth comparing in the open window: the strategy's pick, the most
-  // points, the most points by light escort, and the cheapest cargo that
-  // meets the contract. While the heavy contract is still to come, each one
-  // keeps a voucher for it. The heavy contract ends the run, so for it the
-  // strategy's pick (the most points) is the only convoy.
-  function convoyOptions(st, params) {
-    const ctx = context(st, params || paramsFor(st));
-    const ch = st.challenge;
-    const heavyNext = ch.deliveries.length < 2;
-    const ok = (plan) => !heavyNext || ch.vouchers - plan.cost >= 1;
-    const plans = [['pick', convoyPlan(st, ctx)]];
-    if (heavyNext) {
-      plans.push(
-        ['most', planCargo(st, ctx, (p) => (ok(p) ? mostPoints(p) : -Infinity))],
-        ['light', planCargo(st, ctx, (p) => (ok(p) && p.escort === 'light' ? mostPoints(p) : -Infinity))],
-        ['least', planCargo(st, ctx, (p) => (ok(p) && p.escort === 'light' ? 0.001 * p.points - p.kept : -Infinity))],
-      );
-    }
-    const out = [];
-    for (const [kind, plan] of plans) {
-      if (!plan) continue;
-      const action = { type: 'deliver', cells: plan.cells.slice().sort((a, b) => a - b), vaultIds: plan.vaultIds.slice(), escort: plan.escort };
-      if (out.some((c) => sameAction(c.action, action))) continue;
-      out.push({ action, label: cargoLabel(st, action, plan.points), kind, points: plan.points });
-    }
-    return out;
-  }
-
-  // A finished playout's value. Drills count Rainbows vaulted. The challenge
-  // counts passing first, then points: a pass is worth PASS_WEIGHT points,
-  // so 1% of pass chance is worth 10 points.
-  const PASS_WEIGHT = 1000;
+  const sameAction = (a, b) => !!a && !!b && a.type === b.type && a.cell === b.cell && a.to === b.to && a.id === b.id && a.accept === b.accept && a.choice === b.choice;
 
   // The standard error of the mean difference between two options' values on
   // the same dice (rounds an option couldn't play are NaN and skipped).
@@ -1410,7 +1100,7 @@
     return Math.sqrt(Math.max(0, sq / n - m * m) / n);
   }
 
-  // Ranks played-out rows ({ label, action, vals, pass, points, best, ... })
+  // Ranks played-out rows ({ label, action, vals, best, ... })
   // by value, after `rounds` of `target`. The analyzer also merges the rows
   // several workers played out with it: rows whose vals line up round by
   // round keep their common dice, and so their paired margins.
@@ -1440,11 +1130,8 @@
       se,
       gapSe: row === top.row ? 0 : pairedSe(top.row.vals, row.vals),
       n,
-      pass: n ? row.pass / n : 0,
-      points: n ? row.points / n : 0,
       best: n ? row.best / n : 0,
       policy: row.policy,
-      extra: row.extra,
     }));
     return { done: rounds >= target || rows.length <= 1, rounds, goal, options };
   }
@@ -1452,21 +1139,19 @@
   // Plays every candidate out `rollouts` times and ranks them by value. Each
   // round of playouts shares its dice across candidates (common random
   // numbers), so the differences between moves are measured, not the luck;
-  // `gapSe` is each option's paired margin against the leader. `extra` adds
-  // candidates, such as a convoy the player is putting together.
+  // `gapSe` is each option's paired margin against the leader.
   // Returns a stepper: call step(budgetMs) until it reports done.
   // `stream` splits the work between workers: each plays its own rounds of
   // dice, and the pick and candidates are the same in all (summarize merges
   // them).
   function solve(st, opts) {
-    const o = Object.assign({ rollouts: 400, seed: 1, stream: 0, params: null, extra: null }, opts || {});
+    const o = Object.assign({ rollouts: 400, seed: 1, stream: 0, params: null }, opts || {});
     const base = clone(st);
     const list = candidates(base);
-    for (const e of o.extra || []) if (!list.some((c) => sameAction(c.action, e.action))) list.push(Object.assign({ extra: true }, e));
     const random = rng32(o.stream ? (o.seed ^ Math.imul(o.stream, 0x9e3779b1)) >>> 0 : o.seed);
     const pick = list.length ? decide(clone(base), o.params, rng32(o.seed ^ 0x5bd1e995)) : null;
-    const goal = base.mode === 'challenge' ? 'contract' : 'rainbows';
-    const rows = list.map((c) => ({ label: c.label, action: c.action, kind: c.kind || null, extra: !!c.extra, vals: [], pass: 0, points: 0, best: 0, policy: sameAction(c.action, pick) }));
+    const goal = 'rainbows';
+    const rows = list.map((c) => ({ label: c.label, action: c.action, kind: c.kind || null, vals: [], best: 0, policy: sameAction(c.action, pick) }));
     let round = 0;
     const result = () => summarize(rows, round, o.rollouts, goal);
     return {
@@ -1484,17 +1169,9 @@
             }
             const roll = rng32(seed ^ 0x9e3779b9);
             playout(trial, o.params, roll);
-            if (goal === 'contract') {
-              const res = trial.challenge.result;
-              const passed = !!(res && res.passed);
-              row.pass += passed ? 1 : 0;
-              row.points += trial.challenge.score;
-              row.vals.push((passed ? PASS_WEIGHT : 0) + trial.challenge.score);
-            } else {
-              row.vals.push(trial.vault.length);
-              // Second measure: the best rarity reached.
-              row.best += Math.max(0, ...trial.cells.filter((c) => !c.sealed && c.inmate).map((c) => c.inmate.tier), trial.vault.length ? RAINBOW : 0);
-            }
+            row.vals.push(trial.vault.length);
+            // Second measure: the best rarity reached.
+            row.best += Math.max(0, ...trial.cells.filter((c) => !c.sealed && c.inmate).map((c) => c.inmate.tier), trial.vault.length ? RAINBOW : 0);
           }
           round += 1;
         }
@@ -1604,40 +1281,8 @@
           ? `The best instrument on offer adds about ${signed(odds.now)} Rainbows per run; a new offer's best adds about ${signed(odds.next)} on average.`
           : 'A new offer is likely to hold a better instrument.';
       }
-      case 'deliver': return convoyWhy(st, action, params);
-      case 'skip': return 'Nothing on the block meets this contract.';
-      case 'close': return 'Nothing meets the heavy contract yet.';
-      case 'early': return ctx.P.earlyPoints < 0
-        ? 'The heavy convoy is as full as your escort allows, so waiting can’t add points. Shipping now locks in the pass.'
-        : ctx.P.earlyPoints < 1e9
-          ? `The heavy convoy scores at least ${ctx.P.earlyPoints} points now. Shipping locks in the pass.`
-          : 'The heavy contract can be met now. Shipping it ends the run.';
       default: return '';
     }
-  }
-
-  // Why the strategy loads this convoy: what it keeps, and the vouchers left.
-  function convoyWhy(st, action, params) {
-    const ch = st.challenge;
-    if (!action.cells) return '';
-    const slot = ch.deliveries.length;
-    if (slot >= 2) return 'The heavy contract ends the run, so it takes the most points your vouchers can escort.';
-    const P = withDefaults(params || paramsFor(st));
-    const keep = slot === 0 ? P.keep1 : P.keep2;
-    const sent = new Set(action.cells);
-    const kept = st.cells
-      .filter((c) => !c.sealed && c.inmate && !sent.has(c.n))
-      .sort((a, b) => b.inmate.tier - a.inmate.tier)
-      .slice(0, 2)
-      .map((c) => `${T.describe(c.inmate)} ${T.cellLabel(c.n)}`);
-    const left = ch.vouchers - T.ESCORTS[action.escort].cost;
-    const next = slot === 0 ? 'the next contracts' : 'the heavy contract';
-    const keepText = kept.length ? ` Your ${kept.join(' and ')} stay for ${next}.` : '';
-    const voucherText = left >= T.ESCORTS.heavy.cost
-      ? ` It leaves ${T.plural(left, 'voucher')}, so the heavy contract can still go by heavy escort.`
-      : ` It leaves ${T.plural(left, 'voucher')}.`;
-    const lead = keep >= 1 ? 'Meets the contract with the inmates worth least to you.' : keep > 0 ? 'Meets the contract with the most points it can spare.' : 'Meets the contract for the most points.';
-    return `${lead}${keepText}${voucherText}`;
   }
 
   // The move that turned `before` into `after`, as an action, or null if it
@@ -1670,17 +1315,6 @@
       const x = recent(['tool', 'gift']);
       return x ? { type: 'choose', id: x.id } : null;
     }
-    const ch0 = before.challenge;
-    const ch1 = after.challenge;
-    if (ch0 && ch0.window) {
-      if (ch1.deliveries.length > ch0.deliveries.length) {
-        if (!ch1.deliveries[ch1.deliveries.length - 1].success) return { type: 'skip' };
-        const x = recent(['deliver']);
-        return x && x.cells ? { type: 'deliver', cells: x.cells, vaultIds: x.vault || [], escort: x.escort } : { type: 'deliver' };
-      }
-      return ch1.window ? null : { type: 'close' };
-    }
-    if (ch1 && ch1.window && ch1.window.early && !(ch0 && ch0.window)) return { type: 'early' };
     if (before.phase === 'event') {
       if (after.phase === 'event') return null;
       const x = recent(['skipped', 'armed', 'execution', 'trickster', 'appetite', 'convict', 'crow', 'freedom', 'usurp1', 'usurp2', 'usurp3', 'usurp4', 'ratway', 'hunt']);
@@ -1712,11 +1346,11 @@
       const x = recent(['trap']);
       return x ? { type: 'hunt', to: x.cell } : null;
     }
-    if (after.day > before.day || after.phase === 'ended' || (ch1 && ch1.window && !(ch0 && ch0.window))) return { type: 'end' };
+    if (after.day > before.day || after.phase === 'ended') return { type: 'end' };
     return null;
   }
 
-  const api = { DEFAULTS, PROFILES, PASS_WEIGHT, paramsFor, instant, moveBetween, sameAction, decide, apply, playout, candidates, solve, summarize, chainOdds, patrolScores, devourScores, context, composition, clone, hideFuture, rng32, executionValue, planCargo, mostPoints, convoyPlan, convoyOptions, cargoLabel };
+  const api = { DEFAULTS, PROFILES, paramsFor, instant, moveBetween, sameAction, decide, apply, playout, candidates, solve, summarize, chainOdds, patrolScores, devourScores, context, composition, clone, hideFuture, rng32, executionValue };
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.TartarusSolver = api;
 })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);
