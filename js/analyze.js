@@ -1935,6 +1935,10 @@
       if (!read.ok) return;
       corner.done = true;
       corner.tries = 0;
+      // Advice already given for this board is given again for the board as
+      // updated: else every update left it stale, "the board changed" on
+      // every turn of a Prison Walk (report 351).
+      const wasFresh = fresh();
       const targets = [model, reader.reading && reader.reading.model].filter(Boolean);
       const wasKnown = model.objective && model.objective !== 'other';
       // Not runObjective: that's the popup's, for the run's opening offer.
@@ -1955,6 +1959,7 @@
       }
       if (wasKnown && !counted) return;
       changed();
+      if (wasFresh) ask(true);
       const so = counted ? ` (${read.completed || read.have >= need ? 'met' : `${read.have} of ${need} so far`})` : '';
       toast(wasKnown ? `${read.name}: ${so.slice(2, -1)}, read from the board’s corner.` : `This run’s objective: ${read.name}${so}, read from the board’s corner. It’s set under Objective.`, 'ok');
     }, () => {
