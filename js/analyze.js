@@ -1175,8 +1175,15 @@
     const rec = working ? null : recommendation();
     const r = solver.result;
     const goal = 'rainbows';
-    if (working) setHTML($('az-res-move'), `${SPIN}Working it out…`);
-    else $('az-res-move').textContent = rec ? rec.label : 'Nothing to decide here.';
+    // The board changed since this check: its advice was for the board
+    // before, so it isn't shown (report 304: a player took the dimmed move
+    // for the advice on the new board). Recheck gives the new advice.
+    $('az-res-eyebrow').textContent = stale ? 'The board changed' : 'Recommended';
+    // Always through setHTML, which skips what it wrote last: a headline
+    // written past it left a new check showing the old move.
+    if (stale) setHTML($('az-res-move'), 'Press Recheck for advice on this board');
+    else if (working) setHTML($('az-res-move'), `${SPIN}Working it out…`);
+    else setHTML($('az-res-move'), esc(rec ? rec.label : 'Nothing to decide here.'));
     $('az-do').hidden = !rec || stale;
     $('az-do').textContent = rec && rec.action.type === 'end' ? 'End the day here' : 'Do it here';
     $('az-next').hidden = !rec || stale;
@@ -1190,8 +1197,8 @@
       ? 'The board changed since this check. Recheck for advice on the board as it is now.'
       : `Read from your screenshot${flags.size ? `, with ${T.plural(flags.size, 'cell')} marked Check` : ''}.${unsureTools()} If anything on the board doesn’t match your game, fix it, then Recheck.`;
     let body = '';
-    if (working) body += `<p class="trainer-source">Each move below is played out from your board, with everything you can’t see re-rolled each time. The advice shows when they’re all done, so it won’t change.</p>`;
-    if (rec) {
+    if (working && !stale) body += `<p class="trainer-source">Each move below is played out from your board, with everything you can’t see re-rolled each time. The advice shows when they’re all done, so it won’t change.</p>`;
+    if (rec && !stale) {
       body += `<p class="trainer-source">${esc(rec.live ? `Checked by ${rec.rounds.toLocaleString()} playouts per option` : 'Instant pick from training')}</p>`;
       if (rec.why) body += `<p class="trainer-why">${esc(rec.why)}</p>`;
       if (rec.option) body += `<p class="trainer-why">${esc(expectText(goal, rec.option, st))}</p>`;
@@ -1205,12 +1212,13 @@
     const c = checking();
     const options = working ? c.moves : r ? r.options : [];
     const status = $('az-res-status');
-    if (working) status.textContent = `Playing out ${T.plural(c.moves.length, 'move')}, ${c.each.toLocaleString()} games each: ${c.played.toLocaleString()} of ${c.total.toLocaleString()} games played`;
+    if (stale) status.textContent = '';
+    else if (working) status.textContent = `Playing out ${T.plural(c.moves.length, 'move')}, ${c.each.toLocaleString()} games each: ${c.played.toLocaleString()} of ${c.total.toLocaleString()} games played`;
     else if (!r) status.textContent = 'Live check: starting…';
     else if (options.length <= 1) status.textContent = options.length ? 'Only one move here.' : 'Nothing to decide right now.';
     else status.textContent = r.done ? `Live check: ${r.rounds.toLocaleString()} playouts per option` : `Live check: ${r.rounds.toLocaleString()} playouts per option so far…`;
     const max = Math.max(0.01, ...options.map((o) => o.mean || 0));
-    const shown = options.length > 1 ? options : [];
+    const shown = options.length > 1 && !stale ? options : [];
     syncRows(
       $('az-res-list'),
       shown,
