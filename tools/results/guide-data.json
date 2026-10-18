@@ -2,620 +2,614 @@
   "generated": "2026-10-18",
   "headlineRuns": 2000,
   "seed": "GUIDE",
-  "toolBase": 1.976,
+  "toolBase": 1.8535,
   "tools": [
     {
       "id": "trap",
       "name": "Blood-Stained Trap: Berserk Lion",
-      "value": 3.7405,
-      "delta": 1.7645
+      "value": 3.6035,
+      "delta": 1.75
     },
     {
       "id": "maul",
       "name": "Elephant-Foot Maul: Mammoth",
-      "value": 3.69,
-      "delta": 1.714
+      "value": 3.5645,
+      "delta": 1.711
     },
     {
       "id": "crown",
       "name": "Iron Crown of the Prison King: Berserk Lion",
-      "value": 3.5565,
-      "delta": 1.5805
+      "value": 3.4495,
+      "delta": 1.596
     },
     {
       "id": "rope",
       "name": "Hangman's Noose",
-      "value": 3.4275,
-      "delta": 1.4515
+      "value": 3.267,
+      "delta": 1.4135
     },
     {
       "id": "claws",
       "name": "Filthy Claws: Alpha Wolf",
-      "value": 3.172,
+      "value": 3.0495,
       "delta": 1.196
     },
     {
       "id": "coin",
       "name": "Kin's Coin of Fate",
-      "value": 2.924,
-      "delta": 0.948
-    },
-    {
-      "id": "shackles",
-      "name": "Long-Chained Shackles",
-      "value": 2.8775,
-      "delta": 0.9015
+      "value": 2.772,
+      "delta": 0.9185
     },
     {
       "id": "maiden",
       "name": "Severed Iron Maiden",
-      "value": 2.815,
-      "delta": 0.839
+      "value": 2.7345,
+      "delta": 0.881
+    },
+    {
+      "id": "shackles",
+      "name": "Long-Chained Shackles",
+      "value": 2.6995,
+      "delta": 0.846
     },
     {
       "id": "scapegoat",
       "name": "Scapegoat's Guillotine",
-      "value": 2.7735,
-      "delta": 0.7975
-    },
-    {
-      "id": "hook",
-      "name": "Sorting Hook",
-      "value": 2.52,
-      "delta": 0.544
+      "value": 2.689,
+      "delta": 0.8355
     },
     {
       "id": "revenge",
       "name": "Avenger's Casket",
-      "value": 2.5165,
-      "delta": 0.5405
-    },
-    {
-      "id": "skewer",
-      "name": "Skewered Rat Heads: Colossal Rat",
-      "value": 2.516,
-      "delta": 0.54
+      "value": 2.4335,
+      "delta": 0.58
     },
     {
       "id": "muzzle",
       "name": "Raging Beast's Agonizing Muzzle",
-      "value": 2.5095,
-      "delta": 0.5335
+      "value": 2.404,
+      "delta": 0.5505
     },
     {
-      "id": "ravenous",
-      "name": "Ferocious Beast's Ravenous Chains",
-      "value": 2.467,
-      "delta": 0.491
+      "id": "skewer",
+      "name": "Skewered Rat Heads: Colossal Rat",
+      "value": 2.3605,
+      "delta": 0.507
     },
     {
       "id": "collar",
       "name": "Maddened Beast's Barbed Collar",
-      "value": 2.424,
-      "delta": 0.448
+      "value": 2.3255,
+      "delta": 0.472
+    },
+    {
+      "id": "ravenous",
+      "name": "Ferocious Beast's Ravenous Chains",
+      "value": 2.3155,
+      "delta": 0.462
+    },
+    {
+      "id": "hook",
+      "name": "Sorting Hook",
+      "value": 2.307,
+      "delta": 0.4535
     },
     {
       "id": "saw",
       "name": "Rusty Saw",
-      "value": 2.411,
-      "delta": 0.435
+      "value": 2.291,
+      "delta": 0.4375
     },
     {
       "id": "blacklist",
       "name": "Executioner's Blacklist",
-      "value": 2.399,
-      "delta": 0.423
+      "value": 2.251,
+      "delta": 0.3975
     },
     {
       "id": "guillotine",
       "name": "Fanged Guillotine: Alpha Wolf",
-      "value": 2.262,
-      "delta": 0.286
+      "value": 2.126,
+      "delta": 0.2725
     },
     {
       "id": "dogtag",
       "name": "Felon's Dog Tag",
-      "value": 2.247,
-      "delta": 0.271
-    },
-    {
-      "id": "cage",
-      "name": "Crowded Beastcage",
-      "value": 2.222,
-      "delta": 0.246
+      "value": 2.089,
+      "delta": 0.2355
     },
     {
       "id": "tongs",
       "name": "Iron Tongs of Lust: Mammoth",
-      "value": 2.169,
-      "delta": 0.193
+      "value": 2.0795,
+      "delta": 0.226
     },
     {
       "id": "stake",
       "name": "Burning Stake",
-      "value": 2.104,
-      "delta": 0.128
+      "value": 2.0355,
+      "delta": 0.182
     },
     {
-      "id": "scales",
-      "name": "Warden's Scales",
-      "value": 2.072,
-      "delta": 0.096
-    },
-    {
-      "id": "keys",
-      "name": "Lost Ring of Keys",
-      "value": 1.9735,
-      "delta": -0.0025
+      "id": "cage",
+      "name": "Crowded Beastcage",
+      "value": 1.9975,
+      "delta": 0.144
     },
     {
       "id": "whip",
       "name": "Barbed Whip",
-      "value": 1.955,
-      "delta": -0.021
+      "value": 1.884,
+      "delta": 0.0305
+    },
+    {
+      "id": "scales",
+      "name": "Warden's Scales",
+      "value": 1.8735,
+      "delta": 0.02
+    },
+    {
+      "id": "keys",
+      "name": "Lost Ring of Keys",
+      "value": 1.866,
+      "delta": 0.0125
     },
     {
       "id": "pestle",
       "name": "Iron Pestle",
-      "value": 1.9475,
-      "delta": -0.0285
+      "value": 1.8035,
+      "delta": -0.05
     },
     {
       "id": "fire",
       "name": "Searing Branding Iron",
-      "value": 1.8945,
-      "delta": -0.0815
+      "value": 1.7815,
+      "delta": -0.072
     },
     {
       "id": "shortchain",
       "name": "Short-Chained Shackles",
-      "value": 1.8515,
-      "delta": -0.1245
+      "value": 1.752,
+      "delta": -0.1015
     },
     {
       "id": "axe",
       "name": "Gaoler's Execution Axe",
-      "value": 1.59,
-      "delta": -0.386
+      "value": 1.622,
+      "delta": -0.2315
     },
     {
       "id": "forged",
       "name": "Forged Key",
-      "value": 1.386,
-      "delta": -0.59
+      "value": 1.3465,
+      "delta": -0.507
     },
     {
       "id": "ironbox",
       "name": "Squirming Iron Box: Colossal Rat",
-      "value": 0.9335,
-      "delta": -1.0425
+      "value": 1.1115,
+      "delta": -0.742
     }
   ],
   "gifts": [
     {
       "id": "scored",
-      "value": 4.7565
+      "value": 4.6625
     },
     {
       "id": "wine",
       "name": "Crimson Vintage",
-      "value": 4.5395
+      "value": 4.47
     },
     {
       "id": "ring",
       "name": "Three-Headed Thumb Ring",
-      "value": 4.143
+      "value": 4.197
     },
     {
       "id": "horn",
       "name": "Brass Horn of Strife",
-      "value": 4.0675
+      "value": 3.928
     },
     {
       "id": "brand",
       "name": "Brand of Original Sin",
-      "value": 3.977
+      "value": 3.868
     }
   ],
   "headline": {
     "games": 2000,
-    "rainbowsPerRun": 4.7565,
-    "ci95": 0.1006,
-    "runsWithRainbow": 0.9925,
+    "rainbowsPerRun": 4.6625,
+    "ci95": 0.0972,
+    "runsWithRainbow": 0.992,
     "rainbowCounts": [
-      0.0075,
-      0.0425,
-      0.1075,
-      0.1675,
-      0.1875,
-      0.4875
+      0.008,
+      0.044,
+      0.1065,
+      0.165,
+      0.2,
+      0.4765
     ],
-    "devoursPerRun": 6.26,
-    "bitesPerDevour": 1.394,
-    "chainStopsPerRun": 0.029,
+    "devoursPerRun": 6.23,
+    "bitesPerDevour": 1.398,
+    "chainStopsPerRun": 0.018,
     "chainLengths": [
-      0.6931,
-      0.2354,
-      0.0577,
-      0.0119,
+      0.6904,
+      0.2376,
+      0.0579,
+      0.0122,
       0.0019,
       0
     ],
     "rainbowSources": {
-      "chain": 1916,
-      "singleDevour": 2532,
-      "other": 5065
+      "chain": 1900,
+      "singleDevour": 2549,
+      "other": 4876
     },
     "firstRainbowDay": 8.44,
-    "swapsPerRun": 8.19,
+    "swapsPerRun": 8.21,
     "executionsPerRun": 0.06,
-    "doorsPerRun": 23.53
+    "doorsPerRun": 23.23
   },
   "stairs": [
     {
       "key": "3:1",
-      "n": 1352,
-      "rainbow": 0.5022,
-      "bites": 1.341
+      "n": 1348,
+      "rainbow": 0.5059,
+      "bites": 1.352
     },
     {
       "key": "4:",
-      "n": 1099,
+      "n": 1188,
       "rainbow": 1,
       "bites": 1
     },
     {
       "key": "3:0",
-      "n": 996,
-      "rainbow": 0.247,
-      "bites": 1.026
+      "n": 988,
+      "rainbow": 0.2389,
+      "bites": 1.027
     },
     {
       "key": "2:11",
-      "n": 494,
-      "rainbow": 0.3947,
-      "bites": 1.48
+      "n": 517,
+      "rainbow": 0.3868,
+      "bites": 1.482
     },
     {
       "key": "1:111",
-      "n": 447,
-      "rainbow": 0.2998,
-      "bites": 1.611
+      "n": 441,
+      "rainbow": 0.2857,
+      "bites": 1.578
     },
     {
       "key": "1:110",
-      "n": 418,
-      "rainbow": 0.1651,
-      "bites": 1.452
+      "n": 406,
+      "rainbow": 0.1404,
+      "bites": 1.414
     },
     {
       "key": "2:10",
-      "n": 394,
-      "rainbow": 0.3071,
-      "bites": 1.35
+      "n": 378,
+      "rainbow": 0.2989,
+      "bites": 1.357
     },
     {
       "key": "1:011",
-      "n": 317,
-      "rainbow": 0.2303,
-      "bites": 1.186
+      "n": 292,
+      "rainbow": 0.2123,
+      "bites": 1.202
     },
     {
       "key": "1:010",
-      "n": 292,
-      "rainbow": 0.1096,
-      "bites": 1.082
+      "n": 282,
+      "rainbow": 0.1028,
+      "bites": 1.092
     },
     {
       "key": "3:2",
-      "n": 259,
-      "rainbow": 0.6795,
-      "bites": 1.517
+      "n": 261,
+      "rainbow": 0.6705,
+      "bites": 1.521
     },
     {
       "key": "2:21",
-      "n": 258,
-      "rainbow": 0.4147,
-      "bites": 1.736
+      "n": 253,
+      "rainbow": 0.4032,
+      "bites": 1.708
     },
     {
       "key": "1:101",
-      "n": 254,
-      "rainbow": 0.2559,
-      "bites": 1.449
+      "n": 246,
+      "rainbow": 0.2358,
+      "bites": 1.435
     },
     {
       "key": "2:20",
-      "n": 225,
-      "rainbow": 0.2756,
-      "bites": 1.556
+      "n": 215,
+      "rainbow": 0.2558,
+      "bites": 1.591
     },
     {
       "key": "1:100",
-      "n": 207,
-      "rainbow": 0.087,
-      "bites": 1.353
+      "n": 214,
+      "rainbow": 0.0841,
+      "bites": 1.36
     },
     {
       "key": "1:000",
-      "n": 206,
-      "rainbow": 0.0097,
-      "bites": 1.034
-    },
-    {
-      "key": "1:121",
-      "n": 185,
-      "rainbow": 0.3189,
-      "bites": 1.6
+      "n": 207,
+      "rainbow": 0.0048,
+      "bites": 1.029
     },
     {
       "key": "1:001",
       "n": 182,
-      "rainbow": 0.2802,
-      "bites": 1.181
-    },
-    {
-      "key": "2:00",
-      "n": 176,
-      "rainbow": 0.25,
-      "bites": 1.074
+      "rainbow": 0.2582,
+      "bites": 1.159
     },
     {
       "key": "1:120",
-      "n": 176,
-      "rainbow": 0.2273,
-      "bites": 1.523
+      "n": 182,
+      "rainbow": 0.2363,
+      "bites": 1.511
+    },
+    {
+      "key": "2:00",
+      "n": 178,
+      "rainbow": 0.2416,
+      "bites": 1.084
+    },
+    {
+      "key": "1:121",
+      "n": 169,
+      "rainbow": 0.3491,
+      "bites": 1.621
     },
     {
       "key": "2:01",
-      "n": 164,
-      "rainbow": 0.2866,
-      "bites": 1.061
+      "n": 167,
+      "rainbow": 0.2695,
+      "bites": 1.06
     },
     {
       "key": "0:1111",
       "n": 161,
-      "rainbow": 0.2422,
-      "bites": 1.559
+      "rainbow": 0.2484,
+      "bites": 1.596
     },
     {
       "key": "1:211",
-      "n": 149,
-      "rainbow": 0.2752,
-      "bites": 1.805
-    },
-    {
-      "key": "0:1110",
-      "n": 137,
-      "rainbow": 0.1679,
-      "bites": 1.701
+      "n": 141,
+      "rainbow": 0.2553,
+      "bites": 1.858
     },
     {
       "key": "1:210",
-      "n": 136,
-      "rainbow": 0.2059,
-      "bites": 1.779
+      "n": 138,
+      "rainbow": 0.1667,
+      "bites": 1.783
+    },
+    {
+      "key": "0:1110",
+      "n": 125,
+      "rainbow": 0.16,
+      "bites": 1.72
     },
     {
       "key": "1:020",
-      "n": 120,
-      "rainbow": 0.2,
-      "bites": 1.05
-    },
-    {
-      "key": "1:021",
-      "n": 100,
-      "rainbow": 0.22,
-      "bites": 1.11
+      "n": 114,
+      "rainbow": 0.1754,
+      "bites": 1.079
     }
   ],
   "compare": {
     "notools": {
       "random": {
         "games": 100000,
-        "rainbowsPerRun": 0.0632,
+        "rainbowsPerRun": 0.0628,
         "ci95": 0.0016,
-        "runsWithRainbow": 0.0604,
+        "runsWithRainbow": 0.0602,
         "rainbowCounts": [
-          0.9396,
-          0.0579,
-          0.0023,
+          0.9398,
+          0.0578,
+          0.0022,
           0.0001,
           0,
-          0.0001
+          0
         ],
         "devoursPerRun": 2.53,
         "bitesPerDevour": 1.385,
         "chainStopsPerRun": 0,
         "chainLengths": [
           0.7006,
-          0.2274,
-          0.0595,
+          0.2273,
+          0.0596,
           0.0116,
           0.0009,
           0
         ],
         "rainbowSources": {
-          "chain": 2639,
-          "singleDevour": 2109,
-          "other": 1573
+          "chain": 2624,
+          "singleDevour": 2112,
+          "other": 1539
         },
-        "firstRainbowDay": 13.56,
+        "firstRainbowDay": 13.55,
         "swapsPerRun": 2.71,
         "executionsPerRun": 0.049,
         "doorsPerRun": 9.56
       },
       "simple": {
         "games": 100000,
-        "rainbowsPerRun": 0.8947,
-        "ci95": 0.0053,
-        "runsWithRainbow": 0.6773,
+        "rainbowsPerRun": 0.8552,
+        "ci95": 0.0048,
+        "runsWithRainbow": 0.6712,
         "rainbowCounts": [
-          0.3227,
-          0.5153,
-          0.131,
-          0.0182,
-          0.0058,
-          0.007
+          0.3288,
+          0.5215,
+          0.1273,
+          0.0157,
+          0.0034,
+          0.0033
         ],
         "devoursPerRun": 7.57,
-        "bitesPerDevour": 1.396,
+        "bitesPerDevour": 1.397,
         "chainStopsPerRun": 0,
         "chainLengths": [
-          0.6992,
-          0.2226,
-          0.0624,
-          0.0143,
+          0.6989,
+          0.2227,
+          0.0625,
+          0.0144,
           0.0015,
           0
         ],
         "rainbowSources": {
-          "chain": 33972,
-          "singleDevour": 36215,
-          "other": 19285
+          "chain": 33733,
+          "singleDevour": 35858,
+          "other": 15933
         },
-        "firstRainbowDay": 14.4,
-        "swapsPerRun": 5.15,
+        "firstRainbowDay": 14.41,
+        "swapsPerRun": 5.16,
         "executionsPerRun": 0.211,
-        "doorsPerRun": 17.99
+        "doorsPerRun": 17.98
       },
       "tuned": {
         "games": 100000,
-        "rainbowsPerRun": 1.9427,
-        "ci95": 0.0105,
-        "runsWithRainbow": 0.8838,
+        "rainbowsPerRun": 1.8025,
+        "ci95": 0.0093,
+        "runsWithRainbow": 0.881,
         "rainbowCounts": [
-          0.1162,
-          0.3934,
-          0.2642,
-          0.0835,
-          0.0466,
-          0.0961
+          0.119,
+          0.406,
+          0.276,
+          0.0864,
+          0.042,
+          0.0706
         ],
-        "devoursPerRun": 5.18,
-        "bitesPerDevour": 1.415,
+        "devoursPerRun": 5.14,
+        "bitesPerDevour": 1.414,
         "chainStopsPerRun": 0,
         "chainLengths": [
-          0.6939,
-          0.2195,
-          0.0673,
-          0.0165,
-          0.0028,
+          0.6945,
+          0.2192,
+          0.067,
+          0.0164,
+          0.0029,
           0
         ],
         "rainbowSources": {
-          "chain": 34527,
-          "singleDevour": 51861,
-          "other": 107886
+          "chain": 33641,
+          "singleDevour": 50956,
+          "other": 95648
         },
-        "firstRainbowDay": 11.88,
+        "firstRainbowDay": 11.91,
         "swapsPerRun": 8.93,
-        "executionsPerRun": 0.405,
-        "doorsPerRun": 16.5
+        "executionsPerRun": 0.406,
+        "doorsPerRun": 16.32
       }
     },
     "rewards": {
       "random": {
         "games": 100000,
-        "rainbowsPerRun": 0.306,
+        "rainbowsPerRun": 0.3064,
         "ci95": 0.0042,
-        "runsWithRainbow": 0.219,
+        "runsWithRainbow": 0.2191,
         "rainbowCounts": [
-          0.781,
-          0.1561,
-          0.0451,
-          0.013,
-          0.0036,
+          0.7809,
+          0.156,
+          0.0453,
+          0.0131,
+          0.0037,
           0.0011
         ],
         "devoursPerRun": 2.63,
         "bitesPerDevour": 1.421,
         "chainStopsPerRun": 0,
         "chainLengths": [
-          0.6815,
-          0.2353,
+          0.6816,
+          0.2352,
           0.0661,
           0.0149,
           0.0022,
           0
         ],
         "rainbowSources": {
-          "chain": 13335,
-          "singleDevour": 8622,
-          "other": 8639
+          "chain": 13324,
+          "singleDevour": 8654,
+          "other": 8658
         },
         "firstRainbowDay": 11.61,
         "swapsPerRun": 2.7,
-        "executionsPerRun": 0.047,
-        "doorsPerRun": 10.85
+        "executionsPerRun": 0.046,
+        "doorsPerRun": 10.86
       },
       "simple": {
         "games": 100000,
-        "rainbowsPerRun": 1.7132,
-        "ci95": 0.0088,
-        "runsWithRainbow": 0.8117,
+        "rainbowsPerRun": 1.7001,
+        "ci95": 0.0087,
+        "runsWithRainbow": 0.8093,
         "rainbowCounts": [
-          0.1883,
-          0.3273,
-          0.2471,
-          0.1314,
-          0.0605,
-          0.0454
+          0.1907,
+          0.3285,
+          0.2462,
+          0.1309,
+          0.0597,
+          0.044
         ],
-        "devoursPerRun": 8.7,
+        "devoursPerRun": 8.69,
         "bitesPerDevour": 1.466,
         "chainStopsPerRun": 0,
         "chainLengths": [
-          0.6557,
+          0.6556,
           0.2472,
           0.0758,
-          0.0186,
-          0.0028,
+          0.0187,
+          0.0027,
           0
         ],
         "rainbowSources": {
-          "chain": 80927,
-          "singleDevour": 60308,
-          "other": 30090
+          "chain": 80848,
+          "singleDevour": 60200,
+          "other": 28963
         },
         "firstRainbowDay": 12.18,
-        "swapsPerRun": 4.08,
+        "swapsPerRun": 4.09,
         "executionsPerRun": 0.168,
-        "doorsPerRun": 23.53
+        "doorsPerRun": 23.5
       },
       "tuned": {
         "games": 2000,
-        "rainbowsPerRun": 4.7565,
-        "ci95": 0.1006,
-        "runsWithRainbow": 0.9925,
+        "rainbowsPerRun": 4.6625,
+        "ci95": 0.0972,
+        "runsWithRainbow": 0.992,
         "rainbowCounts": [
-          0.0075,
-          0.0425,
-          0.1075,
-          0.1675,
-          0.1875,
-          0.4875
+          0.008,
+          0.044,
+          0.1065,
+          0.165,
+          0.2,
+          0.4765
         ],
-        "devoursPerRun": 6.26,
-        "bitesPerDevour": 1.394,
-        "chainStopsPerRun": 0.029,
+        "devoursPerRun": 6.23,
+        "bitesPerDevour": 1.398,
+        "chainStopsPerRun": 0.018,
         "chainLengths": [
-          0.6931,
-          0.2354,
-          0.0577,
-          0.0119,
+          0.6904,
+          0.2376,
+          0.0579,
+          0.0122,
           0.0019,
           0
         ],
         "rainbowSources": {
-          "chain": 1916,
-          "singleDevour": 2532,
-          "other": 5065
+          "chain": 1900,
+          "singleDevour": 2549,
+          "other": 4876
         },
         "firstRainbowDay": 8.44,
-        "swapsPerRun": 8.19,
+        "swapsPerRun": 8.21,
         "executionsPerRun": 0.06,
-        "doorsPerRun": 23.53
+        "doorsPerRun": 23.23
       }
     }
   },
@@ -623,90 +617,90 @@
     {
       "id": "full",
       "label": "The full strategy",
-      "value": 1.976,
-      "ci": 0.0752
+      "value": 1.8535,
+      "ci": 0.0684
     },
     {
       "id": "alwaysExec",
       "label": "Always accepting Executions",
-      "value": 1.7745,
-      "ci": 0.0737
+      "value": 1.6375,
+      "ci": 0.066
     },
     {
       "id": "neverExec",
       "label": "Never accepting Executions",
-      "value": 1.911,
-      "ci": 0.0744
+      "value": 1.8085,
+      "ci": 0.0681
     },
     {
       "id": "shortWalks",
       "label": "Preferring short walks",
-      "value": 1.7895,
-      "ci": 0.0713
+      "value": 1.6035,
+      "ci": 0.0595
     },
     {
       "id": "noSpread",
       "label": "Ignoring the beast spread",
-      "value": 1.9865,
-      "ci": 0.0751
+      "value": 1.8565,
+      "ci": 0.0681
     },
     {
       "id": "swapNormals",
       "label": "Replacing Normals only",
-      "value": 1.9915,
-      "ci": 0.0771
+      "value": 1.829,
+      "ci": 0.069
     },
     {
       "id": "swapRares",
       "label": "Replacing Rares too",
-      "value": 1.976,
-      "ci": 0.0752
+      "value": 1.8535,
+      "ci": 0.0684
     },
     {
       "id": "wait2",
       "label": "Waiting for bigger chains (small threshold)",
-      "value": 1.939,
-      "ci": 0.0749
+      "value": 1.8275,
+      "ci": 0.0676
     },
     {
       "id": "wait5",
       "label": "Waiting for bigger chains (large threshold)",
-      "value": 1.9195,
-      "ci": 0.0767
+      "value": 1.785,
+      "ci": 0.0678
     },
     {
       "id": "acceptChain",
       "label": "Accepting Chain reactions",
-      "value": 1.955,
-      "ci": 0.0752
+      "value": 1.8155,
+      "ci": 0.0679
     },
     {
       "id": "alwaysBestow",
       "label": "Always choosing Bestow at the office",
-      "value": 1.7405,
-      "ci": 0.0685
+      "value": 1.6455,
+      "ci": 0.0633
     },
     {
       "id": "alwaysInstigate",
       "label": "Always choosing Instigate at the office",
-      "value": 1.9215,
-      "ci": 0.0781
+      "value": 1.7555,
+      "ci": 0.0705
     },
     {
       "id": "neverSwap",
       "label": "Never replacing",
-      "value": 1.8105,
-      "ci": 0.0742
+      "value": 1.642,
+      "ci": 0.0626
     },
     {
       "id": "simple",
       "label": "A simple player",
-      "value": 0.8947
+      "value": 0.8552
     },
     {
       "id": "random",
       "label": "Random moves",
-      "value": 0.0632
+      "value": 0.0628
     }
   ],
   "habitRuns": 2000,
@@ -829,25 +823,25 @@
         "rope",
         "claws",
         "coin",
-        "shackles",
         "maiden",
+        "shackles",
         "scapegoat",
-        "hook",
         "revenge",
-        "skewer",
         "muzzle",
-        "ravenous",
+        "skewer",
         "collar",
+        "ravenous",
+        "hook",
         "saw",
         "blacklist",
         "guillotine",
         "dogtag",
-        "cage",
         "tongs",
         "stake",
+        "cage",
+        "whip",
         "scales",
         "keys",
-        "whip",
         "pestle",
         "fire",
         "shortchain",
@@ -899,25 +893,25 @@
         "rope",
         "claws",
         "coin",
-        "shackles",
         "maiden",
+        "shackles",
         "scapegoat",
-        "hook",
         "revenge",
-        "skewer",
         "muzzle",
-        "ravenous",
+        "skewer",
         "collar",
+        "ravenous",
+        "hook",
         "saw",
         "blacklist",
         "guillotine",
         "dogtag",
-        "cage",
         "tongs",
         "stake",
+        "cage",
+        "whip",
         "scales",
         "keys",
-        "whip",
         "pestle",
         "fire",
         "shortchain",
@@ -932,5 +926,5 @@
     }
   },
   "totalRuns": 602000,
-  "minutes": 4.8
+  "minutes": 5.3
 }
