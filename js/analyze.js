@@ -2639,11 +2639,19 @@
       m.cells[n].beast = best.beast;
     });
     const { st: final } = buildState(Object.assign({}, m, { step: 'manage' }));
+    // Jaws that only a second meal explains (a Mammoth over a Wolf, a Lion
+    // over a Rat, below Legendary) show what the game allows and the
+    // simulator doesn't (reports 206 and 208), not a misreading. On a cell
+    // read with confidence they aren't flagged: report 306 found every such
+    // Mammoth marked Check, as if the reader were unsure of it.
+    const sure = (n) => r.cells[n].conf >= 0.6 && !r.cells[n].ghost;
+    const secondMealJaws = (n) => sure(n) && secondMealCells(final, n).length > 0;
     const oddCells = [];
     r.cells.forEach((c, n) => {
       if (c.kind !== 'inmate' || m.cells[n].kind !== 'inmate') return;
       // Jaws over a Supreme's red glow aren't known (null): no check.
       if (c.jaws !== null && hasTarget(final, n) !== !!c.jaws) {
+        if (c.jaws && secondMealJaws(n)) return;
         checks.add(n);
         oddCells.push(n);
       }
@@ -2655,8 +2663,8 @@
     const w = m.warden;
     const noMeal = !!(r.decision && r.decision.consume) && w != null && m.cells[w] && m.cells[w].kind === 'inmate' && !hasTarget(final, w);
     if (noMeal) {
-      checks.add(w);
       const second = secondMealCells(final, w);
+      if (!second.length || !sure(w)) checks.add(w);
       notes.push(second.length
         ? `Your game offers Consume, but the ${T.describe(m.cells[w])} in ${L(w)} has only second meals here (${mealList(final, second)}), which the simulator allows only from Legendary up, or in a run with Cage Fight, so the advice can’t weigh Consume. If this run has Cage Fight, set it under Start of run.`
         : `Your game offers Consume, but the board as read has no meal for the ${T.describe(m.cells[w])} in ${L(w)}, so the advice can’t weigh Consume: check it and the inmates it could eat.`);
