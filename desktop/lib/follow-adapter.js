@@ -137,6 +137,40 @@
     const s = await D.screenShare();
     return !!(s && s.allowed);
   }
+  // A window share that started but gives only blank pictures (reports 361
+  // and 362: a game run as administrator) is one Windows won't give either:
+  // two in a row. And with the game as administrator, a window share isn't
+  // to be trusted at all: once the screen is allowed, the share moves there.
+  let blank = 0;
+  function onShared(f) {
+    if (!f.frame || C.state.shared !== 'window') return;
+    blank = f.blank ? blank + 1 : 0;
+    if (blank >= 2 && !diag.wontShare) {
+      diag.wontShare = true;
+      diag.shareError = 'The shared game window gives blank pictures.';
+      diag.shareErrorAt = Date.now();
+      tell();
+      toScreen();
+    }
+  }
+  let moving = false;
+  async function toScreen() {
+    if (moving || sharing || C.state.window !== 'on' || C.state.shared !== 'window') return;
+    moving = true;
+    try {
+      if (await useScreen()) {
+        C.stopWindow();
+        retryAt = 0;
+        retryWait = 5000;
+        await sync();
+      }
+    } finally {
+      moving = false;
+    }
+  }
+  setInterval(() => {
+    if (game.adminBlock || diag.wontShare) toScreen();
+  }, 5000);
 
   // The page's own Stop buttons are the player's: respect them.
   document.addEventListener('click', (e) => {
@@ -234,10 +268,7 @@
     if (st.window === 'off' && !game.running) stoppedWindow = false;
     if (wasShared && st.window === 'off' && game.running && !stoppedWindow) retryAt = Math.max(retryAt, Date.now() + 2500);
     wasShared = st.window === 'on';
-    if (st.window === 'on' && st.shared === 'window') {
-      refused = 0;
-      diag.wontShare = false;
-    }
+    if (st.window === 'on' && st.shared === 'window' && !blank) refused = 0;
     tell();
   });
   setInterval(() => {
@@ -253,6 +284,7 @@
     sync();
   }, 1000);
   C.on('frame', (f) => {
+    onShared(f);
     lastFrame = { at: Date.now(), kind: f.kind, ok: !!f.frame, why: f.why || '' };
     if (!f.frame) diag.failed += 1;
     tell();
@@ -282,6 +314,7 @@
       stoppedLog = false;
       stoppedWindow = false;
       refused = 0;
+      blank = 0;
       diag.wontShare = false;
     }
     sayHow();
@@ -295,7 +328,7 @@
     if (cmd === 'share-again') {
       retryAt = 0;
       retryWait = 5000;
-      if (C.state.window === 'on' && C.state.shared === 'screen') C.stopWindow();
+      if (C.state.window === 'on') C.stopWindow();
       sync();
     }
   });

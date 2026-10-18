@@ -313,7 +313,7 @@
     if (!b) return;
     const frame = await grab();
     if (frame) setState({ frames: state.frames + 1 });
-    emit('frame', { kind: b.kind, hits: b.hits, frame, why: frame ? '' : whyNot(), time: new Date() });
+    emit('frame', { kind: b.kind, hits: b.hits, frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date() });
   }
 
   // #endregion
@@ -623,12 +623,31 @@
     }
   }
 
+  // A frame that's all but black: a window share that started but shows
+  // nothing of the window (a game run as administrator, reports 361 and
+  // 362). Looked at shrunk to 16×16; nothing of it is kept.
+  function isBlank(frame) {
+    if (!frame) return false;
+    try {
+      const c = document.createElement('canvas');
+      c.width = 16;
+      c.height = 16;
+      const g = c.getContext('2d', { willReadFrequently: true });
+      g.drawImage(frame, 0, 0, 16, 16);
+      const d = g.getImageData(0, 0, 16, 16).data;
+      for (let i = 0; i < d.length; i += 4) if (d[i] > 12 || d[i + 1] > 12 || d[i + 2] > 12) return false;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // #endregion
 
   async function captureNow(kind) {
     const frame = await grab();
     if (frame) setState({ frames: state.frames + 1 });
-    emit('frame', { kind: kind || 'manual', hits: [], frame, why: frame ? '' : whyNot(), time: new Date() });
+    emit('frame', { kind: kind || 'manual', hits: [], frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date() });
     return !!frame;
   }
 

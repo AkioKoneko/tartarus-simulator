@@ -457,6 +457,12 @@ const win32 = (() => {
         }
       },
       foreground: () => Number(foreground()),
+      // The process a window belongs to.
+      pidOf(hwnd) {
+        const pid = [0];
+        windowPid(hwnd, pid);
+        return pid[0];
+      },
       rect(hwnd) {
         const r = {};
         return rect(hwnd, r) ? { x: r.left, y: r.top, width: r.right - r.left, height: r.bottom - r.top } : null;
@@ -1393,7 +1399,13 @@ ipcMain.handle('game:crop', (e) => {
   if (!fromPage(e, 'follow') || !screenAllowed()) return null;
   const g = gameScreen();
   if (!g) return null;
-  const front = win32.foreground() === game.hwnd && !win32.minimized(game.hwnd);
+  // In front: the game's window, another of the game's own windows, or one
+  // of this app's that doesn't cover the game (report 362: the picture was
+  // asked for from the app).
+  const fg = win32.foreground();
+  const own = BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed() && w.isVisible()).some((w) => Number(w.getNativeWindowHandle().readBigUInt64LE(0)) === fg);
+  const covers = (a, b) => !!a && a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  const front = !win32.minimized(game.hwnd) && (fg === game.hwnd || win32.pidOf(fg) === win32.pidOf(game.hwnd) || (own && !covers(win32.frame(fg), g.r)));
   return { x: g.r.x - g.s.x, y: g.r.y - g.s.y, width: g.r.width, height: g.r.height, screenWidth: g.s.width, screenHeight: g.s.height, front };
 });
 ipcMain.handle('share:screen-ok', (e) => (fromPage(e, 'follow') ? { allowed: screenAllowed(), asked: !!settings.screenShare } : null));
