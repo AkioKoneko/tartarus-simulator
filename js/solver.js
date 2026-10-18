@@ -53,7 +53,7 @@
     maidenSwapTier: 3, // holding the Severed Iron Maiden, swap up to this tier (Legendary measured best)
     execMargin: 0, // accept an Execution worth more than this
     acceptChain: true, // accept Chain reactions
-    toolRank: ['crown', 'trap', 'rope', 'maul', 'claws', 'scapegoat', 'coin', 'maiden', 'shackles', 'muzzle', 'blacklist', 'revenge', 'ravenous', 'skewer', 'hook', 'stake', 'saw', 'collar', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'pestle', 'fire', 'shortchain', 'axe', 'forged', 'ironbox'], // measured: each tool held from day 1
+    toolRank: ['crown', 'rope', 'trap', 'claws', 'maul', 'scapegoat', 'coin', 'maiden', 'shackles', 'muzzle', 'ravenous', 'blacklist', 'revenge', 'skewer', 'hook', 'stake', 'collar', 'saw', 'guillotine', 'dogtag', 'tongs', 'whip', 'keys', 'cage', 'scales', 'pestle', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'], // measured: each tool held from day 1
     toolSets: true, // pick instruments by the measured sets (js/tool-combos.js) when there are any
     office: null, // always 'bestow' or 'instigate' at the office (only to measure the habit)
     giftRank: null, // null scores the gifts on the spot; or a fixed order
@@ -69,8 +69,8 @@
   // a run (met 99% of runs, by day 7.9 not 9.5), Survival of the Fittest
   // +0.04. Runs with other objectives play out exactly as before.
   const PROFILES = {
-    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, wIncident: 40, wPass: 40, wOfficeIncident: 60, wConsume: 20, toolRank: ['crown', 'trap', 'rope', 'maul', 'claws', 'scapegoat', 'coin', 'maiden', 'shackles', 'muzzle', 'blacklist', 'revenge', 'ravenous', 'skewer', 'hook', 'stake', 'saw', 'collar', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'pestle', 'fire', 'shortchain', 'axe', 'forged', 'ironbox'] },
-    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['crown', 'trap', 'rope', 'maul', 'claws', 'scapegoat', 'coin', 'maiden', 'shackles', 'muzzle', 'blacklist', 'revenge', 'ravenous', 'skewer', 'hook', 'stake', 'saw', 'collar', 'guillotine', 'dogtag', 'whip', 'tongs', 'keys', 'cage', 'scales', 'pestle', 'fire', 'shortchain', 'axe', 'forged', 'ironbox'] },
+    rewards: { tierBase: 3, rainbowMult: 1.5, wOpen: 1.5, wNow: 0.844, wWalk: 0.75, wStep: 0.5, wChain: 6, wStair: 0.25, swapMaxTier: 3, minDevour: 0, execMargin: 0, acceptChain: true, wCrow: 1, wIncident: 40, wPass: 40, wOfficeIncident: 60, wConsume: 20, toolRank: ['crown', 'rope', 'trap', 'claws', 'maul', 'scapegoat', 'coin', 'maiden', 'shackles', 'muzzle', 'ravenous', 'blacklist', 'revenge', 'skewer', 'hook', 'stake', 'collar', 'saw', 'guillotine', 'dogtag', 'tongs', 'whip', 'keys', 'cage', 'scales', 'pestle', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
+    notools: { tierBase: 2.75, rainbowMult: 12, wOpen: 2.25, wNow: 0.375, wWalk: 1.875, wStep: 0.5, wChain: 24, wStair: 0.125, swapMaxTier: 1, minDevour: 0, execMargin: -5, acceptChain: false, wCrow: 1, toolRank: ['crown', 'rope', 'trap', 'claws', 'maul', 'scapegoat', 'coin', 'maiden', 'shackles', 'muzzle', 'ravenous', 'blacklist', 'revenge', 'skewer', 'hook', 'stake', 'collar', 'saw', 'guillotine', 'dogtag', 'tongs', 'whip', 'keys', 'cage', 'scales', 'pestle', 'shortchain', 'fire', 'axe', 'forged', 'ironbox'] },
   };
   const paramsFor = (st) => PROFILES[st.params.rewards ? 'rewards' : 'notools'];
 

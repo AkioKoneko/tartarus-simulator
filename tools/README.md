@@ -49,7 +49,7 @@ The strategy has two tuned profiles, chosen by the run's settings: drills with r
 node tools/strategy-sim.js guide --no-tune --games 2000 --side 2000 --habit-games 2000 --compare 100000
 ```
 
-For ±0.01, use 100,000 runs a measurement (`--games 100000 --side 100000 --habit-games 100000 --compare 100000`). The latest run (2026-10-17, night) took 602,000 runs in 4.8 minutes on 1 thread, most of them the strategy comparison's 100,000 runs a player. Its full numbers are in `results/guide-data.json`.
+For ±0.01, use 100,000 runs a measurement (`--games 100000 --side 100000 --habit-games 100000 --compare 100000`). The latest run (2026-10-17, night, with Extra Portion) took 602,000 runs in 4.9 minutes on 1 thread, most of them the strategy comparison's 100,000 runs a player. Its full numbers are in `results/guide-data.json`.
 
 ## The contract challenge (removed)
 
@@ -58,6 +58,12 @@ The Chinese sim's 12-day contract challenge (contracts, vouchers, escorts and co
 ## Results
 
 The Chinese sim's two-meal food chain (Mammoth also eats Wolf, Lion also eats Rat) was confirmed not to be in the live game on 2026-10-15, so it was removed from the simulator and the lab. The older sections below still show the two-meal numbers measured at the time; their files are in the git history.
+
+### Extra Portion (2026-10-17, night)
+
+A player's report (#313): "randomly select up to 3 inmates and increase their rarity by 1 tier". It's the 11th event in the pool (`portion`), as likely as each of the others, and the strategy always accepts it. Its card hasn't been seen, so a Supreme it picks becoming a Rainbow is the simulator's reading.
+
+The guide was measured again with it, with the same settings (602,000 runs in 4.9 minutes on 1 thread): **4.08** Rainbows a run with rewards on (±0.09, was 4.01), and 1.26 with no instruments (±0.005 on 100,000 runs, was 1.17). Every instrument gained between 0.01 and 0.16. Instruments less than about 0.1 apart traded places: the Noose now comes before the Trap, the Claws before the Maul, and the Ravenous Chains before the Blacklist and the Avenger's Casket. The drill ranking follows. The instrument pairs weren't measured again: their numbers below are from before Extra Portion.
 
 ### Measured again with events at random, to ±0.1 (2026-10-17, night)
 
