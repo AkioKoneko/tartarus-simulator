@@ -1249,6 +1249,45 @@ setInterval(async () => {
 // doesn't work: it opens the analyzer's Report form, filled in, and is also
 // copied to the clipboard. Paths under the player's own folder are shortened
 // to %USERPROFILE%. It holds no picture and no game log line.
+// What the game log holds, for finding why no trigger matches (the
+// standalone client, reports 345, 346, 361 and 362): its text encoding,
+// and in its last 4 MB how many lines name the prison's season (S16) and
+// which season tags appear (S16, S17...), as counts. No line of the log is
+// kept or reported (the user, 2026-10-18).
+function logCheck() {
+  if (!logPath) return 'no log';
+  let fd;
+  try {
+    fd = fs.openSync(logPath, 'r');
+    const size = fs.fstatSync(fd).size;
+    const head = Buffer.alloc(Math.min(size, 3));
+    fs.readSync(fd, head, 0, head.length, 0);
+    let n = Math.min(size, 4 * 1024 * 1024);
+    let buf = Buffer.alloc(n);
+    fs.readSync(fd, buf, 0, n, size - n);
+    let nul = 0;
+    for (let i = 0; i < Math.min(n, 65536); i++) if (buf[i] === 0) nul += 1;
+    const utf16 = (head[0] === 0xff && head[1] === 0xfe) || nul > Math.min(n, 65536) / 5;
+    // UTF-16 starts each character on an even byte.
+    if (utf16 && (size - n) % 2) buf = buf.subarray(1);
+    const text = buf.toString(utf16 ? 'utf16le' : 'utf8');
+    const lines = text.split('\n');
+    const s16 = lines.filter((l) => l.includes('S16')).length;
+    const tags = {};
+    for (const m of text.matchAll(/(?<![A-Za-z0-9])S(\d{1,2})(?=[A-Z][a-z])|_S(\d{1,2})_/g)) {
+      const k = `S${m[1] || m[2]}`;
+      tags[k] = (tags[k] || 0) + 1;
+    }
+    const top = Object.entries(tags).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `${k} ×${v}`).join(', ') || 'none';
+    const kind = utf16 ? 'UTF-16' : head[0] === 0xef && head[1] === 0xbb ? 'UTF-8 (BOM)' : 'UTF-8';
+    return `${kind}; last ${(n / 1048576).toFixed(1)} MB: ${lines.length} lines, ${s16} with "S16"; season tags: ${top}`;
+  } catch (e) {
+    return `can't be read (${e.code || e.message})`;
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
+}
+
 function debugReportText(cores) {
   const home = require('os').homedir();
   const clean = (t) => String(t || '').split(home).join('%USERPROFILE%');
@@ -1261,6 +1300,7 @@ function debugReportText(cores) {
     `Game: ${game.running ? `running (${game.title}); ${adminText(game.admin)}` : 'not running'}; log file (${logFoundBy}): ${clean(logPath) || 'not found'}`,
     `Agreed: ${agreed}; log: ${f.log}${f.error ? ` (${clean(f.error)})` : ''}; window: ${f.window}${f.windowSize ? ` ${f.windowSize}` : ''}${f.shared === 'screen' ? ' (the game’s screen, cut to the game window)' : ''}; screen fallback: ${settings.screenShare ? (settings.screenShare.on ? 'allowed' : 'declined') : 'not asked'}; game log detail (Enable Log): ${f.detail || 'not known yet'}`,
     `Log file: ${d.logSize || '?'} bytes, last grew ${ago(d.growingAt)}. Since connecting: ${f.lines || 0} lines read, ${f.hits || 0} triggers ${JSON.stringify(d.triggers || {})}, ${f.frames || 0} pictures, ${d.failed || 0} failed.`,
+    `Log check: ${logCheck()}`,
     `Last window share error: ${d.shareError ? `${clean(d.shareError)} (${ago(d.shareErrorAt)})` : 'none'}`,
     `Last trigger: ${d.lastTriggerKind || 'none'} ${ago(d.lastTriggerAt)}. Last picture: ${f.lastFrame ? `${f.lastFrame.kind} ${ago(f.lastFrame.at)}${f.lastFrame.ok ? '' : ` (none taken: ${f.lastFrame.why})`}` : 'none'}; on the page: ${d.lastNote || '-'}`,
     `Analyzer: ${a.lastRead ? `last read ${ago(a.lastRead.at)}, ${a.lastRead.ok ? 'ok' : `failed: ${a.lastRead.reason}`}` : 'nothing read'}; advice: ${a.move || (a.working ? 'working' : 'none')}`,
