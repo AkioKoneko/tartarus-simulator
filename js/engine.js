@@ -1358,14 +1358,15 @@
       state.eventPool = (state.eventPool || EVENT_POOL).filter((id) => id !== kind);
       if (u.next && !state.eventPool.includes(u.next)) state.eventPool.push(u.next);
       if (u.next) {
-        // Each Usurpation's card also puts the next one behind a random
-        // locked door at once (the user, 2026-10-18: not only I's).
-        const free = state.cells.filter((c) => c.sealed && !c.event && !c.nest);
+        // Each Usurpation's card also puts the next one on a random free
+        // cell at once, as an Instigate would: a locked door, or an inmate's
+        // open cell (the user, 2026-10-18: any space, and not only I's).
+        const free = instigateCells(state);
         if (free.length) {
-          const door = pickOne(state, free);
-          door.event = u.next;
-          door.seen = true;
-          log(state, 'event', `${eventName(u.next)} now waits behind cell ${cellLabel(door.n)}.`);
+          const cell = pickOne(state, free);
+          cell.event = u.next;
+          cell.seen = true;
+          log(state, 'event', `${eventName(u.next)} now waits ${cell.sealed ? 'behind' : 'in'} cell ${cellLabel(cell.n)}.`);
         }
       }
     } else if (kind === 'freedom') {
