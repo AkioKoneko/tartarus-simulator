@@ -1616,8 +1616,8 @@
   const GAME_LANGS = { en: 'English', ru: 'Russian', zh: 'Chinese' };
   const LANG_KEY = 'tartarus-sim:game-lang:v1';
   const LANG_NOTES = {
-    ru: 'Игра на русском языке. Анализатор обучен на английском клиенте: клетки, звери и редкость на поле читаются на любом языке, но двери дня, кнопки замены и поглощения, ваши инструменты, счётчик хроматических заключённых, предложения инструментов, цели и карты начала забега читаются по английскому тексту. Укажите их вручную (двери — в разделе «Which door to patrol»), а если экран не распознан, отправьте его кнопкой «Send this screenshot», чтобы анализатор научился читать русский клиент.',
-    zh: '游戏为中文客户端。分析器是基于英文客户端训练的：棋盘上的格子、野兽和稀有度在任何语言下都能识别，但当天的门、替换和吞噬按钮、你的刑具、彩色囚犯数量、刑具选择、本局目标和开局卡牌是按英文文字识别的。请手动设置这些内容（门在“Which door to patrol”中设置）；若某个画面未被识别，请点击“Send this screenshot”发送截图，帮助分析器学会识别中文客户端。',
+    ru: 'Игра на русском языке. Анализатор обучен на английском клиенте: клетки, звери и редкость на поле читаются на любом языке; двери дня читаются по номерам клеток, но на русском клиенте это ещё не проверено, поэтому сверьте их (в разделе «Which door to patrol»). Кнопки замены и поглощения, ваши инструменты, счётчик хроматических заключённых, предложения инструментов, цели и карты начала забега читаются по английскому тексту. Укажите их вручную, а если экран не распознан, отправьте его кнопкой «Send this screenshot», чтобы анализатор научился читать русский клиент.',
+    zh: '游戏为中文客户端。分析器是基于英文客户端训练的：棋盘上的格子、野兽和稀有度，以及当天的门（按格子编号），在任何语言下都能识别；但替换和吞噬按钮、你的刑具、彩色囚犯数量、刑具选择、本局目标和开局卡牌是按英文文字识别的。请手动设置这些内容；若某个画面未被识别，请点击“Send this screenshot”发送截图，帮助分析器学会识别中文客户端。',
   };
   let gameLang = 'en';
   try {
@@ -1626,9 +1626,16 @@
     // The default, then.
   }
   const langName = (code) => GAME_LANGS[code] || 'another language';
+  // Today's doors are read by their cell numbers in any language (since
+  // 20261017s), checked on real Chinese and Korean boards; in others a letter
+  // can pass for a digit, so the player checks them.
+  const DOORS_READ = ['zh', 'ko'];
   function langNote() {
     if (gameLang === 'en') return '';
-    return `Your game is in ${langName(gameLang)}. The reader learned on the English client: the board's cells, beasts and rarities read in any language, but today's doors, the Replace and Consume buttons, your instruments, the Chromatic count, instrument offers, objectives and start-of-run cards are read by their English text. Set those by hand (the doors under “Which door to patrol”), and when a screen isn't recognized, please send it with the button that comes up, so the reader can learn your language.${LANG_NOTES[gameLang] ? `\n\n${LANG_NOTES[gameLang]}` : ''}`;
+    const doors = DOORS_READ.includes(gameLang)
+      ? "the board's cells, beasts and rarities, and today's doors (by their cell numbers), read in any language"
+      : "the board's cells, beasts and rarities read in any language, and today's doors are read by their cell numbers, but not yet checked on boards in your language, so check them under “Which door to patrol”";
+    return `Your game is in ${langName(gameLang)}. The reader learned on the English client: ${doors}. The Replace and Consume buttons, your instruments, the Chromatic count, instrument offers, objectives and start-of-run cards are read by their English text. Set those by hand, and when a screen isn't recognized, please send it with the button that comes up, so the reader can learn your language.${LANG_NOTES[gameLang] ? `\n\n${LANG_NOTES[gameLang]}` : ''}`;
   }
   function renderLang() {
     const sel = $('az-game-lang');
@@ -1669,7 +1676,7 @@
     if (gameLang === 'en' || langBoardAsked || !image) return false;
     langBoardAsked = true;
     langMiss = { what: 'board', image, detail: 'a board, for its door cards and buttons', at: Date.now() };
-    toast(`Your game is in ${langName(gameLang)}: today's doors and the Replace and Consume buttons may not be read, so set them by hand. Sending this board's screenshot once helps the reader learn your language.`, 'ok', [{ id: 'lang-report', label: 'Send this screenshot', primary: true }]);
+    toast(`Your game is in ${langName(gameLang)}: ${DOORS_READ.includes(gameLang) ? '' : 'check today’s doors, and '}the Replace and Consume buttons may not be read, so set them by hand. Sending this board's screenshot once helps the reader learn your language.`, 'ok', [{ id: 'lang-report', label: 'Send this screenshot', primary: true }]);
     return true;
   }
   function sendLangMiss() {
