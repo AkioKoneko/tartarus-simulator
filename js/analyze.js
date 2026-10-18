@@ -128,6 +128,7 @@
       // last picture (toolsPanel): only a panel showing more asks again.
       toolsSeen: 0,
       toolsPanel: 0,
+      pendingToolOffer: null,
       // Days of this run whose morning offered a door short (see scanToModel).
       shortDays: [],
       // The game shows no Replace / Consume card now (read from a screenshot):
@@ -173,6 +174,10 @@
     out.choice = Object.assign(blankModel().choice, m.choice || {});
     out.choice.rerolls = clamp(toInt(out.choice.rerolls, 0), 0, 9);
     out.choice.picks = clamp(toInt(out.choice.picks, 1), 1, 30);
+    const offer=m.pendingToolOffer;
+    out.pendingToolOffer = offer && Array.isArray(offer.options) && Array.isArray(offer.before)
+      ? {options:offer.options.filter(id=>T.TOOLS[id]),before:offer.before.filter(id=>T.TOOLS[id])} : null;
+    if (out.pendingToolOffer && !out.pendingToolOffer.options.length) out.pendingToolOffer=null;
     out.cells = m.cells.map((c, n) => (n === T.OFFICE ? officeCell() : Object.assign(sealedCell(), c)));
     out.dest = Array.isArray(m.dest) ? m.dest.filter((n) => Number.isInteger(n) && n >= 0 && n < T.CELL_COUNT) : [];
     if (!STEPS.includes(out.step)) out.step = 'patrol';
@@ -192,6 +197,7 @@
   // analyzed. Events the player can't name get a kind the solver re-rolls.
   function buildState(m) {
     const problems = [];
+    if (!(m.step === 'choice' && m.choice.kind === 'tool') && m.pendingToolOffer && (m.tools || []).length <= m.pendingToolOffer.before.length) problems.push('Confirm which instrument you selected before calculating the next move.');
     const params = { rewards: !!m.rewards, drillDays: clamp(toInt(m.maxDays, 20), 5, 60) };
     const st = T.newGame({ params, seed: 'ANALYZER' });
     st.rng = (Math.random() * 4294967296) >>> 0;
@@ -2341,6 +2347,7 @@
     if (start) gifts.waiting = 0;
     model.step = 'choice';
     model.choice = { kind: 'tool', options: read.cards.map((c) => c.sim), rerolls: read.reroll ? 1 : 0 };
+    model.pendingToolOffer = {options:model.choice.options.slice(),before:model.tools.slice()};
     applied = null;
     solver.st = null;
     reader.folded = true;
@@ -2465,8 +2472,9 @@
       .then(() => {
         setTimeout(() => {
           try {
-            const result = window.TartarusScan.scan(imageData, window.TartarusScan.withPanelIcons(window.TARTARUS_SCAN, window.TARTARUS_PICK), { lang: gameLang });
-            if (result.tools && result.tools.tools) for (const t of result.tools.tools) Object.assign(t, window.TARTARUS_SCAN.toolNames[t.id] || {});
+            const ref=window.TartarusScan.withPanelIcons(window.TARTARUS_SCAN, window.TARTARUS_PICK);
+            const result = window.TartarusScan.scan(imageData, ref, { lang: gameLang });
+            if (result.tools && result.tools.tools) for (const t of result.tools.tools) Object.assign(t, ref.toolNames[t.id] || {});
             done(result);
           } catch (e) {
             done(null, e.message);
@@ -2576,8 +2584,8 @@
   // A run's instruments, from what's known of the run and what a screenshot
   // shows. Instruments are only ever added, from an offer, so once the run
   // is known (instruments held, or an offer seen), only an offer the
-  // analyzer saw can add one: the instrument read on it, or failing that,
-  // the one the analyzer advised. Icons alone never add one, as two can look
+  // analyzer saw can add one, when the panel identifies a matching option.
+  // Unresolved offers stay pending. Icons alone never add one, as two can look
   // alike (a tooltip can cover them, too). Without anything known of the
   // run, only icons the reader is sure of count. A screenshot from an
   // earlier day than the board before starts afresh.
@@ -2588,7 +2596,11 @@
     // Explicit objective/opening-offer events already create a blank model.
     const sameRun = !base.ended;
     const known = sameRun ? (base.tools || []).filter((id) => T.TOOLS[id]) : [];
-    const offer = sameRun && base.step === 'choice' && base.choice && base.choice.kind === 'tool' ? base.choice.options.filter((id) => T.TOOLS[id]) : [];
+    const pendingOffer = sameRun && base.pendingToolOffer;
+    if (pendingOffer && known.length > pendingOffer.before.length) m.pendingToolOffer = null;
+    const offer = sameRun && pendingOffer && known.length <= pendingOffer.before.length
+      ? pendingOffer.options.filter(id=>T.TOOLS[id])
+      : sameRun && base.step === 'choice' && base.choice && base.choice.kind === 'tool' ? base.choice.options.filter((id) => T.TOOLS[id]) : [];
     const out = known.map((id) => ({ id, sim: id, name: T.toolName(id), conf: 1, kept: true }));
     const has = (id) => out.some((t) => t.sim === id);
     const slots = Math.max(read.length,Number(m.observedToolSlots)||0);
@@ -2600,6 +2612,7 @@
       known.every(id=>read.some(t=>t.sim===id))) {
       out.push(...read.filter(t=>!has(t.sim)).map(t=>Object.assign({},t,{kept:true})));
       m.toolsToConfirm='';
+      m.pendingToolOffer=null;
       notes.push('Recovered the missing confirmed instruments from a complete high-confidence panel reading.');
       return out;
     }
@@ -2632,11 +2645,13 @@
         const take = seen ? seen.sim : alike ? alike.sim : null;
         if (take) {
           out.push({ id: take, sim: take, name: T.toolName(take), conf: 1, kept: true });
+          m.pendingToolOffer = null;
           if (!seen && alike) notes.push(`An icon read as ${alike.as ? T.toolName(alike.as) : 'another instrument'}, which wasn't offered: taken as ${T.toolName(take)}, the closest of the offer. If you took another, change it under Torture Instrument.`);
         } else notes.push(`Your instruments show one more than before, from the offer of ${offer.map((id) => T.toolName(id)).join(', ')}: set which you took under Torture Instrument.`);
       }
       if (out.length) m.toolsLocked = true;
       if (slots > Math.max(out.length, base.toolsSeen || 0)) m.toolsToConfirm = `Your panel shows ${T.plural(slots, 'instrument')}, and the analyzer has ${out.length}: ${out.map((t) => t.name).join(', ') || 'none'}. Set the ones you hold, then press These are right.`;
+      if (m.pendingToolOffer && out.length <= m.pendingToolOffer.before.length) m.toolsToConfirm = 'Your instrument selection has not been identified yet. View its panel icon, or set the instrument you actually selected under Torture Instrument.';
       return out;
     }
     // Nothing known of the run yet: only icons the reader is sure of, and
@@ -2818,7 +2833,9 @@
     const read = r.tools && r.tools.tools ? r.tools.tools : [];
     m.observedToolSlots = r.tools ? Math.max(read.length,Number(r.tools.slots)||0) : (base.observedToolSlots || 0);
     const unsim = read.filter((t) => !t.sim);
-    if (unsim.length) notes.push(`Not in the simulator yet, so left out: ${unsim.map((t) => t.name).join(', ')}.`);
+    if (unsim.some(t=>t.unknown)) notes.push('Some visible instrument icons could not be identified confidently.');
+    const unsupported=unsim.filter(t=>!t.unknown);
+    if (unsupported.length) notes.push(`Not in the simulator yet, so left out: ${unsupported.map(t=>t.name || t.id || 'unknown icon').join(', ')}.`);
     const tools = runTools(read, base, m, notes, r.tools && r.tools.sims);
     m.tools = tools.map((t) => t.sim);
     // A door short two mornings of the run, with none of the instruments
@@ -3294,6 +3311,7 @@
     $('az-tools-ok').addEventListener('click', () => {
       model.toolsToConfirm = '';
       model.toolsLocked = true;
+      model.pendingToolOffer = null;
       // The panel's count now: only more than this asks again.
       model.toolsSeen = Math.max(model.tools.length, model.toolsPanel || 0);
       changed();

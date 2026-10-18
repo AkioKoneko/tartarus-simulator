@@ -22,7 +22,7 @@ function install(ses, net, root) {
     if (!file || !['GET','HEAD'].includes(request.method)) return new Response('Not found', {status:404});
     try {
       const bytes = await fs.readFile(file);
-      return new Response(request.method === 'HEAD' ? null : bytes, {headers:{'Content-Type':TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control':'no-store', 'X-Tartarus-Local':'second-run-10'}});
+      return new Response(request.method === 'HEAD' ? null : bytes, {headers:{'Content-Type':TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control':'no-store', 'X-Tartarus-Local':'second-run-11'}});
     } catch { return new Response('Not found', {status:404}); }
   });
 }

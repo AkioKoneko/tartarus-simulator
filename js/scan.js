@@ -1919,7 +1919,9 @@
   function withPanelIcons(ref, pick) {
     if (!pick) return ref;
     // The start cards' badges come from the same labeled screenshots.
-    return Object.assign({}, ref, { tools: ref.tools.concat(pick.icons || []), badges: (ref.badges || []).concat(pick.badges || []) });
+    const toolNames = Object.assign({},ref.toolNames);
+    for (const icon of pick.icons || []) if (icon.id && icon.sim && !toolNames[icon.id]) toolNames[icon.id]={sim:icon.sim,name:icon.name || icon.sim};
+    return Object.assign({}, ref, { tools: ref.tools.concat(pick.icons || []), badges: (ref.badges || []).concat(pick.badges || []), toolNames });
   }
 
   function readTreasureCards(img) {

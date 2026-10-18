@@ -32,7 +32,7 @@ self.onmessage = (e) => {
     // The instruments' names and their simulator tools ride along, for the
     // runner-up matches too.
     if (result.tools && result.tools.tools) {
-      const names = self.TARTARUS_SCAN.toolNames;
+      const names = ref.toolNames;
       for (const t of result.tools.tools) {
         Object.assign(t, names[t.id] || {});
         for (const a of t.alts || []) a.sim = (names[a.id] || {}).sim;
