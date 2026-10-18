@@ -1041,11 +1041,19 @@
       for (const line of textLines(img, 0, bottom, img.width - 1, Math.min(img.height - 1, bottom + 260 * loc.s), { minH: 6, maxH: Math.max(48, img.height * 0.07), r })) {
         for (const p of line.pieces) {
           if (p.glyphs.length < 2 || p.glyphs.length > 12) continue;
+          // Which word each glyph is in: a number stands as its own word
+          // ("камеру 13"), or between wide glyphs ("去13号", "2호로"), never
+          // inside a word of narrow letters (report 328: a Cyrillic "З" in
+          // "Заменить" read as a door 3).
+          const wordOf = new Map();
+          p.words.forEach((w, k) => w.glyphs.forEach((g) => wordOf.set(g, k)));
+          const apart = (run, g) => !g || wordOf.get(g) !== wordOf.get(run[0]) || g.w > 0.8 * g.h;
           let found = null;
           for (let i = 0; i < p.glyphs.length; i++) {
             for (const len of [2, 1]) {
               const run = p.glyphs.slice(i, i + len);
               if (run.length !== len) continue;
+              if (!apart(run, p.glyphs[i - 1]) || !apart(run, p.glyphs[i + len])) continue;
               const h = Math.max(...run.map((g) => g.h));
               // Digits stand the line's full height and are narrower than
               // tall; the words' glyphs around them aren't (report 319: "1"
@@ -1071,6 +1079,21 @@
       }
     }
     return best.length >= 2 ? best.sort((a, b) => a.p.x0 - b.p.x0) : [];
+  }
+
+  // How light a cell's room is: a destination of the day is lit.
+  function cellLight(img, c) {
+    const k = c.k;
+    let n = 0;
+    let sum = 0;
+    for (let y = Math.round(c.y - 75 * k); y <= c.y - 15 * k; y += 2) {
+      for (let x = Math.round(c.x - 30 * k); x <= c.x + 30 * k; x += 2) {
+        const [r, g, b] = rgbAt(img, x, y);
+        n += 1;
+        sum += (r + g + b) / 3;
+      }
+    }
+    return n ? sum / n : 0;
   }
 
   // "Go to Interrogation Room", the office's card (cell 01 is always the
@@ -1126,13 +1149,17 @@
 
   // foreign: the game isn't in English (the player's setting), so cards in
   // another language are looked for by their numbers.
-  function readDoors(img, gray, loc, ref, foreign) {
+  function readDoors(img, gray, loc, ref, foreign, cellReads) {
     let cards = doorCards(img, loc, gray, ref);
+    let any = false;
     // Another language's cards: their numbers only (report 319).
     // On the English client, English words' letters can pass for digits
     // there (a sweep found doors on decision rows), so not without the
     // language.
-    if (!cards.length && foreign) cards = doorCardsAny(img, loc, gray, ref);
+    if (!cards.length && foreign) {
+      cards = doorCardsAny(img, loc, gray, ref);
+      any = cards.length > 0;
+    }
     if (!cards.length) return null;
     // Doors are prison cells, 02-16.
     const allowed = [];
@@ -1153,6 +1180,15 @@
     const read = distinctNumbers(options);
     const score = read.reduce((a, r) => a + r.score, 0) / read.length;
     const cells = [...new Set(read.map((r) => r.value - 1))];
+    // Cards read by their numbers alone are checked against the board: the
+    // game lights the locked cells you can go to (54-62 against 17-28 for
+    // the rest, on three boards), and a decision row's words read as
+    // numbers name unlit ones (reports 328, 329, 333). At least one door is
+    // a plain locked cell, and every such door is lit.
+    if (any && cellReads) {
+      const plain = cells.filter((n) => cellReads[n] && cellReads[n].kind === 'locked' && !cellReads[n].shown);
+      if (!plain.length || plain.some((n) => cellLight(img, cellReads[n]) < 40)) return null;
+    }
     const boxes = cards.map((c) => [c.p.x0, c.p.y0, c.p.x1, c.p.y1]);
     // The office (cell 01) as a destination.
     if (cards.office) {
@@ -1453,6 +1489,25 @@
 
   // Chromatic prisoners: filled slots under the "Chromatic Prisoner" label,
   // right of the board. Empty slots are dark outlines; a filled one glows.
+  // View Prison Status, the board behind an open Warden's Treasure: its
+  // "Return to Selection" button at the top right, words of 6, 2 and 9
+  // letters (and the eye icon after them), where the board otherwise shows
+  // "Chromatic Prisoner", 9 and 8 (report 325: a pasted status view taken
+  // for a plain board).
+  function readStatusView(img, loc) {
+    const right = Math.max(at(loc, 5, 0)[0], at(loc, 5, 3)[0]) + 60 * loc.s;
+    if (right > img.width - 30) return false;
+    for (const r of textRadii(img)) {
+      for (const line of textLines(img, right, 0, img.width - 1, Math.round(img.height / 2), { minH: 6, maxH: Math.max(40, img.height * 0.06), r, s: 0.5 })) {
+        for (const p of line.pieces) {
+          const w = p.words.map((q) => q.glyphs.length);
+          if (w.length >= 3 && Math.abs(w[0] - 6) + Math.abs(w[1] - 2) + Math.abs(w[2] - 9) <= 2) return true;
+        }
+      }
+    }
+    return false;
+  }
+
   function readChromatic(img, loc) {
     const right = Math.max(at(loc, 5, 0)[0], at(loc, 5, 3)[0]) + 60 * loc.s;
     if (right > img.width - 30) return null;
@@ -1614,8 +1669,8 @@
     // box sits inside its window (at most 79 of its 85 units out from the
     // middle at the right size, in every saved pick) instead of cut by the
     // window's side or filling it with the card's frame. The full size when
-    // it fits (as before), else the fitting size, in 2% steps down to half,
-    // whose side cards' art is best centered; none fitting, the full size.
+    // it fits (as before), else the biggest fitting size, in 2% steps down
+    // to half; none fitting, the full size.
     const u0 = img.height / 1080;
     const boxesAt = (u) => [-1, 0, 1].map((k) => pickArtBox(img, k, u));
     const offCenter = (boxes, u) => {
@@ -1632,12 +1687,17 @@
       return sum;
     };
     let u = u0;
+    // The biggest size that fits, not the best centered: a far smaller
+    // window can fit around a part of the art (report 336: 0.64 fitted
+    // better than the right 0.98, reading the Dog Tag and the Collar as a
+    // Whip and a Casket).
     if (offCenter(boxesAt(u0), u0) === Infinity) {
-      let best = Infinity;
       for (let i = 1; i <= 25; i++) {
         const ui = u0 * (1 - 0.02 * i);
-        const off = offCenter(boxesAt(ui), ui);
-        if (off < best) [u, best] = [ui, off];
+        if (offCenter(boxesAt(ui), ui) < Infinity) {
+          u = ui;
+          break;
+        }
       }
     }
     const cards = [-1, 0, 1].map((k) => {
@@ -1856,11 +1916,12 @@
     // An open cell can hold an event beside its inmate (the cell popup's
     // "Can trigger Prison Incident"): 8 saved screenshots show one.
     for (const n of findEvents(img, loc, cells, warden)) if (cells[n].kind === 'locked' || cells[n].kind === 'inmate') cells[n].event = true;
-    const doors = readDoors(img, sharp, loc, ref, !!(opts && opts.lang && opts.lang !== 'en'));
+    const doors = readDoors(img, sharp, loc, ref, !!(opts && opts.lang && opts.lang !== 'en'), cells);
     const days = readDays(img, sharp, loc, ref);
     const tools = readTools(img, loc, ref);
     const badge = readBadge(img, tools.label, ref);
     const chromatic = readChromatic(img, loc);
+    const statusView = !doors && readStatusView(img, loc);
     const objective = objectiveBox(img, loc, tools);
     const chain = readChainScreen(img, loc, cells, warden);
     // A meal pick darkens the board, most at its red sides, where a padlock
@@ -1892,7 +1953,7 @@
     // Replace).
     if (decision && !decision.ratway && !decision.office && warden && warden.cell === 0) Object.assign(decision, { office: true, replace: false, consume: false, end: false });
     if (!warden) notes.push('The warden’s arrow was not found.');
-    return { ok: true, loc, cells, warden, doors, days, tools, badge, chromatic, objective, chain, decision, notes, ms: Date.now() - t0 };
+    return { ok: true, loc, cells, warden, doors, days, tools, badge, chromatic, objective, chain, decision, statusView, notes, ms: Date.now() - t0 };
   }
 
   const api = { scan, scanPick, pickArtBox, pickRerollShown, locateBoard, readCell, findWarden, findToolIcons, readDoors, readDays, doorCards, dayNumber, prefixVector, textLines, glyphVector, faceVector, artFeature, similarity, hsv, blobs, at, gridOf, scaleAt, grayOf, blur, RING, H0, ARROW, FACE, GLYPH, locateByLabels, readChainScreen, readDecision, readObjectiveTitle, withPanelIcons, badgeBox, readBadge };

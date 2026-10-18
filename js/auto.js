@@ -100,6 +100,7 @@
       if (read.ok && mine === newest) answer({ state: 'used', asked: A.useObjective(read) });
       return;
     }
+    let offerMissed = '';
     if (m.kind === 'instruments') {
       // The offer that starts a run comes with the day-0 line (m.fresh); an
       // objective's reward offers one mid-run, on the board as it is. A
@@ -107,12 +108,18 @@
       pickFresh = !!m.fresh || (before === 'instruments' && pickFresh);
       const fresh = pickFresh;
       const read = await A.readPick(bitmap);
-      answer({ read });
-      if ((!read.ok || read.unsure) && A.langMissed) A.langMissed('instrument offer', bitmap, read.ok ? `${read.unsure} of the cards not read` : read.reason);
-      if (!read.ok || mine !== newest) return;
-      const asked = A.usePick(read, fresh);
-      answer({ state: 'used', asked });
-      return;
+      if (read.ok) {
+        answer({ read });
+        if (read.unsure && A.langMissed) A.langMissed('instrument offer', bitmap, `${read.unsure} of the cards not read`);
+        if (mine !== newest) return;
+        const asked = A.usePick(read, fresh);
+        answer({ state: 'used', asked });
+        return;
+      }
+      // No offer in the picture: the log's line came, but the screen was
+      // already the board (report 327: the patrol's doors, read right,
+      // while the advice stayed on an offer's pick). It's read as a board.
+      offerMissed = read.reason || 'not read';
     }
     // A picture the log didn't name (Take a picture now) may be the
     // instrument offer: at least two of its cards read surely, which no
@@ -132,6 +139,8 @@
       }
     }
     const read = await A.readFrame(bitmap);
+    // Neither an offer nor a board: an offer in another language, maybe.
+    if (!read.ok && offerMissed && A.langMissed) A.langMissed('instrument offer', bitmap, offerMissed);
     // A picture with no board in it: maybe the Warden's Treasure, read by
     // its printed text. A board's picture can catch it too (report 55).
     if (!read.ok && !read.skipped && A.readTreasure) {
@@ -163,7 +172,9 @@
       return;
     }
     // The board behind a Warden's Treasure: the gift advice uses it.
-    if (m.treasureView) {
+    // View Prison Status, read from the picture, where the log's counts
+    // missed the Treasure (report 325).
+    if (m.treasureView || read.statusView) {
       if (A.useTreasure('view')) answer({ asked: true });
       return;
     }

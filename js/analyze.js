@@ -1735,7 +1735,7 @@
       scanStatus(result.ok ? `Read in ${(reader.ms / 1000).toFixed(1)} s.` : `${result.reason} Try a screenshot of the prison screen, with the whole board in view.`, !result.ok);
       // controls: the board's own door cards or decision row showed, which
       // View Prison Status never does: no Warden's Treasure is open.
-      if (o.onRead) o.onRead(result.ok ? { ok: true, day: reader.reading.model.day, unsure: reader.reading.checks.size, ms: reader.ms, controls: !!((result.doors && result.doors.cells && result.doors.cells.length) || result.decision) } : { ok: false, reason: result.reason, ms: reader.ms });
+      if (o.onRead) o.onRead(result.ok ? { ok: true, day: reader.reading.model.day, unsure: reader.reading.checks.size, ms: reader.ms, controls: !!((result.doors && result.doors.cells && result.doors.cells.length) || result.decision), statusView: !!result.statusView } : { ok: false, reason: result.reason, ms: reader.ms });
       if (o.quiet) {
         renderScan();
         return;
@@ -1752,7 +1752,9 @@
         // The reading becomes the board at once, and the advice follows. If
         // the reader got something wrong, the player fixes it and rechecks.
         const unsure = reader.reading.checks.size;
-        const behindTreasure = model.treasureWait;
+        // View Prison Status (its "Return to Selection"): the board behind
+        // the Treasure, even when the Treasure itself wasn't seen (report 325).
+        const behindTreasure = model.treasureWait || !!result.statusView;
         useScan(true);
         if (behindTreasure) {
           useTreasure('view');
@@ -2552,6 +2554,13 @@
       // The mouse pointer over a card's number hides its digit (report 318).
       if (r.doors.hidden && r.doors.hidden.length) notes.push(`The mouse pointer covers the number on the card read as ${r.doors.hidden.map((n) => `cell ${L(n)}`).join(' and ')}: check that door.`);
       else if (r.doors.conf < 0.6) notes.push('Today’s doors were hard to read: check them.');
+    } else if (!r.decision && !r.statusView && base.step === 'patrol' && (base.dest || []).length && m.day === base.day && m.warden === base.warden) {
+      // No door cards and no buttons, on the same day with the warden where
+      // it was: the cards haven't come back yet (report 334: pictured just
+      // after a Warden's Treasure closed), so the doors stay as they were.
+      m.step = 'patrol';
+      m.dest = base.dest.slice();
+      notes.push('No door cards or buttons showed (they may not have come back yet): today’s doors are kept from the board before.');
     } else {
       m.step = 'manage';
       m.dest = [];
