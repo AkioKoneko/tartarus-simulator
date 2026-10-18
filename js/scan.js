@@ -1634,22 +1634,25 @@
     return [q(xs, 0.01), q(ys, 0.01), q(xs, 0.99), q(ys, 0.99)];
   }
 
-  // Whether the Re-roll button shows, left of Confirm: its label's light
-  // letters. Without a re-roll left, Confirm stands alone in the middle.
-  // The buttons keep to the screen's bottom whatever the cards' size u.
+  // Whether the Re-roll button shows, left of Confirm: its label, "Re-roll"
+  // (words of 2 and 4 marks, about 3.5 letter heights wide, on every saved
+  // offer with it; nothing there on those without). Only the pet gives the
+  // offer a re-roll (the user, 2026-10-18), so light pixels there alone
+  // (the pointer, a glint) aren't one (report 338). The buttons keep to the
+  // screen's bottom whatever the cards' size u.
   function pickRerollShown(img, u = img.height / 1080) {
     const s = u;
     const bottom = img.height - 1080 * s;
-    const x0 = Math.round(img.width / 2 - 330 * s);
-    const x1 = Math.round(img.width / 2 - 90 * s);
-    let light = 0;
-    for (let y = Math.round(bottom + 940 * s); y <= Math.min(img.height - 1, Math.round(bottom + 985 * s)); y++) {
-      for (let x = Math.max(0, x0); x <= x1; x++) {
-        const [, sat, v] = hsvAt(img, x, y);
-        if (v > 0.55 && sat < 0.25) light += 1;
+    for (const r of textRadii(img)) {
+      for (const line of textLines(img, img.width / 2 - 330 * s, bottom + 925 * s, img.width / 2 - 90 * s, Math.min(img.height - 1, bottom + 1000 * s), { minH: 5, maxH: 40, r })) {
+        for (const p of line.pieces) {
+          const n = p.glyphs.length;
+          const span = (p.x1 - p.x0) / line.h;
+          if (n >= 5 && n <= 8 && span > 2.6 && span < 4.6) return true;
+        }
       }
     }
-    return light > 60 * s * s;
+    return false;
   }
 
   // The three cards on offer, left to right, each matched by its art to the
