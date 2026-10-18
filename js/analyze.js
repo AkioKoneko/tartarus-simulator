@@ -813,10 +813,10 @@
       showProblems(problems);
       return;
     }
+    // An event whose kind wasn't seen is any of them. Doors hide none unseen:
+    // events show as they appear, and new ones come from the engine's dice.
     for (const c of st.cells) {
       if (c.event && c.eventKnown === false) c.event = T.EVENT_POOL[Math.floor(Math.random() * T.EVENT_POOL.length)];
-      // A door not marked with an event may hide one nobody has seen.
-      if (c.sealed && c.seen === false && !c.nest && Math.random() * 100 < st.params.eventChance) c.event = T.EVENT_POOL[Math.floor(Math.random() * T.EVENT_POOL.length)];
     }
     const before = JSON.parse(JSON.stringify(model));
     const label = labelFor(action);
