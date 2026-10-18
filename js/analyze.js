@@ -1726,7 +1726,7 @@
       reader.result = result;
       reader.reading = result.ok ? scanToModel(result, model) : null;
       // The run's objective and its count, from the board's corner.
-      if (result.ok && result.objective) cornerObjective(reader.image, result.objective);
+      if (result.ok && result.objective) cornerObjective(reader.image, result.objective, reader.reading.model.day);
       scanStatus(result.ok ? `Read in ${(reader.ms / 1000).toFixed(1)} s.` : `${result.reason} Try a screenshot of the prison screen, with the whole board in view.`, !result.ok);
       // controls: the board's own door cards or decision row showed, which
       // View Prison Status never does: no Warden's Treasure is open.
@@ -1898,14 +1898,20 @@
     }
     if (!best || best.d > 0.3) return { ok: false };
     // The goal's count, "0/4" (letters can stick to it: "times0/2"), or
-    // "Completed".
-    const count = text.replace(/\s+/g, '').match(/(\d{1,2})\/(\d{1,2})/);
-    return { ok: true, id: best.id, name: T.OBJECTIVES[best.id].name, completed: /completed/i.test(text), have: count ? Number(count[1]) : null, need: count ? Number(count[2]) : null };
+    // "Completed". It can't pass the goal: a digit of the goal's own text
+    // can stick to it ("2 times1/2" with "times" missed reads "21/2"), so
+    // then only its last digit is the count, if that fits (d8).
+    const count = text.match(/(\d{1,2})\s*\/\s*(\d{1,2})/);
+    const need = count ? Number(count[2]) : null;
+    let have = count ? Number(count[1]) : null;
+    if (have !== null && have > need) have = have % 10 <= need ? have % 10 : null;
+    return { ok: true, id: best.id, name: T.OBJECTIVES[best.id].name, completed: /completed/i.test(text), have, need: have === null ? null : need };
   }
-  function cornerObjective(source, box) {
+  // day: the reading's, as Auto Screenshot Mode applies it only after this.
+  function cornerObjective(source, box, day) {
     // Each new day, the count again; a new run (the day goes back), all.
-    if (model.day !== corner.day) Object.assign(corner, { tries: 0, done: false });
-    corner.day = model.day;
+    if (day !== corner.day) Object.assign(corner, { tries: 0, done: false });
+    corner.day = day;
     const known = model.objective && model.objective !== 'other';
     const counting = known && T.OBJECTIVES[model.objective] && T.OBJECTIVES[model.objective].need && !model.milestone;
     if (corner.busy || corner.tries >= 3 || (known && (corner.done || !counting))) return;
