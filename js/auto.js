@@ -152,6 +152,16 @@
     if (A.langBoard) A.langBoard(bitmap);
     lastBoardAt = Date.now();
     answer({ state: 'used' });
+    // Door cards or a decision row show only on the board itself, never
+    // through View Prison Status: no Treasure is open, so a tally of picks
+    // still waiting has gone stale (report 302: several Rainbows in a row,
+    // then every board taken as the one behind a Treasure, and its gift
+    // advised again). The board is advised as it is.
+    if (m.treasureView && read.controls) {
+      if (A.giftsDone) A.giftsDone();
+      if (A.ask()) answer({ asked: true });
+      return;
+    }
     // The board behind a Warden's Treasure: the gift advice uses it.
     if (m.treasureView) {
       if (A.useTreasure('view')) answer({ asked: true });

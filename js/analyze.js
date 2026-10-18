@@ -1725,8 +1725,12 @@
       }
       reader.result = result;
       reader.reading = result.ok ? scanToModel(result, model) : null;
+      // The run's objective and its count, from the board's corner.
+      if (result.ok && result.objective) cornerObjective(reader.image, result.objective);
       scanStatus(result.ok ? `Read in ${(reader.ms / 1000).toFixed(1)} s.` : `${result.reason} Try a screenshot of the prison screen, with the whole board in view.`, !result.ok);
-      if (o.onRead) o.onRead(result.ok ? { ok: true, day: reader.reading.model.day, unsure: reader.reading.checks.size, ms: reader.ms } : { ok: false, reason: result.reason, ms: reader.ms });
+      // controls: the board's own door cards or decision row showed, which
+      // View Prison Status never does: no Warden's Treasure is open.
+      if (o.onRead) o.onRead(result.ok ? { ok: true, day: reader.reading.model.day, unsure: reader.reading.checks.size, ms: reader.ms, controls: !!((result.doors && result.doors.cells && result.doors.cells.length) || result.decision) } : { ok: false, reason: result.reason, ms: reader.ms });
       if (o.quiet) {
         renderScan();
         return;
@@ -1846,6 +1850,96 @@
       loadReader(false)
         .then(() => done(window.TartarusScan.readObjectiveTitle(imageData)))
         .catch((e) => done(null, (e && e.message) || 'the screenshot reader could not load'));
+    });
+  }
+
+  // The run's objective, printed in the board's corner ("Objective: Prison
+  // Walk", and its goal under it with the count so far, "0/4", or
+  // "Completed"), read by the text reader while the run's objective isn't
+  // known (the popup at its start was missed or misread: the user's Survival
+  // of the Fittest run, 2026-10-17, whose "objective" picture was the
+  // lobby), and once a day while its goal isn't met: the analyzer often
+  // first sees a run midway, and how many consumes or doors are left weighs
+  // an early consume for the instrument. One try at a time, three failures
+  // in a row a day.
+  const corner = { busy: false, tries: 0, day: 0, done: false };
+  async function readCornerObjective(source, box) {
+    const worker = await ocrWorker();
+    if (!worker) return { ok: false };
+    const [x0, y0, x1, y1] = box.map(Math.round);
+    const w = x1 - x0;
+    const h = y1 - y0;
+    if (w < 8 || h < 8) return { ok: false };
+    // Small text reads better enlarged.
+    const z = Math.max(1, Math.min(3, 600 / w));
+    const c = document.createElement('canvas');
+    c.width = Math.round(w * z);
+    c.height = Math.round(h * z);
+    c.getContext('2d').drawImage(source, x0, y0, w, h, 0, 0, c.width, c.height);
+    let text = '';
+    try {
+      text = (await worker.recognize(c)).data.text || '';
+    } catch (e) {
+      return { ok: false };
+    }
+    const letters = (t) => t.toLowerCase().replace(/[^a-z]/g, '');
+    // The title follows "Objective:" on its line, and a long one wraps onto
+    // the next ("Survival of the / Fittest").
+    const titled = text.split('\n').map(letters).filter(Boolean).map((l) => (l.includes('objective') ? l.slice(l.indexOf('objective') + 9) : l));
+    const tries = titled.concat(titled.slice(0, -1).map((l, i) => l + titled[i + 1])).filter((l) => l.length >= 4);
+    let best = null;
+    for (const id of Object.keys(T.OBJECTIVES)) {
+      if (id === 'other') continue;
+      const n = letters(T.OBJECTIVES[id].name);
+      for (const t of tries) {
+        const d = editDistance(t, n) / n.length;
+        if (!best || d < best.d) best = { id, d };
+      }
+    }
+    if (!best || best.d > 0.3) return { ok: false };
+    // The goal's count, "0/4" (letters can stick to it: "times0/2"), or
+    // "Completed".
+    const count = text.replace(/\s+/g, '').match(/(\d{1,2})\/(\d{1,2})/);
+    return { ok: true, id: best.id, name: T.OBJECTIVES[best.id].name, completed: /completed/i.test(text), have: count ? Number(count[1]) : null, need: count ? Number(count[2]) : null };
+  }
+  function cornerObjective(source, box) {
+    // Each new day, the count again; a new run (the day goes back), all.
+    if (model.day !== corner.day) Object.assign(corner, { tries: 0, done: false });
+    corner.day = model.day;
+    const known = model.objective && model.objective !== 'other';
+    const counting = known && T.OBJECTIVES[model.objective] && T.OBJECTIVES[model.objective].need && !model.milestone;
+    if (corner.busy || corner.tries >= 3 || (known && (corner.done || !counting))) return;
+    corner.busy = true;
+    corner.tries += 1;
+    readCornerObjective(source, box).then((read) => {
+      corner.busy = false;
+      if (!read.ok) return;
+      corner.done = true;
+      corner.tries = 0;
+      const targets = [model, reader.reading && reader.reading.model].filter(Boolean);
+      const wasKnown = model.objective && model.objective !== 'other';
+      // Not runObjective: that's the popup's, for the run's opening offer.
+      if (!wasKnown) for (const m of targets) m.objective = read.id;
+      // The count is this objective's: the higher of it and what's counted
+      // already (the run is under way).
+      const need = T.OBJECTIVES[read.id].need || 0;
+      let counted = false;
+      if (model.objective === read.id && need) {
+        const have = read.completed ? need : read.need === need ? read.have : null;
+        if (have !== null && have > model.walkTiles) {
+          for (const m of targets) {
+            m.walkTiles = Math.min(have, need);
+            if (have >= need) m.milestone = true;
+          }
+          counted = true;
+        }
+      }
+      if (wasKnown && !counted) return;
+      changed();
+      const so = counted ? ` (${read.completed || read.have >= need ? 'met' : `${read.have} of ${need} so far`})` : '';
+      toast(wasKnown ? `${read.name}: ${so.slice(2, -1)}, read from the board’s corner.` : `This run’s objective: ${read.name}${so}, read from the board’s corner. It’s set under Objective.`, 'ok');
+    }, () => {
+      corner.busy = false;
     });
   }
 
@@ -2396,13 +2490,18 @@
           m.cells[n] = { kind: 'nest', due: m.day + 2 };
           checks.add(n);
         } else {
-          // What the player knew of a door that's still locked stays: a
+          // A door whose rarity shows, as read: a "?" portrait, scratched by
+          // the Filthy Claws or not (report 243). A scratch stays while the
+          // door is locked, even if its slashes weren't read.
+          // What the player knew of a door that's still locked stays too: a
           // rarity shown (Crow Whispers, or the "Treasure" Hunt's "?"
-          // portrait, which reads as a plain lock) and the Hunt's Rare or
-          // better.
+          // portrait) and the Hunt's Rare or better.
           const was = base.cells[n];
           const event = c.event ? 'unknown' : null;
-          if (was && was.kind === 'revealed') m.cells[n] = { kind: 'revealed', tier: was.tier, event };
+          if (c.shown) {
+            m.cells[n] = { kind: c.shown.scratch || (was && was.kind === 'scratch') ? 'scratch' : 'revealed', tier: clamp(c.shown.tier, 0, TOP_TIER), event };
+            if (c.shown.conf < 0.6) checks.add(n);
+          } else if (was && (was.kind === 'revealed' || was.kind === 'scratch')) m.cells[n] = { kind: was.kind, tier: was.tier, event };
           else if (was && was.kind === 'sealed' && was.atLeast) m.cells[n] = { kind: 'sealed', event, atLeast: was.atLeast };
           else m.cells[n] = { kind: 'sealed', event };
         }

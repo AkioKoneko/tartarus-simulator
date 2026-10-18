@@ -180,8 +180,9 @@
 
   // Matches the board's fixed frame (walls, office, courtyard, cell numbers)
   // at every scale and position, coarse to fine. Returns { s, tx, ty, score }:
-  // an image point is s * (reference point) + (tx, ty).
-  function locateBoard(img, gray, ref) {
+  // an image point is s * (reference point) + (tx, ty). opts: { sharp, hint }
+  // (both below), from scan.
+  function locateBoard(img, gray, ref, opts) {
     const W = img.width;
     const H = img.height;
     const pts = ref.board.points;
@@ -209,12 +210,8 @@
     }
     const bw = maxX - minX;
     const bh = maxY - minY;
-    const levels = [{ g: blur(gray, W, H, 1), w: W, h: H, f: 1 }];
-    while (levels[levels.length - 1].w > 120 && levels[levels.length - 1].h > 60) {
-      const l = levels[levels.length - 1];
-      const d = half(l.g, l.w, l.h);
-      levels.push({ g: d.g, w: d.w, h: d.h, f: l.f * 2 });
-    }
+    // sharp: the picture's gray blurred by 1, when the caller has it.
+    const levels = [{ g: (opts && opts.sharp) || blur(gray, W, H, 1), w: W, h: H, f: 1 }];
     const score = (lv, s, ox, oy, nearest) => {
       let sx = 0;
       let sxx = 0;
@@ -236,6 +233,42 @@
       const varx = sxx - (sx * sx) / n;
       return varx > 1e-6 ? sxt / Math.sqrt(varx) : -1;
     };
+    // Fine steps over scale and position together, about a candidate.
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    const grid = (c, lv, ds, steps, dt, reach) => {
+      let best = c;
+      for (let i = -steps; i <= steps; i++) {
+        const s = c.s * (1 + i * ds);
+        // Scale about the board's middle, so the board stays in place.
+        const bx = c.tx - (s - c.s) * cx;
+        const by = c.ty - (s - c.s) * cy;
+        for (let dy = -reach; dy <= reach; dy++) {
+          for (let dx = -reach; dx <= reach; dx++) {
+            const tx = bx + dx * dt;
+            const ty = by + dy * dt;
+            const sc = score(lv, s, tx / lv.f, ty / lv.f, lv.f > 1);
+            if (sc > best.score) best = { s, tx, ty, score: sc };
+          }
+        }
+      }
+      return best;
+    };
+    // hint: where the board was in the last picture of this size (Auto
+    // Screenshot Mode's frames of one window keep it in place). Checked at
+    // full size first, and taken after the last fine step when it still
+    // matches as a board does: that skips the search over every scale, most
+    // of a reading's time (d8's profile: 63%).
+    const hint = opts && opts.hint;
+    if (hint && hint.w === W && hint.h === H) {
+      const was = { s: hint.s, tx: hint.tx, ty: hint.ty, score: score(levels[0], hint.s, hint.tx, hint.ty, false) };
+      if (was.score >= 0.81 && was.score >= hint.score - 0.05) return Object.assign(grid(was, levels[0], 0.0025, 3, 0.5, 3), { hinted: true });
+    }
+    while (levels[levels.length - 1].w > 120 && levels[levels.length - 1].h > 60) {
+      const l = levels[levels.length - 1];
+      const d = half(l.g, l.w, l.h);
+      levels.push({ g: d.g, w: d.w, h: d.h, f: l.f * 2 });
+    }
     // Coarse: every scale the board could appear at, on a small level, with
     // a quarter of the points. The board spans most of a screenshot's width
     // when cropped to it, and about half in a full-screen one.
@@ -310,27 +343,7 @@
     if (!top.length) return null;
     top.sort((a, b) => b.score - a.score);
     // Fine: search around the best few, first on a middle level, then at
-    // full size, over scale and position together.
-    const cx = (minX + maxX) / 2;
-    const cy = (minY + maxY) / 2;
-    const grid = (c, lv, ds, steps, dt, reach) => {
-      let best = c;
-      for (let i = -steps; i <= steps; i++) {
-        const s = c.s * (1 + i * ds);
-        // Scale about the board's middle, so the board stays in place.
-        const bx = c.tx - (s - c.s) * cx;
-        const by = c.ty - (s - c.s) * cy;
-        for (let dy = -reach; dy <= reach; dy++) {
-          for (let dx = -reach; dx <= reach; dx++) {
-            const tx = bx + dx * dt;
-            const ty = by + dy * dt;
-            const sc = score(lv, s, tx / lv.f, ty / lv.f, lv.f > 1);
-            if (sc > best.score) best = { s, tx, ty, score: sc };
-          }
-        }
-      }
-      return best;
-    };
+    // full size.
     let best = null;
     for (const c of top.slice(0, 5)) {
       let L = 0;
@@ -462,6 +475,49 @@
   const isOrange = (h, s, v) => h >= 18 && h <= 46 && s > 0.6 && v > 0.55;
   const isGold = (h, s, v) => h >= 32 && h <= 56 && s > 0.38 && s < 0.9 && v > 0.5;
 
+  // A locked door whose inmate's rarity shows: a "?" portrait over the
+  // padlock (Crow Whispers, the Scales, the "below Rare" event), with red
+  // claw slashes at its foot when the Filthy Claws scratched it (report
+  // 243). Inside, the portrait is dark around a gray "?" (0.67-0.78 dark,
+  // 0.06-0.19 gray, at most 0.05 colorful on the saved ones); a plain lock
+  // shows no portrait, and an inmate, an animation or a tooltip there is
+  // colorful, bright or lighter (a lit wall behind a light streak: 0.53).
+  // A white streak's line or arrowhead across a plain lock is near white
+  // (the "?" never is: none on 26 doors) or leaves the inside darker
+  // (0.87-0.95). Its rarity is the frame's color.
+  function shownDoor(img, x, y, k) {
+    const lit = colorShare(img, x - 18 * k, y - 60 * k, x + 18 * k, y - 20 * k, (h, s, v) => v > 0.45);
+    if (lit < 0.015 || lit > 0.3) return null;
+    const inside = [x - 10 * k, y - 54 * k, x + 13 * k, y - 28 * k];
+    const dark = colorShare(img, ...inside, (h, s, v) => v < 0.25);
+    if (dark < 0.62 || dark > 0.85) return null;
+    if (colorShare(img, ...inside, (h, s, v) => s > 0.4 && v > 0.3) > 0.1) return null;
+    // The "?" stands in the middle: the middle third of the inside has 1.27
+    // to 9.6 times the gray of either side, while a stone wall or a light
+    // streak behind a plain lock spreads evenly (0.69-1.04).
+    const third = 23 / 3;
+    const isGray = (h, s, v) => s < 0.25 && v > 0.3 && v < 0.8;
+    const grays = [0, 1, 2].map((j) => colorShare(img, x + (-10 + j * third) * k, y - 54 * k, x + (-10 + (j + 1) * third) * k, y - 28 * k, isGray));
+    if (grays[1] < 0.04 || grays[1] < 1.15 * Math.max(grays[0], grays[2])) return null;
+    // A white glint can cross a real "?" too: then the "?"'s arc shows at
+    // the top of the middle (0.37-0.44 gray there), which a streak across a
+    // plain lock lacks (0.22 at most).
+    if (colorShare(img, ...inside, (h, s, v) => v > 0.82 && s < 0.25) > 0.002 && colorShare(img, x + (-10 + third) * k, y - 54 * k, x + (-10 + 2 * third) * k, y - (54 - 26 / 3) * k, isGray) < 0.3) return null;
+    // The slashes: 0.10-0.11 red there, 0.03 at most on other doors.
+    const scratch = colorShare(img, x - 20 * k, y - 30 * k, x + 10 * k, y - 5 * k, (h, s, v) => (h < 16 || h > 340) && s > 0.4 && v > 0.45) > 0.05;
+    const frame = frameRarity(img, x, y, k);
+    let tier = frame.tier;
+    // The slashes are red, as a Supreme's frame is: under them, the frame's
+    // other color (they alone make 1-2% of it red).
+    if (scratch && tier === 4) {
+      const b = frame.bins;
+      let t = 1;
+      for (let i = 2; i <= 3; i++) if (b[i] > b[t]) t = i;
+      tier = b[t] >= 0.025 * frame.samples ? t : b[4] > 0.06 * frame.samples ? 4 : 0;
+    }
+    return { tier, scratch, conf: frame.conf };
+  }
+
   function readCell(img, gray, loc, n, ref) {
     if (n === 0) {
       const [ox, oy] = at(loc, 0, 0);
@@ -476,6 +532,7 @@
     cell.nest = colorShare(img, x - 15 * k, y - 28 * k, x + 15 * k, y - 6 * k, (h, s, v) => h >= 18 && h <= 46 && s > 0.5 && v > 0.45) > 0.07;
     if (lock > 0.4) {
       Object.assign(cell, { kind: 'locked', conf: lock });
+      if (!cell.nest) cell.shown = shownDoor(img, x, y, k);
       return cell;
     }
     const face = faceMatch(gray, img.width, img.height, x, y, k, ref.faces);
@@ -574,18 +631,26 @@
       // Not inside a cell's room, where nests and frames are orange too.
       let nearest = -1;
       let dist = Infinity;
+      let dx = 0;
+      let dy = 0;
       for (const c of cells) {
         if (c.n === 0) continue;
         const d = Math.hypot(b.cx - c.x, b.cy - (c.y - 38 * c.k)) / c.k;
         if (d < dist) {
           dist = d;
           nearest = c.n;
+          dx = (b.cx - c.x) / c.k;
+          dy = (b.cy - (c.y - 38 * c.k)) / c.k;
         }
       }
       // A real "!" sits 45-55 from its cell, on every saved picture (590 marks
       // with their dot to show it). The mouse pointer's gold edge passes the
       // tests too, further off (reports 68, 133: events on cells that had none).
-      if (dist > 42 && dist < 58) out.add(nearest);
+      // And always at the cell's right, a little below its portrait's middle
+      // (811 of 818 marks: 45-55 right, 5-17 below); the other 7 were the
+      // pointer above or beside a cell and a Legendary frame's glow, and
+      // report 268's pointer sat above and left of cell 11.
+      if (dist > 42 && dist < 58 && dx > 38 && dx < 62 && dy > -2 && dy < 28) out.add(nearest);
     }
     return out;
   }
@@ -1493,7 +1558,10 @@
       let sum = 0;
       for (let i = 0; i < 3; i++) {
         const dx = Math.abs((boxes[i][0] + boxes[i][2]) / 2 - (img.width / 2 + (i - 1) * 480 * u)) / u;
-        if (dx + (boxes[i][2] - boxes[i][0]) / 2 / u > 80) return Infinity;
+        const width = (boxes[i][2] - boxes[i][0]) / u;
+        // A card's art is 92-136 wide at the right size: a sliver caught in
+        // a window far too small isn't (report 278: 47 at 0.56 of the size).
+        if (width < 80 || dx + width / 2 > 80) return Infinity;
         if (i !== 1) sum += dx;
       }
       return sum;
@@ -1690,10 +1758,16 @@
 
   // ---------- Everything ----------
 
-  function scan(img, ref) {
+  // opts.cache: an object kept between pictures (the analyzer's reader
+  // worker): the board found in the last one is looked for first in the
+  // next of the same size.
+  function scan(img, ref, opts) {
     const t0 = Date.now();
     const gray = grayOf(img);
-    let loc = locateBoard(img, gray, ref);
+    const sharp = blur(gray, img.width, img.height, 1);
+    const cache = opts && opts.cache;
+    let loc = locateBoard(img, gray, ref, { sharp, hint: cache && cache.loc });
+    if (cache && loc && loc.score >= 0.81) cache.loc = { w: img.width, h: img.height, s: loc.s, tx: loc.tx, ty: loc.ty, score: loc.score };
     // Real boards match their frame at 0.81 or more at every size tested;
     // instrument picks, popups and other screens stay near 0.5 or under. A
     // darkened board (a devour's meal pick) also matches weakly, but its
@@ -1704,7 +1778,6 @@
     }
     const notes = [];
     if (!loc || (!loc.byLabels && loc.score < 0.65)) return { ok: false, reason: 'No Tartarus prison board found in this picture.', loc, ms: Date.now() - t0 };
-    const sharp = blur(gray, img.width, img.height, 1);
     const cells = [];
     for (let n = 0; n < 16; n++) cells.push(readCell(img, sharp, loc, n, ref));
     const warden = findWarden(img, loc);
