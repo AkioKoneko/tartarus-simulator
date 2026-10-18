@@ -1357,15 +1357,15 @@
       }
       state.eventPool = (state.eventPool || EVENT_POOL).filter((id) => id !== kind);
       if (u.next && !state.eventPool.includes(u.next)) state.eventPool.push(u.next);
-      if (kind === 'usurp1') {
-        // Usurpation I's card also puts Usurpation II behind a random
-        // locked door at once.
+      if (u.next) {
+        // Each Usurpation's card also puts the next one behind a random
+        // locked door at once (the user, 2026-10-18: not only I's).
         const free = state.cells.filter((c) => c.sealed && !c.event && !c.nest);
         if (free.length) {
           const door = pickOne(state, free);
-          door.event = 'usurp2';
+          door.event = u.next;
           door.seen = true;
-          log(state, 'event', `Usurpation II now waits behind cell ${cellLabel(door.n)}.`);
+          log(state, 'event', `${eventName(u.next)} now waits behind cell ${cellLabel(door.n)}.`);
         }
       }
     } else if (kind === 'freedom') {

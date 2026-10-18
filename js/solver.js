@@ -40,6 +40,7 @@
     wOfficeIncident: 0, // office: each event an Instigate brings while Undercurrents needs it, divided the same way
     wConsume: 0, // manage: a consume while Survival of the Fittest needs one, divided by the consumes still needed
     wConsumeWalk: 0, // patrol: walking to an inmate that can consume today, while it needs one, divided the same way
+    wUsurp: 0.5, // events: the next Usurpation, which each one puts behind a locked door, as a share of its worth
     wInstigate: 0.5, // office: an event Instigate brings, as a share of an event door's worth
     wCrow: 2, // patrol: a door hiding Crow Whispers (it only shows rarities)
     wShort: 0.1, // Short-Chained Shackles: a short walk's chance of an extra door, as a share of its worth (0.1 measured best: 0.749 against 0.683 at 1)
@@ -559,8 +560,8 @@
     crow: 'Crow Whispers waits there: it shows the rarity behind the next 4 locked doors',
     freedom: 'Taste of Freedom waits there: 3 more locked cells open',
     usurp1: 'Usurpation I waits there: a random inmate rises a tier, and Usurpation II appears',
-    usurp2: 'Usurpation II waits there: 2 random inmates rise a tier',
-    usurp3: 'Usurpation III waits there: 2 random inmates rise 2 tiers',
+    usurp2: 'Usurpation II waits there: 2 random inmates rise a tier, and Usurpation III appears',
+    usurp3: 'Usurpation III waits there: 2 random inmates rise 2 tiers, and Usurpation IV appears',
     usurp4: 'Usurpation IV waits there: every inmate rises 2 tiers',
     portion: 'Extra Portion waits there: up to 3 random inmates rise a tier',
     ratway: 'the Sewer Ratway waits there: a free move to any cell but the office',
@@ -593,10 +594,11 @@
       // Three more doors open, with nobody to patrol there.
       freedom: () => T.FREEDOM_CELLS * P.wOpen * ctx.openValue,
       // A random inmate rises a tier, and Usurpation II (2 inmates) appears.
-      // Each Usurpation raises inmates, then brings the next into the pool.
-      usurp1: () => ctx.lift + 2 * ctx.lift * P.wInstigate,
-      usurp2: () => 2 * ctx.lift + 2 * ctx.lift2 * P.wInstigate,
-      usurp3: () => 2 * ctx.lift2 + ctx.allLift2 * P.wInstigate,
+      // Each Usurpation raises inmates, then puts the next behind a locked door
+      // and into the pool.
+      usurp1: () => ctx.lift + 2 * ctx.lift * P.wUsurp,
+      usurp2: () => 2 * ctx.lift + 2 * ctx.lift2 * P.wUsurp,
+      usurp3: () => 2 * ctx.lift2 + ctx.allLift2 * P.wUsurp,
       usurp4: () => ctx.allLift2,
       // Up to 3 random inmates rise a tier.
       portion: () => Math.min(T.PORTION_INMATES || 3, ctx.boardCount) * ctx.lift,
