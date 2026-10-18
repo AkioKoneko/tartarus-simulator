@@ -29,6 +29,7 @@
   let lastKind = ''; // the kind of the picture before this one
   let pickFresh = false; // whether the offer on screen starts a run
   let lastBoardAt = 0; // when a board's picture was last loaded
+  let treasureRetryTimer = 0;
   const say = (m) => {
     if (C.agreed()) channel.postMessage(Object.assign({ id: me }, m));
   };
@@ -36,6 +37,8 @@
   const announce = () => say({ type: 'here', focusedAt, pixels: true });
 
   async function onPicture(m) {
+    if (treasureRetryTimer) clearTimeout(treasureRetryTimer);
+    treasureRetryTimer = 0;
     const answer = (patch) => channel.postMessage(Object.assign({ type: 'read', to: m.from, id: m.id }, patch));
     const before = lastKind;
     lastKind = m.kind;
@@ -47,9 +50,28 @@
     await readPicture(m, answer, mine, before);
   }
 
+  function retryTreasure(m, mine, read) {
+    const attempt = (m.retryAttempt || 0) + 1;
+    if (!read.ok || read.geometry !== false || m.giftWaiting === 0 || attempt > 4) return;
+    // A fast first picture may catch the opening animation. Recheck only
+    // that popup, without blocking the already available gift advice.
+    treasureRetryTimer = setTimeout(() => {
+      treasureRetryTimer = 0;
+      if (mine === newest) say({ type: 'capture', kind: 'treasure', forFrame: m.id, retryAttempt: attempt });
+    }, 250);
+  }
+
   // A picture to read: a board, the instrument pick, the objective, or a
   // picture the log didn't name.
   async function readPicture(m, answer, mine, before) {
+    if (m.kind === 'treasure' && !m.pixels && !m.blob) {
+      const read = { ok: true, treasure: true, geometry: false };
+      answer({ read });
+      const asked = m.giftWaiting === 0 || m.retryAttempt ? false : A.useTreasure(m.after);
+      answer({ state: 'used', asked });
+      retryTreasure(m, mine, read);
+      return;
+    }
     let bitmap;
     try {
       const p = m.pixels;
@@ -62,8 +84,9 @@
       const read=await A.readTreasure(bitmap,{knownTreasure:true,requestId:mine,isCurrent:()=>mine===newest});
       bitmap.close();answer({read});
       if(read.skipped || mine!==newest)return;
-      const asked=m.giftWaiting===0?false:A.useTreasure(m.after);
-      answer({state:'used',asked});return;
+      const asked=m.giftWaiting===0 || m.retryAttempt?false:A.useTreasure(m.after);
+      answer({state:'used',asked});
+      retryTreasure(m,mine,read);return;
     }
     if (m.kind === 'objective') {
       // The run's objective popup: which objective, from its title.

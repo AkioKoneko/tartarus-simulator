@@ -644,10 +644,11 @@
 
   // #endregion
 
-  async function captureNow(kind) {
+  async function captureNow(kind, opts) {
     const frame = await grab();
     if (frame) setState({ frames: state.frames + 1 });
-    emit('frame', { kind: kind || 'manual', hits: [], frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date() });
+    const retryAttempt = opts && Number.isInteger(opts.retryAttempt) && opts.retryAttempt >= 1 && opts.retryAttempt <= 4 ? opts.retryAttempt : 0;
+    emit('frame', { kind: kind || 'manual', retryAttempt, hits: [], frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date() });
     return !!frame;
   }
 

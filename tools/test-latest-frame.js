@@ -32,7 +32,7 @@ async function receiverTest() {
   await new Promise(setImmediate);
   assert.deepEqual(used, ['new']);
   assert.deepEqual(asks, ['board']);
-  receiver.onmessage({ data: { type: 'frame', to: target, id: 3, from: 'source', kind: 'treasure', gifts: { rainbows: 1, taken: 1 } } });
+  receiver.onmessage({ data: { type: 'frame', to: target, id: 3, from: 'source', kind: 'treasure', blob: {}, gifts: { rainbows: 1, taken: 1 } } });
   await new Promise(setImmediate);
   treasures[0].resolve({ok:true,treasure:true});
   await new Promise(setImmediate);

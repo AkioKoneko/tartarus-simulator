@@ -45,7 +45,7 @@
     'skip | S16BoardNewDayPop Run | 0',
     "# The Warden's Treasure, which a Chromatic prisoner opens, and the board",
     '# once it closes, with the gift taken (a consume can open two in a row):',
-    'treasure | S16BoardColoredPop Run | 1500',
+    'treasure | S16BoardColoredPop Run | 300',
     'board | S16BoardColoredPop Destory | 600',
     "# The game's Speed-up button: no picture, it flips 'Speed-up is on' here:",
     'speed | Btn_S16Board_Top_Speed | 0',
@@ -434,7 +434,7 @@
   // js/auto.js). It goes by the browser's BroadcastChannel, which reaches
   // only this site's own pages in this browser. Nothing is uploaded.
   async function onFrame(f) {
-    const c = { id: nextId++, time: f.time, kind: f.kind, hits: f.hits || [], frame: !!f.frame, why: f.why || '', thumb: '', full: '', sent: false, read: null, state: '', asked: false, note: '' };
+    const c = { id: nextId++, time: f.time, kind: f.kind, retryAttempt: f.retryAttempt || 0, hits: f.hits || [], frame: !!f.frame, why: f.why || '', thumb: '', full: '', sent: false, read: null, state: '', asked: false, note: '' };
     c.gifts = giftState.snapshot();
     lastPicture = { at: Date.now(), kind: c.kind, ok: c.frame, why: c.why };
     tell();
@@ -449,7 +449,7 @@
       if (c.kind === 'treasure' && prefs.read) {
         const to = target();
         if (to) {
-          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, fresh: false, after: treasureAfter(c.hits), gifts: c.gifts, blob: null });
+          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, retryAttempt: c.retryAttempt, fresh: false, after: treasureAfter(c.hits), gifts: c.gifts, blob: null });
           c.sent = true;
         }
       }
@@ -473,7 +473,7 @@
           // treasureView: the board, seen while a Warden's Treasure waits.
           const treasureView = c.kind === 'board' && treasureViewed(c.hits);
           // gifts: the Treasure's counts (Rainbows, picks confirmed).
-          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, fresh, after, treasureView, gifts: c.gifts, pixels: pix, blob });
+          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, retryAttempt: c.retryAttempt, fresh, after, treasureView, gifts: c.gifts, pixels: pix, blob });
           c.sent = true;
         }
       }
@@ -539,6 +539,16 @@
         renderAnalyzer();
       } else if (m.type === 'read' && m.to === me) onAnswer(m);
       else if (m.type === 'capture' && m.id) {
+        if (m.kind === 'treasure') {
+          // Retry only the popup this analyzer just read, never a newer
+          // board or a different gift. Animation retries do not click.
+          const current = captures[0];
+          if (!current || current.kind !== 'treasure' || current.id !== m.forFrame ||
+              !Number.isInteger(m.retryAttempt) || m.retryAttempt !== current.retryAttempt + 1 ||
+              m.retryAttempt > 4 || C.state.window !== 'on') return;
+          C.captureNow('treasure', { retryAttempt: m.retryAttempt });
+          return;
+        }
         // The analyzer's Take a picture now: the same as the button here,
         // and the picture goes to the analyzer that asked.
         analyzers.set(m.id, Object.assign({}, analyzers.get(m.id), { seen: Date.now(), focusedAt: Date.now() }));
