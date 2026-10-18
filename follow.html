@@ -443,7 +443,7 @@
     <ul class="facts">
       <li><b>Nothing before you agree.</b> Until you agree at the bottom of this page, its controls stay hidden: nothing can open your log or see any window, and the board analyzer takes no pictures.</li>
       <li><b>One file, read only.</b> It reads the game log you drag onto this page or choose (<code>UE_game.log</code>), and only the lines the game writes after you connect it. It can't open any other file, and it never changes the log.</li>
-      <li><b>One window, only with the log connected.</b> It takes pictures of the one window you share, never a whole screen or a browser tab. It only does so while the game log is connected: when the log shows a move, or when you press Take a picture now, here or on the board analyzer (which asks this page to take it). Nothing is recorded in between.</li>
+      <li><b>One window, only with the log connected.</b> It takes pictures of the one window you share, never a whole screen or a browser tab, except in the desktop app when Windows won't share the game window and you allow it: then the screen the game is on, with each picture cut to the game window and taken only while the game is in front. It only does so while the game log is connected: when the log shows a move, or when you press Take a picture now, here or on the board analyzer (which asks this page to take it). Nothing is recorded in between.</li>
       <li><b>Pictures stay in your browser.</b> This page hands each picture to the board analyzer open in another tab, which reads the board from it with the screenshot reader. The picture passes between the two tabs inside your browser. Pictures are kept as small previews in memory and are gone when you close the tabs. Auto Screenshot Mode never uploads a picture or your log.</li>
       <li><b>Boards, only if you share boards.</b> The board the analyzer reads from each picture is treated like any board you ask about. If board sharing is on (the switch under the analyzer's ask button), the board is shared for the odds study: its cells, day and tools, with no picture and nothing about you. It's shared once the next picture comes in, so a board you fixed is shared as you fixed it. Turn that switch off and nothing is shared.</li>
       <li><b>In the desktop app.</b> Tartarus Overlay finds the log and the game window itself, with no picker, and keeps your last 5 runs' pictures, boards and advice on your PC to review. See <a href="#desktop">In the desktop app</a>.</li>
@@ -487,7 +487,7 @@
     <div class="code" data-file="js/capture.js" data-region="triggers"></div>
 
     <h3>5. It takes one picture of the window you shared</h3>
-    <p><code>connectWindow</code> asks the browser to share a window, which you pick. <code>useStream</code> turns away a whole screen or a browser tab and stops that share at once. <code>grab</code> takes a single still frame, and only when the check from step 1 allows it. In Chrome and Edge, nothing plays the window as video in between.</p>
+    <p><code>connectWindow</code> asks the browser to share a window, which you pick. <code>useStream</code> turns away a whole screen or a browser tab and stops that share at once; only the desktop app can hand it a screen, through <code>useCrop</code>, and only after you've allowed it (see the desktop app below). <code>grab</code> takes a single still frame, and only when the check from step 1 allows it. On such a screen it first asks the app where the game window is: if the game isn't the window in front, it takes nothing, and otherwise it cuts the frame to the game window before the frame leaves <code>grab</code>, so nothing else on the screen is read, kept or sent. In Chrome and Edge, nothing plays the window as video in between.</p>
     <div class="code" data-file="js/capture.js" data-region="share-window"></div>
 
     <h3>6. The picture goes to your board analyzer</h3>
@@ -510,7 +510,8 @@
     <div class="code" data-file="desktop/main.js" data-region="read-log"></div>
 
     <h3>It shares only the game window, found by its title</h3>
-    <p>A desktop app can see which window is which. Every two seconds the app looks for the window titled Torchlight: Infinite. When this page asks to share a window, the app answers with that window only, with no picker: never a screen, a browser tab or any other window. The checks above still run. A picture is taken only while you've agreed, the log is followed and the shared window is live.</p>
+    <p>A desktop app can see which window is which. Every two seconds the app looks for the window titled Torchlight: Infinite. When this page asks to share a window, the app answers with that window only, with no picker: never a browser tab or any other window. The checks above still run. A picture is taken only while you've agreed, the log is followed and the shared window is live.</p>
+    <p>Sometimes Windows won't share the game window: when the game runs as administrator, say, the share fails with "Could not start video source". Then the overlay asks whether the app may share the screen the game is on instead. Only if you say yes does it share that screen, and every picture is cut to the game window's visible area before anything reads or keeps it, and taken only while the game is the window in front. The overlay stays out of it, as it does from any capture. You can turn it off from the tray menu (Share the game's screen when Windows won't share its window), and turning Auto Screenshot Mode off here clears your answer.</p>
     <div class="code" data-file="desktop/main.js" data-region="game-title"></div>
     <div class="code" data-file="desktop/main.js" data-region="game-window"></div>
     <div class="code" data-file="desktop/main.js" data-region="share-game"></div>
@@ -541,7 +542,7 @@
   <section class="guide-section" id="agree">
     <h2>Turn it on</h2>
     <div class="agree">
-      <label class="toggle"><input type="checkbox" id="agree-box"><span><strong>I've read this page.</strong><small>I agree to let Auto Screenshot Mode read the game log and take pictures of the game window, as described above. In a browser, that's the log I give it and the window I share. In the desktop app, it's the log and the Torchlight: Infinite window it finds, with its record of my last runs kept on this PC.</small></span></label>
+      <label class="toggle"><input type="checkbox" id="agree-box"><span><strong>I've read this page.</strong><small>I agree to let Auto Screenshot Mode read the game log and take pictures of the game window, as described above. In a browser, that's the log I give it and the window I share. In the desktop app, it's the log and the Torchlight: Infinite window it finds (or, only if I allow it when Windows won't share that window, the screen it's on, cut to that window), with its record of my last runs kept on this PC.</small></span></label>
       <div class="agree-actions">
         <button type="button" class="btn btn-primary" id="agree-on" disabled>Turn on Auto Screenshot Mode</button>
         <button type="button" class="btn" id="agree-off" hidden>Turn it off and forget my log</button>
@@ -565,7 +566,7 @@
     ['js/capture.js', 'Follows the log, checks your agreement, and takes pictures of the shared window.'],
     ['js/follow.js', 'This page’s controls: the agreement check, the triggers, and handing each picture to the analyzer tab.'],
     ['js/auto.js', 'The analyzer’s side: the agreement check, and reading each picture it’s handed into the board.'],
-    ['desktop/main.js', 'The desktop app: finds the log, shares only the game window, and keeps the agreement and the record.'],
+    ['desktop/main.js', 'The desktop app: finds the log, shares only the game window (or, if you allow it when Windows won’t, the screen it’s on, cut to the window), and keeps the agreement and the record.'],
     ['desktop/preload.js', 'What this site’s pages get from the desktop app.'],
     ['desktop/lib/follow-adapter.js', 'In the desktop app, on this page: connects the log and the game window, and keeps the agreement.'],
     ['desktop/lib/analyzer-adapter.js', 'In the desktop app, on the analyzer: copies the advice to the overlay, and keeps the record.'],

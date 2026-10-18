@@ -89,6 +89,10 @@ const settings = Object.assign({
   recordLimitMB: 1024, // debug build (--dev): the record's room on disk, pictures included
   recordRuns: 5, // normal build: the runs the record keeps
   consent: null, // { version, at }: the player agreed on follow.html in the app, to that version
+  // When Windows won't share the game window: the player's answer in the
+  // overlay to sharing the screen it's on instead ({ on, at }), null until
+  // asked. Cleared when the agreement is withdrawn.
+  screenShare: null,
   logPath: '', // a log the player chose, when the app didn't find it
   analyzer: null, // the analyzer window's bounds
 }, readJson(SETTINGS_FILE));
@@ -458,6 +462,23 @@ const win32 = (() => {
         return rect(hwnd, r) ? { x: r.left, y: r.top, width: r.right - r.left, height: r.bottom - r.top } : null;
       },
       minimized: (hwnd) => !!iconic(hwnd),
+      // A window's visible frame, in screen pixels: GetWindowRect adds the
+      // invisible resize borders, where what's behind the window shows
+      // (DWMWA_EXTENDED_FRAME_BOUNDS).
+      frame(hwnd) {
+        if (dwmAttr) {
+          const b = Buffer.alloc(16);
+          if (dwmAttr(hwnd, 9, b, 16) === 0) {
+            const x = b.readInt32LE(0);
+            const y = b.readInt32LE(4);
+            const width = b.readInt32LE(8) - x;
+            const height = b.readInt32LE(12) - y;
+            if (width > 0 && height > 0) return { x, y, width, height };
+          }
+        }
+        const r = {};
+        return rect(hwnd, r) ? { x: r.left, y: r.top, width: r.right - r.left, height: r.bottom - r.top } : null;
+      },
     };
   } catch (e) {
     return null;
@@ -1028,6 +1049,7 @@ function pushShell(patch) {
     siteUpdate,
     appUpdate,
     hotkeys: HOTKEYS,
+    screenShare: settings.screenShare ? settings.screenShare.on : null,
     local: /^(localhost|127\.0\.0\.1)$/.test(SITE_URL.hostname),
     version: app.getVersion(),
   }, shellExtra));
@@ -1056,6 +1078,8 @@ ipcMain.on('consent:set', (e, value) => {
     : value && Number.isInteger(value.version) && value.version > 0 ? { version: value.version, at } : null;
   if (JSON.stringify(next) === JSON.stringify(settings.consent)) return;
   settings.consent = next;
+  // The screen fallback was allowed under this agreement: it goes with it.
+  if (!next || next.withdrawn) settings.screenShare = null;
   saveSettings();
   note(!next ? 'agreement cleared' : next.withdrawn ? 'agreement withdrawn: off for the app' : `agreement remembered for the app (version ${next.version})`);
 });
@@ -1229,7 +1253,7 @@ function debugReportText(cores) {
   const lines = [
     `Tartarus Overlay ${app.getVersion()}${BIG_RECORD ? ' (debug)' : ''}, site ${SITE}, Windows ${require('os').release()}`,
     `Game: ${game.running ? `running (${game.title}); ${adminText(game.admin)}` : 'not running'}; log file (${logFoundBy}): ${clean(logPath) || 'not found'}`,
-    `Agreed: ${agreed}; log: ${f.log}${f.error ? ` (${clean(f.error)})` : ''}; window: ${f.window}${f.windowSize ? ` ${f.windowSize}` : ''}; game log detail (Enable Log): ${f.detail || 'not known yet'}`,
+    `Agreed: ${agreed}; log: ${f.log}${f.error ? ` (${clean(f.error)})` : ''}; window: ${f.window}${f.windowSize ? ` ${f.windowSize}` : ''}${f.shared === 'screen' ? ' (the game’s screen, cut to the game window)' : ''}; screen fallback: ${settings.screenShare ? (settings.screenShare.on ? 'allowed' : 'declined') : 'not asked'}; game log detail (Enable Log): ${f.detail || 'not known yet'}`,
     `Log file: ${d.logSize || '?'} bytes, last grew ${ago(d.growingAt)}. Since connecting: ${f.lines || 0} lines read, ${f.hits || 0} triggers ${JSON.stringify(d.triggers || {})}, ${f.frames || 0} pictures, ${d.failed || 0} failed.`,
     `Last window share error: ${d.shareError ? `${clean(d.shareError)} (${ago(d.shareErrorAt)})` : 'none'}`,
     `Last trigger: ${d.lastTriggerKind || 'none'} ${ago(d.lastTriggerAt)}. Last picture: ${f.lastFrame ? `${f.lastFrame.kind} ${ago(f.lastFrame.at)}${f.lastFrame.ok ? '' : ` (none taken: ${f.lastFrame.why})`}` : 'none'}; on the page: ${d.lastNote || '-'}`,
@@ -1328,6 +1352,9 @@ function command(cmd) {
       return pushShell();
     case 'review': return showReview();
     case 'pick-log': return pickLog();
+    case 'screen-yes':
+    case 'screen-no':
+      return setScreenShare(cmd === 'screen-yes');
     case 'reload': return reloadSite();
     case 'restart': return updater && updater.quitAndInstall();
     default: return undefined;
@@ -1336,8 +1363,43 @@ function command(cmd) {
 
 // #region share-game
 // Only follow.html may share a window, and the only window it gets is the
-// game's, found by its title. A whole screen or another window never is.
+// game's, found by its title. Another window never is. A whole screen is
+// shared only when Windows won't share the game window and the player said
+// yes to it in the overlay: then it's the screen the game is on, and
+// js/capture.js cuts every picture to the game window (gameCrop below)
+// and takes none while another window is in front.
 let testUnlisted = false; // --test: as if the capture's list left the game out
+let testShareFail = false; // --test: as if Windows wouldn't share the game window
+let screenNext = false; // follow.html asked for the screen on its next share
+const screenAllowed = () => !!(settings.screenShare && settings.screenShare.on === true && agreed);
+function setScreenShare(on) {
+  settings.screenShare = { on: !!on, at: new Date().toISOString() };
+  saveSettings();
+  note(on ? 'screen share allowed: the screen the game is on, cut to the game window, when Windows won’t share the window' : 'screen share declined');
+  pushShell();
+  rebuildMenu();
+  send('follow', 'command', 'share-again');
+}
+// The screen the game window is on (most of it), and both in screen pixels.
+function gameScreen() {
+  const r = game.running && game.hwnd && win32 ? win32.frame(game.hwnd) : null;
+  if (!r) return null;
+  const display = screen.getDisplayMatching(screen.screenToDipRect(null, r));
+  return { r, display, s: screen.dipToScreenRect(null, display.bounds) };
+}
+// Where the game window is on its screen, and whether it's in front: the
+// crop for every picture of a shared screen (follow.html only).
+ipcMain.handle('game:crop', (e) => {
+  if (!fromPage(e, 'follow') || !screenAllowed()) return null;
+  const g = gameScreen();
+  if (!g) return null;
+  const front = win32.foreground() === game.hwnd && !win32.minimized(game.hwnd);
+  return { x: g.r.x - g.s.x, y: g.r.y - g.s.y, width: g.r.width, height: g.r.height, screenWidth: g.s.width, screenHeight: g.s.height, front };
+});
+ipcMain.handle('share:screen-ok', (e) => (fromPage(e, 'follow') ? { allowed: screenAllowed(), asked: !!settings.screenShare } : null));
+ipcMain.on('share:screen', (e, on) => {
+  if (fromPage(e, 'follow')) screenNext = !!on && screenAllowed();
+});
 function allowCapture() {
   session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
     const wc = wins.follow && !wins.follow.isDestroyed() ? wins.follow.webContents : null;
@@ -1346,6 +1408,28 @@ function allowCapture() {
     if (!mine) {
       note('window share refused: not asked by follow.html');
       return callback({});
+    }
+    const wantScreen = screenNext && screenAllowed();
+    screenNext = false;
+    if (wantScreen) {
+      desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 0, height: 0 } })
+        .then((sources) => {
+          const g = gameScreen();
+          const s = g ? sources.find((x) => String(x.display_id) === String(g.display.id)) : null;
+          note(s ? `screen share: the screen the game is on (${g.s.width}×${g.s.height}), every picture cut to the game window` : 'screen share refused: the game’s screen wasn’t found');
+          callback(s ? { video: s } : {});
+        })
+        .catch((e) => {
+          note('screen share failed:', String((e && e.message) || e));
+          callback({});
+        });
+      return undefined;
+    }
+    if (testShareFail && game.running) {
+      // A window Windows won't hand over (the test's stand-in for "Could
+      // not start video source").
+      note('window share: (test) a window that won’t start');
+      return callback({ video: { id: 'window:1:0', name: game.title } });
     }
     desktopCapturer.getSources({ types: ['window'], thumbnailSize: { width: 0, height: 0 }, fetchWindowIcons: false })
       .then((sources) => {
@@ -1455,6 +1539,7 @@ function rebuildMenu() {
     { type: 'separator' },
     { label: 'Show the overlay', type: 'checkbox', checked: settings.overlayOn, accelerator: HOTKEYS.overlay, click: (i) => setOverlayOn(i.checked) },
     { label: 'Hide it while another window is in front', type: 'checkbox', checked: settings.hideBehind, enabled: !!win32, click: (i) => { settings.hideBehind = i.checked; saveSettings(); updateOverlay(); } },
+    { label: 'Share the game’s screen when Windows won’t share its window', type: 'checkbox', checked: screenAllowed(), enabled: agreed && !!win32, click: (i) => setScreenShare(i.checked) },
     { label: 'Hide it from screenshots and streams', type: 'checkbox', checked: settings.hideFromCaptures, click: (i) => { settings.hideFromCaptures = i.checked; saveSettings(); if (wins.overlay) wins.overlay.setContentProtection(i.checked); } },
     { label: 'Put the overlay back in the corner', click: () => { settings.overlay = null; overlayPlaced = false; saveSettings(); placeOverlay(); } },
     { type: 'separator' },
@@ -1564,6 +1649,8 @@ if (!app.requestSingleInstanceLock()) {
       }
       // "unlisted": the capture's list leaves the game window out.
       if (/unlisted/.test(text)) testUnlisted = true;
+      // "share-fail": Windows won't share the game window.
+      if (/share-fail/.test(text)) testShareFail = true;
       // "cpu one": as the tray's Processor use does.
       const cpu = /cpu (\w+)/.exec(text);
       if (cpu) setCpu(cpu[1]);

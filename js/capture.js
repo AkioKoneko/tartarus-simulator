@@ -24,7 +24,8 @@
   // detail: whether the game writes the detail lines the triggers come from
   // ('on', 'off', or '' while it isn't clear yet).
   // lang: the game's language code from its log ("ru", "zh"), '' until seen.
-  const state = { log: 'off', file: '', window: 'off', windowSize: '', lines: 0, hits: 0, frames: 0, note: '', error: '', detail: '', lang: '' };
+  // shared: 'window', or 'screen' for the desktop app's fallback (useCrop).
+  const state = { log: 'off', file: '', window: 'off', windowSize: '', shared: '', lines: 0, hits: 0, frames: 0, note: '', error: '', detail: '', lang: '' };
   let rules = []; // [{ kind, re, settle, rank }]
   let watch = null; // log lines worth showing while finding triggers
   let burst = null; // matched lines waiting for the animations to settle
@@ -32,8 +33,15 @@
   let tail = null; // { post(message), stop() }
   let track = null;
   let imageCapture = null;
-  let surface = ''; // what's shared: 'window' is the only kind accepted
+  let surface = ''; // what's shared: 'window', or 'monitor' only with the app's crop
   let video = null;
+  // The desktop app's fallback, when Windows won't share the game window
+  // and the player allowed it there: where the game window is on the shared
+  // screen, and whether it's in front. async () => { x, y, width, height,
+  // screenWidth, screenHeight, front }, in the screen's pixels. Only the app
+  // sets it (useCrop); without it a whole screen is never accepted.
+  let crop = null;
+  let lastWhy = ''; // why the last grab took no picture, when it says
 
   const emit = (name, data) => listeners[name].forEach((fn) => {
     try {
@@ -382,14 +390,16 @@
   // A picture may be taken only when all of these hold, checked right
   // before each one: the player agreed, a game log is connected and being
   // read, and what's shared is a single window that's still live. A whole
-  // screen or a browser tab is never accepted (see useStream).
+  // screen or a browser tab is never accepted (see useStream), except the
+  // desktop app's screen, cut to the game window (useCrop).
   function mayCapture() {
-    return agreed() && state.log === 'on' && !!track && track.readyState === 'live' && surface === 'window';
+    return agreed() && state.log === 'on' && !!track && track.readyState === 'live' && (surface === 'window' || (surface === 'monitor' && !!crop));
   }
 
   // Why a picture can't be taken right now, for the page to say.
   function whyNot() {
     if (!agreed()) return 'Auto Screenshot Mode is off.';
+    if (lastWhy) return lastWhy;
     if (state.log === 'gone') return 'the game log isn’t there right now.';
     if (state.log !== 'on') return 'connect the game log first.';
     return 'share the game window first.';
@@ -486,30 +496,36 @@
   // ---------- The window ----------
 
   // #region share-window
-  async function connectWindow() {
+  // opts.screen: the desktop app's fallback (see useCrop), the screen the
+  // game is on, which the app picks.
+  async function connectWindow(opts) {
     mustAgree();
     if (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== 'function') throw new Error('This browser can’t share a window.');
+    const screen = !!(opts && opts.screen && crop);
     // The browser's picker lists the open windows; the player picks the
     // game. Whole screens and this tab aren't offered, and the share can't
     // be switched to something else while it runs.
-    const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { displaySurface: 'window', frameRate: { ideal: 5, max: 10 } },
-      audio: false,
-      monitorTypeSurfaces: 'exclude',
-      selfBrowserSurface: 'exclude',
-      surfaceSwitching: 'exclude',
-    });
-    useStream(stream);
+    const stream = await navigator.mediaDevices.getDisplayMedia(screen
+      ? { video: { frameRate: { ideal: 5, max: 10 } }, audio: false, selfBrowserSurface: 'exclude', surfaceSwitching: 'exclude' }
+      : {
+        video: { displaySurface: 'window', frameRate: { ideal: 5, max: 10 } },
+        audio: false,
+        monitorTypeSurfaces: 'exclude',
+        selfBrowserSurface: 'exclude',
+        surfaceSwitching: 'exclude',
+      });
+    useStream(stream, screen);
   }
 
-  function useStream(stream) {
+  function useStream(stream, screen) {
     mustAgree();
     stopWindow();
     const t = stream.getVideoTracks()[0];
     const kind = t && t.getSettings ? t.getSettings().displaySurface : '';
     // Only a single window is accepted: a whole screen or a browser tab is
-    // turned away, and its share stopped at once.
-    if (kind !== 'window') {
+    // turned away, and its share stopped at once. The one exception is the
+    // desktop app's screen, asked for as such, with its crop set.
+    if (kind !== 'window' && !(kind === 'monitor' && screen && crop)) {
       stream.getTracks().forEach((x) => x.stop());
       throw new Error('Share the Torchlight: Infinite window itself, not a whole screen or a browser tab.');
     }
@@ -519,7 +535,7 @@
       track = null;
       surface = '';
       imageCapture = null;
-      setState({ window: 'off', windowSize: '', note: 'Window sharing stopped.' });
+      setState({ window: 'off', windowSize: '', shared: '', note: 'Window sharing stopped.' });
     });
     // Chrome and Edge take a still frame only when a picture is due, and
     // nothing plays the window as video in between. Other browsers need a
@@ -533,7 +549,14 @@
       video.play().catch(() => {});
     }
     const s = track.getSettings();
-    setState({ window: 'on', windowSize: s.width ? `${s.width}×${s.height}` : '', note: '' });
+    setState({ window: 'on', windowSize: s.width ? `${s.width}×${s.height}` : '', shared: kind === 'monitor' ? 'screen' : 'window', note: '' });
+  }
+
+  // The desktop app's crop for a shared screen (see crop above): set by the
+  // app only, never by this site's pages.
+  function useCrop(fn) {
+    crop = typeof fn === 'function' ? fn : null;
+    return !!crop;
   }
 
   function stopWindow() {
@@ -543,27 +566,61 @@
     imageCapture = null;
     if (video) video.srcObject = null;
     video = null;
-    setState({ window: 'off', windowSize: '' });
+    setState({ window: 'off', windowSize: '', shared: '' });
   }
 
   // One frame of the shared window, as an ImageBitmap, or null when a
-  // picture isn't allowed right now (see mayCapture).
+  // picture isn't allowed right now (see mayCapture). On the desktop app's
+  // shared screen, the frame is cut to the game window's area here, before
+  // it leaves this function, and none is taken unless the game is the window
+  // in front: nothing else on the screen is ever read, kept or sent.
   async function grab() {
+    lastWhy = '';
     if (!mayCapture()) {
       stopIfOff();
       return null;
     }
+    let area = null;
+    if (surface === 'monitor') {
+      try {
+        area = await crop();
+      } catch (e) {
+        area = null;
+      }
+      if (!area || !area.front || !(area.width > 0) || !(area.height > 0)) {
+        lastWhy = area && !area.front ? 'the game isn’t the window in front.' : 'the game window wasn’t found on the shared screen.';
+        return null;
+      }
+    }
+    let frame = null;
     try {
-      if (imageCapture) return await imageCapture.grabFrame();
+      if (imageCapture) frame = await imageCapture.grabFrame();
     } catch (e) {
       // Fall back to the video element.
     }
     try {
-      if (video && video.readyState >= 2) return await createImageBitmap(video);
+      if (!frame && video && video.readyState >= 2) frame = await createImageBitmap(video);
     } catch (e) {
       // No frame this time.
     }
-    return null;
+    if (!frame || !area) return frame;
+    try {
+      const sx = frame.width / (area.screenWidth || frame.width);
+      const sy = frame.height / (area.screenHeight || frame.height);
+      const x = Math.max(0, Math.round(area.x * sx));
+      const y = Math.max(0, Math.round(area.y * sy));
+      const w = Math.min(frame.width - x, Math.round((area.x * sx < 0 ? area.width + area.x : area.width) * sx));
+      const h = Math.min(frame.height - y, Math.round((area.y * sy < 0 ? area.height + area.y : area.height) * sy));
+      if (w < 64 || h < 64) {
+        lastWhy = 'the game window wasn’t found on the shared screen.';
+        return null;
+      }
+      return await createImageBitmap(frame, x, y, w, h);
+    } catch (e) {
+      return null;
+    } finally {
+      frame.close();
+    }
   }
 
   // #endregion
@@ -626,6 +683,7 @@
       if (listeners[name]) listeners[name].push(fn);
     },
     connectLog,
+    useCrop,
     dropLog,
     resumeLog,
     stopLog,
