@@ -77,7 +77,11 @@ The guide was measured again with it, with the same settings (602,000 runs in 5.
 - **Warden's Treasure:** Crimson Vintage 4.13, Thumb Ring 3.97, Horn 3.71 and Brand 3.63, against 4.41 judged on the spot.
 - **Habits:** never replacing (1.26), always accepting Executions (1.22), always taking Instigate (1.28), preferring short walks (1.29) and always taking Bestow (1.30) cost the most. Replacing Normals only measured 1.40, level with the strategy's 1.39 inside the margin.
 
-The strategy's weights were tuned under the old rule and weren't tuned again. The instrument pairs are being measured again.
+The instrument pairs were measured again (`combos --max 2 --margin 0.1`, on 1 thread: 1,988,000 runs in 42.4 minutes, ±0.06 at worst). The pair lab's no-instrument baseline is 1.37.
+- **Best pairs:** the Maiden with the Noose is still the best pair (9.07). Then the Maiden with the Scapegoat's Guillotine (5.98), and the Muzzle with the Crown (4.84), the Maul (4.77) and the Claws (4.73).
+- **Clashes:** the Scapegoat's Guillotine with the Trap (−1.20), the Noose and the Crown (−1.00 each), and the Iron Box with the Maul and the Muzzle (−0.98 each).
+
+The strategy's weights were tuned under the old rule and weren't tuned again.
 
 ### Extra Portion (2026-10-17, night)
 
