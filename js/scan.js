@@ -537,6 +537,58 @@
     return { tier, scratch, conf: frame.conf };
   }
 
+  // The Hunt's prey mark: a gold crosshair over the foot of the portrait, a
+  // ring 7.5 units across its middle 15 units above the cell's anchor. On
+  // its diagonals the ring is lighter than just outside it (0.13-0.42
+  // brighter on three marked inmates), dimmed on a pick screen as well
+  // (report 352). The frame's lower tip, or a meal's red flames under it,
+  // can do that too, so its arms also cross it level: lighter than just
+  // above and below them (0.18-0.50 on the marks, below 0 on those).
+  function preyMark(img, x, y, k) {
+    const cy = y - 15.2 * k;
+    const v = (px, py) => Math.max(...rgbAt(img, Math.round(px), Math.round(py))) / 255;
+    let arm = 0;
+    let off = 0;
+    let n = 0;
+    for (const side of [-1, 1]) {
+      for (let d = 9; d <= 12; d += 0.5) {
+        arm += v(x + side * d * k, cy);
+        off += (v(x + side * d * k, cy - 3.5 * k) + v(x + side * d * k, cy + 3.5 * k)) / 2;
+        n += 1;
+      }
+    }
+    if ((arm - off) / n <= 0.1) return false;
+    const light = (rad) => {
+      let sum = 0;
+      let n = 0;
+      for (const a of [1, 3, 5, 7]) {
+        for (const dr of [-0.7, 0, 0.7]) {
+          const [r, g, b] = rgbAt(img, Math.round(x + Math.cos((a * Math.PI) / 4) * (rad + dr) * k), Math.round(cy + Math.sin((a * Math.PI) / 4) * (rad + dr) * k));
+          sum += Math.max(r, g, b) / 255;
+          n += 1;
+        }
+      }
+      return sum / n;
+    };
+    if (light(7.5) - light(11) <= 0.07) return false;
+    return colorShare(img, x - 13 * k, cy - 13 * k, x + 13 * k, cy + 12 * k, (h, s, v) => h >= 25 && h <= 60 && s > 0.3 && v > 0.3) > 0.04;
+  }
+
+  // A cell framed on a pick screen ("Select an Objective": the Sewer
+  // Ratway's frames every cell, the Hunt's only its targets): light gray
+  // corner brackets 47.5 units out and 72.5 and 5 units up. Framed corners
+  // had 0.03-0.21 light gray, unframed ones none (reports 352 and a Ratway
+  // pick); the pointer can cover one.
+  function framedCell(img, c) {
+    const k = c.k;
+    let lit = 0;
+    for (const [dx, dy] of [[-47.5, -72.5], [47.5, -72.5], [-47.5, -5], [47.5, -5]]) {
+      const share = colorShare(img, c.x + (dx - 8) * k, c.y + (dy - 8) * k, c.x + (dx + 8) * k, c.y + (dy + 8) * k, (h, s, v) => v > 0.6 && s < 0.15);
+      if (share >= 0.02) lit += 1;
+    }
+    return lit >= 3;
+  }
+
   function readCell(img, gray, loc, n, ref) {
     if (n === 0) {
       const [ox, oy] = at(loc, 0, 0);
@@ -576,6 +628,7 @@
         tier: frame.tier,
         conf: Math.max(0.05, Math.min(1, (face.score - 0.3) * 1.6, 0.4 + margin * 3, frame.conf)) * (cell.ghost ? 0.5 : 1),
       });
+      if (preyMark(img, x, y, k)) cell.prey = true;
       return cell;
     }
     Object.assign(cell, { kind: 'empty', conf: 0.4 });
@@ -2023,6 +2076,8 @@
     // read as (report 67: "Instigate" came apart, and "Bestow" passed for
     // Replace).
     if (decision && !decision.ratway && !decision.office && warden && warden.cell === 0) Object.assign(decision, { office: true, replace: false, consume: false, end: false });
+    // "Select an Objective": the cells it frames, to pick from.
+    if (decision && decision.ratway) decision.framed = cells.filter((c) => c.n > 0 && framedCell(img, c)).map((c) => c.n);
     if (!warden) notes.push('The warden’s arrow was not found.');
     return { ok: true, loc, cells, warden, doors, days, tools, badge, chromatic, objective, chain, decision, statusView, notes, ms: Date.now() - t0 };
   }
