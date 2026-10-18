@@ -11,7 +11,7 @@ importScripts(`scan.js${self.location.search}`, `scan-data.js${self.location.sea
 const cache = {};
 
 self.onmessage = (e) => {
-  const { id, kind, width, height, buffer } = e.data;
+  const { id, kind, width, height, buffer, lang } = e.data;
   try {
     const img = { width, height, data: new Uint8ClampedArray(buffer) };
     if (kind === 'objective') {
@@ -24,7 +24,7 @@ self.onmessage = (e) => {
     }
     // Instruments' panel icons from labeled live screenshots ride along.
     const ref = self.TartarusScan.withPanelIcons(self.TARTARUS_SCAN, self.TARTARUS_PICK);
-    const result = self.TartarusScan.scan(img, ref, { cache });
+    const result = self.TartarusScan.scan(img, ref, { cache, lang });
     // The instruments' names and their simulator tools ride along, for the
     // runner-up matches too.
     if (result.tools && result.tools.tools) {

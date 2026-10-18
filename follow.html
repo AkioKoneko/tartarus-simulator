@@ -548,7 +548,7 @@
       </div>
       <p class="agree-status" id="agree-status" aria-live="polite"></p>
     </div>
-    <p class="note">This is agreement version <span id="consent-version">4</span>. If what Auto Screenshot Mode does changes, this page asks you to read it again before it turns back on.</p>
+    <p class="note">This is agreement version <span id="consent-version">5</span>. If what Auto Screenshot Mode does changes, this page asks you to read it again before it turns back on.</p>
   </section>
 </main>
 
@@ -593,10 +593,18 @@
   const prefs = load();
   $('consent-version').textContent = VERSION;
 
+  // What each agreement version added, for a player who agreed to an
+  // older one: Auto Screenshot Mode stays off until they agree again.
+  const CHANGES = {
+    5: 'it also notes the game’s language, which the game writes in its log every few minutes (a line with sdkLang=…). Only the two-letter language code is kept, so the analyzer can tell you when names and labels may not be read.',
+  };
   function renderAgreement() {
     const on = prefs.enabled && prefs.consent === VERSION;
     $('agree-off').hidden = !on;
-    $('agree-status').textContent = on ? `Auto Screenshot Mode is on in this browser${prefs.consentAt ? `, since you agreed on ${new Date(prefs.consentAt).toLocaleDateString()}` : ''}.` : '';
+    const older = prefs.enabled && prefs.consent > 0 && prefs.consent < VERSION;
+    const since = older ? Object.keys(CHANGES).filter((v) => v > prefs.consent && v <= VERSION).map((v) => CHANGES[v]) : [];
+    $('agree-status').textContent = on ? `Auto Screenshot Mode is on in this browser${prefs.consentAt ? `, since you agreed on ${new Date(prefs.consentAt).toLocaleDateString()}` : ''}.`
+      : older ? `You agreed to version ${prefs.consent} of this page. Since then, ${since.join(' And ') || 'this page changed'} Auto Screenshot Mode is off until you agree again below.` : '';
   }
   $('agree-box').addEventListener('change', (e) => ($('agree-on').disabled = !e.target.checked));
   $('agree-on').addEventListener('click', () => {

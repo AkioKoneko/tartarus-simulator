@@ -1785,7 +1785,8 @@
     readerWorker();
     if (reader.worker) {
       const copy = imageData.data.slice().buffer;
-      reader.worker.postMessage({ id, width: imageData.width, height: imageData.height, buffer: copy }, [copy]);
+      // lang: the game's language, for its door cards (see TartarusScan.scan).
+      reader.worker.postMessage({ id, width: imageData.width, height: imageData.height, buffer: copy, lang: gameLang }, [copy]);
     } else scanHere(imageData, id, done);
   }
 
@@ -2335,7 +2336,7 @@
       .then(() => {
         setTimeout(() => {
           try {
-            const result = window.TartarusScan.scan(imageData, window.TartarusScan.withPanelIcons(window.TARTARUS_SCAN, window.TARTARUS_PICK));
+            const result = window.TartarusScan.scan(imageData, window.TartarusScan.withPanelIcons(window.TARTARUS_SCAN, window.TARTARUS_PICK), { lang: gameLang });
             if (result.tools && result.tools.tools) for (const t of result.tools.tools) Object.assign(t, window.TARTARUS_SCAN.toolNames[t.id] || {});
             done(result);
           } catch (e) {
@@ -2564,7 +2565,9 @@
     if (r.doors && r.doors.cells.length) {
       m.step = 'patrol';
       m.dest = r.doors.cells.filter((n) => n !== m.warden);
-      if (r.doors.conf < 0.6) notes.push('Today’s doors were hard to read: check them.');
+      // The mouse pointer over a card's number hides its digit (report 318).
+      if (r.doors.hidden && r.doors.hidden.length) notes.push(`The mouse pointer covers the number on the card read as ${r.doors.hidden.map((n) => `cell ${L(n)}`).join(' and ')}: check that door.`);
+      else if (r.doors.conf < 0.6) notes.push('Today’s doors were hard to read: check them.');
     } else {
       m.step = 'manage';
       m.dest = [];

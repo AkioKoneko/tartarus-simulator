@@ -359,12 +359,13 @@
 
   // ---------- Reading cells ----------
 
-  // A padlock: a compact beige blob on the cell's padlock spot.
-  function padlockAt(img, x, y, k) {
+  // A padlock: a compact beige blob on the cell's padlock spot. minL: how
+  // light it must be (a meal pick darkens the board).
+  function padlockAt(img, x, y, k, minL = 112) {
     const test = (px, py) => {
       const [r, g, b] = rgbAt(img, px, py);
       const l = (r + g + b) / 3;
-      return l > 112 && r >= g && g >= b - 4 && r - b >= 6 && r - b <= 64;
+      return l > minL && r >= g && g >= b - 4 && r - b >= 6 && r - b <= 64;
     };
     const found = blobs(img, x - 13 * k, y - 11 * k, x + 13 * k, y + 11 * k, test);
     let best = null;
@@ -1023,6 +1024,55 @@
     return out;
   }
 
+  // The card texts in any language (report 319, Chinese: "去13号", "go to
+  // No. 13"): the digits are the same glyphs whatever the words around
+  // them. A card is a piece of text in the row under the board holding a run
+  // of one or two glyphs that read surely as a cell's number (02-16); the
+  // cards are the biggest row of two or three of them. Used only when no
+  // "Go to Cell" card is found.
+  function doorCardsAny(img, loc, gray, ref) {
+    if (!gray || !ref || !ref.digits) return [];
+    const bottom = Math.max(at(loc, 0, 3)[1], at(loc, 5, 3)[1]) + 30 * loc.s;
+    const allowed = [];
+    for (let c = 2; c <= 16; c++) allowed.push(c);
+    let best = [];
+    for (const r of textRadii(img)) {
+      const cards = [];
+      for (const line of textLines(img, 0, bottom, img.width - 1, Math.min(img.height - 1, bottom + 260 * loc.s), { minH: 6, maxH: Math.max(48, img.height * 0.07), r })) {
+        for (const p of line.pieces) {
+          if (p.glyphs.length < 2 || p.glyphs.length > 12) continue;
+          let found = null;
+          for (let i = 0; i < p.glyphs.length; i++) {
+            for (const len of [2, 1]) {
+              const run = p.glyphs.slice(i, i + len);
+              if (run.length !== len) continue;
+              const h = Math.max(...run.map((g) => g.h));
+              // Digits stand the line's full height and are narrower than
+              // tall; the words' glyphs around them aren't (report 319: "1"
+              // 5x15 and "3" 8x15 between 18x17 and 18x11).
+              if (run.some((g) => g.h < 0.8 * line.h || g.w > 0.8 * g.h)) continue;
+              const read = readNumber(gray, img.width, img.height, { glyphs: run }, h, ref.digits, allowed);
+              // Two digits that read surely are the number, not one of them
+              // alone ("13", not its "3").
+              if (read && read.score > 0.65 && (!found || len > found.run.length || (len === found.run.length && read.score > found.score))) found = { run, h, score: read.score };
+            }
+          }
+          if (found) cards.push({ p, h: found.h, mid: (p.y0 + p.y1) / 2, word: { glyphs: found.run }, fit: 1 - found.score });
+        }
+      }
+      for (const c of cards) {
+        const group = cards.filter((d) => Math.abs(d.mid - c.mid) < 2.5 * c.h && Math.abs(d.h - c.h) < 0.3 * c.h);
+        if (group.length > 3) continue;
+        const fit = group.reduce((a, d) => a + d.fit, 0);
+        if (group.length > best.length || (group.length === best.length && fit < best.fit)) {
+          best = group;
+          best.fit = fit;
+        }
+      }
+    }
+    return best.length >= 2 ? best.sort((a, b) => a.p.x0 - b.p.x0) : [];
+  }
+
   // "Go to Interrogation Room", the office's card (cell 01 is always the
   // Interrogation Room): about twice as wide as a numbered card's text, in
   // the same row, its words 2, 2, 13 and 4 letters long. Letters can run
@@ -1074,8 +1124,15 @@
     return [left, right];
   }
 
-  function readDoors(img, gray, loc, ref) {
-    const cards = doorCards(img, loc, gray, ref);
+  // foreign: the game isn't in English (the player's setting), so cards in
+  // another language are looked for by their numbers.
+  function readDoors(img, gray, loc, ref, foreign) {
+    let cards = doorCards(img, loc, gray, ref);
+    // Another language's cards: their numbers only (report 319).
+    // On the English client, English words' letters can pass for digits
+    // there (a sweep found doors on decision rows), so not without the
+    // language.
+    if (!cards.length && foreign) cards = doorCardsAny(img, loc, gray, ref);
     if (!cards.length) return null;
     // Doors are prison cells, 02-16.
     const allowed = [];
@@ -1104,7 +1161,15 @@
     }
     // A card moved off its first reading, or two still alike, is worth a check.
     const moved = read.some((r, i) => r.value !== options[i][0].value);
-    return { cells, conf: Math.max(0.1, Math.min(1, (score - 0.3) * 1.6)) * (cells.length === read.length + (cards.office ? 1 : 0) ? 1 : 0.4) * (moved ? 0.55 : 1), boxes };
+    // The mouse pointer (gold) over a card's number hides its digit (report
+    // 318: a "4" read as 6, then 9): that door is the player's to check.
+    const hidden = [];
+    cards.forEach((c, i) => {
+      const g = c.word.glyphs;
+      const box = [Math.min(...g.map((q) => q.x0)) - c.h, Math.min(...g.map((q) => q.y0)) - c.h, Math.max(...g.map((q) => q.x1)) + 1.5 * c.h, Math.max(...g.map((q) => q.y1)) + c.h];
+      if (colorShare(img, ...box, isGold) > 0.03 && read[i]) hidden.push(read[i].value - 1);
+    });
+    return { cells, conf: Math.max(0.1, Math.min(1, (score - 0.3) * 1.6)) * (cells.length === read.length + (cards.office ? 1 : 0) ? 1 : 0.4) * (moved ? 0.55 : 1) * (hidden.length ? 0.4 : 1), boxes, hidden };
   }
 
   // Doors lead to different cells, so two cards can't read the same number
@@ -1709,6 +1774,7 @@
     // nothing else under the board passes 0.2%.
     const strip = Math.max(8, Math.round(100 * loc.s));
     let red = 0;
+    let redX = Infinity; // the middle of the reddest strip
     for (let sx = Math.round(x0); sx + strip <= x1; sx += strip) {
       let n = 0;
       let hit = 0;
@@ -1719,7 +1785,10 @@
           if ((h < 12 || h > 348) && s > 0.55 && v > 0.3) hit += 1;
         }
       }
-      if (n) red = Math.max(red, hit / n);
+      if (n && hit / n > red) {
+        red = hit / n;
+        redX = sx + strip / 2;
+      }
     }
     const consume = red > 0.01;
     // "Consume" has as many letters as "Replace": a label on the Consume
@@ -1750,7 +1819,9 @@
     // Without its title, a stray short word isn't a row of cards. A row
     // still counts with "End" as one word and another card's label to its
     // left on the same line, and a Consume card or a Replace label.
-    const row = ends.some((e) => lefts.some((l) => Math.abs(l.mid - e.mid) < e.h / 2 && l.x1 < e.x0 && e.x0 - l.x1 < 30 * e.h));
+    // The Consume card's own label is red on red, which isn't read as text:
+    // its red block left of "End" counts as that label (report 310).
+    const row = ends.some((e) => lefts.some((l) => Math.abs(l.mid - e.mid) < e.h / 2 && l.x1 < e.x0 && e.x0 - l.x1 < 30 * e.h) || (consume && redX < e.x0 && e.x0 - redX < 30 * e.h));
     if (!title && !(row && (consume || replace))) return null;
     if (office) return { office: true, replace: false, consume: false, end: false, title };
     return { replace, consume, end, title, red: Math.round(1000 * red) / 1000 };
@@ -1760,7 +1831,8 @@
 
   // opts.cache: an object kept between pictures (the analyzer's reader
   // worker): the board found in the last one is looked for first in the
-  // next of the same size.
+  // next of the same size. opts.lang: the game's language ('en', 'zh', ...),
+  // as the player set it: not English, door cards are read by their numbers.
   function scan(img, ref, opts) {
     const t0 = Date.now();
     const gray = grayOf(img);
@@ -1784,13 +1856,24 @@
     // An open cell can hold an event beside its inmate (the cell popup's
     // "Can trigger Prison Incident"): 8 saved screenshots show one.
     for (const n of findEvents(img, loc, cells, warden)) if (cells[n].kind === 'locked' || cells[n].kind === 'inmate') cells[n].event = true;
-    const doors = readDoors(img, sharp, loc, ref);
+    const doors = readDoors(img, sharp, loc, ref, !!(opts && opts.lang && opts.lang !== 'en'));
     const days = readDays(img, sharp, loc, ref);
     const tools = readTools(img, loc, ref);
     const badge = readBadge(img, tools.label, ref);
     const chromatic = readChromatic(img, loc);
     const objective = objectiveBox(img, loc, tools);
     const chain = readChainScreen(img, loc, cells, warden);
+    // A meal pick darkens the board, most at its red sides, where a padlock
+    // can drop below the usual lightness (report 314: three locked cells
+    // read as open and empty): a cell read empty there is checked again for
+    // a dimmer one.
+    if (chain) {
+      for (const c of cells) {
+        if (c.kind !== 'empty') continue;
+        const lock = padlockAt(img, c.x, c.y, c.k, 70);
+        if (lock > 0.4) Object.assign(c, { kind: 'locked', conf: lock * 0.8, lock });
+      }
+    }
     // On a meal pick, each meal's fangs are red, as a Supreme's frame is:
     // a blue or purple frame shows through them (report 206: two purple
     // frames read as Supreme, the fangs about half their color). The fangs'
