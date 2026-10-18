@@ -317,7 +317,7 @@
   function tell() {
     if (!channel) return;
     const st = C.state;
-    channel.postMessage({ type: 'status', from: me, log: st.log, file: st.file, window: st.window, last: lastPicture, triggers: triggerCount, detail: st.detail, hits: st.hits });
+    channel.postMessage({ type: 'status', from: me, log: st.log, file: st.file, window: st.window, last: lastPicture, triggers: triggerCount, detail: st.detail, hits: st.hits, lang: st.lang });
   }
   const NO_EVENTS = 'No game events in the log yet. In the game, press Esc and click Enable Log (under Account Related), then log out and back in.';
   const seen = []; // newest first: { at, line, kind }

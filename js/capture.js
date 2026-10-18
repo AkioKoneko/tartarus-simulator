@@ -23,7 +23,8 @@
   const listeners = { status: [], hit: [], seen: [], frame: [] };
   // detail: whether the game writes the detail lines the triggers come from
   // ('on', 'off', or '' while it isn't clear yet).
-  const state = { log: 'off', file: '', window: 'off', windowSize: '', lines: 0, hits: 0, frames: 0, note: '', error: '', detail: '' };
+  // lang: the game's language code from its log ("ru", "zh"), '' until seen.
+  const state = { log: 'off', file: '', window: 'off', windowSize: '', lines: 0, hits: 0, frames: 0, note: '', error: '', detail: '', lang: '' };
   let rules = []; // [{ kind, re, settle, rank }]
   let watch = null; // log lines worth showing while finding triggers
   let burst = null; // matched lines waiting for the animations to settle
@@ -62,6 +63,9 @@
     // The game's own lines, which every trigger is: with the game's Enable
     // Log off, it writes almost none (a player's log: 42 in all).
     const DETAIL = /\b(TLLua|TLGame):/;
+    // The game's language, which it writes every few minutes ("sdkLang=en_US"):
+    // only its two letters are kept, and the line is dropped like any other.
+    const LANG = /\bsdkLang=([A-Za-z]{2})[_-]/;
     let handle = null;
     let offset = 0;
     let decoder = null;
@@ -121,16 +125,19 @@
           rest = lines.pop().slice(-MAX_LINE);
           const hits = [];
           let detail = 0;
+          let lang = '';
           for (const whole of lines) {
             // A line can only be this long if the log was cleared while the
             // game wrote on: its text is at the end.
             const line = whole.length > MAX_LINE ? whole.slice(-MAX_LINE) : whole;
             if (DETAIL.test(line)) detail += 1;
+            const said = LANG.exec(line);
+            if (said) lang = said[1].toLowerCase();
             const rule = triggers.findIndex((re) => re && re.test(line));
             if (rule >= 0) hits.push({ rule, line: line.slice(0, 400) });
             else if (watching && watching.test(line)) hits.push({ rule: -1, line: line.slice(0, 400) });
           }
-          post({ type: 'lines', count: lines.length, detail, hits: hits.slice(-MAX_HITS) });
+          post({ type: 'lines', count: lines.length, detail, lang, hits: hits.slice(-MAX_HITS) });
         }
       } catch (e) {
         fail(e);
@@ -188,6 +195,7 @@
       else if (m.type === 'error') setState({ log: 'error', error: m.message });
       else if (m.type === 'lines') {
         const patch = { lines: state.lines + m.count };
+        if (m.lang && m.lang !== state.lang) patch.lang = m.lang;
         if (state.log === 'error') Object.assign(patch, { log: 'on', error: '' });
         setState(patch);
         noteDetail(m.count, m.detail || 0);
@@ -341,7 +349,7 @@
   // What follow.html saves when the player agrees (shared with js/follow.js
   // and js/auto.js), and the version of that page they agreed to.
   const SETTINGS = 'tartarus-sim:auto:v1';
-  const CONSENT_VERSION = 4;
+  const CONSENT_VERSION = 5;
 
   // Whether the player agreed to this version of follow.html. It's read
   // again every time it's needed, so turning Auto Screenshot Mode off on that
