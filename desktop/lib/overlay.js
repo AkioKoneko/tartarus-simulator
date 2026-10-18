@@ -62,7 +62,7 @@
     // The game writes to its log all the time: one that stopped growing
     // isn't the one it's writing, and no pictures come.
     const grew = f.diag && f.diag.growingAt;
-    if (grew && Date.now() - grew > 120000) return line('warn', `The game log hasn’t changed for ${Math.round((Date.now() - grew) / 60000)} minutes: it may not be the one the game writes. Choose the game’s UE_game.log.`, button('Choose it', 'pick-log'), button('Debug report', 'debug-report'));
+    if (grew && Date.now() - grew > 120000) return line('warn', `The game log hasn’t changed for ${Math.round((Date.now() - grew) / 60000)} minutes. Turn on Enable Log in the game (press Esc, under Account Related), then log out and back in. If it’s on, choose the game’s UE_game.log.`, button('Choose it', 'pick-log'), button('Debug report', 'debug-report'));
     return null;
   }
 

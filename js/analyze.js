@@ -1617,7 +1617,7 @@
   const GAME_LANGS = { en: 'English', ru: 'Russian', zh: 'Chinese' };
   const LANG_KEY = 'tartarus-sim:game-lang:v1';
   const LANG_NOTES = {
-    ru: 'Игра на русском языке. Анализатор обучен на английском клиенте: клетки, звери и редкость на поле читаются на любом языке; двери дня читаются по номерам клеток, но на русском клиенте это ещё не проверено, поэтому сверьте их (в разделе «Which door to patrol»). Кнопки замены и поглощения, ваши инструменты, счётчик хроматических заключённых, предложения инструментов, цели и карты начала забега читаются по английскому тексту. Укажите их вручную, а если экран не распознан, отправьте его кнопкой «Send this screenshot», чтобы анализатор научился читать русский клиент.',
+    ru: 'Игра на русском языке. Анализатор обучен на английском клиенте: клетки, звери и редкость на поле, а также двери дня (по номерам клеток), читаются на любом языке. Кнопки замены и поглощения, ваши инструменты, счётчик хроматических заключённых, предложения инструментов, цели и карты начала забега читаются по английскому тексту. Укажите их вручную, а если экран не распознан, отправьте его кнопкой «Send this screenshot», чтобы анализатор научился читать русский клиент.',
     zh: '游戏为中文客户端。分析器是基于英文客户端训练的：棋盘上的格子、野兽和稀有度，以及当天的门（按格子编号），在任何语言下都能识别；但替换和吞噬按钮、你的刑具、彩色囚犯数量、刑具选择、本局目标和开局卡牌是按英文文字识别的。请手动设置这些内容；若某个画面未被识别，请点击“Send this screenshot”发送截图，帮助分析器学会识别中文客户端。',
   };
   let gameLang = 'en';
@@ -1628,9 +1628,9 @@
   }
   const langName = (code) => GAME_LANGS[code] || 'another language';
   // Today's doors are read by their cell numbers in any language (since
-  // 20261017s), checked on real Chinese and Korean boards; in others a letter
-  // can pass for a digit, so the player checks them.
-  const DOORS_READ = ['zh', 'ko'];
+  // 20261017s), checked on real Chinese, Korean and Russian boards (c2); in
+  // others a letter can pass for a digit, so the player checks them.
+  const DOORS_READ = ['zh', 'ko', 'ru'];
   function langNote() {
     if (gameLang === 'en') return '';
     const doors = DOORS_READ.includes(gameLang)
