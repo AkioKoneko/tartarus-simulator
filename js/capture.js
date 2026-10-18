@@ -301,7 +301,10 @@
       burst.kind = rule.kind;
       burst.rank = rule.rank;
     }
-    burst.settle = Math.max(burst.settle, Math.max(250, rule.settle * pace));
+    // The popup can arrive in a burst that was already waiting 1.5 seconds
+    // for the board. Its fast verified read must not inherit that delay.
+    burst.settle = burst.kind === 'treasure' ? Math.max(250, Math.min(300, rule.settle * pace))
+      : Math.max(burst.settle, Math.max(250, rule.settle * pace));
     if (burst.hits.length < 40) burst.hits.push({ kind: hit.kind, at: hit.at, text: hit.text });
     clearTimeout(burst.timer);
     burst.timer = setTimeout(fire, burst.settle);

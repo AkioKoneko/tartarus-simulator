@@ -1,6 +1,23 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+function burstTest(){
+ let worker,seq=0;const timers=new Map(),cancelled=[];
+ class Handle{constructor(){this.name='isolated.log';}}
+ const sandbox={window:{addEventListener(){}},navigator:{mediaDevices:{}},localStorage:{getItem:()=>JSON.stringify({enabled:true,consent:5})},
+  FileSystemFileHandle:Handle,Worker:class{constructor(){worker=this;}postMessage(){}terminate(){}},
+  Blob,URL:{createObjectURL:()=> 'blob:isolated-qa',revokeObjectURL(){}},
+  setTimeout(fn,ms){timers.set(++seq,{fn,ms});return seq;},clearTimeout(id){cancelled.push(id);timers.delete(id);},console};
+ vm.runInNewContext(fs.readFileSync(require.resolve('../js/capture.js'),'utf8'),sandbox);
+ const C=sandbox.window.TartarusCapture;
+ C.setRules([{kind:'board',pattern:'board',settle:1500,rank:1},{kind:'treasure',pattern:'treasure',settle:300,rank:3}]);
+ C.useHandle(new Handle());
+ worker.onmessage({data:{type:'lines',count:2,hits:[{rule:0,line:'board'},{rule:1,line:'treasure'}]}});
+ assert.equal(timers.size,1);assert.equal([...timers.values()][0].ms,300,'Treasure must replace the inherited board delay');
+ assert.equal(cancelled.filter(Boolean).length,1);
+ C.stopLog();
+}
 async function main(){
+ burstTest();
  let receiver,target,seq=0,asks=0,reads=0;
  const timers=new Map(),messages=[],errors=[];
  let geometry=false;
