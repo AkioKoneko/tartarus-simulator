@@ -115,7 +115,16 @@
           <section class="az-instruments-panel" aria-labelledby="az-instruments-title">
             <h3 class="az-game-h" id="az-instruments-title">Torture Instrument</h3>
             <div class="az-tools-confirm" id="az-tools-confirm" role="alert" hidden><p id="az-tools-confirm-text"></p><button type="button" class="btn btn-primary" id="az-tools-ok">These are right</button></div>
+            <button type="button" class="btn az-tools-open" id="az-tools-open">Choose instruments…</button>
             <div class="az-instruments" id="az-tools"></div>
+            <dialog class="az-tools-dialog" id="az-tools-dialog" aria-labelledby="az-tools-dialog-title">
+              <div class="az-tools-dialog-head">
+                <h3 class="az-game-h" id="az-tools-dialog-title">Your instruments</h3>
+                <input type="search" class="az-tools-search" id="az-tools-search" placeholder="Search by name" autocomplete="off" aria-label="Search the instruments by name">
+                <button type="button" class="btn btn-primary" id="az-tools-close">Done</button>
+              </div>
+              <div class="az-tools-dialog-body" id="az-tools-dialog-body"></div>
+            </dialog>
             <button type="button" class="az-report-link" data-report="tool"><span aria-hidden="true">+</span> Instrument not here? Report it</button>
           </section>
         </div>
