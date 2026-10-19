@@ -2642,23 +2642,15 @@
     }
     if (sameRun && (known.length || offer.length || base.runStart || base.toolsLocked)) {
       if (offer.length && slots > known.length && !offer.some(has)) {
-        const seen = read.filter((t) => offer.includes(t.sim)).sort((a, b) => b.conf - a.conf)[0];
-        // An icon read as an instrument that wasn't offered can still be one
-        // that was: the closest offered one among its runner-ups (report 75:
-        // the Forged Key read as the Lost Ring of Keys).
-        let alike = null;
-        if (!seen) {
-          for (const t of read) {
-            if (has(t.sim)) continue;
-            const a = (t.alts || []).find((x) => x.sim && offer.includes(x.sim) && x.score >= 0.7);
-            if (a && (!alike || a.score > alike.score)) alike = { sim: a.sim, score: a.score, as: t.sim };
-          }
-        }
-        const take = seen ? seen.sim : alike ? alike.sim : null;
+        // New instruments append to the held panel. A runner-up is not an
+        // observed selection: an ambiguous Crown was silently locked as
+        // Ravenous Chains for an entire run. Require the actual new slot,
+        // its confident identity and the observed offer to agree.
+        const added = slots === known.length + 1 && read.length === slots ? read[known.length] : null;
+        const take = added && !added.unknown && added.conf >= TOOL_SURE && offer.includes(added.sim) ? added.sim : null;
         if (take) {
           out.push({ id: take, sim: take, name: T.toolName(take), conf: 1, kept: true });
           m.pendingToolOffer = null;
-          if (!seen && alike) notes.push(`An icon read as ${alike.as ? T.toolName(alike.as) : 'another instrument'}, which wasn't offered: taken as ${T.toolName(take)}, the closest of the offer. If you took another, change it under Torture Instrument.`);
         } else notes.push(`Your instruments show one more than before, from the offer of ${offer.map((id) => T.toolName(id)).join(', ')}: set which you took under Torture Instrument.`);
       }
       if (out.length) m.toolsLocked = true;
