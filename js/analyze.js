@@ -2924,6 +2924,12 @@
       m.startEvent = r.badge.id;
       notes.push(`Start of run: ${T.START_EVENTS[r.badge.id].name}, from its badge under the instruments.`);
     }
+    // A badge that looks like more than one card (Tyranny and Cage Fight):
+    // not guessed; the player sets it.
+    if (r.badge && r.badge.alike && T.START_EVENTS && (!m.startEvent || m.startEvent === 'none')) {
+      const names = r.badge.alike.filter((id) => T.START_EVENTS[id]).map((id) => T.START_EVENTS[id].name);
+      if (names.length) notes.push(`The run's start card looks like ${names.join(' or ')} from its badge, which look alike: set it under Start of run.`);
+    }
     // King of the Caged is met once a Supreme or Chromatic shows. Prison
     // Walk's tiles aren't read, so they keep what was set.
     if (m.objective === 'king') m.milestone = highest >= T.SUPREME || chromatic > 0;

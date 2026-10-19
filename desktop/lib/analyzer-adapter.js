@@ -202,6 +202,12 @@
       langMiss: A && typeof A.langMiss === 'function' ? A.langMiss() : null,
       riot: riot && riot.value !== '' ? Number(riot.value) : null,
       dayof: text($('az-dayof')),
+      // The run's contract (start card), as set on the analyzer: shown on
+      // the overlay, so a wrong one shows.
+      contract: (() => {
+        const sel = $('az-start-event');
+        return sel && sel.value && sel.value !== 'none' && sel.selectedOptions[0] ? sel.selectedOptions[0].textContent.trim() : '';
+      })(),
       step: text(step),
       reading,
       lastRead,
@@ -231,7 +237,7 @@
           type: 'advice',
           board,
           names: namesOf(board),
-          advice: { treasureWait: s.treasureWait, move: s.move, baseMove:s.baseMove, plan:s.plan, risk:s.risk, why: s.why, expect: s.expect, chain: s.chain, status: s.status, options: s.options, close: s.close, flagged: s.flagged, shotText: s.shotText, problems: s.problems, toolsConfirm: s.toolsConfirm, step: s.step, riot: s.riot, dayof: s.dayof },
+          advice: { treasureWait: s.treasureWait, move: s.move, baseMove:s.baseMove, plan:s.plan, risk:s.risk, why: s.why, expect: s.expect, chain: s.chain, status: s.status, options: s.options, close: s.close, flagged: s.flagged, shotText: s.shotText, problems: s.problems, toolsConfirm: s.toolsConfirm, step: s.step, riot: s.riot, dayof: s.dayof, contract: s.contract },
         });
       }
     }

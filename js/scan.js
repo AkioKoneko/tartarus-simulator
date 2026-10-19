@@ -1595,11 +1595,10 @@
       const feat=artFeature(img,...inner);
       for(const b of ref.badges || []) {
         const score=similarity(feat,b.feat);
-        if(score>0.95 && (!match || score>match.score))match={id:b.id,score,box};
+        if(score>0.95 && (!match || score>match.score))match={feat,score,box};
       }
     }
-    if(match)return match;
-    const box = nominal;
+    const box = match ? match.box : nominal;
     if (box[0] < 0 || box[3] >= img.height) return null;
     // Without a badge the wall there is dark: 0 bright pixels on every board
     // without one, 6-9% with one.
@@ -1608,13 +1607,24 @@
     // sample and at most 0.918 against another's (Opulence and Tyranny, the
     // user's runs; on the whole badge 0.979-0.99, report 174): a card
     // without a sample stays unknown.
-    const feat = artFeature(img, ...badgeBox(label, true));
-    let best = null;
+    // Apply the same ambiguity gate after the local position search too.
+    const feat = match ? match.feat : artFeature(img, ...badgeBox(label, true));
+    // Each card's best sample.
+    const by = new Map();
     for (const b of ref.badges || []) {
       const score = similarity(feat, b.feat);
-      if (!best || score > best.score) best = { id: b.id, score };
+      if (!by.has(b.id) || score > by.get(b.id)) by.set(b.id, score);
     }
-    return { id: best && best.score > 0.95 ? best.id : null, score: best ? Math.round(best.score * 1000) / 1000 : 0, box };
+    const ranked = [...by].map(([id, score]) => ({ id, score })).sort((a, b) => b.score - a.score);
+    const best = ranked[0] || null;
+    const next = ranked[1] || null;
+    // Cards whose badges look alike can't be told apart by it: Tyranny's and
+    // Cage Fight's samples score 0.994 against each other, and Cage Fight
+    // runs read as Tyranny (the user, 2026-10-18). The best must beat every
+    // other card by 0.02, or the badge stays unread, with what it could be.
+    const sure = !!best && best.score > 0.95 && (!next || best.score - next.score >= 0.02);
+    const alike = best && best.score > 0.95 && !sure ? ranked.filter((x) => best.score - x.score < 0.02).map((x) => x.id) : null;
+    return { id: sure ? best.id : null, alike, score: best ? Math.round(best.score * 1000) / 1000 : 0, box };
   }
 
   // A tool's art as a color picture on a 4x6 grid plus a hue histogram.
