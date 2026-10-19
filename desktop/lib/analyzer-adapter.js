@@ -165,7 +165,12 @@
     const played = /([\d,]+) of ([\d,]+) games played/.exec(status);
     const num = (s) => Number(String(s).replace(/,/g, ''));
     const assist=A && typeof A.localAssist==='function' ? A.localAssist() : {};
+    const currentBoard = boardNow();
     return {
+      instruments: currentBoard ? {
+        names: namesOf(currentBoard).tools,
+        pending: !!(currentBoard.toolsToConfirm || currentBoard.pendingToolOffer),
+      } : null,
       plan:assist.plan||null,
       risk:A && typeof A.replacementRisk==='function'?A.replacementRisk():null,
       hints:assist.hints||{valid:false},

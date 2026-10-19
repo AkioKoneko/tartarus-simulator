@@ -208,6 +208,8 @@
   .hints-status button.btn { flex: none; font-size: 12px; }
   #hints-status-area { width:100%; }
   #hints-status-area:empty { display:none; }
+  .instruments-status { width:100%; margin:0; padding-top:6px; border-top:1px solid var(--iron); color:var(--ash); font-size:12px; line-height:1.4; overflow-wrap:anywhere; }
+  .instruments-status[data-state="pending"] { color:var(--check); }
 
   .spin {
     flex: none;
@@ -367,6 +369,7 @@
       <button type="button" class="btn" data-cmd="debug-report" title="Something isn't working: sends the app's debug report">Not working?</button>
     </div>
     <div id="hints-status-area"></div>
+    <p id="instruments-status" class="instruments-status" role="status" title="Instruments currently used for advice. Correct them in Board.">Instruments: waiting for the board.</p>
   </div>
 </div>
 <script src="overlay.js"></script>

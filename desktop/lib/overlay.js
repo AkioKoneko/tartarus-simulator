@@ -156,6 +156,14 @@
     }
 
     $('body').replaceChildren(...out);
+    const instruments = a && a.instruments;
+    const instrumentNames = instruments && Array.isArray(instruments.names) ? instruments.names.filter(n => typeof n === 'string' && n.trim()) : [];
+    const instrumentText = instruments
+      ? `Instruments: ${instrumentNames.length ? instrumentNames.join(' · ') : instruments.pending ? 'selection not identified' : 'none'}${instruments.pending && instrumentNames.length ? ' · next selection not identified' : ''}${instruments.pending ? ' — check Board' : ''}`
+      : 'Instruments: waiting for the board.';
+    const instrumentRow = $('instruments-status');
+    if (instrumentRow.textContent !== instrumentText) instrumentRow.textContent = instrumentText;
+    instrumentRow.dataset.state = instruments && instruments.pending ? 'pending' : 'known';
     // Keep diagnostics below the advice and normal controls. A transient gap
     // between game screens must not immediately offer another capture.
     const hs=sh.hintsStatus;
