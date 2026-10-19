@@ -1871,7 +1871,7 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   app.whenReady().then(async () => {
-    if(LOCAL){require('./lib/local-site').install(session.defaultSession,net,path.join(__dirname,'..'));note('local build: second-run-11; same origin and profile retained');}
+    if(LOCAL){require('./lib/local-site').install(session.defaultSession,net,path.join(__dirname,'..'));note('local build: second-run-12; same origin and profile retained');}
     note(`start: version ${app.getVersion()}, site ${SITE}${DEV ? ', debug' : ''}${TEST ? ', test' : ''}, foreground check ${win32 ? 'on' : 'off'}, as administrator: ${yesNo(win32 ? win32.selfElevated() : null)}`);
     allowCapture();
     pruneRecords();
@@ -1894,7 +1894,7 @@ if (!app.requestSingleInstanceLock()) {
     // A finite, hidden integration probe uses its own --user-data directory.
     // It reads only app capability/geometry, never a real profile or game data.
     if (TEST && flag('qa-probe')) {
-      const report = { local:LOCAL, build:'second-run-11', result:'failed' };
+      const report = { local:LOCAL, build:'second-run-12', result:'failed' };
       try {
         const deadline=Date.now()+25000;
         while(Date.now()<deadline) {
@@ -1916,6 +1916,8 @@ if (!app.requestSingleInstanceLock()) {
         await wins.overlay.webContents.executeJavaScript("document.getElementById('fold').click()");await pause();
         report.overlay.iconPositionRestored=settings.collapsed && at(800,90) && settings.overlay.x===120 && settings.overlay.y===160;
         report.overlay.icon=await wins.overlay.webContents.executeJavaScript(`(()=>{const el=document.getElementById('orb'),s=getComputedStyle(el);return {background:s.backgroundColor,border:s.borderTopWidth,shadow:s.boxShadow,opacity:s.opacity,svg:el.querySelector('svg').getBoundingClientRect().width,width:innerWidth,height:innerHeight};})()`);
+        send('overlay','advice',{instruments:{names:['QA Crown','QA Keys'],pending:false}});await pause();
+        report.overlay.instruments=await wins.overlay.webContents.executeJavaScript("document.getElementById('instruments-status').textContent");
         // Transport-only spy: real state/choice behavior is checked by the
         // recorded-frame integration test. This verifies both native IPC routes.
         await wins.analyzer.webContents.executeJavaScript("window.__qaRiskChoices=[];const choose=TartarusAnalyzer.chooseReplacementRisk;TartarusAnalyzer.chooseReplacementRisk=mode=>{__qaRiskChoices.push(mode);return choose(mode);};true");
@@ -1932,7 +1934,7 @@ if (!app.requestSingleInstanceLock()) {
         await new Promise(resolve=>setTimeout(resolve,150));
         report.hints.ipcTargets=await wins.hints.webContents.executeJavaScript("document.querySelectorAll('.target[data-shape=underline]').length");
         report.hints.chain=await wins.hints.webContents.executeJavaScript("({nodes:document.querySelectorAll('.target[data-chain-step]').length,arrows:document.querySelectorAll('.chain-arrow').length,clickThrough:[...document.querySelectorAll('.target,.chain-connectors')].every(e=>getComputedStyle(e).pointerEvents==='none')})");
-        report.result=report.analyzer.api && report.analyzer.assist && report.analyzer.adapter && report.analyzer.localHeader==='second-run-11' && report.follow.counter && report.overlay.orb && report.overlay.focusable && report.overlay.cardPositionRestored && report.overlay.iconPositionRestored && report.overlay.icon.background==='rgba(0, 0, 0, 0)' && report.overlay.icon.border==='0px' && report.overlay.icon.shadow==='none' && report.overlay.icon.svg===42 && report.overlay.icon.width===56 && report.overlay.icon.height===56 && report.overlay.riskButtons.every(Boolean) && JSON.stringify(report.overlay.riskChoices)==='["preserve","simulate"]' && !report.hints.focusable && !report.hints.visible && report.hints.ipcTargets===1 && report.hints.chain.nodes===3 && report.hints.chain.arrows===2 && report.hints.chain.clickThrough ? 'passed':'failed';
+        report.result=report.analyzer.api && report.analyzer.assist && report.analyzer.adapter && report.analyzer.localHeader==='second-run-12' && report.follow.counter && report.overlay.orb && report.overlay.focusable && report.overlay.cardPositionRestored && report.overlay.iconPositionRestored && report.overlay.icon.background==='rgba(0, 0, 0, 0)' && report.overlay.icon.border==='0px' && report.overlay.icon.shadow==='none' && report.overlay.icon.svg===42 && report.overlay.icon.width===56 && report.overlay.icon.height===56 && report.overlay.instruments==='Instruments: QA Crown · QA Keys' && report.overlay.riskButtons.every(Boolean) && JSON.stringify(report.overlay.riskChoices)==='["preserve","simulate"]' && !report.hints.focusable && !report.hints.visible && report.hints.ipcTargets===1 && report.hints.chain.nodes===3 && report.hints.chain.arrows===2 && report.hints.chain.clickThrough ? 'passed':'failed';
       } catch(e) {report.error=String(e && e.stack || e);}
       fs.mkdirSync(app.getPath('userData'),{recursive:true});
       fs.writeFileSync(path.join(app.getPath('userData'),'qa-report.json'),JSON.stringify(report,null,2));
