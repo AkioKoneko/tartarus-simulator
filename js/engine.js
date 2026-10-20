@@ -567,7 +567,12 @@
   // other still is. used.noHunt: no Hunt card either. used.huntOnly: the
   // Hunt's pick is open, on these cells.
   // A Hunt (the Blood-Stained Trap) uses the day's action too.
-  const canDevourNow = (state) => state.used.devour < 1 && !state.used.hunt && !state.used.noDevour && (state.used.swap < 1 || !!state.used.devourAfterSwap);
+  const pausedEater = (state) => {
+    const paused = state.used.pausedChain;
+    const here = state.cells[state.position];
+    return !!paused && state.used.devour > 0 && !!here && !here.sealed && !!here.inmate && here.inmate.id === paused.eater;
+  };
+  const canDevourNow = (state) => (state.used.devour < 1 || pausedEater(state)) && !state.used.hunt && !state.used.noDevour && (state.used.swap < 1 || !!state.used.devourAfterSwap);
   const canSwapNow = (state) => state.used.devour < 1 && !state.used.hunt && !state.used.noSwap && state.used.swap < state.params.swapsPerDay;
 
   // Blood-Stained Trap: with the warden on a Lion that has no prey mark, a
@@ -1574,10 +1579,13 @@
     const option = framedMeals(state, devourOptions(state, from)).find((o) => o.cell === to);
     if (!option) return fail('That inmate cannot consume that target.');
     const events = [];
-    state.used.devour += 1;
+    const resumed = pausedEater(state);
+    if (!resumed) state.used.devour += 1;
+    state.used.pausedChain = null;
     state.used.mealOnly = null;
     state.chaining = { eater: state.cells[from].inmate.id, at: state.log.length, bites: [] };
-    state.chaining.bites.push(doDevour(state, from, option, events));
+    state.chaining.bites.push(doDevour(state, from, option, events, resumed));
+    if (resumed) state.stats.chains += 1;
     goOnChain(state, events);
     return ok(events);
   }
@@ -1625,8 +1633,9 @@
   }
 
   // The game's Cancel: the chain stops after its last bite. The eater keeps
-  // what it gained, its meals stay on the block, and today's consume stays
-  // used.
+  // what it gained and may resume the same consume. Today's action stays
+  // used: Cancel never grants another Replace or Hunt. Already completed
+  // bites are logged once; a resumed bite gets the chain's effects.
   function stopChain(state) {
     if (!state.chaining) return fail('No consume chain is waiting for a meal.');
     if (!canStopChain(state)) return fail('With this Lab setting, a consume chain must go on while it has a meal.');
@@ -1634,6 +1643,7 @@
     const ch = state.chaining;
     state.chaining = null;
     logDevour(state, ch.at, ch.bites, true);
+    state.used.pausedChain = { eater: ch.eater };
     return ok([{ type: 'stopchain' }]);
   }
 

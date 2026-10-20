@@ -86,6 +86,13 @@
       return plan;
     }
     const wait = 'Read the resulting board before choosing the next action.';
+    if (action.type === 'stopchain') {
+      plan.steps[0].label = 'Press Cancel on the meal picker';
+      plan.steps.push({label: st.day >= st.maxDays ? 'Finish the run' : 'End the day', action:{type:'end'}, certainty:'planned'});
+      plan.headline = st.day >= st.maxDays ? 'Cancel → Finish the run' : 'Cancel → End the day';
+      plan.note = 'Cancel closes the picker; this advice means stop eating for today. Confirm End on the resulting board.';
+      return plan;
+    }
     if (action.type === 'patrol' && T && (action.cell === T.OFFICE || st.cells && st.cells[action.cell] && !st.cells[action.cell].sealed && st.cells[action.cell].inmate)) {
       const office=action.cell===T.OFFICE;
       const result=travelPreview(st,action,T,S);

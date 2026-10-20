@@ -813,8 +813,8 @@
     const tier = here.inmate.tier;
     const beast = beastIndex(here.inmate.beast);
     const own = linkLoss(st, ctx, here.inmate, false);
-    const chained = !!st.chaining;
-    return (chained ? T.chainOptions(st) : T.startOptions(st))
+    const chained = !!(st.chaining || st.used.pausedChain);
+    return (st.chaining ? T.chainOptions(st) : T.startOptions(st))
       .map((o) => {
         const target = st.cells[o.cell];
         const meal = o.scratch ? target.hidden : target.inmate;
@@ -1138,7 +1138,12 @@
       case 'patrol': return T.patrol(st, action.cell);
       case 'devour': return T.devour(st, st.position, action.to);
       case 'chain': return T.chainBite(st, action.to);
-      case 'stopchain': return T.stopChain(st);
+      case 'stopchain': {
+        // A strategic stop commits to keeping the remaining meals today.
+        // The engine's direct Cancel merely closes the picker and can resume.
+        const cancelled = T.stopChain(st);
+        return cancelled.ok ? T.endDay(st) : cancelled;
+      }
       case 'office': return T.officeAct(st, action.choice);
       case 'swap': return T.swap(st, st.position);
       case 'hunt': return T.hunt(st, action.to);
@@ -1205,7 +1210,7 @@
         const meal = o.scratch ? 'the scratched door' : `the ${T.describe(target.inmate)}`;
         out.push({ action: { type: 'chain', to: o.cell }, label: `Chain on: eat ${meal} in ${T.cellLabel(o.cell)}` });
       }
-      if (T.canStopChain && T.canStopChain(st)) out.push({ action: { type: 'stopchain' }, label: 'Stop the chain (Cancel)' });
+      if (T.canStopChain && T.canStopChain(st)) out.push({ action: { type: 'stopchain' }, label: st.day >= st.maxDays ? 'Cancel, then finish the run' : 'Cancel, then end the day' });
       return out;
     }
     if (st.phase === 'office') {
@@ -1377,14 +1382,14 @@
         const odds = chainOdds(st, st.position, action.to);
         // A day has a devour or a swap, not both.
         const over = swapGainHere(st, ctx) > 0 ? ' It beats a Replace here, and a day has one or the other.' : '';
-        return `The best first meal: picking its later meals well, its chain averages ${odds.bites.toFixed(1)} bites, with ${(100 * odds.rainbow).toFixed(0)}% to reach Rainbow.${over}`;
+        return `${st.used.pausedChain ? 'Resume the consume' : 'The best first meal'}: picking its later meals well, its chain averages ${odds.bites.toFixed(1)} bites, with ${(100 * odds.rainbow).toFixed(0)}% to reach Rainbow.${over}`;
       }
       case 'chain': {
         const odds = chainOdds(st, st.position, action.to);
         return `The best next meal: going on with the best meal each time, the chain averages ${odds.bites.toFixed(1)} more bites, with ${(100 * odds.rainbow).toFixed(0)}% to reach Rainbow.`;
       }
       case 'stopchain':
-        return 'No meal left is worth eating: each would cost more than it gains, so press Cancel and keep them on the block.';
+        return 'Stop eating for today: press Cancel, then end the day and keep the remaining inmates. Cancel alone still lets you reopen Consume.';
       case 'office':
         return action.choice === 'bestow' ? 'A random inmate rises a tier now, which beats a couple of new event doors.' : 'The block is thin, so new event doors are worth more than raising it.';
       case 'swap': {

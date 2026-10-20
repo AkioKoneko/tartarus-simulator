@@ -115,6 +115,8 @@
       // The game offers a consume after today's swap (it shows the button,
       // or Follow my game saw it in the log): only then is one advised.
       consumeOffered: false,
+      // The same consume reopened after Cancel, not a fresh daily action.
+      chainPaused: false,
       // A Warden's Treasure waiting for the board behind it (treasureWait),
       // and the board seen since it opened (treasureSeen).
       treasureWait: false,
@@ -183,6 +185,7 @@
     out.cells = m.cells.map((c, n) => (n === T.OFFICE ? officeCell() : Object.assign(sealedCell(), c)));
     out.dest = Array.isArray(m.dest) ? m.dest.filter((n) => Number.isInteger(n) && n >= 0 && n < T.CELL_COUNT) : [];
     if (!STEPS.includes(out.step)) out.step = 'patrol';
+    out.chainPaused = !!out.chainPaused && out.step === 'manage';
     if (out.objective === 'cagefight') {
       out.startEvent = 'cagefight';
       out.objective = 'other';
@@ -281,7 +284,7 @@
     st.phase = 'manage';
 
     const usedToday = () => {
-      st.used = { swap: m.swapUsed ? 1 : 0, devour: m.devourUsed ? 1 : 0, devourAfterSwap: !!m.consumeOffered, noSwap: !!m.noSwap, noDevour: !!m.noDevour, noHunt: !!m.noHunt, huntOnly: Array.isArray(m.huntOnly) ? m.huntOnly.slice() : null, officeOnly: m.officeOnly || null, mealOnly: Array.isArray(m.mealOnly) ? m.mealOnly.slice() : null };
+      st.used = { swap: m.swapUsed ? 1 : 0, devour: m.devourUsed || m.chainPaused ? 1 : 0, devourAfterSwap: !!m.consumeOffered, noSwap: !!m.noSwap, noDevour: !!m.noDevour, noHunt: !!m.noHunt, huntOnly: Array.isArray(m.huntOnly) ? m.huntOnly.slice() : null, officeOnly: m.officeOnly || null, mealOnly: Array.isArray(m.mealOnly) ? m.mealOnly.slice() : null, pausedChain: m.chainPaused && st.cells[st.position].inmate ? {eater:st.cells[st.position].inmate.id} : null };
     };
     switch (m.step) {
       case 'patrol': {
@@ -419,6 +422,7 @@
     m.huntOnly = Array.isArray(st.used.huntOnly) ? st.used.huntOnly.slice() : null;
     m.officeOnly = st.phase === 'office' && st.used.officeOnly ? st.used.officeOnly : null;
     m.mealOnly = Array.isArray(st.used.mealOnly) ? st.used.mealOnly.slice() : null;
+    m.chainPaused = !!st.used.pausedChain;
     m.ended = st.phase === 'ended';
     return m;
   }
@@ -489,6 +493,7 @@
   const solver = { workers: null, failed: false, id: 0, st: null, key: '', instant: null, result: null, shares: null, meta: null, goal: '', reused: null, reuseReady: false };
   let localPlanCache = null; // branch/chain previews run once per settled board and action
   let riskChoice = null; // Player preference for this exact observed board only.
+  let cancelEndIntent = null; // A completed Cancel half of a stop-for-today choice.
   // The live check runs on a worker for every core but one, or on fewer when
   // the page is told (setCores: the desktop app's processor setting), each
   // playing its share of the rounds with its own dice. It runs for a few
@@ -760,6 +765,13 @@
     const live = r && ranked.length > 1 && ((r.done && !r.early) || r.rounds >= LIVE_MIN) ? ranked[0] : null;
     const mine = pick && ranked.find((o) => S.sameAction(o.action, pick.action));
     if (!live) return pick ? Object.assign({ live: false }, pick, { option: mine || null }) : ranked.length === 1 ? { action: ranked[0].action, label: ranked[0].label, why: 'It’s the only move here.', live: true, option: ranked[0] } : null;
+    // Cancel was the first half of the displayed stop-for-today decision.
+    // Use fresh statistics, but do not reverse that choice on an unchanged
+    // board merely because another near-tie check favours a different policy.
+    const end = cancelEndIntent && model.chainPaused && cancelEndIntent === cancelDecisionKey(model) && ranked.find(o=>o.action.type==='end');
+    if (end && live.mean - end.mean <= Math.max(1.96 * end.gapSe, SWITCH_MIN)) {
+      return {action:end.action,label:end.label,why:'Continue the chosen stop: Cancel closed the picker. The fresh check rates ending the day about equal to the best; keep the remaining inmates.',live:true,rounds:r.rounds,option:end};
+    }
     const short = S.preferShortWalk(solver.st, ranked, mine, SWITCH_MIN);
     if (short) return { action: short.action, label: short.label, why: 'The live check rates these walks about equal. Prefer the short walk for a chance to trigger Short-Chained Shackles.', live: true, rounds: r.rounds, option: short };
     // A better move must also win by a margin worth playing for: shared dice
@@ -1410,7 +1422,7 @@
       case 'patrol': return 'In your game, walk there. Then set the cell to what the door reveals (or press Do it here and fix it), and ask again.';
       case 'devour': return 'In your game, start the consume on that target. Then update the cells the chain changed, and ask again.';
       case 'chain': return 'In your game, pick that meal. Then paste the next screen, or update the cells that changed, and ask again.';
-      case 'stopchain': return 'In your game, press Cancel on the meal screen. Today’s consume is used, so the day ends next.';
+      case 'stopchain': return 'In your game, press Cancel on the meal screen, then End. Cancel alone can reopen the same consume; this advice means stop eating for today.';
       case 'swap': return 'In your game, replace the warden’s inmate. Then set the warden’s cell to what came in, and ask again.';
       case 'end': return 'In your game, end the day. Then mark the new day’s doors, and ask again.';
       case 'event': return model.step === 'event' && model.eventKind === 'hunt'
@@ -2626,6 +2638,7 @@
       checks.add(n);
     }
     m.step = first ? 'manage' : 'chain';
+    m.chainPaused = first && !!base.chainPaused;
     m.devourUsed = m.step === 'chain';
     // The meal pick shows the meals and Cancel, never Replace. A chain taken
     // for the day's first consume (report 323: the board before didn't hold
@@ -2819,6 +2832,7 @@
     m.huntOnly = null;
     m.officeOnly = null;
     m.mealOnly = null;
+    m.chainPaused = false;
     // Without the cards (a picture taken as they come up), a board of the
     // same day with the warden in the same cell keeps what the board
     // before knew. And if the warden's inmate has changed since, today's
@@ -3160,9 +3174,31 @@
   }
 
   // Loads the reading as the board. The caller then asks what to do.
+  // Board facts shared by the meal picker and the ordinary decision screen.
+  function consumeBoardKey(m) {
+    const c = normalize(JSON.parse(JSON.stringify(m)));
+    for (const k of ['step','dest','devourUsed','swapUsed','chainPaused','consumeOffered','noSwap','noDevour','noHunt','huntOnly','officeOnly','mealOnly','_simulated']) delete c[k];
+    c.cells = c.cells.map(cell=>Object.assign({},cell,{marked:!!cell.marked,ivory:!!cell.ivory,prey:cell.prey || null,event:cell.event || null}));
+    return JSON.stringify(c);
+  }
+
+  function cancelDecisionKey(m) {
+    return JSON.stringify([consumeBoardKey(m),m.mealOnly,m.swapUsed,m.noSwap,m.noDevour,m.noHunt,m.consumeOffered]);
+  }
+
+  // A read of Consume + End after an actual chain picker proves Cancel
+  // closed it. Do not infer a new daily action from the Consume button.
+  function pausedConsumeReading(rd) {
+    const r = reader.result;
+    return !!rd && !rd.checks.size && !flags.size && !reading && reader.completedId === reader.id && reader.completedImage === reader.image &&
+      !!r && r.ok && !r.chain && !!r.decision && r.decision.consume === true && r.decision.end === true && r.decision.replace === false &&
+      !model._simulated && (model.chainPaused || model.step === 'chain' && reader.loaded && Array.isArray(reader.loaded.chain)) &&
+      rd.model.step === 'manage' && !rd.model.toolsToConfirm && !rd.model.treasureWait &&
+      consumeBoardKey(model) === consumeBoardKey(rd.model);
+  }
+
   // A chain banner also describes the first target picker, before any bite.
-  // The dark board inherits data, so model equality alone is insufficient:
-  // check the raw occupants, eater and the entire offered target set as well.
+  // Check raw occupants and the entire offered set, not just model equality.
   function firstPickerRecommendation(rd) {
     const r = reader.result;
     if (!fresh() || !settled() || solver.reused || reading || reader.completedId !== reader.id || reader.completedImage !== reader.image ||
@@ -3211,12 +3247,24 @@
     if(read && read._readerId != null && read._readerId!==reader.id) return false;
     const rd = reader.reading;
     if (!rd) return;
+    const paused = pausedConsumeReading(rd);
+    const stopped = paused && fresh() && settled() && bestMove() && bestMove().action.type === 'stopchain';
+    if (paused) {
+      rd.model.chainPaused = true;
+      rd.model.devourUsed = true;
+      rd.model.swapUsed = !!model.swapUsed;
+      rd.model.noSwap = true;
+      rd.model.noHunt = true;
+      rd.model.mealOnly = Array.isArray(model.mealOnly) ? model.mealOnly.slice() : null;
+    }
     const reuse = firstPickerRecommendation(rd);
     undo.push({ model: JSON.parse(JSON.stringify(model)), selected, shot });
     if (undo.length > 30) undo.shift();
     leaveShot();
     model = normalize(rd.model);
     model._simulated=false;
+    const endKey = cancelDecisionKey(model);
+    cancelEndIntent = paused && (stopped || cancelEndIntent === endKey) ? endKey : null;
     reader.liveModel=JSON.parse(JSON.stringify(model));
     reader.undoable = true;
     reader.loaded = rd;

@@ -1,0 +1,66 @@
+'use strict';
+const assert = require('node:assert/strict');
+const T = require('../js/engine'), S = require('../js/solver'), A = require('../js/local-assist');
+function board() {
+  const st = T.newGame({seed:'cancel-regression',params:{startTools:0,rewards:false,eventStartChance:0,eventActionChance:0,eventMorningChance:0}});
+  st.cells.forEach(c=>Object.assign(c,{sealed:c.n!==0,inmate:null,hidden:null,event:null,ivory:false,nest:null,prey:null}));
+  for(const [n,beast,tier] of [[1,'wolf',1],[2,'rat',1],[3,'rat',2],[4,'rat',3]]) Object.assign(st.cells[n],{sealed:false,inmate:{id:100+n,beast,tier}});
+  Object.assign(st,{position:1,phase:'manage',startEvent:'cagefight',tools:['collar'],pending:[],chaining:null,used:{devour:0,swap:0}});
+  return st;
+}
+const first=board();
+assert(T.devour(first,1,2).ok);
+assert(first.chaining);
+const direct=S.clone(first), resumed=S.clone(first);
+assert(T.stopChain(resumed).ok);
+assert(T.canDevourNow(resumed));
+assert.equal(T.canSwapNow(resumed),false);
+assert.equal(T.canHuntNow(resumed),false);
+assert.equal(resumed.used.devour,1);
+resumed.used.mealOnly=[3];
+const before=JSON.stringify(resumed);
+assert.equal(T.devour(resumed,1,4).ok,false,'a paused picker keeps its observed target restriction');
+assert.equal(JSON.stringify(resumed),before);
+direct.used.mealOnly=[3];
+assert(T.chainBite(direct,3).ok);
+assert(T.devour(resumed,1,3).ok);
+assert.equal(resumed.cells[1].inmate.tier,direct.cells[1].inmate.tier,'resume applies the same chained Collar proc');
+assert.equal(resumed.rng,direct.rng,'resume adds no extra random bite');
+assert.equal(resumed.stats.devours,direct.stats.devours);
+assert.equal(resumed.stats.chains,direct.stats.chains);
+assert.equal(resumed.used.devour,1);
+assert.equal(resumed.used.pausedChain,null);
+if(resumed.chaining) assert(T.stopChain(resumed).ok);
+const logged=resumed.log.filter(e=>e.x?.type==='devour').flatMap(e=>e.x.bites);
+assert.equal(logged.length,2,'Cancel never duplicates a completed bite');
+assert.deepEqual(logged.map(b=>b.cell),[2,3]);
+const wrong=S.clone(first);assert(T.stopChain(wrong).ok);wrong.cells[1].inmate.id+=1000;
+assert.equal(T.canDevourNow(wrong),false,'pause belongs to the actual eater');
+assert.equal(T.canSwapNow(wrong),false);
+const fresh=board();assert.equal(T.stopChain(fresh).ok,false);
+const macro=S.clone(first), day=macro.day;
+assert(S.apply(macro,{type:'stopchain'}).ok);
+assert.equal(macro.day,day+1,'the strategic stop includes the real end-of-day transition');
+assert(!macro.used.pausedChain);
+const last=S.clone(first);last.day=last.maxDays;
+assert(S.apply(last,{type:'stopchain'}).ok);assert.equal(last.phase,'ended');
+const plan=A.buildPlan(first,{action:{type:'stopchain'},label:'Cancel, then end the day'},T,{apply(){throw Error('Do not simulate the next morning for a hint');}});
+assert.equal(plan.steps.length,2);assert.match(plan.steps[0].label,/Cancel/);assert.equal(plan.steps[1].action.type,'end');
+assert.equal(plan.steps[1].certainty,'planned');
+for(let i=0;i<30;i++) {const st=T.newGame({seed:'cancel-smoke-'+i});S.playout(st);assert(st.phase==='ended'||st.vault.length===T.VAULT_SLOTS);}
+// Exercise the actual Analyzer guards without exposing a production debug API.
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const source=fs.readFileSync(path.join(__dirname,'../js/analyze.js'),'utf8');
+const image={}, model={step:'chain',day:10,warden:1,tools:[],cells:[{kind:'office'},{kind:'inmate',beast:'lion',tier:3}],mealOnly:[3]};
+const rd={checks:new Set(),model:JSON.parse(JSON.stringify({...model,step:'manage',devourUsed:false,mealOnly:null}))};
+const sandbox={model,normalize:x=>JSON.parse(JSON.stringify(x)),flags:new Set(),reading:0,reader:{id:1,completedId:1,image,completedImage:image,loaded:{chain:[3]},result:{ok:true,decision:{consume:true,end:true,replace:false}}}};
+vm.createContext(sandbox);
+for(const name of ['consumeBoardKey','cancelDecisionKey','pausedConsumeReading']) {const a=source.indexOf(`  function ${name}(`),b=source.indexOf('\n  }',a)+4;assert(a>=0);vm.runInContext(source.slice(a,b),sandbox);}
+assert(sandbox.pausedConsumeReading(rd));
+const decision=sandbox.cancelDecisionKey(model);
+assert.notEqual(sandbox.cancelDecisionKey({...model,mealOnly:[]}),decision,'empty offered set invalidates the old choice');
+assert.notEqual(sandbox.cancelDecisionKey({...model,noDevour:true}),decision,'changed action permissions invalidate it');
+assert.notEqual(sandbox.cancelDecisionKey({...model,day:11}),decision);
+model._simulated=true;assert.equal(sandbox.pausedConsumeReading(rd),false);delete model._simulated;
+sandbox.reader.loaded=null;assert.equal(!!sandbox.pausedConsumeReading(rd),false,'a recommendation alone does not prove Cancel');
+console.log('consume Cancel: same-chain resume, framed meals, Collar parity, no extra action/logs, explicit end macro and finite playouts passed');
