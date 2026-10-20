@@ -15,6 +15,9 @@ const sandbox={model,solver:{st,result:{options:[end]}},T:{SUPREME:4,CELL_COUNT:
 vm.createContext(sandbox);vm.runInContext(declaration('replacementRisk'),sandbox);
 const swap={action:{type:'swap'},label:'Replace'};
 assert.equal(sandbox.replacementRisk(swap).selected,'pending');
+assert.equal(sandbox.replacementRisk(swap).title,'Destructive Replace');
+assert.doesNotMatch(sandbox.replacementRisk(swap).message,/unverified|did not occur|overrate/i);
+assert.match(sandbox.replacementRisk(swap).message,/removes 2 random other inmates/);
 sandbox.riskChoice={key:sandbox.modelKey(),mode:'preserve'};
 assert.equal(sandbox.replacementRisk(swap).selected,'preserve');
 sandbox.riskChoice={key:'older board',mode:'simulate'};
@@ -35,6 +38,8 @@ const rd={checks:new Set(),model:JSON.parse(JSON.stringify(model))};
 Object.assign(sandbox,{reader:{result,id:1,completedId:1,image,completedImage:image},reading:false,flags:new Set(),recommendation:()=>rec,normalize:x=>x,buildState:()=>({st,problems:[]}),pendingForReuse:()=>false});
 vm.runInContext(declaration('firstPickerRecommendation'),sandbox);
 assert(sandbox.firstPickerRecommendation(rd),'Unchanged first picker may reuse measured advice');
+rd.model.mealOnly=[2];
+assert(sandbox.firstPickerRecommendation(rd),'Matching observed meal restriction adds no new gameplay information');
 raw[2].frame={tier:4,bins:[0,10,80,0,300],samples:1000};raw[2].tier=2;
 assert.equal(sandbox.firstPickerRecommendation(rd),null,'New blue/purple evidence invalidates inherited model equality');
 raw[2].frame={tier:2,conf:0.9};

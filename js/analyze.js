@@ -143,6 +143,8 @@
       // The office shows one card only (read from a screenshot): 'bestow' or
       // 'instigate'.
       officeOnly: null,
+      // The meals the game framed on a meal pick (only those can be eaten).
+      mealOnly: null,
       eventKind: 'chain',
       // rerolls: a pet's re-rolls left on an instrument offer. picks: the
       // Warden's Treasure picks waiting, this one included (3 a Treasure
@@ -279,7 +281,7 @@
     st.phase = 'manage';
 
     const usedToday = () => {
-      st.used = { swap: m.swapUsed ? 1 : 0, devour: m.devourUsed ? 1 : 0, devourAfterSwap: !!m.consumeOffered, noSwap: !!m.noSwap, noDevour: !!m.noDevour, noHunt: !!m.noHunt, huntOnly: Array.isArray(m.huntOnly) ? m.huntOnly.slice() : null, officeOnly: m.officeOnly || null };
+      st.used = { swap: m.swapUsed ? 1 : 0, devour: m.devourUsed ? 1 : 0, devourAfterSwap: !!m.consumeOffered, noSwap: !!m.noSwap, noDevour: !!m.noDevour, noHunt: !!m.noHunt, huntOnly: Array.isArray(m.huntOnly) ? m.huntOnly.slice() : null, officeOnly: m.officeOnly || null, mealOnly: Array.isArray(m.mealOnly) ? m.mealOnly.slice() : null };
     };
     switch (m.step) {
       case 'patrol': {
@@ -416,6 +418,7 @@
     m.noHunt = !!st.used.noHunt;
     m.huntOnly = Array.isArray(st.used.huntOnly) ? st.used.huntOnly.slice() : null;
     m.officeOnly = st.phase === 'office' && st.used.officeOnly ? st.used.officeOnly : null;
+    m.mealOnly = Array.isArray(st.used.mealOnly) ? st.used.mealOnly.slice() : null;
     m.ended = st.phase === 'ended';
     return m;
   }
@@ -780,17 +783,17 @@
     if(others.length<2 || !preserve)return null;
     const selected=riskChoice && riskChoice.key===modelKey()?riskChoice.mode:'pending';
     const high=others.some(c=>c.inmate.tier>=T.SUPREME);
-    return {id:'maiden-scapegoat',title:'Unverified instrument interaction',
-      message:`This Replace removes 2 random other inmates${high?', possibly including a Supreme':''}. The simulator expects a Maiden bonus that did not occur in recorded live play. Its estimate can overrate Replace. Choose an option to show click targets.`,
+    return {id:'maiden-scapegoat',title:'Destructive Replace',
+      message:`This Replace removes 2 random other inmates${high?', possibly including a Supreme':''}. Compare the recommended Replace with keeping the current inmates. Choose an option to show click targets.`,
       selected,simulationLabel:rec.label,preserveLabel:preserve.label,preserve};
   }
 
   function recommendation() {
     const rec=rawRecommendation(),risk=replacementRisk(rec);
     if(!risk)return rec;
-    if(risk.selected!=='preserve')return Object.assign({},rec,{why:`Unverified simulator estimate: ${rec.why || ''}`});
+    if(risk.selected!=='preserve')return Object.assign({},rec,{why:`This Replace removes 2 random other inmates. ${rec.why || ''}`});
     return {action:risk.preserve.action,label:risk.preserve.label,
-      why:'Your choice: keep the current inmates and skip this unverified Replace.',
+      why:'Your choice: keep the current inmates and end the day.',
       live:rec.live,rounds:rec.rounds,option:risk.preserve};
   }
 
@@ -2636,6 +2639,9 @@
     }
     m.dest = [];
     m.chainArmed = false;
+    // Only the meals the game framed can be eaten now (report 385: the
+    // board before held a meal the game didn't offer, and it was advised).
+    m.mealOnly = r.chain.targets.slice();
     const tools = (m.tools || []).map((id) => ({ id, sim: id, name: T.toolName(id), conf: 1 }));
     return { model: m, checks, notes, chromatic: (m.vault || []).length, tools, unsim: [], chain: r.chain.targets };
   }
@@ -2812,6 +2818,7 @@
     m.noHunt = false;
     m.huntOnly = null;
     m.officeOnly = null;
+    m.mealOnly = null;
     // Without the cards (a picture taken as they come up), a board of the
     // same day with the warden in the same cell keeps what the board
     // before knew. And if the warden's inmate has changed since, today's
@@ -3185,7 +3192,9 @@
     }
     // All game fields must match. Only the local simulation marker is not
     // gameplay state; normalize supplies the same defaults on both sides.
-    const key=m=>{const c=normalize(JSON.parse(JSON.stringify(m)));delete c._simulated;return JSON.stringify(c);};
+    // The observed meal restriction is redundant only after the full offered
+    // set matched startOptions above. A subset still forces a new check.
+    const key=m=>{const c=normalize(JSON.parse(JSON.stringify(m)));delete c._simulated;delete c.mealOnly;return JSON.stringify(c);};
     if (key(model)!==key(rd.model)) return null;
     const built=buildState(rd.model);
     if (built.problems.length || !T.startOptions(built.st).some(o=>o.cell===rec.action.to)) return null;
