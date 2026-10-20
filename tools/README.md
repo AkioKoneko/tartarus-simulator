@@ -49,7 +49,7 @@ The strategy has two tuned profiles, chosen by the run's settings: drills with r
 node tools/strategy-sim.js guide --no-tune --games 2000 --side 2000 --habit-games 2000 --compare 100000
 ```
 
-For ±0.01, use 100,000 runs a measurement (`--games 100000 --side 100000 --habit-games 100000 --compare 100000`). The latest run (2026-10-18, with every Usurpation placing the next on a free cell and the Muzzle counting the block before its consume) took 602,000 runs in 5.3 minutes on 1 thread, most of them the strategy comparison's 100,000 runs a player. Its full numbers are in `results/guide-data.json`.
+For ±0.01, use 100,000 runs a measurement (`--games 100000 --side 100000 --habit-games 100000 --compare 100000`). The latest run (2026-10-19, with the measured instrument offer odds) took 602,000 runs in 4.6 minutes on 1 thread, most of them the strategy comparison's 100,000 runs a player. Its full numbers are in `results/guide-data.json`.
 
 ## The contract challenge (removed)
 
@@ -58,6 +58,19 @@ The Chinese sim's 12-day contract challenge (contracts, vouchers, escorts and co
 ## Results
 
 The Chinese sim's two-meal food chain (Mammoth also eats Wolf, Lion also eats Rat) was confirmed not to be in the live game on 2026-10-15, so it was removed from the simulator and the lab. The older sections below still show the two-meal numbers measured at the time; their files are in the git history.
+
+### Instrument offers by the game's odds (2026-10-19)
+
+The user asked whether every instrument is as likely in an offer: the best ones "feel special". They aren't all equal. In 8,891 three-card offers that 2,746 players' analyzers read (2026-10-17 to 19, from analyzer versions that knew all 31 instruments), the 8 instruments named for a beast were 3.9% of the cards, against 25.8% at equal odds. Those are the Blood-Stained Trap and the Iron Crown (Berserk Lion), the Elephant-Foot Maul and the Iron Tongs (Mammoth), the Filthy Claws and the Fanged Guillotine (Alpha Wolf), and the Skewered Rat Heads and the Squirming Iron Box (Colossal Rat).
+- **Each beast instrument is about 0.12 as likely as any other** (95%: 0.11 to 0.125). The other 23, the Hangman's Noose included, come up alike.
+- **It isn't a reading artifact:** the rate is the same for a run's first offer and for later ones, and in every analyzer version, and offers with a card left unread are only 10 of 8,901. The user's own 65 recorded offers agree (5.6%).
+- **The engine** now draws an offer's cards by these odds (`params.beastToolOdds`, 12, in % of another's odds; in the Lab), at a run's start, for an objective and on a pet's re-roll.
+- **The re-roll advice** weighs a new offer by the same odds. Equal odds overrated re-rolls: Kin's Coin with the Ring of Keys and the Branding Iron was re-rolled for an average best of +1.09 Rainbows a run against +0.96, where the measured odds give +0.85, so the Coin is kept now.
+
+The guide was measured again with the same settings (602,000 runs in 4.6 minutes on 1 thread). Only what depends on offers moved:
+- **Headline:** **4.03** Rainbows a run with rewards on (±0.09, was 4.66), since the best instruments come along less often. Played simply 1.49 (was 1.70), random 0.25 (was 0.31). With no instruments, nothing changed (1.80).
+- **Warden's Treasure:** Crimson Vintage 3.96, Horn 3.59, Thumb Ring 3.54 and Brand 3.44, against 4.03 judged on the spot. The Horn and the Ring swapped places inside the margin.
+- **Instruments held from day 1, the pairs and the drill ranking** play without offers, so they're unchanged.
 
 ### Usurpations in a row, and the Muzzle before its consume (2026-10-18)
 
