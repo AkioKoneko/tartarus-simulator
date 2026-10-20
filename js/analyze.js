@@ -782,7 +782,7 @@
       const why = mine === live ? pick.why : `${pick.why} The live check rates it about equal to the best.`;
       return Object.assign({ live: true, rounds: r.rounds }, pick, { label: mine.label, why, option: mine });
     }
-    return { action: live.action, label: live.label, why: `The playouts found a better move than the strategy’s pick${pick ? ` (${pick.label})` : ''}.`, live: true, rounds: r.rounds, option: live };
+    return { action: live.action, label: live.label, why: `Simulation selected: ${live.label}.${pick ? ' The initial suggestion was replaced.' : ''}`, live: true, rounds: r.rounds, option: live };
   }
 
   // Recorded live outcomes contradict the Maiden/Guillotine simulation.
@@ -1389,7 +1389,10 @@
         const chosen = rec ? S.sameAction(o.action, rec.action) : o === options[0];
         li.classList.toggle('is-best', chosen);
         li.querySelector('.solver-text').textContent = o.label;
-        li.querySelector('.solver-tag').hidden = !o.policy;
+        const tag=li.querySelector('.solver-tag');
+        tag.hidden = stale || (!chosen && !o.policy);
+        tag.textContent = chosen ? 'Recommended' : 'Initial pick';
+        tag.title = chosen ? 'The current recommendation shown above.' : 'The initial strategy suggestion, before the simulation check.';
         const value = li.querySelector('.solver-value');
         value.textContent = fmtOption(goal, o, st);
         value.title = 'Expected Rainbows in the vault by the end of the run, with a 95% margin';

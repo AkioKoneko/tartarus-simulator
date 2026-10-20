@@ -2048,8 +2048,10 @@
   function readDecision(img, loc) {
     const bottom = Math.max(at(loc, 0, 3)[1], at(loc, 5, 3)[1]) + 30 * loc.s;
     if (bottom >= img.height - 20) return null;
-    const x0 = Math.max(0, Math.min(at(loc, 0, 0)[0], at(loc, 0, 3)[0]) - 40 * loc.s);
-    const x1 = Math.min(img.width - 1, Math.max(at(loc, 5, 0)[0], at(loc, 5, 3)[0]) + 40 * loc.s);
+    // Four cards (Consume, Replace, Hunt, End) extend beyond the board:
+    // keep the complete outer captions inside the same text-reading pass.
+    const x0 = Math.max(0, Math.min(at(loc, 0, 0)[0], at(loc, 0, 3)[0]) - 180 * loc.s);
+    const x1 = Math.min(img.width - 1, Math.max(at(loc, 5, 0)[0], at(loc, 5, 3)[0]) + 180 * loc.s);
     let title = false;
     let pickCell = false;
     let replace = false;
@@ -2060,6 +2062,7 @@
     const labels = [];
     const coloredLabels = [];
     const officeLabels = [];
+    const huntLabels = [];
     const minCaptionHeight = Math.max(6, img.height * 0.009);
     // Single words, by their letters: the office's "Instigate" (9) and
     // "Bestow" (6).
@@ -2092,6 +2095,7 @@
           // cutoff. The actual piece still supplies all of its visible bounds.
           if (p.words.length <= 3 && n >= 5 && n <= 10) officeLabels.push({ ...caption, n, span });
           if (p.words.length !== 1) continue;
+          if (n === 4 && span > 2.2 && span < 3.8) huntLabels.push(caption);
           if (n >= 6 && n <= 8 && span > 3 && span < 8) coloredLabels.push(caption);
           // End is pale, but this pass can retain a full caption that the
           // stricter saturation cutoff fragmented by a few colored pixels.
@@ -2230,7 +2234,26 @@
     const anchors = [meal, swap].filter(Boolean);
     const finish = fullEnds.filter((e) => !anchors.length || anchors.some((l) => e.x0 > l.x1 && coherent(l, e))).sort((a, b) => b.h - a.h)[0];
     if (end && finish) targets.end = target(finish);
-    return { replace, consume, end, title, red: Math.round(1000 * red) / 1000, targets };
+    // Hunt is the four-letter green caption between the ordinary action
+    // cards and End. Require the full observed row, not a guessed card slot.
+    const hunts = [];
+    for (const l of huntLabels) {
+      if (!anchors.some(a=>a.x1 < l.x0 && coherent(a,l)) || !fullEnds.some(e=>e.x0 > l.x1 && coherent(l,e))) continue;
+      if (colorShare(img,l.x0,l.mid-l.h/2,l.x1,l.mid+l.h/2,(h,s,v)=>h>=90 && h<=170 && s>.1 && v>.3) < .08) continue;
+      if (!hunts.some(a=>Math.abs(a.x0-l.x0)<l.h && Math.abs(a.mid-l.mid)<l.h/2)) hunts.push(l);
+    }
+    const hunt = hunts.length === 1;
+    if (hunt) {
+      const caption=hunts[0];
+      targets.hunt = target(caption);
+      // At smaller scales an icon can resemble a larger three-letter word.
+      // The verified green Hunt caption anchors the actual label row.
+      const huntEnd=fullEnds.filter(e=>e.x0>caption.x1 && coherent(caption,e)).sort((a,b)=>b.h-a.h)[0];
+      if (end && huntEnd) targets.end=target(huntEnd);
+      const huntMeal=consume && coloredLabels.filter(l=>l.x1<caption.x0 && coherent(l,caption) && redBy(l)>=.01).sort((a,b)=>b.h-a.h)[0];
+      if(huntMeal) targets.consume=target(huntMeal);
+    }
+    return { replace, consume, end, title, ...(hunt ? {hunt:true} : {}), red: Math.round(1000 * red) / 1000, targets };
   }
 
   // ---------- Everything ----------

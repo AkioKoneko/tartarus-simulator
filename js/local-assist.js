@@ -265,6 +265,21 @@
       const offered = r.chain && r.chain.targets;
       return Array.isArray(offered) && offered.includes(a.to) ? mealRoute(false)||cell(a.to) : [];
     }
+    if (a.type === 'hunt') {
+      const here=st.cells && st.cells[st.position], target=st.cells && st.cells[a.to];
+      const rawHere=r.cells && r.cells.find(c=>c.n===st.position), rawTarget=r.cells && r.cells.find(c=>c.n===a.to);
+      if(st.phase!=='manage' || st.chaining || pending(st) || st.event || !st.tools || !st.tools.includes('trap') ||
+          st.used && (st.used.devour || st.used.swap || st.used.hunt || st.used.noHunt) || a.to===st.position ||
+          !here || here.sealed || !here.inmate || here.inmate.beast!=='lion' || !rawHere || rawHere.kind!=='inmate' || rawHere.beast!=='lion' ||
+          !target || target.sealed || !target.inmate || !rawTarget || rawTarget.kind!=='inmate' || rawTarget.beast!==target.inmate.beast ||
+          Number.isFinite(rawTarget.conf) && rawTarget.conf<.6)return [];
+      if(r.decision && r.decision.ratway) {
+        return Array.isArray(r.decision.framed) && r.decision.framed.includes(a.to) && st.used && Array.isArray(st.used.huntOnly) && st.used.huntOnly.includes(a.to) ? cell(a.to) : [];
+      }
+      if(!r.decision || !r.decision.hunt)return [];
+      const active=button('hunt');
+      return active.length ? active.concat(cell(a.to).map(t=>Object.assign({},t,{priority:'reference',label:`Prey: cell ${String(a.to+1).padStart(2,'0')}`}))) : [];
+    }
     if (a.type === 'office' && r.decision && r.decision.office && ['instigate', 'bestow'].includes(a.choice)) return button(a.choice);
     if (a.type === 'swap' && r.decision && r.decision.replace) return button('replace');
     if (a.type === 'end' && r.decision && !r.decision.office && !r.decision.ratway) return button('end');
