@@ -980,24 +980,34 @@
 
   // A pet's re-roll: what the best instrument on offer adds, against what
   // the best of a new offer of 3 adds on average (every 3 the re-roll could
-  // show, from the instruments neither held nor on offer). Null without
-  // measured sets.
+  // show, from the instruments neither held nor on offer, each drawn by its
+  // odds: the instruments named for a beast are rare, T.toolWeight). Null
+  // without measured sets.
   function rerollOdds(st, options) {
     const others = T.TOOL_IDS.filter((id) => !st.tools.includes(id) && !options.includes(id));
     const pool = others.length >= 3 ? others : T.TOOL_IDS.filter((id) => !st.tools.includes(id));
     const gains = toolGains(st, [...new Set([...options, ...pool])]);
     if (!gains || pool.length < 3) return null;
-    let sum = 0;
-    let n = 0;
+    // Every ordered draw of 3 cards, without putting one back.
+    const w = pool.map((id) => (T.toolWeight ? T.toolWeight(st, id) : 1));
+    const total = w.reduce((a, x) => a + x, 0);
+    let next = 0;
+    let mass = 0;
     for (let i = 0; i < pool.length; i++) {
-      for (let j = i + 1; j < pool.length; j++) {
-        for (let k = j + 1; k < pool.length; k++) {
-          sum += Math.max(gains[pool[i]], gains[pool[j]], gains[pool[k]]);
-          n += 1;
+      for (let j = 0; j < pool.length; j++) {
+        if (j === i || total - w[i] <= 0) continue;
+        const pij = (w[i] / total) * (w[j] / (total - w[i]));
+        const rest = total - w[i] - w[j];
+        if (rest <= 0) continue;
+        for (let k = 0; k < pool.length; k++) {
+          if (k === i || k === j) continue;
+          const p = pij * (w[k] / rest);
+          next += p * Math.max(gains[pool[i]], gains[pool[j]], gains[pool[k]]);
+          mass += p;
         }
       }
     }
-    return { now: Math.max(...options.map((id) => gains[id])), next: sum / n };
+    return { now: Math.max(...options.map((id) => gains[id])), next: mass > 0 ? next / mass : 0 };
   }
 
   const signed = (v) => `${v >= 0 ? '+' : '\u2212'}${Math.abs(v).toFixed(2)}`;
