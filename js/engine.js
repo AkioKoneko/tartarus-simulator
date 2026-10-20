@@ -174,7 +174,7 @@
     // are equal. Effect: +3 additional Rarity Tiers to the inmate this
     // Replacement" (spelled "Servered"). Read as the inmate a swap (the
     // game's Replace) brings in, counted against the rest of the block.
-    maiden: { name: 'Severed Iron Maiden', text: 'After a Replace, if as many inmates on the block are above the new inmate’s rarity as below it, it gains +3 tiers.' },
+    maiden: { name: 'Severed Iron Maiden', text: 'A Replace of an inmate with as many inmates on the block above its rarity as below it brings the new inmate in +3 tiers.' },
     // From a player's report (#11, 2026-10-16), the instrument pick: "-1 daily
     // destination option; there is a 35% chance to trigger after Consuming",
     // and "+1 additional Rarity Tier" (the rest of the card was cut off),
@@ -1653,6 +1653,13 @@
     const old = cell.inmate;
     const events = [{ type: 'swap', cell: n }];
     const at = state.log.length;
+    // Severed Iron Maiden, as its card reads (report 9): the inmate replaced
+    // stands level, as many inmates above its rarity as below it, on the
+    // block as it is now (before the Scapegoat's Guillotine removes any).
+    // The user's recorded Replaces fit it, 20 of 20 (f5, 2026-10-20).
+    const others = boardInmates(state).filter((i) => i.id !== old.id);
+    const level = has(state, 'maiden') && others.filter((i) => i.tier > old.tier).length === others.filter((i) => i.tier < old.tier).length;
+    const aboveOld = others.filter((i) => i.tier > old.tier).length;
     cell.inmate = null;
     checkPrey(state);
     // Scapegoat's Guillotine: with 2 or more others on the block, 2 of them
@@ -1686,14 +1693,10 @@
     state.stats.swaps += 1;
     logAt(state, at, 'swap', `Replaced the ${describe(old)} in cell ${cellLabel(n)}. In came a ${describe(fresh)}.`, { type: 'swap', cell: n, old: snap(old), fresh: snap(fresh) });
     if (staked) log(state, 'tool', `Burning Stake: the ${describe(fresh)} in cell ${cellLabel(n)} came in Legendary.`, { type: 'stake', cell: n });
-    // Severed Iron Maiden: as many inmates above the newcomer's rarity as below it.
-    if (has(state, 'maiden')) {
-      const others = boardInmates(state).filter((i) => i.id !== fresh.id);
-      const above = others.filter((i) => i.tier > fresh.tier).length;
-      if (above === others.filter((i) => i.tier < fresh.tier).length) {
-        log(state, 'tool', `Severed Iron Maiden: ${above ? `${plural(above, 'inmate')} above it and as many below` : 'nobody above or below it'}, so the ${describe(fresh)} in cell ${cellLabel(n)} gains 3 tiers.`, { type: 'maiden', cell: n });
-        promote(state, fresh, 3, false, events);
-      }
+    // Severed Iron Maiden: the inmate replaced stood level, so the newcomer gains 3 tiers.
+    if (level) {
+      log(state, 'tool', `Severed Iron Maiden: the ${describe(old)} it replaced had ${aboveOld ? `${plural(aboveOld, 'inmate')} above it and as many below` : 'nobody above or below it'}, so the ${describe(fresh)} in cell ${cellLabel(n)} gains 3 tiers.`, { type: 'maiden', cell: n });
+      promote(state, fresh, 3, false, events);
     }
     afterGrowth(state, fresh, events);
     if (has(state, 'axe') && fresh.tier > old.tier) {

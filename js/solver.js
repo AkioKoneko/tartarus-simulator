@@ -214,8 +214,14 @@
       maiden: has(st, 'maiden') ? [0, 1, 2, 3, 4].map((t) => board.filter((c) => c.inmate.tier === t).length) : null,
       // Scapegoat's Guillotine, with 2 or more others beside the warden's
       // inmate: a swap comes in above the rarity it replaces, and 2 random
-      // inmates go (what they're worth on average).
-      scapegoat: has(st, 'scapegoat') && board.length >= 3 ? { loss: (2 * board.reduce((sum, c) => sum + v[c.inmate.tier], 0)) / board.length } : null,
+      // others go, what 2 of them are worth on average (the inmate replaced
+      // isn't one of them: counting it understated the loss beside a
+      // Normal, the user's game of 2026-10-20).
+      scapegoat: (() => {
+        if (!has(st, 'scapegoat')) return null;
+        const others = board.filter((c) => c.n !== st.position);
+        return others.length >= 2 && others.length < board.length ? { loss: (2 * others.reduce((sum, c) => sum + v[c.inmate.tier], 0)) / others.length } : null;
+      })(),
       // Burning Stake: a swap from below Legendary may come in Legendary.
       stake: has(st, 'stake'),
       // The highest tier worth swapping: higher with the Maiden, up to Rare
@@ -452,22 +458,22 @@
     return value + maidenBonus(ctx, tier).value;
   }
 
-  // Severed Iron Maiden: the chance that a swap's newcomer has as many
-  // inmates above its rarity as below it, and what its 3 extra tiers add on
-  // average. The block is counted without the inmate swapped out.
+  // Severed Iron Maiden, as its card reads: a swap of an inmate with as
+  // many inmates above its rarity as below it (the block as it is, before
+  // the Scapegoat's Guillotine removes any) brings the newcomer in 3 tiers
+  // up. chance is 1 or 0; value is what the 3 tiers add on average.
   function maidenBonus(ctx, tier) {
     const out = { chance: 0, value: 0 };
     if (!ctx.maiden) return out;
-    const dist = swapDist(ctx, tier);
     const counts = ctx.maiden.slice();
     if (counts[tier] > 0) counts[tier] -= 1;
-    for (let t = 0; t < dist.length; t++) {
-      const above = counts.reduce((sum, n, u) => sum + (u > t ? n : 0), 0);
-      const below = counts.reduce((sum, n, u) => sum + (u < t ? n : 0), 0);
-      if (!dist[t] || above !== below) continue;
-      out.chance += dist[t];
-      out.value += dist[t] * ((t + 3 >= RAINBOW ? ctx.R : ctx.v[t + 3]) - ctx.v[t]);
-    }
+    const above = counts.reduce((sum, n, u) => sum + (u > tier ? n : 0), 0);
+    const below = counts.reduce((sum, n, u) => sum + (u < tier ? n : 0), 0);
+    if (above !== below) return out;
+    const dist = swapDist(ctx, tier);
+    const val = (t) => (t >= RAINBOW ? ctx.R : ctx.v[t]);
+    out.chance = 1;
+    for (let t = 0; t < dist.length; t++) if (dist[t]) out.value += dist[t] * (val(Math.min(RAINBOW, t + 3)) - val(t));
     return out;
   }
 
@@ -1354,10 +1360,10 @@
         // A day has a swap or a devour, not both.
         const over = T.startOptions(st).length ? ' That beats today’s best consume, and a day has one or the other.' : '';
         const maiden = maidenBonus(ctx, here.inmate.tier);
-        const odds = `${(100 * maiden.chance).toFixed(0)}% of the time`;
-        if (here.ivory) return `A Tusk cell: replacing its inmate raises other inmates a tier${maiden.chance > 0 ? `, and the Severed Iron Maiden adds 3 tiers to the new inmate ${odds}` : ''}.${over}`;
+        const level = `as many inmates stand above this ${T.tierName(here.inmate.tier)} as below it`;
+        if (here.ivory) return `A Tusk cell: replacing its inmate raises other inmates a tier${maiden.chance > 0 ? `, and the Severed Iron Maiden adds 3 tiers to the new inmate: ${level}` : ''}.${over}`;
         if (ctx.scapegoat) return `The Scapegoat's Guillotine brings the new inmate in above ${T.tierName(here.inmate.tier)}${here.inmate.tier >= T.SUPREME ? ', a Chromatic' : ''}, worth more than the 2 random inmates it removes.${over}`;
-        if (maiden.chance > 0) return `The Severed Iron Maiden adds 3 tiers to the new inmate ${odds}, so a fresh roll beats this ${T.tierName(here.inmate.tier)} inmate on average.${over}`;
+        if (maiden.chance > 0) return `The Severed Iron Maiden adds 3 tiers to the new inmate: ${level}.${over}`;
         if (ctx.axeDoors) return `A ${T.tierName(here.inmate.tier)} inmate is worth less than a fresh roll on average, and a higher roll makes the Gaoler's Execution Axe open ${T.plural(ctx.axeDoors, 'door')}.${over}`;
         return `A ${T.tierName(here.inmate.tier)} inmate is worth less than a fresh roll on average.${over}`;
       }
