@@ -27,6 +27,8 @@ portable enhancement regressions. It covers rules, action plans, target hints,
 capture ordering, instrument recovery, overlay layout and consume continuity.
 The tests use local fixtures constructed in code; they do not need game logs,
 screenshots, credentials or a running game.
+GitHub Actions also runs this gate on pushes and pull requests to
+`enhanced-overlay`, without game data or repository secrets.
 
 Also check `git diff --check`, review the merge against both parents, and verify
 the actual Analyzer, desktop adapter and native overlay with an isolated profile.
