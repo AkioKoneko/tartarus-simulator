@@ -65,4 +65,26 @@ function beastShare(odds) {
 const rare = beastShare(12), equal = beastShare(100);
 assert(rare > .02 && rare < .09, `weighted beast instrument share: ${rare}`);
 assert(equal > .18 && equal < .34, `equal instrument share: ${equal}`);
-console.log('rule updates: replaced-inmate Maiden checks, framed meals, next-picker reset and weighted offers passed');
+// Hunt cannot promise mornings after the Riot, including custom run lengths.
+for (const maxDays of [21, 9]) {
+  const hunt = board([2, 2], ['trap']);
+  hunt.cells[1].inmate.beast = 'lion';
+  hunt.maxDays = maxDays;
+  hunt.day = maxDays - 1;
+  assert.equal(S.decide(hunt).type, 'hunt', 'one remaining morning still pays');
+  hunt.prey = [{lion: hunt.cells[1].inmate.id, prey: hunt.cells[2].inmate.id, preyBeast: 'rat', rounds: 3, next: maxDays}];
+  const longMark = S.devourScores(hunt, S.context(hunt))[0].score;
+  hunt.prey[0].rounds = 1;
+  assert.equal(S.devourScores(hunt, S.context(hunt))[0].score, longMark, 'only one morning fits');
+  hunt.day = maxDays;
+  const expired = S.devourScores(hunt, S.context(hunt))[0].score;
+  hunt.prey = [];
+  assert.equal(S.devourScores(hunt, S.context(hunt))[0].score, expired, 'expired marks must not penalize eating');
+  assert.notEqual(S.decide(hunt).type, 'hunt', 'a last-day Hunt has no return');
+  const tiers = hunt.cells.filter(c=>c.inmate).map(c=>c.inmate.tier);
+  assert(T.hunt(hunt, 2).ok);
+  assert(T.endDay(hunt).ok);
+  assert.equal(hunt.phase, 'ended');
+  assert.deepEqual(hunt.cells.filter(c=>c.inmate).map(c=>c.inmate.tier), tiers, 'Riot precedes another morning');
+}
+console.log('rule updates: Maiden, framed meals, weighted offers and Hunt morning horizon passed');
