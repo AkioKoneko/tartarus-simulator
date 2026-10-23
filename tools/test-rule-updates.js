@@ -41,6 +41,8 @@ meal.cells[4].inmate.beast = 'lion';
 meal.used.mealOnly = [3];
 assert.deepEqual(T.startOptions(meal).map(o => o.cell), [3]);
 assert(S.candidates(meal).filter(o => o.action.type === 'devour').every(o => o.action.to === 3));
+// Pin the bite outcome: opening-door sampling must not change this restriction test.
+meal.rng = 1983979032;
 const before = T.serialize(meal);
 assert.equal(T.devour(meal, 1, 2).ok, false);
 assert.equal(T.serialize(meal), before);
