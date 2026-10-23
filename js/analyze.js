@@ -2289,7 +2289,12 @@
       // The run's objective: its popup came just before, or this is a
       // re-roll of the run's opening offer, which keeps what was set.
       const again = model.runStart && model.step === 'choice';
-      const keep = { mode: model.mode, rewards: model.rewards, maxDays: model.maxDays, runStart: true, objective: runObjective || (again ? model.objective : 'other'), walkTiles: again ? model.walkTiles : 0, startEvent: runStartEvent || (again ? model.startEvent : 'none') };
+      // A new run lasts as its start card says (Iron Law: 30 days), else 20:
+      // the last run's length doesn't carry over.
+      const startEvent = runStartEvent || (again ? model.startEvent : 'none');
+      const card = T.START_EVENTS && T.START_EVENTS[startEvent];
+      const maxDays = again ? model.maxDays : (card && card.days) || T.DEFAULT_PARAMS.drillDays;
+      const keep = { mode: model.mode, rewards: model.rewards, maxDays, runStart: true, objective: runObjective || (again ? model.objective : 'other'), walkTiles: again ? model.walkTiles : 0, startEvent };
       runObjective = null;
       runStartEvent = null;
       model = normalize(Object.assign(blankModel(), keep));
