@@ -112,6 +112,8 @@
   // Auto Screenshot Mode's pictures, as they come in and as they're read.
   let reading = null; // { kind, at }
   let lastRead = null;
+  // Follow recording IDs and Analyzer geometry IDs are independent counters.
+  const recordedFrames = new Map();
   if (typeof BroadcastChannel === 'function') {
     const channel = new BroadcastChannel('tartarus-follow');
     channel.addEventListener('message', (e) => {
@@ -122,6 +124,11 @@
       } else if (m.type === 'read' && m.read) {
         reading = null;
         const r = m.read;
+        const readerFrameId = Number.isInteger(r._readerId) ? r._readerId : r._pickId;
+        if (r.ok && !r.skipped && Number.isInteger(readerFrameId) && m.id !== undefined) {
+          recordedFrames.set(readerFrameId, m.id);
+          if (recordedFrames.size > 50) recordedFrames.delete(recordedFrames.keys().next().value);
+        }
         lastRead = { at: Date.now(), ok: !!r.ok, reason: r.reason || '', day: r.day, unsure: r.unsure || 0, pick: !!r.pick, names: r.names || [], objective: !!r.objective, name: r.name || '', treasure: !!r.treasure };
         if (!r.ok) record({ type: 'read', id: m.id, ok: false, reason: r.reason || '', summary: summaryNow() });
         setTimeout(() => savePicture(m.id), 1500); // after the advice's check has started
@@ -173,6 +180,7 @@
       } : null,
       plan:assist.plan||null,
       risk:A && typeof A.replacementRisk==='function'?A.replacementRisk():null,
+      recordedFrameId: recordedFrames.get(assist.hints && assist.hints.frameId) ?? null,
       hints:assist.hints||{valid:false},
       has: shown(res),
       move: rec ? assist.plan && assist.plan.headline || rec.label : '',

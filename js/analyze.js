@@ -445,6 +445,7 @@
   // ---------- Page state ----------
 
   const saved = store.get(KEY);
+  const preferences = { earlyVault: !!(saved && saved.preferences && saved.preferences.earlyVault) };
   let model = normalize(saved && saved.model);
   let selected = saved && Number.isInteger(saved.selected) ? clamp(saved.selected, 0, T.CELL_COUNT - 1) : 1;
   let flags = new Set(); // cells the simulator's dice decided, for the player to check
@@ -472,10 +473,10 @@
   // when the screenshot is resized.
   const TOOL_SURE = 0.9;
   const undo = [];
-  const modelKey = () => JSON.stringify(model);
+  const modelKey = () => JSON.stringify([model, preferences.earlyVault]);
 
   function save() {
-    store.set(KEY, { model, selected, shot, via: via && Object.assign({}, via, { touched: [...via.touched] }) });
+    store.set(KEY, { model, selected, shot, preferences, via: via && Object.assign({}, via, { touched: [...via.touched] }) });
   }
 
   function shareHeld() {
@@ -643,11 +644,11 @@
       const n = solver.workers.length;
       solver.meta = null;
       solver.shares = solver.workers.map((w, k) => ({ target: Math.floor(rollouts / n) + (k < rollouts % n ? 1 : 0), rounds: 0, done: false, rows: null }));
-      solver.workers.forEach((w, k) => w.postMessage({ id, state, rollouts: solver.shares[k].target, stream: k, raw: true }));
+      solver.workers.forEach((w, k) => w.postMessage({ id, state, rollouts: solver.shares[k].target, stream: k, raw: true, earlyVaultDays: preferences.earlyVault ? 4 : 0 }));
       idleLater();
       return;
     }
-    const job = S.solve(state, { rollouts: Math.min(rollouts, 300), seed: (id * 7919 + 1) >>> 0 });
+    const job = S.solve(state, { rollouts: Math.min(rollouts, 300), seed: (id * 7919 + 1) >>> 0, earlyVaultDays: preferences.earlyVault ? 4 : 0 });
     const tick = () => {
       if (id !== solver.id) return;
       solver.result = job.step(12);
@@ -671,6 +672,7 @@
     m.rows.forEach((r, i) => {
       const row = share.rows[i];
       for (const v of r.vals) row.vals.push(v);
+      if (r.earlyVals) (row.earlyVals || (row.earlyVals = [])).push(...r.earlyVals);
       row.best = r.best;
     });
     share.rounds = m.rounds;
@@ -694,6 +696,7 @@
         const r = s.rows && s.rows[i];
         if (!r) continue;
         for (const v of r.vals) row.vals.push(v);
+        if (r.earlyVals) (row.earlyVals || (row.earlyVals = [])).push(...r.earlyVals);
         row.best += r.best;
       }
       return row;
@@ -795,9 +798,16 @@
     // consume at 2.82).
     if (mine && (mine === live || live.mean - mine.mean <= Math.max(1.96 * mine.gapSe, SWITCH_MIN))) {
       const why = mine === live ? pick.why : `${pick.why} The live check rates it about equal to the best.`;
-      return Object.assign({ live: true, rounds: r.rounds }, pick, { label: mine.label, why, option: mine });
+      return earlierRecommendation(Object.assign({ live: true, rounds: r.rounds }, pick, { label: mine.label, why, option: mine }), ranked);
     }
-    return { action: live.action, label: live.label, why: `Simulation selected: ${live.label}.${pick ? ' The initial suggestion was replaced.' : ''}`, live: true, rounds: r.rounds, option: live };
+    return earlierRecommendation({ action: live.action, label: live.label, why: `Simulation selected: ${live.label}.${pick ? ' The initial suggestion was replaced.' : ''}`, live: true, rounds: r.rounds, option: live }, ranked);
+  }
+
+  function earlierRecommendation(rec, ranked) {
+    if (!preferences.earlyVault || !rec || !rec.option) return rec;
+    const early = S.preferEarlyVault(ranked, rec.option, SWITCH_MIN);
+    if (!early) return rec;
+    return { action: early.action, label: early.label, why: 'These moves have near-equal expected final vaults. Paired playouts favour this move for new Rainbows today and over the next three days.', live: true, rounds: rec.rounds, option: early };
   }
 
   // Recorded live outcomes contradict the Maiden/Guillotine simulation.
@@ -1494,6 +1504,7 @@
   }
 
   function render() {
+    $('az-early-vault').checked = preferences.earlyVault;
     renderBoard();
     renderCourt();
     renderEditor();
@@ -3635,6 +3646,14 @@
     });
     $('az-fix').addEventListener('click', fixBoard);
     $('az-recheck').addEventListener('click', () => ask());
+    $('az-early-vault').addEventListener('change', (e) => {
+      preferences.earlyVault = !!e.target.checked;
+      solver.reused = null;
+      solver.reuseReady = false;
+      localPlanCache = null;
+      save();
+      ask(true);
+    });
     // A screenshot's board waits to be shared until the player moves on; a
     // closing tab counts as moving on.
     window.addEventListener('pagehide', shareHeld);

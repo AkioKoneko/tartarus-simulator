@@ -670,8 +670,10 @@ function addRecord(entry, bytes) {
       if (BIG_RECORD && recordBytes > recordLimit()) pruneRecords();
     }
     fs.appendFileSync(s.file, `${JSON.stringify(out)}\n`);
+    return true;
   } catch (e) {
     note('record failed:', String((e && e.message) || e));
+    return false;
   }
 }
 // Only while a session is open: the game starting and closing, commands.
@@ -1150,6 +1152,20 @@ function pushShell(patch) {
 }
 
 let lastAdvice = null;
+let flaggedAdviceKey = '';
+const adviceFlagKey = a => a ? JSON.stringify([a.recordedFrameId, a.hints && a.hints.frameId, a.lastRead && a.lastRead.at, a.move, a.dayof]) : '';
+function flagAdvice() {
+  const a = lastAdvice;
+  const reply = (status, text) => pushShell({adviceReport:{status,text}});
+  if (!settings.record) return reply('unavailable', 'Turn on recording in the tray menu to mark advice.');
+  if (!recording || runOver || !a || !a.has || !a.move || a.working || a.stale || a.reading || a.toolsConfirm || (a.problems && a.problems.length)) return reply('unavailable', 'Wait for current advice in an active recorded run.');
+  const key = adviceFlagKey(a);
+  if (key === flaggedAdviceKey) return reply('saved', 'Already marked in the record.');
+  const saved = addRecord({type:'advice-flag', reason:'wrong-advice', frameId:a.recordedFrameId ?? null, summary:a.dayof || '', advice:a});
+  if (!saved) return reply('error', 'Could not save the mark. Try again.');
+  flaggedAdviceKey = key;
+  return reply('saved', 'Marked in the record. Open Review to inspect it.');
+}
 let hintsInvalidAt = 0;
 let hintStatusKey = '';
 let hintRefreshKey = '';
@@ -1474,6 +1490,7 @@ ipcMain.on('site:advice', (e, data) => {
   const sum = (a) => (a.problems && a.problems.length ? `board problem: ${a.problems[0]}` : a.working ? 'working' : a.stale ? 'board changed' : a.move ? `advice: ${a.move}` : a.nothing ? 'nothing to decide' : '');
   if (sum(data) !== sum(was) && sum(data) && sum(data) !== 'working') note(sum(data));
   if (data.toolsConfirm && data.toolsConfirm !== was.toolsConfirm) note('instruments to confirm:', data.toolsConfirm);
+  if (adviceFlagKey(data) !== adviceFlagKey(lastAdvice)) pushShell({adviceReport:null});
   lastAdvice = data;
   send('overlay', 'advice', data);
   updateHints();
@@ -1534,6 +1551,7 @@ function command(cmd) {
     case 'risk-preserve':
     case 'risk-simulate':
       return send('analyzer', 'command', cmd);
+    case 'report-advice': return flagAdvice();
     case 'debug-report': return debugReport();
     case 'enable-log':
       // The Auto Screenshot Mode page's box on turning on the game's log.
@@ -1871,7 +1889,7 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   app.whenReady().then(async () => {
-    if(LOCAL){require('./lib/local-site').install(session.defaultSession,net,path.join(__dirname,'..'));note('local build: second-run-18; same origin and profile retained');}
+    if(LOCAL){require('./lib/local-site').install(session.defaultSession,net,path.join(__dirname,'..'));note('local build: second-run-19; same origin and profile retained');}
     note(`start: version ${app.getVersion()}, site ${SITE}${DEV ? ', debug' : ''}${TEST ? ', test' : ''}, foreground check ${win32 ? 'on' : 'off'}, as administrator: ${yesNo(win32 ? win32.selfElevated() : null)}`);
     allowCapture();
     pruneRecords();
@@ -1894,7 +1912,7 @@ if (!app.requestSingleInstanceLock()) {
     // A finite, hidden integration probe uses its own --user-data directory.
     // It reads only app capability/geometry, never a real profile or game data.
     if (TEST && flag('qa-probe')) {
-      const report = { local:LOCAL, build:'second-run-18', result:'failed' };
+      const report = { local:LOCAL, build:'second-run-19', result:'failed' };
       try {
         const deadline=Date.now()+25000;
         while(Date.now()<deadline) {
@@ -1936,7 +1954,20 @@ if (!app.requestSingleInstanceLock()) {
         await new Promise(resolve=>setTimeout(resolve,150));
         report.hints.ipcTargets=await wins.hints.webContents.executeJavaScript("document.querySelectorAll('.target[data-shape=underline]').length");
         report.hints.chain=await wins.hints.webContents.executeJavaScript("({nodes:document.querySelectorAll('.target[data-chain-step]').length,arrows:document.querySelectorAll('.chain-arrow').length,clickThrough:[...document.querySelectorAll('.target,.chain-connectors')].every(e=>getComputedStyle(e).pointerEvents==='none')})");
-        report.result=report.analyzer.api && report.analyzer.instrumentDialog && report.analyzer.assist && report.analyzer.adapter && report.analyzer.localHeader==='second-run-18' && report.follow.counter && report.overlay.orb && report.overlay.focusable && report.overlay.cardPositionRestored && report.overlay.iconPositionRestored && report.overlay.icon.background==='rgba(0, 0, 0, 0)' && report.overlay.icon.border==='0px' && report.overlay.icon.shadow==='none' && report.overlay.icon.svg===42 && report.overlay.icon.width===56 && report.overlay.icon.height===56 && report.overlay.instruments==='Instruments: QA Crown · QA Keys' && report.overlay.contract.includes('Cage Fight') && report.overlay.riskButtons.every(Boolean) && JSON.stringify(report.overlay.riskChoices)==='["preserve","simulate"]' && !report.hints.focusable && !report.hints.visible && report.hints.ipcTargets===1 && report.hints.chain.nodes===3 && report.hints.chain.arrows===2 && report.hints.chain.clickThrough ? 'passed':'failed';
+        report.result=report.analyzer.api && report.analyzer.instrumentDialog && report.analyzer.assist && report.analyzer.adapter && report.analyzer.localHeader==='second-run-19' && report.follow.counter && report.overlay.orb && report.overlay.focusable && report.overlay.cardPositionRestored && report.overlay.iconPositionRestored && report.overlay.icon.background==='rgba(0, 0, 0, 0)' && report.overlay.icon.border==='0px' && report.overlay.icon.shadow==='none' && report.overlay.icon.svg===42 && report.overlay.icon.width===56 && report.overlay.icon.height===56 && report.overlay.instruments==='Instruments: QA Crown · QA Keys' && report.overlay.contract.includes('Cage Fight') && report.overlay.riskButtons.every(Boolean) && JSON.stringify(report.overlay.riskChoices)==='["preserve","simulate"]' && !report.hints.focusable && !report.hints.visible && report.hints.ipcTargets===1 && report.hints.chain.nodes===3 && report.hints.chain.arrows===2 && report.hints.chain.clickThrough ? 'passed':'failed';
+        // Exercise the actual overlay preload -> main -> recorder flag path.
+        settings.record = true;
+        runOver = false;
+        addRecord({type:'picture', id:'flag-probe', kind:'board'});
+        lastAdvice = {has:true, move:'QA marked move', dayof:'Day 1 of 20', recordedFrameId:'flag-probe', hints:{frameId:999}, problems:[]};
+        send('overlay','advice',lastAdvice);
+        pushShell({adviceReport:null});
+        await new Promise(resolve=>setTimeout(resolve,150));
+        await wins.overlay.webContents.executeJavaScript("document.getElementById('report-advice').click()");
+        await new Promise(resolve=>setTimeout(resolve,150));
+        const flagEntries = readLines(recording.file).map(l=>JSON.parse(l)).filter(e=>e.type==='advice-flag');
+        report.adviceFlag = {entries:flagEntries.length, frameId:flagEntries[0] && flagEntries[0].frameId, status:shellExtra.adviceReport && shellExtra.adviceReport.status};
+        if (report.adviceFlag.entries !== 1 || report.adviceFlag.frameId !== 'flag-probe' || report.adviceFlag.status !== 'saved') report.result='failed';
       } catch(e) {report.error=String(e && e.stack || e);}
       fs.mkdirSync(app.getPath('userData'),{recursive:true});
       fs.writeFileSync(path.join(app.getPath('userData'),'qa-report.json'),JSON.stringify(report,null,2));

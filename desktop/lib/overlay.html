@@ -361,13 +361,15 @@
   <div class="foot" id="foot">
     <button type="button" class="btn" data-cmd="board" title="Show or hide the board analyzer (Ctrl+Alt+A)">Board</button>
     <button type="button" class="btn" data-cmd="capture" title="Take a picture of the game now and read it (Ctrl+Alt+P)">Picture</button>
-    <button type="button" class="btn" id="report" title="Report a wrong reading, or something the simulator doesn't have">Report</button>
+    <button type="button" class="btn" id="report" title="Mark wrong advice, report a wrong reading, or something the simulator doesn't have">Report</button>
     <span class="dots"><span class="dot" id="dot-log">Log</span><span class="dot" id="dot-win">Window</span></span>
     <div class="menu" id="report-menu" hidden>
+      <button type="button" class="btn" data-cmd="report-advice" id="report-advice" title="Save this advice and its recorded picture for review">Wrong advice</button>
       <button type="button" class="btn" data-cmd="report" id="report-reading">Wrong reading</button>
       <button type="button" class="btn" data-cmd="report-new">Something new</button>
       <button type="button" class="btn" data-cmd="debug-report" title="Something isn't working: sends the app's debug report">Not working?</button>
     </div>
+    <p id="advice-report-status" class="instruments-status" role="status" hidden></p>
     <div id="hints-status-area"></div>
     <p id="instruments-status" class="instruments-status" role="status" title="Instruments currently used for advice. Correct them in Board.">Instruments: waiting for the board.</p>
   </div>

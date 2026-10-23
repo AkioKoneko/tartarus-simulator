@@ -18,9 +18,9 @@ self.onmessage = (e) => {
     current = 0;
     return;
   }
-  const { id, state, rollouts, params, stream, raw } = e.data;
+  const { id, state, rollouts, params, stream, raw, earlyVaultDays } = e.data;
   current = id;
-  const job = self.TartarusSolver.solve(state, { rollouts, params, stream: stream || 0, seed: (id * 7919 + 1) >>> 0 });
+  const job = self.TartarusSolver.solve(state, { rollouts, params, earlyVaultDays, stream: stream || 0, seed: (id * 7919 + 1) >>> 0 });
   let sent = 0; // rounds already sent
   const tick = () => {
     if (id !== current) return;
@@ -34,7 +34,7 @@ self.onmessage = (e) => {
         done: result.done,
         goal: result.goal,
         meta: sent === 0 ? job.rows.map((r) => ({ label: r.label, action: r.action, kind: r.kind, policy: r.policy })) : null,
-        rows: job.rows.map((r) => ({ vals: r.vals.slice(sent), best: r.best })),
+        rows: job.rows.map((r) => ({ vals: r.vals.slice(sent), ...(r.earlyVals ? { earlyVals: r.earlyVals.slice(sent) } : {}), best: r.best })),
       });
       sent = result.rounds;
     } else self.postMessage({ id, result });

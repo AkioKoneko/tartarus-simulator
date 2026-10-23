@@ -8,6 +8,8 @@ This fork keeps the upstream simulator alongside additional desktop assistance:
 - A transparent movable icon, independent panel position and idle fading.
 - Visible recognized instruments and a choice for uncertain instrument combinations.
 - Consume cancellation/resumption continuity and explicit recommendation labels.
+- Wrong-advice marks in the existing local run record, with verified frame links and review navigation.
+- Optional early-Rainbow preference for near ties, measured in the same playouts and disabled by default.
 
 ## Updating from upstream
 
@@ -43,3 +45,9 @@ local instructions and private QA reports out of Git.
 Upstream: [blahdot3h/tartarus-simulator](https://github.com/blahdot3h/tartarus-simulator).
 The integration gate and enhancement tests are maintained in this fork and
 should be updated when either the upstream contracts or local features change.
+
+## Advice review and experimental preference
+
+Use Report > Wrong advice to mark a settled recommendation in an active recorded run. The mark stays local and does not send a report or interact with the game. Review the record shows the mark and its linked picture when the recording association is known; manual/unlinked pictures are labelled explicitly. Recording must be enabled in the tray.
+
+The Analyzer offers "Prefer earlier Rainbows in near ties" (off by default). It measures new Rainbows today and over the next three days using the existing full playouts. It can choose another move only within 0.05 expected final Rainbows of the leader and with at least 150 paired samples supporting an early advantage above 1.96 paired standard errors. Terminal Rainbow estimates remain unchanged. Cancel/end and short-walk safeguards retain priority. This is experimental: a bounded first-move comparison did not demonstrate an advantage; it is not a live-game improvement claim.

@@ -188,6 +188,17 @@
     dot($('dot-win'), f ? (f.window === 'on' ? true : state.game.running ? null : false) : false, f && f.window === 'on' ? `Sharing the game window${f.lastFrame ? `, last picture ${ago(f.lastFrame.at)}` : ''}` : 'The game window isn’t shared');
     $('report-menu').hidden = !state.menu;
     $('report-reading').hidden = !(a && a.canReportReading);
+    // Main owns the record and associates the flag with the displayed advice.
+    // No new capture: that could pair this recommendation with a later board.
+    const reportable = a && a.has && a.move && !a.reading && !a.working && !a.stale &&
+      !a.toolsConfirm && !a.treasureWait && !(a.problems && a.problems.length);
+    const report = sh.adviceReport;
+    $('report-advice').hidden = !reportable;
+    $('report-advice').disabled = !!(report && report.status === 'saved');
+    $('report-advice').textContent = report && report.status === 'saved' ? 'Advice marked' : 'Wrong advice';
+    const reportStatus = $('advice-report-status');
+    reportStatus.hidden = !(report && typeof report.text === 'string' && report.text.trim());
+    reportStatus.textContent = reportStatus.hidden ? '' : report.text;
   }
 
   function renderRisk(risk) {

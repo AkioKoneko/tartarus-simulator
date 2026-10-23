@@ -1267,20 +1267,48 @@
 
   // The standard error of the mean difference between two options' values on
   // the same dice (rounds an option couldn't play are NaN and skipped).
-  function pairedSe(a, b) {
+  function pairedStats(a, b) {
     let n = 0;
     let sum = 0;
     let sq = 0;
     for (let i = 0; i < a.length && i < b.length; i++) {
       const d = a[i] - b[i];
-      if (Number.isNaN(d)) continue;
+      if (!Number.isFinite(d)) continue;
       n += 1;
       sum += d;
       sq += d * d;
     }
-    if (n < 2) return Infinity;
+    if (n < 2) return { n, mean: 0, se: Infinity };
     const m = sum / n;
-    return Math.sqrt(Math.max(0, sq / n - m * m) / n);
+    return { n, mean: m, se: Math.sqrt(Math.max(0, sq / n - m * m) / n) };
+  }
+
+  const pairedSe = (a, b) => pairedStats(a, b).se;
+
+  // Observe the same full playout; never replace its terminal Rainbow score.
+  // Today counts as day one. Gains after the horizon stay out of this measure.
+  function earlyVaultTracker(st, days) {
+    const initial = st.vault.length;
+    const endDay = Math.min(st.maxDays, st.day + Math.max(1, days) - 1);
+    let gained = 0;
+    return { endDay, observe(state) {
+      if (state.day <= endDay) gained = Math.max(gained, state.vault.length - initial);
+      return gained;
+    } };
+  }
+
+  // Near ties still have terminal scores in Rainbows. Only a measured paired
+  // early advantage can spend up to `tolerance` of the terminal leader's mean.
+  function preferEarlyVault(ranked, current, tolerance) {
+    if (!current || current.n < 150 || !ranked.length || !current.earlyVals) return null;
+    const leader = ranked[0];
+    const choices = ranked.filter(o => o !== current && o.n >= 150 &&
+      leader.mean - o.mean <= tolerance + 1e-12 && o.earlyVals &&
+      o.earlyVals.length === current.earlyVals.length)
+      .map(option => ({ option, paired: pairedStats(option.earlyVals, current.earlyVals) }))
+      .filter(({ paired }) => paired.n >= 150 && paired.mean > 1.96 * paired.se);
+    choices.sort((a, b) => b.paired.mean - a.paired.mean || b.option.mean - a.option.mean);
+    return choices.length ? choices[0].option : null;
   }
 
   // Ranks played-out rows ({ label, action, vals, best, ... })
@@ -1315,6 +1343,7 @@
       n,
       best: n ? row.best / n : 0,
       policy: row.policy,
+      ...(row.earlyVals ? { earlyVals: row.earlyVals, earlyMean: row.earlyVals.filter(Number.isFinite).reduce((sum, x) => sum + x, 0) / Math.max(1, row.earlyVals.filter(Number.isFinite).length) } : {}),
     }));
     return { done: rounds >= target || rows.length <= 1, rounds, goal, options };
   }
@@ -1334,7 +1363,7 @@
     const random = rng32(o.stream ? (o.seed ^ Math.imul(o.stream, 0x9e3779b1)) >>> 0 : o.seed);
     const pick = list.length ? decide(clone(base), o.params, rng32(o.seed ^ 0x5bd1e995)) : null;
     const goal = 'rainbows';
-    const rows = list.map((c) => ({ label: c.label, action: c.action, kind: c.kind || null, vals: [], best: 0, policy: sameAction(c.action, pick) }));
+    const rows = list.map((c) => ({ label: c.label, action: c.action, kind: c.kind || null, vals: [], ...(o.earlyVaultDays > 0 ? { earlyVals: [] } : {}), best: 0, policy: sameAction(c.action, pick) }));
     let round = 0;
     const result = () => summarize(rows, round, o.rollouts, goal);
     return {
@@ -1346,13 +1375,17 @@
           for (const row of rows) {
             const trial = clone(base);
             hideFuture(trial, seed);
+            const early = row.earlyVals ? earlyVaultTracker(trial, o.earlyVaultDays) : null;
             if (!apply(trial, row.action).ok) {
               row.vals.push(NaN);
+              if (early) row.earlyVals.push(NaN);
               continue;
             }
             const roll = rng32(seed ^ 0x9e3779b9);
-            playout(trial, o.params, roll);
+            if (early) early.observe(trial); // The candidate itself may bank one.
+            playout(trial, o.params, roll, early ? (action, result, state) => early.observe(state) : null);
             row.vals.push(trial.vault.length);
+            if (early) row.earlyVals.push(early.observe(trial));
             // Second measure: the best rarity reached.
             row.best += Math.max(0, ...trial.cells.filter((c) => !c.sealed && c.inmate).map((c) => c.inmate.tier), trial.vault.length ? RAINBOW : 0);
           }
@@ -1537,7 +1570,7 @@
     return null;
   }
 
-  const api = { DEFAULTS, PROFILES, paramsFor, instant, actionEffect, preferShortWalk, moveBetween, sameAction, decide, apply, playout, candidates, solve, summarize, chainOdds, patrolScores, devourScores, context, composition, clone, hideFuture, rng32, executionValue };
+  const api = { DEFAULTS, PROFILES, paramsFor, instant, actionEffect, preferShortWalk, preferEarlyVault, earlyVaultTracker, moveBetween, sameAction, decide, apply, playout, candidates, solve, summarize, chainOdds, patrolScores, devourScores, context, composition, clone, hideFuture, rng32, executionValue };
   if (typeof module === 'object' && module.exports) module.exports = api;
   root.TartarusSolver = api;
 })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);

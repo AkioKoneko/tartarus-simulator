@@ -128,6 +128,14 @@
     return steps;
   }
 
+  function flaggedStep(steps, flag, fallback) {
+    if (flag.frameId !== null && flag.frameId !== undefined) {
+      const found = steps.findIndex(s => s.picture && s.picture.id === flag.frameId);
+      if (found !== -1) return found;
+    }
+    return null;
+  }
+
   function render() {
     const main = $('steps');
     main.replaceChildren();
@@ -140,10 +148,13 @@
     const showOther = $('show-other').checked;
     const onlyFixes = $('only-fixes').checked;
     const steps = stepsOf(data.entries);
+    const flagged = new Set();
+    steps.forEach((s, i) => s.items.filter(e => e.type === 'advice-flag').forEach(e => flagged.add(flaggedStep(steps, e, i))));
     let prev = null; // the board before, for what changed
     let shown = 0;
     steps.forEach((s, i) => {
       const fixed = s.items.some((e) => e.type === 'edit' || (e.type === 'command' && ['fix', 'recheck', 'tools-ok', 'report'].includes(e.cmd)));
+      const marked = flagged.has(i) || s.items.some(e => e.type === 'advice-flag');
       const items = [];
       let boardShown = null;
       for (const e of s.items) {
@@ -186,6 +197,13 @@
             prev = e.board;
             boardShown = JSON.stringify(e.board);
           }
+        } else if (e.type === 'advice-flag') {
+          const target = flaggedStep(steps, e, i);
+          items.push(h('div', { class: 'item is-bad' },
+            h('h3', null, `Marked as wrong advice · ${time(e.at)}`),
+            e.advice && e.advice.move ? h('p', { class: 'move' }, e.advice.move) : null,
+            h('p', { class: 'meta' }, 'Player report: the recommendation needs review.'),
+            target === null ? h('p', {class:'meta'}, 'No recorded picture is linked to this mark.') : h('button', { type: 'button', class: 'btn', 'data-flag-step': String(target + 1) }, `Show associated picture / advice (#${target + 1})`)));
         } else if (e.type === 'edit') {
           const d = diff(prev, e.board);
           items.push(h('div', { class: 'item is-edit' },
@@ -202,13 +220,13 @@
           items.push(h('p', { class: 'other' }, `${time(e.at)} · ${label}`));
         }
       }
-      if (onlyFixes && !fixed) return;
+      if (onlyFixes && !fixed && !marked) return;
       if (!items.length && !s.picture) return;
       shown += 1;
       const p = s.picture;
       const shot = p && p.file ? h('div', { class: 'shot' }, h('img', { src: data.base + p.file, alt: `The picture at ${time(p.at)}`, loading: 'lazy' })) : h('div', { class: 'shot' }, h('div', { class: 'noshot' }, p ? 'No picture with this one.' : 'Before the first picture.'));
       const card = h('section', { class: 'step', id: `step-${i + 1}` },
-        h('div', { class: 'step-head' }, h('b', null, `#${i + 1}`), p ? `${time(p.at)} · ${KINDS[p.kind] || p.kind}${p.fresh ? ' (start of a run)' : ''}` : '', fixed ? h('span', { class: 'warn' }, 'fixed by hand') : null),
+        h('div', { class: 'step-head' }, h('b', null, `#${i + 1}`), p ? `${time(p.at)} · ${KINDS[p.kind] || p.kind}${p.fresh ? ' (start of a run)' : ''}` : '', fixed ? h('span', { class: 'warn' }, 'fixed by hand') : null, marked ? h('span', { class: 'warn' }, 'advice marked for review') : null),
         shot,
         h('div', { class: 'items' }, items),
       );
@@ -219,6 +237,15 @@
 
   // A picture opens full width, and back.
   document.addEventListener('click', (e) => {
+    const flag = e.target.closest('button[data-flag-step]');
+    if (flag) {
+      const step = $(`step-${flag.dataset.flagStep}`);
+      if (step) {
+        step.classList.add('is-open');
+        step.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      }
+      return;
+    }
     const img = e.target.closest('.shot img');
     if (img) img.closest('.step').classList.toggle('is-open');
   });
