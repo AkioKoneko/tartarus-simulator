@@ -2068,7 +2068,8 @@
     // Replace's is a cell left and End's starts 0.8 right. Three cards are
     // Consume, Replace and End: a Consume card still fading in can be too
     // dim for its red (the user's run of 2026-10-25, pictures 44 and 47
-    // read as Replace, End, so the advice left Consume out). Each label is
+    // read as Replace, End, so the advice left Consume out), and a Replace
+    // label too dim to read (then the box over the game sat between cards). Each label is
     // read at several sizes, so they vote; End alone needs two votes (a
     // stray short mark sat where it would be on 7 of 425 saved rows).
     const [cx] = at(loc, 2.5, 3);
@@ -2080,7 +2081,7 @@
     const repLeft = reps.filter((v) => v > -1.45 && v < -0.5).length;
     const endNear = endsAt.filter((v) => v > 0.5 && v < 1.25).length;
     const three = repMid + endFar > repLeft + endNear && (repMid > 0 || endFar >= 2);
-    return { replace, consume: consume || three, end, title, red: Math.round(1000 * red) / 1000 };
+    return { replace: replace || three, consume: consume || three, end, title, red: Math.round(1000 * red) / 1000 };
   }
 
   // ---------- Everything ----------

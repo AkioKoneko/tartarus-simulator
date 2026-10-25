@@ -476,7 +476,9 @@
           // that one rather than advise on a screen still fading in.
           const quick = quickBoard(c);
           // gifts: the Treasure's counts (Rainbows, picks confirmed).
-          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, fresh, after, treasureView, quick, gifts: Object.assign({}, gifts), pixels: pix, blob });
+          // takenAt: when the picture was taken (the box over the game counts
+          // a picture only from after the last click in the game).
+          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, fresh, after, treasureView, quick, takenAt: c.time ? new Date(c.time).getTime() : Date.now(), gifts: Object.assign({}, gifts), pixels: pix, blob });
           c.sent = true;
         }
       }

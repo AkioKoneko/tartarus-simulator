@@ -1245,8 +1245,9 @@
   // the desktop app's box over the game (the user, 2026-10-24). Only while
   // the advice is settled, for the board as just read.
   let lastPick = null;
-  // When the last picture came: the app shows a box only from a picture that
-  // came after the last click in the game.
+  // When the last picture was taken (Auto Screenshot Mode says; else when it
+  // came): the app shows a box only from a picture taken after the last
+  // click in the game.
   let pictureAt = 0;
   let highlightWhy = ''; // why there was no box, for the debug report
   let highlightLoading = false;
@@ -1882,7 +1883,7 @@
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(source, 0, 0, w, h);
     reader.image = canvas;
-    pictureAt = Date.now();
+    pictureAt = (opts && opts.takenAt) || Date.now();
     runScan(ctx.getImageData(0, 0, w, h), opts);
   }
 
@@ -2329,13 +2330,13 @@
     return false;
   }
 
-  function readPick(source) {
+  function readPick(source, takenAt) {
     const scale = Math.min(1, 2600 / source.width);
     const w = Math.round(source.width * scale);
     const h = Math.round(source.height * scale);
     // Its size, for the highlight of the card to take.
     lastPick = { w, h, at: Date.now() };
-    pictureAt = lastPick.at;
+    pictureAt = takenAt || lastPick.at;
     const canvas = document.createElement('canvas');
     canvas.width = w;
     canvas.height = h;
@@ -3510,8 +3511,8 @@
     // Follow my game (js/auto.js, beta): read frames of the game, load
     // them, and ask, without the toasts a pasted screenshot gets.
     window.TartarusAnalyzer = {
-      readFrame: (bitmap) => new Promise((resolve) => readBitmap(bitmap, { quiet: true, folded: true, onRead: resolve })),
-      readPick: (bitmap) => readPick(bitmap),
+      readFrame: (bitmap, takenAt) => new Promise((resolve) => readBitmap(bitmap, { quiet: true, folded: true, onRead: resolve, takenAt })),
+      readPick: (bitmap, takenAt) => readPick(bitmap, takenAt),
       usePick: (read, fresh) => usePick(read, fresh),
       readTreasure: (bitmap) => readTreasure(bitmap),
       readObjective: (bitmap) => readObjective(bitmap),
