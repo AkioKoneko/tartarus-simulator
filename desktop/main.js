@@ -1250,6 +1250,8 @@ ipcMain.on('site:riot', (e, on) => {
   if (!fromPage(e, 'follow') || !!on === riot) return;
   riot = !!on;
   note(riot ? 'Riot: the fight is on' : 'back in the prison');
+  // The box over the game waits for a picture of the screen now.
+  highlightClicked();
   recordEvent({ type: riot ? 'riot' : 'riot-over' });
   if (riot && !settings.collapsed) {
     settings.collapsed = true;
@@ -1271,6 +1273,7 @@ ipcMain.on('site:run', (e, what) => {
   if (!fromPage(e, 'follow')) return;
   if (what === 'over' && !runOver) {
     runOver = true;
+    highlightClicked();
     note('run over: its record is closed, the analyzer cleared');
     recordEvent({ type: 'run-over' });
     recording = null;
@@ -1289,8 +1292,13 @@ ipcMain.on('site:run', (e, what) => {
 ipcMain.on('site:trigger', (e, kind) => {
   if (!fromPage(e, 'follow')) return;
   note('trigger:', String(kind));
-  // A click in the game: the box shown may be on what was just clicked.
+  // The screen is changing: the box shown may be on what was just clicked.
   highlightClicked();
+});
+// A button clicked in the prison (the log's click line; its fact only):
+// the box goes at once, door cards and the fight's start included.
+ipcMain.on('site:click', (e) => {
+  if (fromPage(e, 'follow')) highlightClicked();
 });
 let checked = null; // the counts at the last minute's note
 // A count since the last note; one smaller than then started over (a new
@@ -1483,14 +1491,13 @@ function command(cmd) {
 // so it scales to the window's place on the screen.
 let testHighlight = false; // --test: shown whatever is in front
 let highlightShown = '';
-// After a click in the game the box is put away until the advice changes,
-// so it doesn't stay on the card just clicked; back after 3 s if the advice
-// stays the same (a click that changed nothing).
-let highlightGone = { key: '', until: 0 };
+// After a click in the game the box is put away until a picture taken after
+// it has been read and advised on, so it never stays on the card just
+// clicked or comes back over another screen (the user: it stayed too long,
+// and after the fight began).
+let highlightGone = 0; // the last click's time
 function highlightClicked() {
-  const hl = lastAdvice && lastAdvice.highlight;
-  if (!hl || !hl.box) return;
-  highlightGone = { key: JSON.stringify([hl.box, hl.label]), until: Date.now() + 3000 };
+  highlightGone = Date.now();
   updateHighlight();
 }
 function makeHighlight() {
@@ -1521,7 +1528,9 @@ function updateHighlight() {
   const win = wins.highlight;
   if (!win || win.isDestroyed()) return;
   let hl = lastAdvice && lastAdvice.highlight;
-  if (hl && hl.box && Date.now() < highlightGone.until && JSON.stringify([hl.box, hl.label]) === highlightGone.key) hl = null;
+  // Only from a picture that came after the last click (hl.at, the time it
+  // reached the analyzer), and not during the Riot or once the run is over.
+  if (hl && (!(hl.at > highlightGone) || riot || runOver)) hl = null;
   const r = settings.highlight && hl && hl.box && game.running && game.hwnd && win32 ? win32.frame(game.hwnd) : null;
   const front = r && (testHighlight || (win32.foreground() === game.hwnd && !win32.minimized(game.hwnd)));
   if (!front) {

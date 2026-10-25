@@ -1245,6 +1245,9 @@
   // the desktop app's box over the game (the user, 2026-10-24). Only while
   // the advice is settled, for the board as just read.
   let lastPick = null;
+  // When the last picture came: the app shows a box only from a picture that
+  // came after the last click in the game.
+  let pictureAt = 0;
   let highlightWhy = ''; // why there was no box, for the debug report
   let highlightLoading = false;
   // test: an action to box instead of the advice's (for checking the boxes).
@@ -1253,7 +1256,7 @@
     highlightWhy = rec ? '' : `no settled advice (${[!solver.st && 'no check', solver.st && !fresh() && 'board changed', !settled() && 'still checking'].filter(Boolean).join(', ') || 'no pick'})`;
     if (!rec) return null;
     const a = rec.action;
-    const out = (w, h, box) => (box ? { w, h, label: rec.label, box: box.map(Math.round) } : null);
+    const out = (w, h, box) => (box ? { w, h, at: pictureAt, label: rec.label, box: box.map(Math.round) } : null);
     // An instrument offer: three cards, the middle one in the middle, 480
     // apart in a picture 1080 high (the game's layout grows with the
     // height), each about 430 wide from 365 above the middle to 332 below.
@@ -1879,6 +1882,7 @@
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(source, 0, 0, w, h);
     reader.image = canvas;
+    pictureAt = Date.now();
     runScan(ctx.getImageData(0, 0, w, h), opts);
   }
 
@@ -2328,6 +2332,7 @@
     const h = Math.round(source.height * scale);
     // Its size, for the highlight of the card to take.
     lastPick = { w, h, at: Date.now() };
+    pictureAt = lastPick.at;
     const canvas = document.createElement('canvas');
     canvas.width = w;
     canvas.height = h;
