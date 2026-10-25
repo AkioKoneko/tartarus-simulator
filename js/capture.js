@@ -18,7 +18,24 @@
 (function () {
   'use strict';
 
-  const POLL_MS = 1000;
+  // How often the log is looked at: a move is seen within a quarter second
+  // (it was once a second, a second of the time to the advice).
+  const POLL_MS = 250;
+  // How much of its settle time each kind of trigger waits now: pictures
+  // come as fast as they can, and a kind waits longer only after a picture
+  // of it read badly (the user, 2026-10-24). follow.js says which (slower,
+  // faster); a quarter at first, never more than the whole.
+  const FAST_MIN = 0.25;
+  const fast = {};
+  const shareOf = (kind) => (fast[kind] === undefined ? FAST_MIN : fast[kind]);
+  function slower(kind) {
+    fast[kind] = Math.min(1, shareOf(kind) * 2);
+    return fast[kind];
+  }
+  function faster(kind) {
+    fast[kind] = Math.max(FAST_MIN, shareOf(kind) * 0.85);
+    return fast[kind];
+  }
   const IDB = 'tartarus-sim-capture';
   const listeners = { status: [], hit: [], seen: [], frame: [] };
   // detail: whether the game writes the detail lines the triggers come from
@@ -296,12 +313,15 @@
     }
     // Lines in a burst become one frame, once the log has been quiet for the
     // longest settle time among them.
-    if (!burst) burst = { kind: rule.kind, rank: rule.rank, settle: 0, hits: [], timer: 0 };
+    if (!burst) burst = { kind: rule.kind, rank: rule.rank, settle: 0, full: 0, hits: [], timer: 0 };
     if (rule.rank > burst.rank) {
       burst.kind = rule.kind;
       burst.rank = rule.rank;
     }
-    burst.settle = Math.max(burst.settle, Math.max(250, rule.settle * pace));
+    // full: the settle time as it was; settle: the share of it waited now.
+    const whole = Math.max(250, rule.settle * pace);
+    burst.full = Math.max(burst.full, whole);
+    burst.settle = Math.max(burst.settle, Math.max(150, whole * shareOf(rule.kind)));
     if (burst.hits.length < 40) burst.hits.push({ kind: hit.kind, at: hit.at, text: hit.text });
     clearTimeout(burst.timer);
     burst.timer = setTimeout(fire, burst.settle);
@@ -313,7 +333,7 @@
     if (!b) return;
     const frame = await grab();
     if (frame) setState({ frames: state.frames + 1 });
-    emit('frame', { kind: b.kind, hits: b.hits, frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date() });
+    emit('frame', { kind: b.kind, hits: b.hits, frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date(), waited: b.settle, full: b.full });
   }
 
   // #endregion
@@ -644,10 +664,11 @@
 
   // #endregion
 
-  async function captureNow(kind) {
+  // extra: what to tell with the frame (a retake: { retake: true }).
+  async function captureNow(kind, extra) {
     const frame = await grab();
     if (frame) setState({ frames: state.frames + 1 });
-    emit('frame', { kind: kind || 'manual', hits: [], frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date() });
+    emit('frame', Object.assign({ kind: kind || 'manual', hits: [], frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date() }, extra || {}));
     return !!frame;
   }
 
@@ -713,6 +734,9 @@
     setRules,
     setWatch,
     setPace,
+    slower,
+    faster,
+    shareOf,
     captureNow,
     grab,
   };

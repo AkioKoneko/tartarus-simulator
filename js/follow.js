@@ -434,7 +434,7 @@
   // js/auto.js). It goes by the browser's BroadcastChannel, which reaches
   // only this site's own pages in this browser. Nothing is uploaded.
   async function onFrame(f) {
-    const c = { id: nextId++, time: f.time, kind: f.kind, hits: f.hits || [], frame: !!f.frame, why: f.why || '', thumb: '', full: '', sent: false, read: null, state: '', asked: false, note: '' };
+    const c = { id: nextId++, time: f.time, kind: f.kind, hits: f.hits || [], frame: !!f.frame, why: f.why || '', thumb: '', full: '', sent: false, read: null, state: '', asked: false, note: '', waited: f.waited || 0, wholeWait: f.full || 0, retake: !!f.retake, at: Date.now() };
     lastPicture = { at: Date.now(), kind: c.kind, ok: c.frame, why: c.why };
     tell();
     captures.unshift(c);
@@ -493,7 +493,61 @@
     if (m.read) c.read = m.read;
     if (m.state) c.state = m.state;
     if (m.asked) c.asked = true;
+    judge(c, m);
     renderCaptures();
+  }
+
+  // Pictures come as soon as they can (js/capture.js waits a share of each
+  // trigger's settle time); one taken too soon is taken again, and its kind
+  // waits longer from then on (the user: "only make the screenshots slower
+  // if we start seeing misreads or bad screenshots"). Too soon: the analyzer
+  // couldn't read it, or read it much less surely than the last board; or it
+  // shows the same board as before the move, before the board changed (taken
+  // again, but its kind not slowed: a move can leave the board as it was).
+  // A picture that was used, and read surely, eases its kind's wait back.
+  let lastSure = null; // the last board's unsure cells
+  let lastSig = ''; // and its signature
+  function judge(c, m) {
+    if (c.judged || !c.waited || !c.wholeWait || c.kind === 'manual' || typeof C.slower !== 'function') return;
+    const r = m.read;
+    // A retake waited the whole time already: it only tells what the board
+    // looks like now (one that fails too is likely no board at all).
+    if (c.retake) {
+      if (r && r.ok) {
+        c.judged = true;
+        lastSure = Number(r.unsure) || 0;
+        if (r.sig) lastSig = r.sig;
+      }
+      return;
+    }
+    // A failed read can still be used another way (the Warden's Treasure):
+    // that's judged a moment later, by whether it was used.
+    if (r && !r.ok && !r.skipped && !c.failTimer) {
+      c.failTimer = setTimeout(() => {
+        if (c.judged || c.state === 'used') return;
+        c.judged = true;
+        C.slower(c.kind);
+        retake(c);
+      }, 700);
+      return;
+    }
+    if (!r || !r.ok) return;
+    c.judged = true;
+    clearTimeout(c.failTimer);
+    const unsure = Number(r.unsure) || 0;
+    const shaky = lastSure !== null && unsure >= lastSure + 3;
+    const same = c.kind === 'board' && !!r.sig && r.sig === lastSig;
+    if (shaky) C.slower(c.kind);
+    else if (!same) C.faster(c.kind);
+    if (shaky || same) retake(c);
+    lastSure = unsure;
+    if (r.sig) lastSig = r.sig;
+  }
+  // Taken again once the whole settle time has passed since the trigger.
+  function retake(c) {
+    if (c.retake || c.waited >= c.wholeWait) return;
+    const left = Math.max(0, c.wholeWait - c.waited - (Date.now() - c.at));
+    setTimeout(() => C.captureNow(c.kind, { retake: true, waited: c.wholeWait, full: c.wholeWait }), left);
   }
 
   // #endregion

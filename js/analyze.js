@@ -1826,7 +1826,11 @@
       scanStatus(result.ok ? `Read in ${(reader.ms / 1000).toFixed(1)} s.` : `${result.reason} Try a screenshot of the prison screen, with the whole board in view.`, !result.ok);
       // controls: the board's own door cards or decision row showed, which
       // View Prison Status never does: no Warden's Treasure is open.
-      if (o.onRead) o.onRead(result.ok ? { ok: true, day: reader.reading.model.day, unsure: reader.reading.checks.size, ms: reader.ms, controls: !!((result.doors && result.doors.cells && result.doors.cells.length) || result.decision), statusView: !!result.statusView } : { ok: false, reason: result.reason, ms: reader.ms });
+      // sig: the board in a line, so Auto Screenshot Mode can tell a
+      // picture taken before the board changed (js/follow.js).
+      const rm = result.ok ? reader.reading.model : null;
+      const sig = rm ? [rm.day, rm.step, rm.warden, (rm.dest || []).join(','), (rm.cells || []).map((c) => (c ? `${c.kind || ''}${c.beast || ''}${c.tier === undefined ? '' : c.tier}` : '')).join('.')].join('|') : '';
+      if (o.onRead) o.onRead(result.ok ? { ok: true, sig, day: reader.reading.model.day, unsure: reader.reading.checks.size, ms: reader.ms, controls: !!((result.doors && result.doors.cells && result.doors.cells.length) || result.decision), statusView: !!result.statusView } : { ok: false, reason: result.reason, ms: reader.ms });
       if (o.quiet) {
         renderScan();
         return;
