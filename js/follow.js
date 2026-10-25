@@ -434,7 +434,7 @@
   // js/auto.js). It goes by the browser's BroadcastChannel, which reaches
   // only this site's own pages in this browser. Nothing is uploaded.
   async function onFrame(f) {
-    const c = { id: nextId++, time: f.time, kind: f.kind, hits: f.hits || [], frame: !!f.frame, why: f.why || '', thumb: '', full: '', sent: false, read: null, state: '', asked: false, note: '', waited: f.waited || 0, wholeWait: f.full || 0, retake: !!f.retake, at: Date.now() };
+    const c = { id: nextId++, time: f.time, kind: f.kind, hits: f.hits || [], frame: !!f.frame, why: f.why || '', thumb: '', full: '', sent: false, read: null, state: '', asked: false, note: '', waited: f.waited || 0, wholeWait: f.full || 0, retake: !!f.retake, of: f.of || 0, key: f.key || f.kind, at: Date.now() };
     lastPicture = { at: Date.now(), kind: c.kind, ok: c.frame, why: c.why };
     tell();
     captures.unshift(c);
@@ -471,8 +471,12 @@
           const after = c.kind === 'treasure' ? treasureAfter(c.hits) : '';
           // treasureView: the board, seen while a Warden's Treasure waits.
           const treasureView = c.kind === 'board' && treasureViewed(c.hits);
+          // quick: a board taken before its whole settle time, taken again
+          // if it shows nothing to click yet (judge): the analyzer waits for
+          // that one rather than advise on a screen still fading in.
+          const quick = quickBoard(c);
           // gifts: the Treasure's counts (Rainbows, picks confirmed).
-          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, fresh, after, treasureView, gifts: Object.assign({}, gifts), pixels: pix, blob });
+          channel.postMessage({ type: 'frame', to: to.id, from: me, id: c.id, kind: c.kind, fresh, after, treasureView, quick, gifts: Object.assign({}, gifts), pixels: pix, blob });
           c.sent = true;
         }
       }
@@ -507,14 +511,26 @@
   // A picture that was used, and read surely, eases its kind's wait back.
   let lastSure = null; // the last board's unsure cells
   let lastSig = ''; // and its signature
+  // A board picture taken before its whole settle time, which judge takes
+  // again if it shows nothing to click.
+  const quickBoard = (c) => c.kind === 'board' && !c.retake && c.waited > 0 && c.wholeWait > c.waited && typeof C.slower === 'function';
+  // A board with nothing to click on it: no door cards, no decision cards,
+  // no meal to pick, no Prison Status view. The game's screens fade in
+  // (the user's run of 2026-10-25: a new day's door cards still too dim to
+  // read, so Replace was advised where the doors were coming).
+  const bare = (r) => r.ok && r.controls === false && !r.chain && !r.statusView && !r.treasure;
   function judge(c, m) {
     if (c.judged || !c.waited || !c.wholeWait || c.kind === 'manual' || typeof C.slower !== 'function') return;
     const r = m.read;
-    // A retake waited the whole time already: it only tells what the board
-    // looks like now (one that fails too is likely no board at all).
+    // A retake waited the whole time already: it tells what the board looks
+    // like now (one that fails too is likely no board at all), and whether
+    // the picture before it came too soon: it showed nothing to click, or
+    // the board as before the move, and this one shows more.
     if (c.retake) {
       if (r && r.ok) {
         c.judged = true;
+        const first = captures.find((x) => x.id === c.of);
+        if (first && ((first.bare && (r.controls || r.chain)) || (first.same && r.sig && r.sig !== first.sig))) C.slower(first.key);
         lastSure = Number(r.unsure) || 0;
         if (r.sig) lastSig = r.sig;
       }
@@ -526,7 +542,7 @@
       c.failTimer = setTimeout(() => {
         if (c.judged || c.state === 'used') return;
         c.judged = true;
-        C.slower(c.kind);
+        C.slower(c.key);
         retake(c);
       }, 700);
       return;
@@ -537,9 +553,15 @@
     const unsure = Number(r.unsure) || 0;
     const shaky = lastSure !== null && unsure >= lastSure + 3;
     const same = c.kind === 'board' && !!r.sig && r.sig === lastSig;
-    if (shaky) C.slower(c.kind);
-    else if (!same) C.faster(c.kind);
-    if (shaky || same) retake(c);
+    // Nothing to click yet: taken again, the wait made longer only if that
+    // one shows more (a move can end on such a board).
+    c.bare = quickBoard(c) && bare(r);
+    c.same = same;
+    c.sig = r.sig || '';
+    if (shaky) C.slower(c.key);
+    else if (!same && !c.bare) C.faster(c.key);
+    if (shaky || same || c.bare) retake(c);
+    if (c.bare) return;
     lastSure = unsure;
     if (r.sig) lastSig = r.sig;
   }
@@ -547,7 +569,7 @@
   function retake(c) {
     if (c.retake || c.waited >= c.wholeWait) return;
     const left = Math.max(0, c.wholeWait - c.waited - (Date.now() - c.at));
-    setTimeout(() => C.captureNow(c.kind, { retake: true, waited: c.wholeWait, full: c.wholeWait }), left);
+    setTimeout(() => C.captureNow(c.kind, { retake: true, of: c.id, key: c.key, waited: c.wholeWait, full: c.wholeWait }), left);
   }
 
   // #endregion

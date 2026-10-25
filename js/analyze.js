@@ -1922,7 +1922,7 @@
       // picture taken before the board changed (js/follow.js).
       const rm = result.ok ? reader.reading.model : null;
       const sig = rm ? [rm.day, rm.step, rm.warden, (rm.dest || []).join(','), (rm.cells || []).map((c) => (c ? `${c.kind || ''}${c.beast || ''}${c.tier === undefined ? '' : c.tier}` : '')).join('.')].join('|') : '';
-      if (o.onRead) o.onRead(result.ok ? { ok: true, sig, day: reader.reading.model.day, unsure: reader.reading.checks.size, ms: reader.ms, controls: !!((result.doors && result.doors.cells && result.doors.cells.length) || result.decision), statusView: !!result.statusView } : { ok: false, reason: result.reason, ms: reader.ms });
+      if (o.onRead) o.onRead(result.ok ? { ok: true, sig, day: reader.reading.model.day, unsure: reader.reading.checks.size, ms: reader.ms, controls: !!((result.doors && result.doors.cells && result.doors.cells.length) || result.decision), chain: !!result.chain, statusView: !!result.statusView } : { ok: false, reason: result.reason, ms: reader.ms });
       if (o.quiet) {
         renderScan();
         return;
@@ -2269,7 +2269,10 @@
       crop.height = Math.round(130 * s * z);
       crop.getContext('2d').drawImage(canvas, Math.round(c - 215 * s), Math.round(top + 420 * s), Math.round(430 * s), Math.round(130 * s), 0, 0, crop.width, crop.height);
       try {
-        const { data } = await worker.recognize(crop);
+        // Handed over already made into a PNG: given the canvas, the text
+        // reader waits on canvas.toBlob, which a hidden page (the desktop
+        // app's analyzer) can put off for most of a second.
+        const { data } = await worker.recognize(crop.toDataURL('image/png'));
         out.push(nameFromText(data.text || ''));
       } catch (e) {
         out.push(null);
