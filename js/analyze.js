@@ -1239,6 +1239,94 @@
     $('az-tools-rest').hidden = !!t || !model.tools.some((id) => T.TOOLS[id]);
   }
 
+  // What to click for the advice, on the last picture and in its pixels:
+  // the door card of a patrol, the decision card (Consume, Replace, End,
+  // Instigate, Bestow), the meal's cell, the instrument offer's card. For
+  // the desktop app's box over the game (the user, 2026-10-24). Only while
+  // the advice is settled, for the board as just read.
+  let lastPick = null;
+  let highlightWhy = ''; // why there was no box, for the debug report
+  let highlightLoading = false;
+  // test: an action to box instead of the advice's (for checking the boxes).
+  function highlight(test) {
+    const rec = test ? { action: test, label: test.type } : solver.st && fresh() && settled() ? recommendation() : null;
+    highlightWhy = rec ? '' : `no settled advice (${[!solver.st && 'no check', solver.st && !fresh() && 'board changed', !settled() && 'still checking'].filter(Boolean).join(', ') || 'no pick'})`;
+    if (!rec) return null;
+    const a = rec.action;
+    const out = (w, h, box) => (box ? { w, h, label: rec.label, box: box.map(Math.round) } : null);
+    // An instrument offer: three cards, the middle one in the middle, 480
+    // apart in a picture 1080 high (the game's layout grows with the
+    // height), each about 430 wide from 365 above the middle to 332 below.
+    if (a.type === 'choose' && model.step === 'choice' && model.choice.kind === 'tool' && lastPick) {
+      const k = model.choice.options.indexOf(a.id);
+      if (k < 0 || model.choice.options.length !== 3) return null;
+      const { w, h } = lastPick;
+      const u = h / 1080;
+      const c = w / 2 + (k - 1) * 480 * u;
+      return out(w, h, [c - 215 * u, h / 2 - 365 * u, c + 215 * u, h / 2 + 332 * u]);
+    }
+    const r = reader.result;
+    const pic = reader.image;
+    if (!shot || !r || !r.ok || !pic || !r.loc) {
+      highlightWhy = `no board reading (${[!shot && 'not a picture', !r && 'no result', r && !r.ok && 'not read', !pic && 'no image', r && !r.loc && 'no board place'].filter(Boolean).join(', ')})`;
+      return null;
+    }
+    highlightWhy = `${a.type}: nothing to box`;
+    const w = pic.width;
+    const h = pic.height;
+    const TS = window.TartarusScan;
+    // A cell on the board, around its middle.
+    const cellBox = (n) => {
+      if (!TS || !TS.RING || !TS.RING[n]) return null;
+      const [u, v] = TS.RING[n];
+      const [cx, cy] = TS.at(r.loc, u, v);
+      const k = TS.scaleAt(r.loc, u, v) * 119.45 * 0.47;
+      return [cx - k, cy - 1.15 * k, cx + k, cy + 1.15 * k];
+    };
+    // The decision cards: in a row centred under the board, each about 1.8
+    // cells wide, in a band below the bottom row; in their order (Consume,
+    // Replace, End; or Instigate, Bestow), only the ones on offer.
+    const dec = r.decision || {};
+    const order = dec.office ? ['instigate', 'bestow'] : ['consume', 'replace', 'end'].filter((k) => dec[k]);
+    const card = (name) => {
+      const i = order.indexOf(name);
+      if (!TS || i < 0) {
+        highlightWhy = `${a.type}: the ${name} card wasn't seen (decision row: ${JSON.stringify(dec)})`;
+        return null;
+      }
+      const [cx, cy] = TS.at(r.loc, 2.5, 3);
+      const p = TS.scaleAt(r.loc, 2.5, 3) * 119.45;
+      const cw = 1.82 * p;
+      const gap = 0.08 * p;
+      const x0 = cx - (order.length * cw + (order.length - 1) * gap) / 2 + i * (cw + gap);
+      return [x0, cy + 0.66 * p, x0 + cw, cy + 1.61 * p];
+    };
+    switch (a.type) {
+      case 'patrol': {
+        // Its door card ("Go to Cell N"), around the card's text. Nothing
+        // while the cards aren't read: a box on the wrong thing is worse
+        // than none.
+        const i = r.doors && r.doors.cells ? r.doors.cells.indexOf(a.cell) : -1;
+        const t = i >= 0 && r.doors.boxes ? r.doors.boxes[i] : null;
+        if (!t) {
+          highlightWhy = `patrol: the door card for ${a.cell} wasn't read`;
+          return null;
+        }
+        const tw = t[2] - t[0];
+        const th = t[3] - t[1];
+        return out(w, h, [t[0] - 0.7 * tw, t[3] - 6.8 * th, t[2] + 0.7 * tw, t[3] + 1.3 * th]);
+      }
+      case 'devour': return out(w, h, card('consume'));
+      case 'swap': return out(w, h, card('replace'));
+      case 'end': return out(w, h, card('end'));
+      case 'office': return out(w, h, card(a.choice));
+      // A meal's cell on the meal pick; the Hunt's prey on its pick of a cell.
+      case 'chain': return out(w, h, r.chain ? cellBox(a.to) : null);
+      case 'hunt': return out(w, h, dec.ratway ? cellBox(a.to) : null);
+      default: return null;
+    }
+  }
+
   const actionKey = (a) => [a.type, a.cell, a.to, a.id, a.accept, a.choice].join('|');
 
   function renderResults() {
@@ -2238,6 +2326,8 @@
     const scale = Math.min(1, 2600 / source.width);
     const w = Math.round(source.width * scale);
     const h = Math.round(source.height * scale);
+    // Its size, for the highlight of the card to take.
+    lastPick = { w, h, at: Date.now() };
     const canvas = document.createElement('canvas');
     canvas.width = w;
     canvas.height = h;
@@ -3436,6 +3526,23 @@
       useReading: () => useScan(),
       ask: () => ask(true),
       recommendation: () => (fresh() && settled() ? recommendation() : null),
+      // The box to click for the advice (see highlight), or null.
+      highlightWhy: () => highlightWhy,
+      highlight: (test) => {
+        // The board's shape (js/scan.js), for a cell's box: loaded once.
+        if (!window.TartarusScan && shot && !highlightLoading) {
+          highlightLoading = true;
+          loadReader(false).catch(() => {
+            highlightLoading = false;
+          });
+        }
+        try {
+          return highlight(test);
+        } catch (e) {
+          highlightWhy = String((e && e.message) || e);
+          return null;
+        }
+      },
       // What the reader made of the last picture, in full (the desktop app's
       // test record keeps it).
       readingSummary: () => (reader.result && reader.image ? readingSummary(true) : ''),

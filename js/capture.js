@@ -46,6 +46,7 @@
   let rules = []; // [{ kind, re, settle, rank }]
   let watch = null; // log lines worth showing while finding triggers
   let burst = null; // matched lines waiting for the animations to settle
+  let again = 0; // a burst's picture tried again (fire)
   let pace = 1; // settle times are scaled by this: the game's Speed-up runs its animations faster
   let tail = null; // { post(message), stop() }
   let track = null;
@@ -297,6 +298,7 @@
     if (rule.kind === 'skip') {
       if (burst) clearTimeout(burst.timer);
       burst = null;
+      clearTimeout(again);
       return;
     }
     // A "speed" line (the game's Speed-up button) takes no picture: the page
@@ -327,13 +329,23 @@
     burst.timer = setTimeout(fire, burst.settle);
   }
 
-  async function fire() {
-    const b = burst;
-    burst = null;
+  // retry: a burst whose picture couldn't be taken after the share of its
+  // settle time, tried again at the whole of it.
+  async function fire(retry) {
+    const b = retry || burst;
+    if (!retry) burst = null;
     if (!b) return;
     const frame = await grab();
+    // No picture this soon (the window share just starting, after the page
+    // reloaded): tried once more when the whole settle time has passed, as
+    // pictures were taken before they came sooner. The kind's wait stays:
+    // that wasn't the game's animation.
+    if (!frame && !retry && b.full > b.settle) {
+      again = setTimeout(() => fire(b), b.full - b.settle);
+      return;
+    }
     if (frame) setState({ frames: state.frames + 1 });
-    emit('frame', { kind: b.kind, hits: b.hits, frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date(), waited: b.settle, full: b.full });
+    emit('frame', { kind: b.kind, hits: b.hits, frame, blank: isBlank(frame), why: frame ? '' : whyNot(), time: new Date(), waited: retry ? b.full : b.settle, full: b.full });
   }
 
   // #endregion
