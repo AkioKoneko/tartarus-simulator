@@ -23,7 +23,7 @@ async function main(){
  let geometry=false;
  const element={hidden:true,addEventListener(){},classList:{toggle(){}}};
  const A={giftCounts:g=>g.rainbows-g.taken,useTreasure(){asks++;return true;},
-  async readTreasure(){reads++;return geometry?{ok:true,treasure:true,targets:{ring:{x:1}}}:{ok:true,treasure:true,geometry:false};},
+  async readTreasure(_,opts){assert.equal(opts.takenAt,3000+reads);assert.equal(typeof opts.isCurrent,'function');assert.equal(opts.knownTreasure,true);reads++;return geometry?{ok:true,treasure:true,targets:{ring:{x:1}}}:{ok:true,treasure:true,geometry:false};},
   async readFrame(){return {ok:true};},useReading(){},ask(){return true;}};
  const sandbox={window:{TartarusCapture:{agreed:()=>true},TartarusAnalyzer:A,addEventListener(){}},
   document:{hasFocus:()=>false,getElementById:()=>element,addEventListener(){}},
@@ -32,7 +32,7 @@ async function main(){
   console:{...console,error:e=>errors.push(String(e))}};
  vm.runInNewContext(fs.readFileSync(require.resolve('../js/auto.js'),'utf8'),sandbox);
  const tick=()=>new Promise(setImmediate);
- const frame=(id,patch={})=>receiver.onmessage({data:{type:'frame',to:target,id,from:'follow',kind:'treasure',blob:{},gifts:{rainbows:1,taken:0},...patch}});
+ const frame=(id,patch={})=>receiver.onmessage({data:{type:'frame',to:target,id,from:'follow',kind:'treasure',blob:{},gifts:{rainbows:1,taken:0},takenAt:3000+reads,...patch}});
  const fire=()=>{const [id,fn]=timers.entries().next().value;timers.delete(id);fn();};
  frame(1);await tick();assert.equal(asks,1);assert.equal(timers.size,1);
  fire();let request=messages.filter(m=>m.type==='capture').at(-1);

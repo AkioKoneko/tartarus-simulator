@@ -20,6 +20,7 @@ function evaluate(s) {
   const front=s.foreground && !s.minimized;
   if(s.now-p.capturedAt>30000) return out('expired',front?'Refreshing the board picture.':'Refresh the picture or return to the game.',true,front);
   if(!front) return out('foreground','Return to the game to see targets.');
+  if(Number.isFinite(s.stableSince) && s.now-s.stableSince<300) return out('settling','Waiting for the target to settle.');
   return out('visible','Active on the game window.');
 }
 module.exports={evaluate};

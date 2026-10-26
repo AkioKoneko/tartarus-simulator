@@ -1867,8 +1867,9 @@
 
   // Reads a picture of the game (a pasted screenshot, or a frame from Follow
   // my game). opts.quiet skips the prompts; opts.onRead hears how it went.
+  const captureTime = opts => Number.isFinite(opts && opts.takenAt) && opts.takenAt > 0 ? opts.takenAt : Date.now();
   function readBitmap(source, opts) {
-    reader.capturedAt = Date.now();
+    reader.capturedAt = captureTime(opts);
     // Very large screenshots are scaled down; the reader works at any size.
     const scale = Math.min(1, 2600 / source.width);
     const w = Math.round(source.width * scale);
@@ -1920,7 +1921,13 @@
       reader.completedImage = reader.image;
       if (result.ok && result.objective) cornerObjective(reader.image, result.objective, reader.reading.model.day);
       scanStatus(result.ok ? `Read in ${(reader.ms / 1000).toFixed(1)} s.` : `${result.reason} Try a screenshot of the prison screen, with the whole board in view.`, !result.ok);
-      if (o.onRead) o.onRead(result.ok ? { ok: true, day: reader.reading.model.day, unsure: reader.reading.checks.size, ms: reader.ms, controls: !!((result.doors && result.doors.cells && result.doors.cells.length) || result.decision), statusView: !!result.statusView, _readerId:id, _requestId:o.requestId } : { ok: false, reason: result.reason, ms: reader.ms });
+      // controls: the board's own door cards or decision row showed, which
+      // View Prison Status never does: no Warden's Treasure is open.
+      // sig: the board in a line, so Auto Screenshot Mode can tell a
+      // picture taken before the board changed (js/follow.js).
+      const rm = result.ok ? reader.reading.model : null;
+      const sig = rm ? [rm.day, rm.step, rm.warden, (rm.dest || []).join(','), (rm.cells || []).map((c) => (c ? `${c.kind || ''}${c.beast || ''}${c.tier === undefined ? '' : c.tier}` : '')).join('.')].join('|') : '';
+      if (o.onRead) o.onRead(result.ok ? { ok: true, sig, _readerId:id, _requestId:o.requestId, settling:!!(result.decision && result.decision.settling), day: reader.reading.model.day, unsure: reader.reading.checks.size, ms: reader.ms, controls: !!((result.doors && result.doors.cells && result.doors.cells.length) || result.decision), chain: !!result.chain, statusView: !!result.statusView } : { ok: false, reason: result.reason, ms: reader.ms });
       if (o.quiet) {
         renderScan();
         return;
@@ -2268,7 +2275,10 @@
       crop.height = Math.round(130 * s * z);
       crop.getContext('2d').drawImage(canvas, Math.round(c - 215 * s), Math.round(top + 420 * s), Math.round(430 * s), Math.round(130 * s), 0, 0, crop.width, crop.height);
       try {
-        const { data } = await worker.recognize(crop);
+        // Handed over already made into a PNG: given the canvas, the text
+        // reader waits on canvas.toBlob, which a hidden page (the desktop
+        // app's analyzer) can put off for most of a second.
+        const { data } = await worker.recognize(crop.toDataURL('image/png'));
         out.push(nameFromText(data.text || ''));
       } catch (e) {
         out.push(null);
@@ -2314,7 +2324,7 @@
     const id=++reader.id;
     reader.completedId=0;
     if(reader.pending)reader.pending.done(null,'a newer picture came in');
-    const screen={id,image:canvas,capturedAt:Date.now(),result:null};reader.treasureScreen=screen;
+    const screen={id,image:canvas,capturedAt:captureTime(o),result:null};reader.treasureScreen=screen;
     const pixels=ctx.getImageData(0,0,canvas.width,canvas.height);
     const read=await new Promise(resolve=>{
       setReading(true);
@@ -2377,7 +2387,7 @@
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(source, 0, 0, w, h);
     const imageData = ctx.getImageData(0, 0, w, h);
-    const screen = {id:frameId,image:canvas,capturedAt:Date.now(),result:null};
+    const screen = {id:frameId,image:canvas,capturedAt:captureTime(o),result:null};
     reader.pickScreen = screen;
     const current = () => frameId === reader.id && (!o.isCurrent || o.isCurrent());
     const t0 = performance.now();
@@ -2705,6 +2715,19 @@
   // earlier day than the board before starts afresh.
   // sims: the instruments the reader can tell on a panel (any other reads
   // as something else).
+  // A board from a new run: its day is earlier than the board before's, and
+  // it looks like a run's start, not a misread day (the user's run: one
+  // picture of day 15 read as day 19, so the next, day 15 again, cleared the
+  // run's confirmed instruments and asked for them again). Early in a run
+  // (day 1 or 2), or far fewer inmates out than before: a run starts with
+  // about 4.
+  function newRun(m, base) {
+    if (!(m.day < base.day)) return false;
+    if (m.day <= 2) return true;
+    const out = (x) => (x.cells || []).filter((c) => c && c.kind === 'inmate').length;
+    return out(m) <= Math.max(5, out(base) - 4);
+  }
+
   function runTools(read, base, m, notes, sims) {
     // A correction from a simulated day back to the live day is not a run start.
     // Explicit objective/opening-offer events already create a blank model.
@@ -2953,7 +2976,7 @@
     // (f5, from the collected boards). Mornings with the office within
     // reach don't count: its card can be missed.
     const takers = ['forged', 'whip', 'stake'];
-    if (m.day < base.day) m.shortDays = [];
+    if (newRun(m, base)) m.shortDays = [];
     const officeNear = [1, 2, 3, 4, 5, 6].some((k) => (m.warden + k) % T.CELL_COUNT === T.OFFICE);
     const doorsDue = T.DEFAULT_PARAMS.destinations - m.tools.filter((id) => takers.includes(id)).length;
     if (m.step === 'patrol' && !officeNear && m.dest.length && m.dest.length < doorsDue) m.shortDays = [...new Set([...(m.shortDays || []), m.day])];

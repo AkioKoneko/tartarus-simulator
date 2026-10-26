@@ -90,8 +90,9 @@
       answer({ read: { ok: false, reason: 'the picture couldn’t be opened' } });
       return;
     }
+    if (mine !== newest) { bitmap.close(); return; }
     if(m.kind==='treasure') {
-      const read=await A.readTreasure(bitmap,{knownTreasure:true,requestId:mine,isCurrent:()=>mine===newest});
+      const read=await A.readTreasure(bitmap,{knownTreasure:true,retry:!!m.retryAttempt,takenAt:m.takenAt,requestId:mine,isCurrent:()=>mine===newest});
       bitmap.close();answer({read});
       if(read.skipped || mine!==newest)return;
       const asked=m.giftWaiting===0 || m.retryAttempt?false:A.useTreasure(m.after);
@@ -108,14 +109,13 @@
       return;
     }
     let offerMissed = '';
-    let instrumentRead = null;
     if (m.kind === 'instruments') {
       // The offer that starts a run comes with the day-0 line (m.fresh); an
       // objective's reward offers one mid-run, on the board as it is. A
       // re-roll is the same offer again.
       pickFresh = !!m.fresh || (before === 'instruments' && pickFresh);
       const fresh = pickFresh;
-      const read = instrumentRead = await A.readPick(bitmap, {requestId:mine,isCurrent:()=>mine===newest});
+      const read = await A.readPick(bitmap, {takenAt:m.takenAt,requestId:mine,isCurrent:()=>mine===newest});
       if (read.skipped || mine !== newest) { bitmap.close(); return; }
       if ((!read.ok || read.unsure || read.ocrFailed && !read.byName) && retryInstruments(m,mine,read)) {
         answer({read:{ok:false,pick:true,retrying:true,reason:`Reading the instrument cards again automatically${read.reason ? ': '+read.reason : '.'}`,ms:read.ms}});
@@ -138,8 +138,8 @@
     // instrument offer: at least two of its cards read surely, which no
     // board does. It starts a run unless a board came in the last few
     // minutes (an objective's reward comes mid-run).
-    if (m.kind !== 'board') {
-      const pick = instrumentRead || await A.readPick(bitmap, {requestId:mine,isCurrent:()=>mine===newest});
+    if (m.kind !== 'board' && m.kind !== 'instruments') {
+      const pick = await A.readPick(bitmap, {takenAt:m.takenAt,requestId:mine,isCurrent:()=>mine===newest});
       if (pick.skipped || mine !== newest) { bitmap.close(); return; }
       const sure = pick.ok ? pick.cards.map((c) => c.conf).sort((a, b) => b - a)[1] : 0;
       if (sure >= 0.5) {
@@ -153,13 +153,14 @@
         return;
       }
     }
-    const read = await A.readFrame(bitmap, { requestId: mine, isCurrent: () => mine === newest });
+    const read = await A.readFrame(bitmap, { takenAt: m.takenAt, requestId: mine, isCurrent: () => mine === newest });
     // Neither an offer nor a board: an offer in another language, maybe.
     if (!read.ok && offerMissed && A.langMissed) A.langMissed('instrument offer', bitmap, offerMissed);
     // A picture with no board in it: maybe the Warden's Treasure, read by
     // its printed text. A board's picture can catch it too (report 55).
     if (!read.ok && !read.skipped && A.readTreasure) {
-      const tr = await A.readTreasure(bitmap);
+      if (mine !== newest) { bitmap.close(); return; }
+      const tr = await A.readTreasure(bitmap, { takenAt: m.takenAt, requestId: mine, isCurrent: () => mine === newest });
       if (tr.ok && mine === newest && (!m.gifts || m.giftWaiting !== 0)) {
         answer({ read: { ok: true, treasure: true } });
         answer({ state: 'used', asked: A.useTreasure() });
@@ -167,6 +168,12 @@
       }
     }
     answer({ read });
+    // A board taken before its whole settle time with nothing to click on
+    // it yet (no door cards, no decision cards, no meal to pick): the
+    // screen is still fading in (the user's run of 2026-10-25: a new day's
+    // doors too dim to read, and Replace advised). follow.html takes it
+    // again at the whole time; the advice waits for that one.
+    if (read.ok && (read.settling || (m.quick && read.controls === false && !read.chain && !read.statusView && !m.treasureView))) return;
     // The board behind a Warden's Treasure that couldn't be read: say so,
     // rather than ask for View Prison Status again.
     if (!read.ok && mine === newest && m.treasureView && A.toast) A.toast('The board behind the Warden’s Treasure couldn’t be read from that picture. View it again a little longer, or press Advise with the board as it is.', 'bad');

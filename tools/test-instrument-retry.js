@@ -10,9 +10,10 @@ async function main(){
   BroadcastChannel:class{constructor(){receiver=this;}postMessage(m){if(m.type==='here')target=m.id;sent.push(m);}},
   createImageBitmap:async()=>({close(){}}),Date,setInterval(){},setTimeout(fn,ms){assert.equal(ms,400);timers.set(++seq,fn);return seq;},clearTimeout:id=>timers.delete(id),console:{...console,error:e=>errors.push(String(e))}};
  vm.runInNewContext(fs.readFileSync(require.resolve('../js/auto.js'),'utf8'),sandbox);
- const tick=()=>new Promise(setImmediate),frame=(id,patch={})=>receiver.onmessage({data:{type:'frame',to:target,from:'follow',id,kind:'instruments',fresh:true,blob:{},...patch}});
+ const tick=()=>new Promise(setImmediate),frame=(id,patch={})=>receiver.onmessage({data:{type:'frame',to:target,from:'follow',id,kind:'instruments',fresh:true,blob:{},takenAt:2000+id,...patch}});
  const ok={ok:true,pick:true,unsure:0,byName:3,cards:[{conf:1},{conf:1},{conf:1}]};
  frame(1);await tick();picks.at(-1).resolve({ok:false,reason:'opening frame'});await tick();
+ assert.equal(picks[0].opts.takenAt,2001);assert.equal(typeof picks[0].opts.isCurrent,'function');
  assert.equal(boardReads,0,'failed known instrument screen must retry before a board fallback');assert.equal(used.length,0);assert.equal(timers.size,1);
  const [id,fn]=timers.entries().next().value;timers.delete(id);fn();
  const request=sent.filter(m=>m.type==='capture').at(-1);assert.equal(request.kind,'instruments');assert.equal(request.forFrame,1);assert.equal(request.retryAttempt,1);

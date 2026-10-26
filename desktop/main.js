@@ -68,6 +68,11 @@ if (arg('user-data')) app.setPath('userData', path.resolve(arg('user-data')));
 // an old, narrow picture of its page: every window draws as if in front.
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+// Chromium runs a hidden window's page at idle priority and in Windows'
+// efficiency mode: the analyzer is one, so its reading and its live check
+// ran on a hybrid CPU's slow cores, two or three times slower while the game
+// ran (the user's i9-14900K, 2026-10-25: reads from 0.5 s to 1.1 s and more).
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
 // The app never plays sound: no page it loads, now or after a site change,
 // can make any (the user heard sounds in the background while gaming).
 app.commandLine.appendSwitch('mute-audio');
@@ -90,6 +95,7 @@ const settings = Object.assign({
   overlayWidth: 360,
   hideFromCaptures: true, // kept out of screenshots, recordings and the shared window
   hideBehind: false, // hidden while another window is in front of the game
+  highlight: true, // one existing hints window, with observed targets and chains
   collapsed: false, // the overlay folded to an icon
   cpu: 'half', // the analyzer's share of the processor (tray: Processor use)
   gameFirst: true, // the site pages run below normal priority, so the game comes first
@@ -437,6 +443,25 @@ const win32 = (() => {
       }
       return list;
     };
+    // Windows' efficiency mode (EcoQoS) for a process: off, as the app
+    // asks for its pages. PROCESS_POWER_THROTTLING_EXECUTION_SPEED in the
+    // control mask with the state clear turns it off; read back, whether
+    // it's on.
+    const THROTTLE = koffi.struct('PROCESS_POWER_THROTTLING_STATE', { Version: 'uint32', ControlMask: 'uint32', StateMask: 'uint32' });
+    const setInfo = kernel32.func('__stdcall', 'SetProcessInformation', 'bool', ['intptr', 'int', koffi.pointer(THROTTLE), 'uint32']);
+    const getInfo = kernel32.func('__stdcall', 'GetProcessInformation', 'bool', ['intptr', 'int', koffi.inout(koffi.pointer(THROTTLE)), 'uint32']);
+    const ecoOff = (pid) => {
+      const h = pid ? openProcess(0x1200, false, pid) : 0; // set + query limited information
+      if (!h) return null;
+      try {
+        const now = { Version: 1, ControlMask: 0, StateMask: 0 };
+        const was = getInfo(h, 4, now, koffi.sizeof(THROTTLE)) && !!(now.ControlMask & 1) && !!(now.StateMask & 1);
+        setInfo(h, 4, { Version: 1, ControlMask: 1, StateMask: 0 }, koffi.sizeof(THROTTLE));
+        return was;
+      } finally {
+        closeHandle(h);
+      }
+    };
     const elevatedPid = (pid) => {
       const h = pid ? openProcess(0x1000, false, pid) : 0;
       if (!h) return null;
@@ -447,6 +472,8 @@ const win32 = (() => {
       }
     };
     return {
+      // Efficiency mode off for a process; true if it had been on.
+      ecoOff,
       // Whether the program behind a window runs as administrator: Windows
       // cuts off at once a window share from a program that doesn't. The
       // game's own process often won't say (its protection); a game started
@@ -750,6 +777,29 @@ const CPU_USE = {
   one: { label: 'Lightest: one core', workers: 1 },
 };
 const cpuUse = () => CPU_USE[settings.cpu] || CPU_USE.half;
+// Each minute: the site pages still run at the priority the app gave them,
+// with Windows' efficiency mode off. Chromium lowered a hidden page's to
+// idle and turned efficiency mode on after some hours (the user's app,
+// 2026-10-25); the debug log says when it had to be put back.
+function keepPagePriority() {
+  const os = require('os');
+  const want = settings.gameFirst ? os.constants.priority.PRIORITY_BELOW_NORMAL : os.constants.priority.PRIORITY_NORMAL;
+  for (const name of ['follow', 'analyzer']) {
+    const win = wins[name];
+    if (!win || win.isDestroyed()) continue;
+    try {
+      const pid = win.webContents.getOSProcessId();
+      if (!pid) continue;
+      const was = os.getPriority(pid);
+      if (was !== want) os.setPriority(pid, want);
+      const eco = win32 && win32.ecoOff ? win32.ecoOff(pid) : null;
+      if (was !== want || eco) note(`${name} page: priority put back (it was ${was}${eco ? ', in efficiency mode' : ''})`);
+    } catch (e) {
+      // the page is going or gone
+    }
+  }
+}
+setInterval(keepPagePriority, 60 * 1000);
 function tunePage(name) {
   const win = wins[name];
   if (!win || win.isDestroyed()) return;
@@ -758,6 +808,7 @@ function tunePage(name) {
     const os = require('os');
     const pid = wc.getOSProcessId();
     os.setPriority(pid, settings.gameFirst ? os.constants.priority.PRIORITY_BELOW_NORMAL : os.constants.priority.PRIORITY_NORMAL);
+    if (win32 && win32.ecoOff) win32.ecoOff(pid);
     note(`${name} page: ${settings.gameFirst ? 'below normal' : 'normal'} priority (process ${pid})`);
   } catch (e) {
     note(`${name} page priority not set:`, String((e && e.message) || e));
@@ -1169,6 +1220,7 @@ function flagAdvice() {
 let hintsInvalidAt = 0;
 let hintStatusKey = '';
 let hintRefreshKey = '';
+let hintsWanted = {key:'',since:0};
 function reportHintStatus(status) {
   const publicStatus={code:status.code,text:status.text,refreshable:!!status.refreshable};
   const key=JSON.stringify(publicStatus);
@@ -1179,6 +1231,7 @@ function reportHintStatus(status) {
 }
 function invalidateHints() {
   hintsInvalidAt = Date.now();
+  hintsWanted = {key:'',since:0};
   if (wins.hints && !wins.hints.isDestroyed()) { send('hints','hints',{visible:false,targets:[]}); wins.hints.hide(); }
 }
 function makeHints() {
@@ -1196,7 +1249,10 @@ function updateHints() {
   const win=wins.hints;
   if (!win || win.isDestroyed()) return;
   const a=lastAdvice, p=a && a.hints;
-  const status=require('./lib/hint-policy').evaluate({native:!!win32,game:game.running,on:settings.overlayOn,agreed,riot,runOver,advice:a,invalidAt:hintsInvalidAt,now:Date.now(),foreground:win32 && game.running && win32.foreground()===game.hwnd,minimized:win32 && game.running && win32.minimized(game.hwnd)});
+  const now=Date.now();
+  const key=p && p.valid && !a.reading && !a.working && !a.stale ? JSON.stringify([p.frameId,p.targets]) : '';
+  if(key!==hintsWanted.key) hintsWanted={key,since:now};
+  const status=require('./lib/hint-policy').evaluate({native:!!win32,game:game.running,on:settings.overlayOn && settings.highlight !== false,agreed,riot,runOver,advice:a,invalidAt:hintsInvalidAt,now,stableSince:hintsWanted.since,foreground:win32 && game.running && win32.foreground()===game.hwnd,minimized:win32 && game.running && win32.minimized(game.hwnd)});
   if(a && a.treasureWait){status.code='treasure';status.text='View the board behind the Treasure.';status.refresh=false;status.refreshable=false;}
   if(status.refresh && p){const key=`${p.frameId}:${p.capturedAt}`;if(key!==hintRefreshKey){hintRefreshKey=key;note('targets: requesting one fresh picture for an expired target');send('follow','command','capture');}}
   if(status.code!=='visible'){reportHintStatus(status);if(win.isVisible())win.hide();return;}
@@ -1340,6 +1396,8 @@ ipcMain.on('site:riot', (e, on) => {
   if (!fromPage(e, 'follow') || !!on === riot) return;
   riot = !!on;
   note(riot ? 'Riot: the fight is on' : 'back in the prison');
+  // The box over the game waits for a picture of the screen now.
+  invalidateHints();
   recordEvent({ type: riot ? 'riot' : 'riot-over' });
   if (riot && !settings.collapsed) {
     setCollapsed(true);
@@ -1361,6 +1419,7 @@ ipcMain.on('site:run', (e, what) => {
   if (!fromPage(e, 'follow')) return;
   if (what === 'over' && !runOver) {
     runOver = true;
+    invalidateHints();
     note('run over: its record is closed, the analyzer cleared');
     recordEvent({ type: 'run-over' });
     recording = null;
@@ -1380,6 +1439,7 @@ ipcMain.on('site:trigger', (e, kind) => {
   if (fromPage(e,'follow') && !['speed'].includes(kind)) invalidateHints();
   if (fromPage(e, 'follow')) note('trigger:', String(kind));
 });
+ipcMain.on('site:click', e => { if (fromPage(e,'follow')) invalidateHints(); });
 let checked = null; // the counts at the last minute's note
 // A count since the last note; one smaller than then started over (a new
 // game log after a restart, or a reloaded page), so it all counts.
@@ -1769,6 +1829,7 @@ function rebuildMenu() {
     { label: 'Show the overlay', type: 'checkbox', checked: settings.overlayOn, accelerator: HOTKEYS.overlay, click: (i) => setOverlayOn(i.checked) },
     { label: 'Expand text advice', accelerator: HOTKEYS.expand, click: () => command('expand') },
     { label: 'Hide it while another window is in front', type: 'checkbox', checked: settings.hideBehind, enabled: !!win32, click: (i) => { settings.hideBehind = i.checked; saveSettings(); updateOverlay(); } },
+    { label: 'Highlight what to click', type: 'checkbox', checked: settings.highlight, enabled: !!win32, click: (i) => { settings.highlight = i.checked; saveSettings(); updateHints(); } },
     { label: 'Share the game’s screen when Windows won’t share its window', type: 'checkbox', checked: screenAllowed(), enabled: agreed && !!win32, click: (i) => setScreenShare(i.checked) },
     { label: 'Hide it from screenshots and streams', type: 'checkbox', checked: settings.hideFromCaptures, click: (i) => { settings.hideFromCaptures = i.checked; saveSettings(); for(const name of ['overlay','hints']) if(wins[name]) wins[name].setContentProtection(i.checked); } },
     { label: 'Put this overlay mode back in the corner', click: () => { settings[overlayLayout.key(settings.collapsed)] = null; overlayPlaced = false; placeOverlay(); saveSettings(); } },
@@ -1889,7 +1950,7 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   app.whenReady().then(async () => {
-    if(LOCAL){require('./lib/local-site').install(session.defaultSession,net,path.join(__dirname,'..'));note('local build: second-run-19; same origin and profile retained');}
+    if(LOCAL){require('./lib/local-site').install(session.defaultSession,net,path.join(__dirname,'..'));note('local build: second-run-20; same origin and profile retained');}
     note(`start: version ${app.getVersion()}, site ${SITE}${DEV ? ', debug' : ''}${TEST ? ', test' : ''}, foreground check ${win32 ? 'on' : 'off'}, as administrator: ${yesNo(win32 ? win32.selfElevated() : null)}`);
     allowCapture();
     pruneRecords();
@@ -1912,7 +1973,7 @@ if (!app.requestSingleInstanceLock()) {
     // A finite, hidden integration probe uses its own --user-data directory.
     // It reads only app capability/geometry, never a real profile or game data.
     if (TEST && flag('qa-probe')) {
-      const report = { local:LOCAL, build:'second-run-19', result:'failed' };
+      const report = { local:LOCAL, build:'second-run-20', result:'failed' };
       try {
         const deadline=Date.now()+25000;
         while(Date.now()<deadline) {
@@ -1954,7 +2015,7 @@ if (!app.requestSingleInstanceLock()) {
         await new Promise(resolve=>setTimeout(resolve,150));
         report.hints.ipcTargets=await wins.hints.webContents.executeJavaScript("document.querySelectorAll('.target[data-shape=underline]').length");
         report.hints.chain=await wins.hints.webContents.executeJavaScript("({nodes:document.querySelectorAll('.target[data-chain-step]').length,arrows:document.querySelectorAll('.chain-arrow').length,clickThrough:[...document.querySelectorAll('.target,.chain-connectors')].every(e=>getComputedStyle(e).pointerEvents==='none')})");
-        report.result=report.analyzer.api && report.analyzer.instrumentDialog && report.analyzer.assist && report.analyzer.adapter && report.analyzer.localHeader==='second-run-19' && report.follow.counter && report.overlay.orb && report.overlay.focusable && report.overlay.cardPositionRestored && report.overlay.iconPositionRestored && report.overlay.icon.background==='rgba(0, 0, 0, 0)' && report.overlay.icon.border==='0px' && report.overlay.icon.shadow==='none' && report.overlay.icon.svg===42 && report.overlay.icon.width===56 && report.overlay.icon.height===56 && report.overlay.instruments==='Instruments: QA Crown · QA Keys' && report.overlay.contract.includes('Cage Fight') && report.overlay.riskButtons.every(Boolean) && JSON.stringify(report.overlay.riskChoices)==='["preserve","simulate"]' && !report.hints.focusable && !report.hints.visible && report.hints.ipcTargets===1 && report.hints.chain.nodes===3 && report.hints.chain.arrows===2 && report.hints.chain.clickThrough ? 'passed':'failed';
+        report.result=report.analyzer.api && report.analyzer.instrumentDialog && report.analyzer.assist && report.analyzer.adapter && report.analyzer.localHeader==='second-run-20' && report.follow.counter && report.overlay.orb && report.overlay.focusable && report.overlay.cardPositionRestored && report.overlay.iconPositionRestored && report.overlay.icon.background==='rgba(0, 0, 0, 0)' && report.overlay.icon.border==='0px' && report.overlay.icon.shadow==='none' && report.overlay.icon.svg===42 && report.overlay.icon.width===56 && report.overlay.icon.height===56 && report.overlay.instruments==='Instruments: QA Crown · QA Keys' && report.overlay.contract.includes('Cage Fight') && report.overlay.riskButtons.every(Boolean) && JSON.stringify(report.overlay.riskChoices)==='["preserve","simulate"]' && !report.hints.focusable && !report.hints.visible && report.hints.ipcTargets===1 && report.hints.chain.nodes===3 && report.hints.chain.arrows===2 && report.hints.chain.clickThrough ? 'passed':'failed';
         // Exercise the actual overlay preload -> main -> recorder flag path.
         settings.record = true;
         runOver = false;
@@ -1968,6 +2029,16 @@ if (!app.requestSingleInstanceLock()) {
         const flagEntries = readLines(recording.file).map(l=>JSON.parse(l)).filter(e=>e.type==='advice-flag');
         report.adviceFlag = {entries:flagEntries.length, frameId:flagEntries[0] && flagEntries[0].frameId, status:shellExtra.adviceReport && shellExtra.adviceReport.status};
         if (report.adviceFlag.entries !== 1 || report.adviceFlag.frameId !== 'flag-probe' || report.adviceFlag.status !== 'saved') report.result='failed';
+        const priorityOS=require('os');
+        keepPagePriority();
+        const wantPriority=settings.gameFirst ? priorityOS.constants.priority.PRIORITY_BELOW_NORMAL : priorityOS.constants.priority.PRIORITY_NORMAL;
+        report.pagePriority=['follow','analyzer'].map(name=>({name,priority:priorityOS.getPriority(wins[name].webContents.getOSProcessId()),expected:wantPriority}));
+        hintsInvalidAt=0;
+        await wins.follow.webContents.executeJavaScript("window.TartarusDesktop.clicked()");
+        await new Promise(resolve=>setTimeout(resolve,100));
+        report.clickInvalidated=hintsInvalidAt>0;
+        report.singleHintsOwner=!!wins.hints && !wins.highlight;
+        if(!report.clickInvalidated || !report.singleHintsOwner || report.pagePriority.some(p=>p.priority!==p.expected)) report.result='failed';
       } catch(e) {report.error=String(e && e.stack || e);}
       fs.mkdirSync(app.getPath('userData'),{recursive:true});
       fs.writeFileSync(path.join(app.getPath('userData'),'qa-report.json'),JSON.stringify(report,null,2));

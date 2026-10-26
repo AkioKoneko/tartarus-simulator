@@ -1,0 +1,33 @@
+'use strict';
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const {evaluate} = require('../desktop/lib/hint-policy');
+const base = {native:true,game:true,on:true,agreed:true,riot:false,runOver:false,foreground:true,minimized:false,now:1000,invalidAt:200,stableSince:800,advice:{hints:{valid:true,capturedAt:500}}};
+assert.equal(evaluate(base).code,'settling');
+assert.equal(evaluate({...base,now:1100}).code,'visible');
+assert.equal(evaluate({...base,advice:{...base.advice,reading:{kind:'board'}}}).code,'reading');
+assert.equal(evaluate({...base,invalidAt:600}).code,'changed');
+assert.equal(evaluate({...base,riot:true}).code,'run');
+assert.equal(evaluate({...base,on:false}).code,'off');
+assert.equal(evaluate({...base,foreground:false}).code,'foreground');
+
+// Exercise actual readBitmap code: receipt time cannot make a pre-click frame fresh.
+const source = fs.readFileSync(path.join(__dirname,'../js/analyze.js'),'utf8');
+const start = source.indexOf('  const captureTime =');
+const end = source.indexOf('\n  function runScan',start);
+assert(start>=0 && end>start);
+let scanOptions;
+const reader = {};
+const context = {reader,Date:{now:()=>1000},document:{createElement:()=>({getContext:()=>({drawImage(){},getImageData(){return {};}})})},runScan:(image,opts)=>{scanOptions=opts;}};
+vm.runInNewContext(source.slice(start,end)+'\nthis.read=readBitmap;',context);
+const opts={takenAt:100,requestId:'latest',isCurrent:()=>true};
+context.read({width:100,height:100},opts);
+assert.equal(reader.capturedAt,100);
+assert.equal(scanOptions,opts,'same request cancellation options must reach the reader');
+assert.equal(evaluate({...base,stableSince:0,advice:{hints:{valid:true,capturedAt:reader.capturedAt}}}).code,'changed');
+context.read({width:100,height:100},{});
+assert.equal(reader.capturedAt,1000,'manual frame uses receipt time when capture time is absent');
+assert.equal((source.match(/capturedAt:captureTime\(o\)/g)||[]).length,2,'both instrument and Treasure metadata use their own capture timestamp');
+console.log('PASS target hold/click precedence and captured-time freshness with unchanged request guards');

@@ -51,3 +51,11 @@ should be updated when either the upstream contracts or local features change.
 Use Report > Wrong advice to mark a settled recommendation in an active recorded run. The mark stays local and does not send a report or interact with the game. Review the record shows the mark and its linked picture when the recording association is known; manual/unlinked pictures are labelled explicitly. Recording must be enabled in the tray.
 
 The Analyzer offers "Prefer earlier Rainbows in near ties" (off by default). It measures new Rainbows today and over the next three days using the existing full playouts. It can choose another move only within 0.05 expected final Rainbows of the leader and with at least 150 paired samples supporting an early advantage above 1.96 paired standard errors. Terminal Rainbow estimates remain unchanged. Cancel/end and short-walk safeguards retain priority. This is experimental: a bounded first-move comparison did not demonstrate an advantage; it is not a live-game improvement claim.
+
+## Upstream 0.2.23 integration
+
+The existing hints window remains the only target renderer, including observed button targets and chain steps. The upstream tray toggle and game-log click notifications control that same window. Captured timestamps are carried through reader option objects without losing request cancellation. Targets wait 300 ms for stability and stay hidden during a newer read, calculation, uncertainty or stale frame.
+
+Adaptive per-trigger capture waits and one failed-share recovery preserve latest-frame ownership and bounded Treasure retries. Partially faded decision rows request a settled retake; geometry alone does not invent an unseen action or verified click target. The local 200 ms log poll remains.
+
+The hidden Analyzer retains the configured page priority and disables Windows execution-speed throttling on its own renderer processes. Worker count and game-first preference are unchanged. Upstream performance claims are workload-specific; this update does not promise a fixed live speed multiplier.

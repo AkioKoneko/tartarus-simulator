@@ -19,12 +19,13 @@ async function receiverTest() {
     createImageBitmap: async () => ({close(){}}), setInterval() {}, setTimeout() {}, Date, console: {...console,error:e=>errors.push(String(e))},
   };
   vm.runInNewContext(fs.readFileSync(require.resolve('../js/auto.js'), 'utf8'), sandbox);
-  const frame = (id, gifts) => receiver.onmessage({ data: { type: 'frame', to: target, id, from: 'source', kind: 'board', blob: {}, gifts } });
+  const frame = (id, gifts, patch = {}) => receiver.onmessage({ data: { type: 'frame', to: target, id, from: 'source', kind: 'board', blob: {}, gifts, takenAt: 1000 + id, ...patch } });
   frame(1, { rainbows: 1, taken: 0 });
   await new Promise(setImmediate);
   frame(2, { rainbows: 1, taken: 1 });
   await new Promise(setImmediate);
   assert.equal(pending.length, 2);
+  assert.equal(pending[1].opts.takenAt, 1002, 'capture time shares the existing cancellation options object');
   assert.equal(pending[0].opts.isCurrent(), false);
   pending[1].resolve({ ok: true, tag: 'new' });
   await new Promise(setImmediate);
@@ -45,6 +46,18 @@ async function receiverTest() {
   treasures[2].resolve({ok:true,treasure:true});await new Promise(setImmediate);
   treasures[1].resolve({ok:true,treasure:true});await new Promise(setImmediate);
   assert.deepEqual(asks,['board','gift'],'only the latest Treasure frame asks for advice');
+  const count = used.length, advised = asks.length;
+  frame(6, null, { quick: true }); await new Promise(setImmediate);
+  pending.at(-1).resolve({ ok: true, controls: false }); await new Promise(setImmediate);
+  assert.equal(used.length, count, 'bare quick board is not loaded');
+  assert.equal(asks.length, advised, 'bare quick board cannot produce advice');
+  frame(7, null, { quick: true }); await new Promise(setImmediate);
+  pending.at(-1).resolve({ ok: true, controls: true, settling: true }); await new Promise(setImmediate);
+  assert.equal(used.length, count, 'a partial action row is not confirmed by layout votes');
+  frame(8, null, { quick: false }); await new Promise(setImmediate);
+  pending.at(-1).resolve({ ok: true, controls: true, tag: 'settled' }); await new Promise(setImmediate);
+  assert.equal(used.at(-1), 'settled');
+  assert.equal(asks.length, advised + 1, 'the settled retake uses the normal owner');
   assert.deepEqual(errors,[]);
 }
 receiverTest().then(() => console.log('capture: bidirectional cues, duplicate confirmations, reset, known zero and latest-wins passed')).catch((e) => { console.error(e); process.exitCode = 1; });
