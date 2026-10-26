@@ -222,12 +222,13 @@
     };
   }
 
-  // Sent when something changed, at most a few times a second.
+  // Publish the completed DOM update before the next paint. Coalesce each
+  // mutation batch without adding a second wait after the Analyzer settles.
   let last = '';
-  let timer = 0;
+  let queued = false;
   let advised = ''; // the advice last put in the record, with its board
   function post() {
-    timer = 0;
+    queued = false;
     const s = snapshot();
     const key = JSON.stringify(s);
     if (key === last) return;
@@ -275,7 +276,9 @@
     };
   }, 1000);
   function soon() {
-    if (!timer) timer = setTimeout(post, 150);
+    if (queued) return;
+    queued = true;
+    queueMicrotask(post);
   }
   const watch = new MutationObserver(soon);
   for (const id of ['az-results', 'az-problems', 'az-step', 'az-dayof', 'az-scan-status', 'az-scan-report', 'az-tools-confirm', 'az-treasure-wait']) {

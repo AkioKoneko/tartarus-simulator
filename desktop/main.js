@@ -1220,7 +1220,6 @@ function flagAdvice() {
 let hintsInvalidAt = 0;
 let hintStatusKey = '';
 let hintRefreshKey = '';
-let hintsWanted = {key:'',since:0};
 function reportHintStatus(status) {
   const publicStatus={code:status.code,text:status.text,refreshable:!!status.refreshable};
   const key=JSON.stringify(publicStatus);
@@ -1231,7 +1230,6 @@ function reportHintStatus(status) {
 }
 function invalidateHints() {
   hintsInvalidAt = Date.now();
-  hintsWanted = {key:'',since:0};
   if (wins.hints && !wins.hints.isDestroyed()) { send('hints','hints',{visible:false,targets:[]}); wins.hints.hide(); }
 }
 function makeHints() {
@@ -1250,9 +1248,7 @@ function updateHints() {
   if (!win || win.isDestroyed()) return;
   const a=lastAdvice, p=a && a.hints;
   const now=Date.now();
-  const key=p && p.valid && !a.reading && !a.working && !a.stale ? JSON.stringify([p.frameId,p.targets]) : '';
-  if(key!==hintsWanted.key) hintsWanted={key,since:now};
-  const status=require('./lib/hint-policy').evaluate({native:!!win32,game:game.running,on:settings.overlayOn && settings.highlight !== false,agreed,riot,runOver,advice:a,invalidAt:hintsInvalidAt,now,stableSince:hintsWanted.since,foreground:win32 && game.running && win32.foreground()===game.hwnd,minimized:win32 && game.running && win32.minimized(game.hwnd)});
+  const status=require('./lib/hint-policy').evaluate({native:!!win32,game:game.running,on:settings.overlayOn && settings.highlight !== false,agreed,riot,runOver,advice:a,invalidAt:hintsInvalidAt,now,foreground:win32 && game.running && win32.foreground()===game.hwnd,minimized:win32 && game.running && win32.minimized(game.hwnd)});
   if(a && a.treasureWait){status.code='treasure';status.text='View the board behind the Treasure.';status.refresh=false;status.refreshable=false;}
   if(status.refresh && p){const key=`${p.frameId}:${p.capturedAt}`;if(key!==hintRefreshKey){hintRefreshKey=key;note('targets: requesting one fresh picture for an expired target');send('follow','command','capture');}}
   if(status.code!=='visible'){reportHintStatus(status);if(win.isVisible())win.hide();return;}
@@ -1950,7 +1946,7 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   app.whenReady().then(async () => {
-    if(LOCAL){require('./lib/local-site').install(session.defaultSession,net,path.join(__dirname,'..'));note('local build: second-run-21; same origin and profile retained');}
+    if(LOCAL){require('./lib/local-site').install(session.defaultSession,net,path.join(__dirname,'..'));note('local build: second-run-22; same origin and profile retained');}
     note(`start: version ${app.getVersion()}, site ${SITE}${DEV ? ', debug' : ''}${TEST ? ', test' : ''}, foreground check ${win32 ? 'on' : 'off'}, as administrator: ${yesNo(win32 ? win32.selfElevated() : null)}`);
     allowCapture();
     pruneRecords();
@@ -1973,7 +1969,7 @@ if (!app.requestSingleInstanceLock()) {
     // A finite, hidden integration probe uses its own --user-data directory.
     // It reads only app capability/geometry, never a real profile or game data.
     if (TEST && flag('qa-probe')) {
-      const report = { local:LOCAL, build:'second-run-21', result:'failed' };
+      const report = { local:LOCAL, build:'second-run-22', result:'failed' };
       try {
         const deadline=Date.now()+25000;
         while(Date.now()<deadline) {
@@ -2015,7 +2011,7 @@ if (!app.requestSingleInstanceLock()) {
         await new Promise(resolve=>setTimeout(resolve,150));
         report.hints.ipcTargets=await wins.hints.webContents.executeJavaScript("document.querySelectorAll('.target[data-shape=underline]').length");
         report.hints.chain=await wins.hints.webContents.executeJavaScript("({nodes:document.querySelectorAll('.target[data-chain-step]').length,arrows:document.querySelectorAll('.chain-arrow').length,clickThrough:[...document.querySelectorAll('.target,.chain-connectors')].every(e=>getComputedStyle(e).pointerEvents==='none')})");
-        report.result=report.analyzer.api && report.analyzer.instrumentDialog && report.analyzer.assist && report.analyzer.adapter && report.analyzer.localHeader==='second-run-21' && report.follow.counter && report.overlay.orb && report.overlay.focusable && report.overlay.cardPositionRestored && report.overlay.iconPositionRestored && report.overlay.icon.background==='rgba(0, 0, 0, 0)' && report.overlay.icon.border==='0px' && report.overlay.icon.shadow==='none' && report.overlay.icon.svg===42 && report.overlay.icon.width===56 && report.overlay.icon.height===56 && report.overlay.instruments==='Instruments: QA Crown · QA Keys' && report.overlay.contract.includes('Cage Fight') && report.overlay.riskButtons.every(Boolean) && JSON.stringify(report.overlay.riskChoices)==='["preserve","simulate"]' && !report.hints.focusable && !report.hints.visible && report.hints.ipcTargets===1 && report.hints.chain.nodes===3 && report.hints.chain.arrows===2 && report.hints.chain.clickThrough ? 'passed':'failed';
+        report.result=report.analyzer.api && report.analyzer.instrumentDialog && report.analyzer.assist && report.analyzer.adapter && report.analyzer.localHeader==='second-run-22' && report.follow.counter && report.overlay.orb && report.overlay.focusable && report.overlay.cardPositionRestored && report.overlay.iconPositionRestored && report.overlay.icon.background==='rgba(0, 0, 0, 0)' && report.overlay.icon.border==='0px' && report.overlay.icon.shadow==='none' && report.overlay.icon.svg===42 && report.overlay.icon.width===56 && report.overlay.icon.height===56 && report.overlay.instruments==='Instruments: QA Crown · QA Keys' && report.overlay.contract.includes('Cage Fight') && report.overlay.riskButtons.every(Boolean) && JSON.stringify(report.overlay.riskChoices)==='["preserve","simulate"]' && !report.hints.focusable && !report.hints.visible && report.hints.ipcTargets===1 && report.hints.chain.nodes===3 && report.hints.chain.arrows===2 && report.hints.chain.clickThrough ? 'passed':'failed';
         // Exercise the actual overlay preload -> main -> recorder flag path.
         settings.record = true;
         runOver = false;

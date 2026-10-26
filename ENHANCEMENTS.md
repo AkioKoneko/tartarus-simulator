@@ -104,3 +104,14 @@ It also checks pixel/text grouping parity and loader integrity/discard behavior.
 GitHub Actions checks the shipped assets and separately builds the Rust sources
 and repeats parity. Recorded-frame and isolated native application QA remain
 necessary. These are offline guarantees, not a live-game latency or FPS claim.
+
+## Advice and target delivery
+
+The desktop adapter publishes the completed Analyzer DOM update in a coalesced
+microtask. Main forwards text and evaluates targets in that same advice handler;
+there is no additional timed stability hold after the recommendation settles.
+The periodic window check remains for foreground and geometry changes. Targets
+still require a current completed reading, settled recommendation, confirmed
+instruments, accepted risk choice, post-click capture and matching window
+geometry. New frames, clicks, stale checks, run completion and focus changes
+continue to hide unsafe targets.

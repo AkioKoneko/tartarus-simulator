@@ -20,6 +20,7 @@ const context = {
   BroadcastChannel: class { addEventListener(name, fn) { assert.equal(name, 'message'); onMessage = fn; } },
   MutationObserver: class { observe() {} },
   setTimeout: () => 1, clearTimeout() {}, setInterval() {}, Date,
+  queueMicrotask() {},
 };
 let source = fs.readFileSync(path.join(__dirname, '..', 'desktop/lib/analyzer-adapter.js'), 'utf8');
 assert.match(source, /\}\)\(\);\s*$/);
