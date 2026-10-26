@@ -1,0 +1,9 @@
+#!/usr/bin/env node
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const S=require('../js/scan.js'),A=require('../js/pixel-accelerator.js');
+(async()=>{const meta=require('../js/acceleration-manifest.json').pixels,{instance}=await WebAssembly.instantiate(fs.readFileSync(path.join(__dirname,'../js',meta.file))),kernels=A.create(instance);let checks=0;
+function image(seed){const width=320,height=140,data=new Uint8ClampedArray(width*height*4);let r=seed>>>0;for(let y=0;y<height;y++)for(let x=0;x<width;x++){r=(Math.imul(r,1664525)+1013904223)>>>0;const i=(y*width+x)*4,v=12+(r>>>28);data[i]=data[i+1]=data[i+2]=v;data[i+3]=255;}for(const x0 of [40,64,88,112])for(let y=30;y<55;y++)for(let x=x0;x<x0+12;x++){if(x>=x0+3&&x<x0+9&&y>33&&y<51)continue;const i=(y*width+x)*4;const v=seed===2?90:seed===3?230:180;data[i]=v;data[i+1]=seed===3?35:v;data[i+2]=seed===3?20:v;}return {width,height,data};}
+for(const seed of [1,2,3,129]){const img=image(seed);S.setKernels(null);const gray=S.grayOf(img),blur=S.blur(gray,img.width,img.height,7),lines=S.textLines(img,10,10,200,110,{minH:5,maxH:40});if(seed===1)assert.ok(lines.length>0,'Constructed glyphs must exercise text grouping');S.setKernels(kernels);const fastGray=S.grayOf(img),fastBlur=S.blur(fastGray,img.width,img.height,7),fastLines=S.textLines(img,10,10,200,110,{minH:5,maxH:40});assert.deepEqual(fastGray,gray,'Exact grayscale');assert.deepEqual(fastBlur,blur,'Exact separable blur');assert.deepEqual(fastLines,lines,'Actual glyph/word grouping parity');checks+=3;S.resetKernels();}
+S.setKernels(null);console.log(`PASS pixel kernels: ${checks} exact image primitive and actual text-grouping comparisons, including dim/colored glyphs.`);
+})().catch(e=>{S.setKernels(null);console.error(e);process.exitCode=1;});

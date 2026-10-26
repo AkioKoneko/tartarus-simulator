@@ -21,3 +21,17 @@ jobs:
           node-version: 24
       - run: node tools/check-enhanced.js
       - run: git diff --check
+  source-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUSTUP_TOOLCHAIN: 1.95.0
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: rustup toolchain install 1.95.0 --profile minimal --target wasm32-unknown-unknown
+      - run: node tools/build-acceleration.js
+      - run: node tools/test-acceleration.js
+      - run: node tools/test-pixels.js

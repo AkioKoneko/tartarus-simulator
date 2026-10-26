@@ -1,0 +1,38 @@
+{
+  "contract": "tartarus-accel-v1",
+  "pixels": {
+    "file": "pixel-kernels.wasm",
+    "sha256": "899f94ef99618305370fd0114a2b13aab9fecbd3c97396f6b042b86b7a09e4f2",
+    "sources": {
+      "scan.js": "bbd85002fa03ca6d75b4734b5db7abe258a9f68a92e7b04fe4493d9c0e207e57"
+    },
+    "nativeSources": {
+      "native/scan-kernels/Cargo.lock": "c4ea05a956f7a8ed38a955bc106678f4958154974a68e401a8181452900c7bf8",
+      "native/scan-kernels/Cargo.toml": "40e287afcc691b5841d8932e984de528aa336681c3c23caade17b9fa7921b6d2",
+      "native/scan-kernels/reference.json": "96a9e9767f2f8e504cf5a43f972f4aca693b6bda435d912cf1d4aa91f410c217",
+      "native/scan-kernels/src/lib.rs": "1596f29a9482fa99e1556fe1fdb8684187764c5ce26ec681c06c6e16746a85e8"
+    }
+  },
+  "solver": {
+    "file": "calculation-core.wasm",
+    "sha256": "7dc1414fbb987c1b76f63383f040f661903d48d58c5a0b46929d11483462784f",
+    "sources": {
+      "engine.js": "da2cb3e37e2a4fe450e1e0c3a46f30bf01dae48cca860331445b0077488c9aaf",
+      "solver.js": "33fea6db1a8c82eb6a15577623c216a3fea5e608355c7af2397c32049e1c0051",
+      "tool-combos.js": "4643edd385359f852086753fe8b05d27ca7aadf3a3155b92217db1effc6ddb3a"
+    },
+    "nativeSources": {
+      "native/tartarus/Cargo.lock": "98f00b3be01db517b4fdad5f643913cd3316430fa8a90218c0606bf1b34fb2aa",
+      "native/tartarus/Cargo.toml": "0481a6b021a0fc322c1f5f9542c45774203b29ba4658bf194bd958468de31963",
+      "native/tartarus/data.json": "2901dcc28e39092089d1c3b48c3b429d01522fcd1f4087388e4dd41938332b8c",
+      "native/tartarus/reference.json": "eed7fa7738f3a832db472933877d0fe1a6b0b8e49c6be78c1452ba860bedefea",
+      "native/tartarus/src/api.rs": "07099ead202f4d4c7d29f41d7aa6e9c65f7b9a02ead49ed952bf3543f044d9c1",
+      "native/tartarus/src/engine.rs": "9aaee01e27077531c76b24be8cd1f6936d2a1d836049bc4303dcfeae8b1afe93",
+      "native/tartarus/src/job.rs": "e3cffa33688dbfa8d0956489da2f87b9ec295a73f35422da4707762e76898e82",
+      "native/tartarus/src/lib.rs": "2bf65633a07de578c175d27937b13f5c6d4bb4b6a5d76e0122273efde87cb72d",
+      "native/tartarus/src/main.rs": "c26b46147ff7abbed4eca99470f578fdb00f9c52e49020ba54b0096fd90d0a80",
+      "native/tartarus/src/model.rs": "785ea0c9722fa44de52ef84e9d79cdea40ca42f3b64c09fdcffc949565889145",
+      "native/tartarus/src/policy.rs": "1b9601e35b0f6d23f345450d1ed9a07c65812185749599d3e251edf0b5d5f133"
+    }
+  }
+}

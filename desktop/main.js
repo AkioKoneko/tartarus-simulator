@@ -1950,7 +1950,7 @@ if (!app.requestSingleInstanceLock()) {
   }
 
   app.whenReady().then(async () => {
-    if(LOCAL){require('./lib/local-site').install(session.defaultSession,net,path.join(__dirname,'..'));note('local build: second-run-20; same origin and profile retained');}
+    if(LOCAL){require('./lib/local-site').install(session.defaultSession,net,path.join(__dirname,'..'));note('local build: second-run-21; same origin and profile retained');}
     note(`start: version ${app.getVersion()}, site ${SITE}${DEV ? ', debug' : ''}${TEST ? ', test' : ''}, foreground check ${win32 ? 'on' : 'off'}, as administrator: ${yesNo(win32 ? win32.selfElevated() : null)}`);
     allowCapture();
     pruneRecords();
@@ -1973,7 +1973,7 @@ if (!app.requestSingleInstanceLock()) {
     // A finite, hidden integration probe uses its own --user-data directory.
     // It reads only app capability/geometry, never a real profile or game data.
     if (TEST && flag('qa-probe')) {
-      const report = { local:LOCAL, build:'second-run-20', result:'failed' };
+      const report = { local:LOCAL, build:'second-run-21', result:'failed' };
       try {
         const deadline=Date.now()+25000;
         while(Date.now()<deadline) {
@@ -2015,7 +2015,7 @@ if (!app.requestSingleInstanceLock()) {
         await new Promise(resolve=>setTimeout(resolve,150));
         report.hints.ipcTargets=await wins.hints.webContents.executeJavaScript("document.querySelectorAll('.target[data-shape=underline]').length");
         report.hints.chain=await wins.hints.webContents.executeJavaScript("({nodes:document.querySelectorAll('.target[data-chain-step]').length,arrows:document.querySelectorAll('.chain-arrow').length,clickThrough:[...document.querySelectorAll('.target,.chain-connectors')].every(e=>getComputedStyle(e).pointerEvents==='none')})");
-        report.result=report.analyzer.api && report.analyzer.instrumentDialog && report.analyzer.assist && report.analyzer.adapter && report.analyzer.localHeader==='second-run-20' && report.follow.counter && report.overlay.orb && report.overlay.focusable && report.overlay.cardPositionRestored && report.overlay.iconPositionRestored && report.overlay.icon.background==='rgba(0, 0, 0, 0)' && report.overlay.icon.border==='0px' && report.overlay.icon.shadow==='none' && report.overlay.icon.svg===42 && report.overlay.icon.width===56 && report.overlay.icon.height===56 && report.overlay.instruments==='Instruments: QA Crown · QA Keys' && report.overlay.contract.includes('Cage Fight') && report.overlay.riskButtons.every(Boolean) && JSON.stringify(report.overlay.riskChoices)==='["preserve","simulate"]' && !report.hints.focusable && !report.hints.visible && report.hints.ipcTargets===1 && report.hints.chain.nodes===3 && report.hints.chain.arrows===2 && report.hints.chain.clickThrough ? 'passed':'failed';
+        report.result=report.analyzer.api && report.analyzer.instrumentDialog && report.analyzer.assist && report.analyzer.adapter && report.analyzer.localHeader==='second-run-21' && report.follow.counter && report.overlay.orb && report.overlay.focusable && report.overlay.cardPositionRestored && report.overlay.iconPositionRestored && report.overlay.icon.background==='rgba(0, 0, 0, 0)' && report.overlay.icon.border==='0px' && report.overlay.icon.shadow==='none' && report.overlay.icon.svg===42 && report.overlay.icon.width===56 && report.overlay.icon.height===56 && report.overlay.instruments==='Instruments: QA Crown · QA Keys' && report.overlay.contract.includes('Cage Fight') && report.overlay.riskButtons.every(Boolean) && JSON.stringify(report.overlay.riskChoices)==='["preserve","simulate"]' && !report.hints.focusable && !report.hints.visible && report.hints.ipcTargets===1 && report.hints.chain.nodes===3 && report.hints.chain.arrows===2 && report.hints.chain.clickThrough ? 'passed':'failed';
         // Exercise the actual overlay preload -> main -> recorder flag path.
         settings.record = true;
         runOver = false;

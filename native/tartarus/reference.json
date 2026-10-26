@@ -1,0 +1,8 @@
+{
+  "contract": "tartarus-accel-v1",
+  "sources": {
+    "engine.js": "da2cb3e37e2a4fe450e1e0c3a46f30bf01dae48cca860331445b0077488c9aaf",
+    "solver.js": "33fea6db1a8c82eb6a15577623c216a3fea5e608355c7af2397c32049e1c0051",
+    "tool-combos.js": "4643edd385359f852086753fe8b05d27ca7aadf3a3155b92217db1effc6ddb3a"
+  }
+}

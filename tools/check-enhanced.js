@@ -16,6 +16,7 @@ const required = {
   'follow.html': ['js/capture.js', 'js/follow-state.js', 'js/follow.js']
 };
 const scripts = new Set(['desktop/main.js', 'desktop/lib/local-site.js', 'desktop/lib/analyzer-adapter.js']);
+for (const script of ['acceleration','rust-backend','pixel-accelerator','solver-worker','scan-worker']) scripts.add(`js/${script}.js`);
 for (const [file, needed] of Object.entries(required)) {
   const html = fs.readFileSync(path.join(root, file), 'utf8');
   if (/^(?:<<<<<<< |=======|>>>>>>> )/m.test(html)) throw new Error(`${file}: unresolved merge conflict`);
