@@ -12,6 +12,12 @@
 (function (root) {
   'use strict';
 
+  // The optional backend accelerates these exact primitives. Recognition
+  // owners, reference data, thresholds and uncertainty stay in this module.
+  let kernels = null;
+  function setKernels(next) { const previous=kernels; kernels=next||null; if(previous && previous.reset)previous.reset(); }
+  function resetKernels() { if (kernels && kernels.reset) kernels.reset(); }
+
   // ---------- Board geometry ----------
 
   // Board grid to pixels in the reference screenshot: (u, v) is the column
@@ -53,6 +59,7 @@
   // ---------- Pixels ----------
 
   function grayOf(img) {
+    if (kernels) return kernels.gray(img);
     const n = img.width * img.height;
     const g = new Float32Array(n);
     const d = img.data;
@@ -63,6 +70,7 @@
   // Separable box blur of radius r.
   function blur(g, w, h, r) {
     if (r < 1) return g;
+    if (kernels) return kernels.blur(g, w, h, r);
     const tmp = new Float32Array(w * h);
     const out = new Float32Array(w * h);
     const span = 2 * r + 1;
@@ -86,6 +94,7 @@
   }
 
   function half(g, w, h) {
+    if (kernels) return kernels.half(g, w, h);
     const W = w >> 1;
     const H = h >> 1;
     const out = new Float32Array(W * H);
@@ -133,7 +142,7 @@
   }
 
   // Connected groups of pixels in a box that pass `test(x, y)`.
-  function blobs(img, x0, y0, x1, y1, test) {
+  function blobs(img, x0, y0, x1, y1, test, preparedMask) {
     x0 = Math.max(0, Math.floor(x0));
     y0 = Math.max(0, Math.floor(y0));
     x1 = Math.min(img.width - 1, Math.ceil(x1));
@@ -141,8 +150,8 @@
     const w = x1 - x0 + 1;
     const h = y1 - y0 + 1;
     if (w <= 0 || h <= 0) return [];
-    const mask = new Uint8Array(w * h);
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (test(x0 + x, y0 + y)) mask[y * w + x] = 1;
+    const mask = preparedMask || new Uint8Array(w * h);
+    if (!preparedMask) for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (test(x0 + x, y0 + y)) mask[y * w + x] = 1;
     const out = [];
     const stack = [];
     for (let i = 0; i < w * h; i++) {
@@ -212,7 +221,9 @@
     const bh = maxY - minY;
     // sharp: the picture's gray blurred by 1, when the caller has it.
     const levels = [{ g: (opts && opts.sharp) || blur(gray, W, H, 1), w: W, h: H, f: 1 }];
+    const acceleratedScore = kernels && kernels.geometry(pts, tv);
     const score = (lv, s, ox, oy, nearest) => {
+      if (acceleratedScore) return acceleratedScore(lv, s, ox, oy, nearest);
       let sx = 0;
       let sxx = 0;
       let sxt = 0;
@@ -340,7 +351,8 @@
         coarseY[j] = coarse.pts[j][1] * k;
       }
       let best = null;
-      for (let oy = oy0; oy <= oy1; oy++) {
+      if (kernels) best = kernels.coarse(lv, coarseX, coarseY, ctv, ox0, ox1, oy0, oy1);
+      else for (let oy = oy0; oy <= oy1; oy++) {
         for (let ox = ox0; ox <= ox1; ox++) {
           const sc = coarseScore(lv, ox, oy);
           if (!best || sc > best.score) best = { ox, oy, score: sc };
@@ -750,19 +762,24 @@
     const w = x1 - x0 + 1;
     const h = y1 - y0 + 1;
     if (w < 4 || h < 4) return [];
-    const lum = new Float32Array(w * h);
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const [r, g, b] = rgbAt(img, x0 + x, y0 + y);
-      lum[y * w + x] = 0.299 * r + 0.587 * g + 0.114 * b;
+    const radius = o.r || Math.max(3, Math.round(o.maxH / 3));
+    const preparedMask = kernels && kernels.textMask(img, x0, y0, w, h, radius, o.s, 45, 16, 0.3);
+    let lum, around;
+    if (!preparedMask) {
+      lum = new Float32Array(w * h);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const [r, g, b] = rgbAt(img, x0 + x, y0 + y);
+        lum[y * w + x] = 0.299 * r + 0.587 * g + 0.114 * b;
+      }
+      around = blur(lum, w, h, radius);
     }
-    const around = blur(lum, w, h, o.r || Math.max(3, Math.round(o.maxH / 3)));
     const found = blobs(img, x0, y0, x1, y1, (px, py) => {
       const i = (py - y0) * w + (px - x0);
       const l = lum[i];
       if (l < 45 || l - around[i] < Math.max(16, 0.3 * around[i])) return false;
       const [r, g, b] = rgbAt(img, px, py);
       return hsv(r, g, b)[1] < o.s;
-    }).filter((b) => b.h >= o.minH * 0.45 && b.h <= o.maxH && b.w <= o.maxH * 1.2 && b.n >= 4);
+    }, preparedMask).filter((b) => b.h >= o.minH * 0.45 && b.h <= o.maxH && b.w <= o.maxH * 1.2 && b.n >= 4);
     // Lines: glyphs whose vertical middles line up.
     found.sort((a, b) => (a.y0 + a.y1) / 2 - (b.y0 + b.y1) / 2);
     const lines = [];
@@ -2291,6 +2308,7 @@
   // next of the same size. opts.lang: the game's language ('en', 'zh', ...),
   // as the player set it: not English, door cards are read by their numbers.
   function scan(img, ref, opts) {
+    resetKernels();
     const t0 = Date.now();
     const gray = grayOf(img);
     const sharp = blur(gray, img.width, img.height, 1);
@@ -2357,5 +2375,7 @@
 
   const api = { scan, scanPick, readTreasureCards, pickArtBox, pickRerollShown, locateBoard, readCell, findWarden, findToolIcons, readDoors, readDays, doorCards, doorTargets, dayNumber, prefixVector, textLines, glyphVector, faceVector, artFeature, similarity, hsv, blobs, at, gridOf, scaleAt, grayOf, blur, RING, H0, ARROW, FACE, GLYPH, locateByLabels, readChainScreen, readDecision, readChromatic, readTools, readObjectiveTitle, withPanelIcons, badgeBox, readBadge };
   if (typeof module === 'object' && module.exports) module.exports = api;
+  api.setKernels = setKernels;
+  api.resetKernels = resetKernels;
   root.TartarusScan = api;
 })(typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : globalThis);

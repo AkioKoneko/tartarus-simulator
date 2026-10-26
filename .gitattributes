@@ -1,0 +1,7 @@
+# Acceleration seals must be identical on Windows and CI checkouts.
+js/engine.js text eol=lf
+js/solver.js text eol=lf
+js/tool-combos.js text eol=lf
+js/scan.js text eol=lf
+native/** text eol=lf
+js/*.wasm binary
